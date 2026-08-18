@@ -3,6 +3,12 @@
 .env.*
 !.env.example
 
+# Monorepo é pnpm só — bloqueia lockfile de outro gerenciador que apareça
+# por engano (ex.: npx caindo pro npm por algum motivo).
+package-lock.json
+yarn.lock
+bun.lock
+
 # Logs
 logs
 *.log

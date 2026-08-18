@@ -19,6 +19,7 @@ import { notifyTicketStatus, sendCsatInvite } from "@/lib/whatsapp.functions";
 import { TicketComposer } from "@/components/ticket/TicketComposer";
 import { AttachmentPreview } from "@/components/ticket/AttachmentPreview";
 import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
+import { useChatSocket } from "@/lib/chat-socket";
 import DOMPurify from "isomorphic-dompurify";
 
 export const Route = createFileRoute("/_authenticated/tickets/$id")({
@@ -65,6 +66,9 @@ function TicketDetailPage() {
   const { user } = useAuth();
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const chat = useChatSocket(id, () => {
+    qc.invalidateQueries({ queryKey: ["messages", id] });
+  });
 
   const {
     data: ticket,
@@ -607,7 +611,12 @@ function TicketDetailPage() {
                 qc.invalidateQueries({ queryKey: ["ticket", id] });
               }}
               onPublicSent={handleComposerPublicSent}
+              onSendChat={ticket.channel === "chat" ? chat.sendMessage : undefined}
+              onTyping={ticket.channel === "chat" ? chat.setTyping : undefined}
             />
+          )}
+          {ticket.channel === "chat" && chat.typingUsers.size > 0 && (
+            <p className="px-3 pb-1 text-xs italic text-muted-foreground">Digitando…</p>
           )}
         </div>
 

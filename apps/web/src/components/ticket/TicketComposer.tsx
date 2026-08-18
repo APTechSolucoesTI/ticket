@@ -60,6 +60,9 @@ type Props = {
   applyTemplate: (body: string) => string;
   onSent?: () => void;
   onPublicSent?: () => void;
+  /** Canal "chat" (WebSocket, ChatGateway) — texto puro só, sem anexo. */
+  onSendChat?: (content: string) => void;
+  onTyping?: (isTyping: boolean) => void;
 };
 
 export function TicketComposer({
@@ -71,12 +74,16 @@ export function TicketComposer({
   applyTemplate,
   onSent,
   onPublicSent,
+  onSendChat,
+  onTyping,
 }: Props) {
   const isWa = channel === "whatsapp";
   // Strictly the email channel — "manual" tickets keep their pre-existing
   // behavior of just logging a message tagged channel="email" for display,
   // with no real dispatch (no guarantee they even have a contact email).
   const isEmail = channel === "email";
+  const isChat = channel === "chat";
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -182,6 +189,11 @@ export function TicketComposer({
           });
         } else if (isEmail && !internal) {
           await backendClient.post("/channels/email/accounts/me/send", { ticketId, content: text });
+        } else if (isChat && !internal && onSendChat) {
+          // ChatGateway já persiste a mensagem (messages, channel='chat') e
+          // distribui via WebSocket — não insere aqui de novo.
+          onSendChat(text);
+          onTyping?.(false);
         } else {
           const { data: u } = await supabase.auth.getUser();
           const { error } = await supabase.from("messages").insert({
@@ -427,7 +439,14 @@ export function TicketComposer({
 
       <textarea
         value={reply}
-        onChange={(e) => setReply(e.target.value)}
+        onChange={(e) => {
+          setReply(e.target.value);
+          if (isChat && onTyping) {
+            onTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => onTyping(false), 2000);
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();

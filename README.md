@@ -78,9 +78,13 @@ feita como pedido, porque:
 
 ## O que ainda falta
 
-**Chat no frontend.** O `ChatGateway` existe e funciona (testável com um client Socket.IO
-qualquer), mas não tem UI nova conectando nele ainda — o app não tinha uma tela de chat em tempo
-real antes, então não havia o que portar.
+**Chat no frontend — feito.** `apps/web/src/lib/chat-socket.ts` (hook `useChatSocket`) conecta no
+`ChatGateway` com o JWT da sessão, entra na room do ticket (`ticket:join`), recebe
+`message:receive` (invalida a query de mensagens) e `typing`. `TicketComposer` manda pelo socket
+(`message:send`) em vez de INSERT direto quando `channel === "chat"` — o `ChatGateway` já persiste
+e distribui, então não duplica. Indicador "Digitando…" na tela do ticket. Envio de anexo pelo chat
+não foi coberto (o gateway só trata texto) — cai no caminho antigo de anexo genérico, mesma
+limitação que WhatsApp/e-mail já tinham pra outros tipos de mídia não migrados.
 
 **WebSocket atrás do proxy.** O proxy same-origin (`$.ts`) só cobre REST — não dá pra fazer
 upgrade de WebSocket através de um handler de request comum. Duas opções em produção:
