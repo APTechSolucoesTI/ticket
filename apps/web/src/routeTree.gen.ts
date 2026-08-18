@@ -36,6 +36,7 @@ import { Route as KbSlugRouteImport } from './routes/kb.$slug'
 import { Route as ReportTokenRouteImport } from './routes/report.$token'
 import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticated/kb.admin'
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
+import { Route as ApiBackendSplatRouteImport } from './routes/api/backend/$'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
 import { Route as ApiPublicHooksEmailImapPollRouteImport } from './routes/api/public/hooks/email-imap-poll'
 import { Route as ApiPublicHooksEmailIngestRouteImport } from './routes/api/public/hooks/email-ingest'
@@ -184,6 +185,11 @@ const AuthenticatedTicketsIdRoute = AuthenticatedTicketsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AuthenticatedTicketsRoute,
 } as any)
+const ApiBackendSplatRoute = ApiBackendSplatRouteImport.update({
+  id: '/api/backend/$',
+  path: '/api/backend/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoTicketsIdRoute = DemoTicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/kb/': typeof KbIndexRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
+  '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/api/public/hooks/email-imap-poll': typeof ApiPublicHooksEmailImapPollRoute
   '/api/public/hooks/email-ingest': typeof ApiPublicHooksEmailIngestRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByTo {
   '/kb': typeof KbIndexRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
+  '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/api/public/hooks/email-imap-poll': typeof ApiPublicHooksEmailImapPollRoute
   '/api/public/hooks/email-ingest': typeof ApiPublicHooksEmailIngestRoute
@@ -353,6 +361,7 @@ export interface FileRoutesById {
   '/kb/': typeof KbIndexRoute
   '/_authenticated/kb/admin': typeof AuthenticatedKbAdminRoute
   '/_authenticated/tickets/$id': typeof AuthenticatedTicketsIdRoute
+  '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/api/public/hooks/email-imap-poll': typeof ApiPublicHooksEmailImapPollRoute
   '/api/public/hooks/email-ingest': typeof ApiPublicHooksEmailIngestRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/kb/'
     | '/kb/admin'
     | '/tickets/$id'
+    | '/api/backend/$'
     | '/demo/Tickets/$id'
     | '/api/public/hooks/email-imap-poll'
     | '/api/public/hooks/email-ingest'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/kb'
     | '/kb/admin'
     | '/tickets/$id'
+    | '/api/backend/$'
     | '/demo/Tickets/$id'
     | '/api/public/hooks/email-imap-poll'
     | '/api/public/hooks/email-ingest'
@@ -471,6 +482,7 @@ export interface FileRouteTypes {
     | '/kb/'
     | '/_authenticated/kb/admin'
     | '/_authenticated/tickets/$id'
+    | '/api/backend/$'
     | '/demo/Tickets/$id'
     | '/api/public/hooks/email-imap-poll'
     | '/api/public/hooks/email-ingest'
@@ -493,6 +505,7 @@ export interface RootRouteChildren {
   PortalRoute: typeof PortalRoute
   CsatTokenRoute: typeof CsatTokenRoute
   ReportTokenRoute: typeof ReportTokenRoute
+  ApiBackendSplatRoute: typeof ApiBackendSplatRoute
   ApiPublicHooksEmailImapPollRoute: typeof ApiPublicHooksEmailImapPollRoute
   ApiPublicHooksEmailIngestRoute: typeof ApiPublicHooksEmailIngestRoute
   ApiPublicPortalChatStartRoute: typeof ApiPublicPortalChatStartRoute
@@ -696,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTicketsIdRouteImport
       parentRoute: typeof AuthenticatedTicketsRoute
     }
+    '/api/backend/$': {
+      id: '/api/backend/$'
+      path: '/api/backend/$'
+      fullPath: '/api/backend/$'
+      preLoaderRoute: typeof ApiBackendSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo/Tickets/$id': {
       id: '/demo/Tickets/$id'
       path: '/$id'
@@ -869,6 +889,7 @@ const rootRouteChildren: RootRouteChildren = {
   PortalRoute: PortalRoute,
   CsatTokenRoute: CsatTokenRoute,
   ReportTokenRoute: ReportTokenRoute,
+  ApiBackendSplatRoute: ApiBackendSplatRoute,
   ApiPublicHooksEmailImapPollRoute: ApiPublicHooksEmailImapPollRoute,
   ApiPublicHooksEmailIngestRoute: ApiPublicHooksEmailIngestRoute,
   ApiPublicPortalChatStartRoute: ApiPublicPortalChatStartRoute,
