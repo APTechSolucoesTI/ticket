@@ -25,4 +25,21 @@ export class RedisService implements OnModuleDestroy {
     const result = await this.client.set(key, '1', 'EX', ttlSeconds, 'NX');
     return result === 'OK';
   }
+
+  /**
+   * Rate limit de janela fixa (INCR + EXPIRE) — substitui o contador em
+   * memória de apps/web/src/lib/rate-limit.ts por um que funciona certo com
+   * várias réplicas da API atrás de um load balancer.
+   */
+  async checkRateLimit(
+    key: string,
+    limit: number,
+    windowSeconds: number,
+  ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+    const count = await this.client.incr(key);
+    if (count === 1) await this.client.expire(key, windowSeconds);
+    if (count <= limit) return { allowed: true, retryAfterSeconds: 0 };
+    const ttl = await this.client.ttl(key);
+    return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : windowSeconds };
+  }
 }
