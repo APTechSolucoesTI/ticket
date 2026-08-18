@@ -1,0 +1,241 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { SupabaseService } from '../../supabase/supabase.service';
+
+// Portado 1:1 de apps/web/src/lib/email-channel.server.ts (mesma regra de
+// negócio: só vira ticket se o remetente for um contato com contrato ATIVO;
+// senão vai pra fila de e-mail pendente). O frontend não faz mais essa
+// gravação direta — só a API, com a service_role key.
+
+export type InboundEmailAttachment = {
+  filename: string;
+  contentType: string;
+  size: number;
+  content: Buffer;
+};
+export type StoredAttachment = {
+  path: string;
+  name: string;
+  size: number;
+  type: string;
+};
+
+export type InboundEmail = {
+  message_id: string;
+  from_email: string;
+  from_name?: string | null;
+  subject: string;
+  body: string;
+  tenant_id?: string;
+  attachments?: InboundEmailAttachment[];
+};
+
+export type InboundEmailResult =
+  | { status: 'created'; ticket_id: string; number: number }
+  | { status: 'duplicate'; ticket_id: string | null }
+  | {
+      status: 'skipped';
+      reason: 'unknown_contact' | 'contact_not_allowed' | 'no_active_contract';
+    }
+  | { status: 'error'; reason: string };
+
+@Injectable()
+export class EmailChannelService {
+  private readonly logger = new Logger(EmailChannelService.name);
+
+  constructor(private readonly supabase: SupabaseService) {}
+
+  private async uploadAttachments(
+    basePath: string,
+    attachments: InboundEmailAttachment[],
+  ): Promise<StoredAttachment[]> {
+    const uploaded: StoredAttachment[] = [];
+    for (const att of attachments) {
+      const safeName = (att.filename || 'anexo')
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .slice(0, 120);
+      const path = `${basePath}/${Date.now()}-${randomUUID()}-${safeName}`;
+      const { error } = await this.supabase.client.storage
+        .from('ticket-attachments')
+        .upload(path, att.content, {
+          contentType: att.contentType || 'application/octet-stream',
+          upsert: false,
+        });
+      if (error) {
+        this.logger.error(`attachment upload failed: ${error.message}`);
+        continue;
+      }
+      uploaded.push({
+        path,
+        name: att.filename || safeName,
+        size: att.size,
+        type: att.contentType || 'application/octet-stream',
+      });
+    }
+    return uploaded;
+  }
+
+  private async queuePendingEmail(params: {
+    tenantId: string;
+    contactId: string;
+    data: InboundEmail;
+  }) {
+    const id = randomUUID();
+    const attachments = params.data.attachments?.length
+      ? await this.uploadAttachments(
+          `${params.tenantId}/pending/${id}`,
+          params.data.attachments,
+        )
+      : [];
+
+    const { error } = await this.supabase.client
+      .from('email_pending_messages')
+      .insert({
+        id,
+        tenant_id: params.tenantId,
+        contact_id: params.contactId,
+        from_email: params.data.from_email,
+        from_name: params.data.from_name ?? null,
+        subject: params.data.subject,
+        content: params.data.body || '(sem conteúdo)',
+        message_id: params.data.message_id,
+        attachments,
+      });
+    if (error)
+      this.logger.error(`pending queue insert error: ${error.message}`);
+  }
+
+  async processInboundEmail(data: InboundEmail): Promise<InboundEmailResult> {
+    const { data: contact, error: contactErr } = await this.supabase.client
+      .from('contacts')
+      .select('id, tenant_id, company_id, name, can_open_tickets, is_active')
+      .ilike('email', data.from_email)
+      .maybeSingle();
+
+    if (contactErr) {
+      this.logger.error(`contact lookup error: ${contactErr.message}`);
+      return { status: 'error', reason: 'db_error' };
+    }
+
+    if (!contact) {
+      if (data.tenant_id) {
+        const { data: newContact, error: cErr } = await this.supabase.client
+          .from('contacts')
+          .insert({
+            tenant_id: data.tenant_id,
+            company_id: null,
+            name: data.from_name?.trim() || data.from_email,
+            email: data.from_email,
+            is_active: true,
+            can_open_tickets: false,
+            notes:
+              'Contato criado automaticamente via e-mail — aguardando vínculo com cliente.',
+          })
+          .select('id')
+          .single();
+        if (cErr || !newContact) {
+          this.logger.error(`create pending contact failed: ${cErr?.message}`);
+        } else {
+          await this.queuePendingEmail({
+            tenantId: data.tenant_id,
+            contactId: newContact.id,
+            data,
+          });
+        }
+      }
+      return { status: 'skipped', reason: 'unknown_contact' };
+    }
+
+    if (!contact.company_id) {
+      await this.queuePendingEmail({
+        tenantId: contact.tenant_id,
+        contactId: contact.id,
+        data,
+      });
+      return { status: 'skipped', reason: 'unknown_contact' };
+    }
+
+    if (contact.is_active === false || contact.can_open_tickets === false) {
+      return { status: 'skipped', reason: 'contact_not_allowed' };
+    }
+
+    const { data: contractRow } = await this.supabase.client
+      .from('contracts')
+      .select('id, sla_policy_id')
+      .eq('tenant_id', contact.tenant_id)
+      .eq('company_id', contact.company_id)
+      .eq('status', 'active')
+      .order('starts_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!contractRow) {
+      await this.queuePendingEmail({
+        tenantId: contact.tenant_id,
+        contactId: contact.id,
+        data,
+      });
+      return { status: 'skipped', reason: 'no_active_contract' };
+    }
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: existingMsg } = await this.supabase.client
+      .from('messages')
+      .select('id, ticket_id')
+      .eq('tenant_id', contact.tenant_id)
+      .eq('channel', 'email')
+      .gte('created_at', since)
+      .eq('external_id', data.message_id)
+      .maybeSingle();
+
+    if (existingMsg) {
+      return { status: 'duplicate', ticket_id: existingMsg.ticket_id };
+    }
+
+    const { data: ticket, error: ticketErr } = await this.supabase.client
+      .from('tickets')
+      .insert({
+        tenant_id: contact.tenant_id,
+        subject: data.subject,
+        status: 'new',
+        priority: 'medium',
+        channel: 'email',
+        contact_id: contact.id,
+        company_id: contact.company_id,
+        contract_id: contractRow.id,
+        sla_policy_id: contractRow.sla_policy_id ?? null,
+        pending_type: 'awaiting_tech',
+      })
+      .select('id, number')
+      .single();
+
+    if (ticketErr || !ticket) {
+      this.logger.error(`ticket insert error: ${ticketErr?.message}`);
+      return { status: 'error', reason: 'ticket_insert_failed' };
+    }
+
+    const attachments = data.attachments?.length
+      ? await this.uploadAttachments(
+          `${contact.tenant_id}/${ticket.id}`,
+          data.attachments,
+        )
+      : [];
+
+    const { error: msgErr } = await this.supabase.client
+      .from('messages')
+      .insert({
+        tenant_id: contact.tenant_id,
+        ticket_id: ticket.id,
+        author_contact_id: contact.id,
+        author_type: 'contact',
+        channel: 'email',
+        is_internal: false,
+        content: data.body || '(sem conteúdo)',
+        external_id: data.message_id,
+        attachments,
+      });
+    if (msgErr) this.logger.error(`message insert error: ${msgErr.message}`);
+
+    return { status: 'created', ticket_id: ticket.id, number: ticket.number };
+  }
+}
