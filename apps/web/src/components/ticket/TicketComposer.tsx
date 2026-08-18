@@ -36,14 +36,13 @@ import { maskPhone } from "@/lib/masks";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  sendWhatsAppReply,
   sendWhatsAppMedia,
   sendWhatsAppContact,
   sendWhatsAppLocation,
   sendWhatsAppSticker,
   sendWhatsAppCall,
 } from "@/lib/whatsapp.functions";
-import { sendEmailReply } from "@/lib/email-channel.functions";
+import { backendClient } from "@/lib/backend-client";
 import { cn } from "@/lib/utils";
 
 // Lazy emoji picker to avoid inflating initial bundle
@@ -97,8 +96,6 @@ export function TicketComposer({
   const [stickerOpen, setStickerOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
 
-  const sendEmail = useServerFn(sendEmailReply);
-  const sendWa = useServerFn(sendWhatsAppReply);
   const sendWaMedia = useServerFn(sendWhatsAppMedia);
   const sendWaContact = useServerFn(sendWhatsAppContact);
   const sendWaLocation = useServerFn(sendWhatsAppLocation);
@@ -179,9 +176,12 @@ export function TicketComposer({
       // 2) Text-only if no files (files carry caption already)
       if (files.length === 0 && text.trim()) {
         if (isWa && !internal) {
-          await sendWa({ data: { ticket_id: ticketId, content: text } });
+          await backendClient.post("/channels/whatsapp/instances/me/send", {
+            ticketId,
+            content: text,
+          });
         } else if (isEmail && !internal) {
-          await sendEmail({ data: { ticket_id: ticketId, content: text } });
+          await backendClient.post("/channels/email/accounts/me/send", { ticketId, content: text });
         } else {
           const { data: u } = await supabase.auth.getUser();
           const { error } = await supabase.from("messages").insert({

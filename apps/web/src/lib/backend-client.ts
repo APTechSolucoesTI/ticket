@@ -17,11 +17,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {
-    const message = (body && typeof body === "object" && "message" in body ? body.message : null) as
-      | string
-      | string[]
-      | null;
-    throw new Error(Array.isArray(message) ? message.join(", ") : (message ?? `Erro ${res.status}`));
+    const message = (
+      body && typeof body === "object" && "message" in body ? body.message : null
+    ) as string | string[] | null;
+    throw new Error(
+      Array.isArray(message) ? message.join(", ") : (message ?? `Erro ${res.status}`),
+    );
   }
   return body as T;
 }
@@ -29,8 +30,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const backendClient = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),
   post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: body !== undefined ? JSON.stringify(body) : undefined }),
+    request<T>(path, {
+      method: "POST",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
   patch: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "PATCH", body: body !== undefined ? JSON.stringify(body) : undefined }),
+    request<T>(path, {
+      method: "PATCH",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

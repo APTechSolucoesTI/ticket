@@ -38,8 +38,6 @@ import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
 import { Route as ApiBackendSplatRouteImport } from './routes/api/backend/$'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
-import { Route as ApiPublicHooksEmailImapPollRouteImport } from './routes/api/public/hooks/email-imap-poll'
-import { Route as ApiPublicHooksEmailIngestRouteImport } from './routes/api/public/hooks/email-ingest'
 import { Route as ApiPublicPortalChatStartRouteImport } from './routes/api/public/portal/chat-start'
 import { Route as ApiPublicPortalRequestOtpRouteImport } from './routes/api/public/portal/request-otp'
 import { Route as ApiPublicPortalSessionRouteImport } from './routes/api/public/portal/session'
@@ -47,7 +45,6 @@ import { Route as ApiPublicPortalTicketDetailRouteImport } from './routes/api/pu
 import { Route as ApiPublicPortalTicketReplyRouteImport } from './routes/api/public/portal/ticket-reply'
 import { Route as ApiPublicPortalTicketsRouteImport } from './routes/api/public/portal/tickets'
 import { Route as ApiPublicPortalVerifyOtpRouteImport } from './routes/api/public/portal/verify-otp'
-import { Route as ApiPublicHooksUazapiTenantIdRouteImport } from './routes/api/public/hooks/uazapi/$tenantId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -195,18 +192,6 @@ const DemoTicketsIdRoute = DemoTicketsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DemoTicketsRoute,
 } as any)
-const ApiPublicHooksEmailImapPollRoute =
-  ApiPublicHooksEmailImapPollRouteImport.update({
-    id: '/api/public/hooks/email-imap-poll',
-    path: '/api/public/hooks/email-imap-poll',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksEmailIngestRoute =
-  ApiPublicHooksEmailIngestRouteImport.update({
-    id: '/api/public/hooks/email-ingest',
-    path: '/api/public/hooks/email-ingest',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicPortalChatStartRoute =
   ApiPublicPortalChatStartRouteImport.update({
     id: '/api/public/portal/chat-start',
@@ -247,12 +232,6 @@ const ApiPublicPortalVerifyOtpRoute =
     path: '/api/public/portal/verify-otp',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksUazapiTenantIdRoute =
-  ApiPublicHooksUazapiTenantIdRouteImport.update({
-    id: '/api/public/hooks/uazapi/$tenantId',
-    path: '/api/public/hooks/uazapi/$tenantId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -283,8 +262,6 @@ export interface FileRoutesByFullPath {
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
-  '/api/public/hooks/email-imap-poll': typeof ApiPublicHooksEmailImapPollRoute
-  '/api/public/hooks/email-ingest': typeof ApiPublicHooksEmailIngestRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
@@ -292,7 +269,6 @@ export interface FileRoutesByFullPath {
   '/api/public/portal/ticket-reply': typeof ApiPublicPortalTicketReplyRoute
   '/api/public/portal/tickets': typeof ApiPublicPortalTicketsRoute
   '/api/public/portal/verify-otp': typeof ApiPublicPortalVerifyOtpRoute
-  '/api/public/hooks/uazapi/$tenantId': typeof ApiPublicHooksUazapiTenantIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -321,8 +297,6 @@ export interface FileRoutesByTo {
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
-  '/api/public/hooks/email-imap-poll': typeof ApiPublicHooksEmailImapPollRoute
-  '/api/public/hooks/email-ingest': typeof ApiPublicHooksEmailIngestRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
@@ -330,7 +304,6 @@ export interface FileRoutesByTo {
   '/api/public/portal/ticket-reply': typeof ApiPublicPortalTicketReplyRoute
   '/api/public/portal/tickets': typeof ApiPublicPortalTicketsRoute
   '/api/public/portal/verify-otp': typeof ApiPublicPortalVerifyOtpRoute
-  '/api/public/hooks/uazapi/$tenantId': typeof ApiPublicHooksUazapiTenantIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -363,8 +336,6 @@ export interface FileRoutesById {
   '/_authenticated/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
-  '/api/public/hooks/email-imap-poll': typeof ApiPublicHooksEmailImapPollRoute
-  '/api/public/hooks/email-ingest': typeof ApiPublicHooksEmailIngestRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
@@ -372,7 +343,6 @@ export interface FileRoutesById {
   '/api/public/portal/ticket-reply': typeof ApiPublicPortalTicketReplyRoute
   '/api/public/portal/tickets': typeof ApiPublicPortalTicketsRoute
   '/api/public/portal/verify-otp': typeof ApiPublicPortalVerifyOtpRoute
-  '/api/public/hooks/uazapi/$tenantId': typeof ApiPublicHooksUazapiTenantIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -405,8 +375,6 @@ export interface FileRouteTypes {
     | '/tickets/$id'
     | '/api/backend/$'
     | '/demo/Tickets/$id'
-    | '/api/public/hooks/email-imap-poll'
-    | '/api/public/hooks/email-ingest'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
@@ -414,7 +382,6 @@ export interface FileRouteTypes {
     | '/api/public/portal/ticket-reply'
     | '/api/public/portal/tickets'
     | '/api/public/portal/verify-otp'
-    | '/api/public/hooks/uazapi/$tenantId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -443,8 +410,6 @@ export interface FileRouteTypes {
     | '/tickets/$id'
     | '/api/backend/$'
     | '/demo/Tickets/$id'
-    | '/api/public/hooks/email-imap-poll'
-    | '/api/public/hooks/email-ingest'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
@@ -452,7 +417,6 @@ export interface FileRouteTypes {
     | '/api/public/portal/ticket-reply'
     | '/api/public/portal/tickets'
     | '/api/public/portal/verify-otp'
-    | '/api/public/hooks/uazapi/$tenantId'
   id:
     | '__root__'
     | '/'
@@ -484,8 +448,6 @@ export interface FileRouteTypes {
     | '/_authenticated/tickets/$id'
     | '/api/backend/$'
     | '/demo/Tickets/$id'
-    | '/api/public/hooks/email-imap-poll'
-    | '/api/public/hooks/email-ingest'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
@@ -493,7 +455,6 @@ export interface FileRouteTypes {
     | '/api/public/portal/ticket-reply'
     | '/api/public/portal/tickets'
     | '/api/public/portal/verify-otp'
-    | '/api/public/hooks/uazapi/$tenantId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -506,8 +467,6 @@ export interface RootRouteChildren {
   CsatTokenRoute: typeof CsatTokenRoute
   ReportTokenRoute: typeof ReportTokenRoute
   ApiBackendSplatRoute: typeof ApiBackendSplatRoute
-  ApiPublicHooksEmailImapPollRoute: typeof ApiPublicHooksEmailImapPollRoute
-  ApiPublicHooksEmailIngestRoute: typeof ApiPublicHooksEmailIngestRoute
   ApiPublicPortalChatStartRoute: typeof ApiPublicPortalChatStartRoute
   ApiPublicPortalRequestOtpRoute: typeof ApiPublicPortalRequestOtpRoute
   ApiPublicPortalSessionRoute: typeof ApiPublicPortalSessionRoute
@@ -515,7 +474,6 @@ export interface RootRouteChildren {
   ApiPublicPortalTicketReplyRoute: typeof ApiPublicPortalTicketReplyRoute
   ApiPublicPortalTicketsRoute: typeof ApiPublicPortalTicketsRoute
   ApiPublicPortalVerifyOtpRoute: typeof ApiPublicPortalVerifyOtpRoute
-  ApiPublicHooksUazapiTenantIdRoute: typeof ApiPublicHooksUazapiTenantIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -723,20 +681,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTicketsIdRouteImport
       parentRoute: typeof DemoTicketsRoute
     }
-    '/api/public/hooks/email-imap-poll': {
-      id: '/api/public/hooks/email-imap-poll'
-      path: '/api/public/hooks/email-imap-poll'
-      fullPath: '/api/public/hooks/email-imap-poll'
-      preLoaderRoute: typeof ApiPublicHooksEmailImapPollRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/email-ingest': {
-      id: '/api/public/hooks/email-ingest'
-      path: '/api/public/hooks/email-ingest'
-      fullPath: '/api/public/hooks/email-ingest'
-      preLoaderRoute: typeof ApiPublicHooksEmailIngestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/portal/chat-start': {
       id: '/api/public/portal/chat-start'
       path: '/api/public/portal/chat-start'
@@ -784,13 +728,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/portal/verify-otp'
       fullPath: '/api/public/portal/verify-otp'
       preLoaderRoute: typeof ApiPublicPortalVerifyOtpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/uazapi/$tenantId': {
-      id: '/api/public/hooks/uazapi/$tenantId'
-      path: '/api/public/hooks/uazapi/$tenantId'
-      fullPath: '/api/public/hooks/uazapi/$tenantId'
-      preLoaderRoute: typeof ApiPublicHooksUazapiTenantIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -890,8 +827,6 @@ const rootRouteChildren: RootRouteChildren = {
   CsatTokenRoute: CsatTokenRoute,
   ReportTokenRoute: ReportTokenRoute,
   ApiBackendSplatRoute: ApiBackendSplatRoute,
-  ApiPublicHooksEmailImapPollRoute: ApiPublicHooksEmailImapPollRoute,
-  ApiPublicHooksEmailIngestRoute: ApiPublicHooksEmailIngestRoute,
   ApiPublicPortalChatStartRoute: ApiPublicPortalChatStartRoute,
   ApiPublicPortalRequestOtpRoute: ApiPublicPortalRequestOtpRoute,
   ApiPublicPortalSessionRoute: ApiPublicPortalSessionRoute,
@@ -899,7 +834,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPortalTicketReplyRoute: ApiPublicPortalTicketReplyRoute,
   ApiPublicPortalTicketsRoute: ApiPublicPortalTicketsRoute,
   ApiPublicPortalVerifyOtpRoute: ApiPublicPortalVerifyOtpRoute,
-  ApiPublicHooksUazapiTenantIdRoute: ApiPublicHooksUazapiTenantIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

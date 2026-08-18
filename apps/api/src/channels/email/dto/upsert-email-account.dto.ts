@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsInt,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -14,13 +15,20 @@ import {
 // original (`/channels/email/accounts`) opera sobre essa linha única,
 // endereçada pelo próprio tenantId do usuário autenticado.
 export class UpsertEmailAccountDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() inboxAddress?: string;
+
   @ApiProperty() @IsString() @MinLength(1) imapHost!: string;
   @ApiProperty({ default: 993 }) @IsInt() @Min(1) @Max(65535) imapPort!: number;
   @ApiProperty() @IsString() @MinLength(1) imapUser!: string;
 
   // Texto puro só chega até aqui — o service criptografa (AES-256-GCM) antes
-  // de gravar. Nunca é lido de volta em claro pela API de listagem.
-  @ApiProperty() @IsString() @MinLength(1) imapPassword!: string;
+  // de gravar. Nunca é lido de volta em claro pela API de listagem, então a
+  // tela não tem como reexibir a senha salva — omitir mantém a atual.
+  @ApiPropertyOptional({ description: 'Omitir mantém a senha já salva' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  imapPassword?: string;
 
   @ApiProperty({ default: true }) @IsBoolean() imapSecure!: boolean;
 

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SecretsService } from '../../crypto/secrets.service';
@@ -8,6 +12,7 @@ import type {
   EmailAccountDto,
   TestConnectionResultDto,
 } from '@apticket/shared-types';
+import type { TablesUpdate } from '@apticket/shared-types/database';
 
 @Injectable()
 export class EmailAccountService {
@@ -21,7 +26,7 @@ export class EmailAccountService {
     const { data, error } = await this.supabase.client
       .from('tenants')
       .select(
-        'id, email_imap_host, email_imap_port, email_imap_user, email_imap_secure, email_smtp_host, email_smtp_port, email_smtp_secure, email_poll_interval_minutes, email_enabled, email_last_polled_at',
+        'id, email_inbox_address, email_imap_host, email_imap_port, email_imap_user, email_imap_secure, email_smtp_host, email_smtp_port, email_smtp_secure, email_poll_interval_minutes, email_enabled, email_last_polled_at',
       )
       .eq('id', tenantId)
       .maybeSingle();
@@ -29,6 +34,7 @@ export class EmailAccountService {
     if (!data.email_imap_host) return null;
     return {
       tenantId: data.id,
+      inboxAddress: data.email_inbox_address,
       imapHost: data.email_imap_host,
       imapPort: data.email_imap_port,
       imapUser: data.email_imap_user,
@@ -46,20 +52,37 @@ export class EmailAccountService {
     tenantId: string,
     dto: UpsertEmailAccountDto,
   ): Promise<EmailAccountDto> {
+    const values: TablesUpdate<'tenants'> = {
+      email_inbox_address: dto.inboxAddress?.trim() || null,
+      email_imap_host: dto.imapHost,
+      email_imap_port: dto.imapPort,
+      email_imap_user: dto.imapUser,
+      email_imap_secure: dto.imapSecure,
+      email_smtp_host: dto.smtpHost,
+      email_smtp_port: dto.smtpPort,
+      email_smtp_secure: dto.smtpSecure,
+      email_poll_interval_minutes: dto.pollIntervalMinutes,
+      email_enabled: dto.enabled,
+    };
+
+    if (dto.imapPassword) {
+      values.email_imap_password = this.secrets.encrypt(dto.imapPassword);
+    } else {
+      const { data: existing } = await this.supabase.client
+        .from('tenants')
+        .select('email_imap_password')
+        .eq('id', tenantId)
+        .maybeSingle();
+      if (!existing?.email_imap_password) {
+        throw new BadRequestException(
+          'Informe a senha do e-mail na primeira configuração.',
+        );
+      }
+    }
+
     const { error } = await this.supabase.client
       .from('tenants')
-      .update({
-        email_imap_host: dto.imapHost,
-        email_imap_port: dto.imapPort,
-        email_imap_user: dto.imapUser,
-        email_imap_password: this.secrets.encrypt(dto.imapPassword),
-        email_imap_secure: dto.imapSecure,
-        email_smtp_host: dto.smtpHost,
-        email_smtp_port: dto.smtpPort,
-        email_smtp_secure: dto.smtpSecure,
-        email_poll_interval_minutes: dto.pollIntervalMinutes,
-        email_enabled: dto.enabled,
-      })
+      .update(values)
       .eq('id', tenantId);
     if (error) throw error;
 

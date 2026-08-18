@@ -9,7 +9,15 @@ import {
 
 export class UpsertWhatsappInstanceDto {
   @ApiProperty() @IsUrl({ require_tld: false }) baseUrl!: string;
-  @ApiProperty() @IsString() @MinLength(1) token!: string;
+
+  // Nunca é lido de volta em claro (fica criptografado) — omitir mantém o
+  // token já salvo.
+  @ApiPropertyOptional({ description: 'Omitir mantém o token já salvo' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  token?: string;
+
   @ApiPropertyOptional() @IsOptional() @IsString() instanceName?: string;
   @ApiPropertyOptional({ default: true })
   @IsOptional()

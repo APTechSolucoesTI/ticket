@@ -60,12 +60,8 @@ import {
 import { toast } from "sonner";
 import { CompanyTab } from "@/components/settings/CompanyTab";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  testUazapiConnection,
-  connectUazapiInstance,
-  disconnectUazapiInstance,
-} from "@/lib/whatsapp.functions";
-import { testImapConnection } from "@/lib/email-channel.functions";
+import { backendClient } from "@/lib/backend-client";
+import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
 import { inviteUser } from "@/lib/users.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -2549,37 +2545,45 @@ type WhatsAppSettings = {
   whatsapp_uazapi_token: string;
   whatsapp_uazapi_instance: string;
   whatsapp_connected_number: string | null;
-  whatsapp_webhook_secret: string;
 };
 
 function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   const qc = useQueryClient();
-  const testFn = useServerFn(testUazapiConnection);
-  const connectFn = useServerFn(connectUazapiInstance);
-  const disconnectFn = useServerFn(disconnectUazapiInstance);
   const [form, setForm] = useState<WhatsAppSettings>({
     whatsapp_enabled: false,
     whatsapp_uazapi_base_url: "",
     whatsapp_uazapi_token: "",
     whatsapp_uazapi_instance: "",
     whatsapp_connected_number: null,
-    whatsapp_webhook_secret: "",
   });
   const [testing, setTesting] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [webhookUrl, setWebhookUrl] = useState<string>("");
+  const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
+  const [webhookTenantId, setWebhookTenantId] = useState<string | null>(null);
   const qcWa = useQueryClient();
 
-  // Poll connection status while QR is shown; close QR and refresh when connected.
+  // Webhook expõe a API por trás do proxy same-origin do próprio app — não
+  // depende mais de domínio de preview/publicado de nenhuma plataforma de
+  // hospedagem específica. O :tenantId aqui precisa ser o UUID real — essa
+  // rota é pública (sem JWT), então o backend não tem como resolver "me".
+  const webhookUrl =
+    typeof window !== "undefined" && webhookSecret && webhookTenantId
+      ? `${window.location.origin}/api/backend/webhooks/whatsapp/${webhookTenantId}?secret=${encodeURIComponent(webhookSecret)}`
+      : "";
+
+  // Enquanto o QR tá visível, confere status a cada poucos segundos e some
+  // sozinho quando conectar.
   useEffect(() => {
     if (!qrCode) return;
     let stopped = false;
     const interval = setInterval(async () => {
       try {
-        const r = await testFn({ data: {} });
+        const r = await backendClient.get<{ connected: boolean; number: string | null }>(
+          "/channels/whatsapp/instances/me/status",
+        );
         if (stopped) return;
-        if (r?.connected) {
+        if (r.connected) {
           setQrCode(null);
           toast.success(`WhatsApp conectado${r.number ? `: ${r.number}` : ""}`);
           await qcWa.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
@@ -2593,70 +2597,41 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
       stopped = true;
       clearInterval(interval);
     };
-  }, [qrCode, testFn, qcWa]);
+  }, [qrCode, qcWa]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-whatsapp"],
     queryFn: async () => {
-      const tid = await getTenantId();
-      const { data, error } = await supabase
-        .from("tenants")
-        .select(
-          "id, whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token, whatsapp_uazapi_instance, whatsapp_connected_number, whatsapp_webhook_secret",
-        )
-        .eq("id", tid)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const [instance] = await backendClient.get<WhatsappInstanceDto[]>(
+        "/channels/whatsapp/instances",
+      );
+      return instance ?? null;
     },
   });
 
   useEffect(() => {
     if (data) {
       setForm({
-        whatsapp_enabled: data.whatsapp_enabled ?? false,
-        whatsapp_uazapi_base_url: data.whatsapp_uazapi_base_url ?? "",
-        whatsapp_uazapi_token: data.whatsapp_uazapi_token ?? "",
-        whatsapp_uazapi_instance: data.whatsapp_uazapi_instance ?? "",
-        whatsapp_connected_number: data.whatsapp_connected_number ?? null,
-        whatsapp_webhook_secret: data.whatsapp_webhook_secret ?? "",
+        whatsapp_enabled: data.status !== "disconnected" || !!data.baseUrl,
+        whatsapp_uazapi_base_url: data.baseUrl ?? "",
+        whatsapp_uazapi_token: "",
+        whatsapp_uazapi_instance: data.instanceName ?? "",
+        whatsapp_connected_number: data.connectedNumber,
       });
-      if (typeof window !== "undefined" && data.id) {
-        // The editor host (id-preview--<uuid>.lovable.app) is auth-gated and
-        // redirects external POSTs to the login page (302). UAZAPI must call
-        // the stable public host instead:
-        //   project--<uuid>-dev.lovable.app  (preview)
-        //   project--<uuid>.lovable.app      (published)
-        const host = window.location.hostname;
-        let publicOrigin = window.location.origin;
-        const m = host.match(/^(?:id-preview--|project--)([0-9a-f-]{36})(?:-dev)?\.lovable\.app$/i);
-        if (m) {
-          publicOrigin = `https://project--${m[1]}-dev.lovable.app`;
-        }
-        const q = data.whatsapp_webhook_secret
-          ? `?secret=${encodeURIComponent(data.whatsapp_webhook_secret)}`
-          : "";
-        setWebhookUrl(`${publicOrigin}/api/public/hooks/uazapi/${data.id}${q}`);
-      }
+      setWebhookSecret(data.webhookSecret);
+      setWebhookTenantId(data.tenantId);
     }
   }, [data]);
+  const hasSavedToken = !!data?.baseUrl;
 
   const save = useMutation({
-    mutationFn: async () => {
-      const tid = await getTenantId();
-      const { error } = await supabase
-        .from("tenants")
-        .update({
-          whatsapp_enabled: form.whatsapp_enabled,
-          whatsapp_uazapi_base_url:
-            form.whatsapp_uazapi_base_url.trim().replace(/\/+$/, "") || null,
-          whatsapp_uazapi_token: form.whatsapp_uazapi_token.trim() || null,
-          whatsapp_uazapi_instance: form.whatsapp_uazapi_instance.trim() || null,
-          whatsapp_webhook_secret: form.whatsapp_webhook_secret.trim() || null,
-        })
-        .eq("id", tid);
-      if (error) throw error;
-    },
+    mutationFn: () =>
+      backendClient.post<WhatsappInstanceDto>("/channels/whatsapp/instances", {
+        baseUrl: form.whatsapp_uazapi_base_url.trim().replace(/\/+$/, ""),
+        token: form.whatsapp_uazapi_token.trim() || undefined,
+        instanceName: form.whatsapp_uazapi_instance.trim() || undefined,
+        enabled: form.whatsapp_enabled,
+      }),
     onSuccess: () => {
       toast.success("WhatsApp configurado");
       qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
@@ -2666,28 +2641,50 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   });
 
   async function test() {
-    if (!form.whatsapp_uazapi_base_url || !form.whatsapp_uazapi_token) {
-      toast.error("Informe URL base e token.");
-      return;
-    }
     setTesting(true);
     try {
-      const r = await testFn({
-        data: { base_url: form.whatsapp_uazapi_base_url, token: form.whatsapp_uazapi_token },
-      });
-      if (r.ok && r.connected) {
+      const r = await backendClient.get<{ connected: boolean; number: string | null }>(
+        "/channels/whatsapp/instances/me/status",
+      );
+      if (r.connected) {
         toast.success(`Instância conectada${r.number ? ` — ${r.number}` : ""}`);
-      } else if (r.ok) {
-        toast.warning(
-          "Credenciais válidas, mas a instância não está conectada. Escaneie o QR na UAZAPI.",
-        );
       } else {
-        toast.error(r.message ?? "Falha ao conectar");
+        toast.warning("Credenciais válidas, mas a instância não está conectada. Escaneie o QR.");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao testar");
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function connect() {
+    setConnecting(true);
+    setQrCode(null);
+    try {
+      const r = await backendClient.get<{ connected: boolean; qrcode: string | null }>(
+        "/channels/whatsapp/instances/me/qrcode",
+      );
+      if (r.connected) toast.success("Instância já conectada");
+      else if (r.qrcode) {
+        setQrCode(r.qrcode);
+        toast.info("Escaneie o QR code no WhatsApp do celular");
+      } else toast.warning("Sem QR retornado — verifique a uazapi");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao conectar");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function disconnect() {
+    try {
+      await backendClient.post("/channels/whatsapp/instances/me/disconnect");
+      setForm((f) => ({ ...f, whatsapp_connected_number: null }));
+      toast.success("Instância desconectada");
+      qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao desconectar");
     }
   }
 
@@ -2718,12 +2715,14 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Token da instância *</Label>
+          <Label>{hasSavedToken ? "Token da instância" : "Token da instância *"}</Label>
           <Input
             type="password"
             value={form.whatsapp_uazapi_token}
             onChange={(e) => setForm({ ...form, whatsapp_uazapi_token: e.target.value })}
-            placeholder="Token gerado na UAZAPI"
+            placeholder={
+              hasSavedToken ? "Deixe em branco para manter o atual" : "Token gerado na UAZAPI"
+            }
           />
         </div>
         <div className="space-y-1.5">
@@ -2750,45 +2749,17 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
             type="button"
             variant="outline"
             size="sm"
-            disabled={connecting || !form.whatsapp_uazapi_base_url || !form.whatsapp_uazapi_token}
-            onClick={async () => {
-              setConnecting(true);
-              setQrCode(null);
-              try {
-                const r = await connectFn();
-                if (r.connected) {
-                  toast.success("Instância já conectada");
-                } else if (r.qrcode) {
-                  setQrCode(r.qrcode);
-                  toast.info("Escaneie o QR code no WhatsApp do celular");
-                } else {
-                  toast.warning("Sem QR retornado — verifique a UAZAPI");
-                }
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Falha ao conectar");
-              } finally {
-                setConnecting(false);
-              }
-            }}
+            disabled={
+              connecting ||
+              !form.whatsapp_uazapi_base_url ||
+              (!hasSavedToken && !form.whatsapp_uazapi_token)
+            }
+            onClick={connect}
           >
             {connecting ? "Gerando QR…" : "Conectar / Gerar QR"}
           </Button>
           {form.whatsapp_connected_number && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                try {
-                  await disconnectFn();
-                  setForm({ ...form, whatsapp_connected_number: null });
-                  toast.success("Instância desconectada");
-                  qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Falha ao desconectar");
-                }
-              }}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={disconnect}>
               Desconectar
             </Button>
           )}
@@ -2805,27 +2776,20 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
 
       <div className="space-y-2 rounded-md border p-3">
         <div className="text-sm font-semibold">Webhook (UAZAPI → APTicket)</div>
-        <div className="space-y-1.5">
-          <Label>Segredo do webhook</Label>
-          <Input
-            value={form.whatsapp_webhook_secret}
-            onChange={(e) => setForm({ ...form, whatsapp_webhook_secret: e.target.value })}
-            placeholder="segredo compartilhado (mín. 16 chars)"
-          />
-          <p className="text-xs text-muted-foreground">
-            Configure a mesma string na UAZAPI. Ela valida a origem das mensagens recebidas.
-          </p>
-        </div>
-        {webhookUrl && (
+        <p className="text-xs text-muted-foreground">
+          Segredo gerado automaticamente no primeiro salvamento — já embutido na URL abaixo, nenhuma
+          configuração extra.
+        </p>
+        {webhookUrl ? (
           <div className="space-y-1.5">
             <Label>URL do webhook</Label>
             <Input readOnly value={webhookUrl} onFocus={(e) => e.currentTarget.select()} />
             <p className="text-xs text-muted-foreground">
-              Cadastre esta URL na configuração de webhook da sua instância UAZAPI. Use sempre este
-              host público (<code>project--…lovable.app</code>) — o host do editor (
-              <code>id-preview--…</code>) exige login e rejeita chamadas externas.
+              Cadastre esta URL na configuração de webhook da sua instância UAZAPI.
             </p>
           </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Salve a configuração pra gerar a URL.</p>
         )}
       </div>
 
@@ -2861,7 +2825,6 @@ const POLL_INTERVAL_OPTIONS = [1, 2, 5, 10, 15, 30, 60];
 
 function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
   const qc = useQueryClient();
-  const testFn = useServerFn(testImapConnection);
   const [form, setForm] = useState<EmailSettings>({
     email_enabled: false,
     email_inbox_address: "",
@@ -2880,61 +2843,52 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-email-imap"],
     queryFn: async () => {
-      const tid = await getTenantId();
-      const { data, error } = await supabase
-        .from("tenants")
-        .select(
-          "id, email_enabled, email_inbox_address, email_imap_host, email_imap_port, email_imap_user, email_imap_password, email_imap_secure, email_poll_interval_minutes, email_smtp_host, email_smtp_port, email_smtp_secure",
-        )
-        .eq("id", tid)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const [account] = await backendClient.get<EmailAccountDto[]>("/channels/email/accounts");
+      return account ?? null;
     },
   });
+  // Senha nunca volta em claro da API (fica criptografada no banco) — o
+  // campo sempre carrega vazio; salvar sem digitar mantém a que já tá lá
+  // (ver UpsertEmailAccountDto.imapPassword no backend).
+  const hasSavedPassword = !!data?.imapHost;
 
   useEffect(() => {
     if (data) {
       setForm({
-        email_enabled: data.email_enabled ?? false,
-        email_inbox_address: data.email_inbox_address ?? "",
-        email_imap_host: data.email_imap_host ?? "",
-        email_imap_port: String(data.email_imap_port ?? 993),
-        email_imap_user: data.email_imap_user ?? "",
-        email_imap_password: data.email_imap_password ?? "",
-        email_imap_secure: data.email_imap_secure ?? true,
-        email_poll_interval_minutes: String(data.email_poll_interval_minutes ?? 5),
-        email_smtp_host: data.email_smtp_host ?? "",
-        email_smtp_port: String(data.email_smtp_port ?? 587),
-        email_smtp_secure: data.email_smtp_secure ?? false,
+        email_enabled: data.enabled,
+        email_inbox_address: data.inboxAddress ?? "",
+        email_imap_host: data.imapHost ?? "",
+        email_imap_port: String(data.imapPort ?? 993),
+        email_imap_user: data.imapUser ?? "",
+        email_imap_password: "",
+        email_imap_secure: data.imapSecure,
+        email_poll_interval_minutes: String(data.pollIntervalMinutes ?? 5),
+        email_smtp_host: data.smtpHost ?? "",
+        email_smtp_port: String(data.smtpPort ?? 587),
+        email_smtp_secure: data.smtpSecure,
       });
     }
   }, [data]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const tid = await getTenantId();
       const port = Number(form.email_imap_port);
       const interval = Number(form.email_poll_interval_minutes);
       const smtpPort = Number(form.email_smtp_port);
-      const { error } = await supabase
-        .from("tenants")
-        .update({
-          email_enabled: form.email_enabled,
-          email_inbox_address: form.email_inbox_address.trim() || null,
-          email_imap_host: form.email_imap_host.trim() || null,
-          email_imap_port: Number.isInteger(port) && port > 0 ? port : 993,
-          email_imap_user: form.email_imap_user.trim() || null,
-          email_imap_password: form.email_imap_password || null,
-          email_imap_secure: form.email_imap_secure,
-          email_poll_interval_minutes:
-            Number.isInteger(interval) && interval >= 1 && interval <= 60 ? interval : 5,
-          email_smtp_host: form.email_smtp_host.trim() || null,
-          email_smtp_port: Number.isInteger(smtpPort) && smtpPort > 0 ? smtpPort : 587,
-          email_smtp_secure: form.email_smtp_secure,
-        })
-        .eq("id", tid);
-      if (error) throw error;
+      await backendClient.post("/channels/email/accounts/me", {
+        inboxAddress: form.email_inbox_address.trim() || undefined,
+        imapHost: form.email_imap_host.trim(),
+        imapPort: Number.isInteger(port) && port > 0 ? port : 993,
+        imapUser: form.email_imap_user.trim(),
+        imapPassword: form.email_imap_password || undefined,
+        imapSecure: form.email_imap_secure,
+        smtpHost: form.email_smtp_host.trim(),
+        smtpPort: Number.isInteger(smtpPort) && smtpPort > 0 ? smtpPort : 587,
+        smtpSecure: form.email_smtp_secure,
+        pollIntervalMinutes:
+          Number.isInteger(interval) && interval >= 1 && interval <= 60 ? interval : 5,
+        enabled: form.email_enabled,
+      });
     },
     onSuccess: () => {
       toast.success("E-mail configurado");
@@ -2945,23 +2899,28 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
   });
 
   async function test() {
-    if (!form.email_imap_host || !form.email_imap_user || !form.email_imap_password) {
+    if (
+      !form.email_imap_host ||
+      !form.email_imap_user ||
+      (!form.email_imap_password && !hasSavedPassword)
+    ) {
       toast.error("Informe servidor, usuário e senha.");
       return;
     }
     setTesting(true);
     try {
-      const r = await testFn({
-        data: {
-          host: form.email_imap_host,
-          port: Number(form.email_imap_port) || 993,
-          user: form.email_imap_user,
-          password: form.email_imap_password,
-          secure: form.email_imap_secure,
+      const r = await backendClient.post<{ imapOk: boolean; error?: string }>(
+        "/channels/email/accounts/me/test-connection",
+        {
+          imapHost: form.email_imap_host,
+          imapPort: Number(form.email_imap_port) || 993,
+          imapUser: form.email_imap_user,
+          imapPassword: form.email_imap_password || undefined,
+          imapSecure: form.email_imap_secure,
         },
-      });
-      if (r.ok) toast.success(r.message);
-      else toast.error(r.message);
+      );
+      if (r.imapOk) toast.success("Conectado com sucesso.");
+      else toast.error(r.error ?? "Falha ao conectar.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao testar");
     } finally {
@@ -3052,11 +3011,12 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Senha *</Label>
+            <Label>{hasSavedPassword ? "Senha" : "Senha *"}</Label>
             <Input
               type="password"
               value={form.email_imap_password}
               onChange={(e) => setForm({ ...form, email_imap_password: e.target.value })}
+              placeholder={hasSavedPassword ? "Deixe em branco para manter a atual" : ""}
             />
           </div>
         </div>

@@ -42,33 +42,41 @@ feita como pedido, porque:
   (Next.js `rewrites()`), só que como rota do próprio app já que o Nitro/Vite daqui não tem um
   "rewrites" nativo.
 - `apps/web/src/lib/backend-client.ts`: client HTTP que já anexa o JWT da sessão Supabase como
-  Bearer nas chamadas pro backend novo — o "como consumir" está prático e testado
-  (`tsc` limpo), pronto pra ser usado nas telas.
+  Bearer nas chamadas pro backend novo.
+- **Frontend trocado.** Configurações → canais de e-mail e WhatsApp, "Sincronizar agora" (Fila de
+  E-mail) e "Responder ao Cliente" (e-mail/WhatsApp) agora chamam a API nova via `backendClient`,
+  não mais `supabase-js`/server functions direto. Código server-only redundante removido de
+  `apps/web`: `src/lib/{email-channel,imap-poll,email-send}.server.ts`,
+  `email-channel.functions.ts`, as rotas `src/routes/api/public/hooks/{email-ingest,
+  email-imap-poll,uazapi/$tenantId}.ts`, e `imapflow`/`mailparser` do `apps/web/package.json` (só
+  a API precisa deles agora). `notifyTicketStatus`/`sendCsatInvite`/envio de mídia-contato-
+  localização-sticker-ligação do WhatsApp **continuam no código antigo** — não fazem parte do que
+  o WhatsappModule cobre hoje (só resposta de texto), não inventei um substituto pra eles.
+  `nodemailer` continua em `apps/web` (usado por `mailer.server.ts`, o envio de OTP do portal do
+  cliente — feature separada, não é o canal de e-mail de ticket).
+- **Senha/token nunca voltam em claro.** A API nunca devolve a senha IMAP/token da uazapi salvos
+  (ficam criptografados no banco) — os forms de Configurações agora carregam esses campos vazios
+  com placeholder "deixe em branco pra manter o atual", e só enviam no payload se o usuário digitar
+  algo novo. Backend aceita omissão (exceto na primeira configuração, aí é obrigatório).
+- **Segredo do webhook do WhatsApp agora é gerado pelo servidor** (24 bytes aleatórios), não mais
+  digitado pelo usuário — a tela só exibe a URL pronta (com o segredo já embutido) pra colar na
+  uazapi.
 
-## O que falta (não fiz às pressas pra não entregar quebrado)
+## Antes de ir pra produção com isso (cutover de infra, não é código)
 
-**Trocar as chamadas do frontend.** As telas de Configurações (canais de e-mail/WhatsApp),
-"Fila de E-mail" (botão "Sincronizar agora") e "Responder ao Cliente" ainda chamam
-`supabase-js`/server functions diretas (`email-channel.functions.ts`, `whatsapp.functions.ts`) —
-funcionam, mas duplicam o que a API nova já faz. Trocar é mecânico (mesmo padrão em toda parte):
-trocar a chamada por `backendClient.get/post(...)`, ex.:
+1. **pg_cron**: existia um job chamando `/api/public/hooks/email-imap-poll` a cada minuto — a rota
+   foi removida (o polling agora é o `EmailSchedulerService`/BullMQ dentro da própria API). Rodar
+   `SELECT cron.unschedule('email-imap-poll');` (ou o nome que o job tiver) no Postgres, senão ele
+   fica batendo num 404 sem fazer nada.
+2. **Webhook da uazapi**: a URL configurada na uazapi hoje aponta pro `apps/web` antigo
+   (`/api/public/hooks/uazapi/:tenantId`, removida). Repontar pra
+   `https://<domínio>/api/backend/webhooks/whatsapp/<tenantId>?secret=<segredo>` — a tela de
+   Configurações → WhatsApp já mostra essa URL pronta depois de salvar.
+3. Ambos só importam quando o `apps/api` novo estiver realmente no ar (ver deploy abaixo) — até lá
+   nenhum dos dois caminhos (antigo ou novo) está recebendo tráfego de verdade, então não tem
+   pressa, mas não esquecer antes do go-live.
 
-```ts
-// antes
-const result = await testImapConnection({ data: { host, port, user, password } });
-// depois
-const result = await backendClient.post("/channels/email/accounts/me/test-connection", {
-  imapHost: host, imapPort: port, imapUser: user, imapPassword: password,
-});
-```
-
-Depois de trocar todas as chamadas, remover o código server-only redundante do `apps/web`:
-`src/lib/{email-channel,imap-poll,email-send}.server.ts`, `email-channel.functions.ts`,
-`whatsapp.functions.ts`, e as rotas `src/routes/api/public/hooks/{email-ingest,
-email-imap-poll,uazapi/$tenantId}.ts` — junto com `imapflow`/`mailparser`/`nodemailer` do
-`apps/web/package.json` (só a API precisa deles agora). Nesse ponto dá pra tirar `VITE_*` que
-hoje carregam segredo nenhum sobra no bundle do front (já não sobrava, mas a API é quem deveria
-ser a única a ter `SUPABASE_SERVICE_ROLE_KEY`/SMTP/uazapi token daqui pra frente).
+## O que ainda falta
 
 **Chat no frontend.** O `ChatGateway` existe e funciona (testável com um client Socket.IO
 qualquer), mas não tem UI nova conectando nele ainda — o app não tinha uma tela de chat em tempo

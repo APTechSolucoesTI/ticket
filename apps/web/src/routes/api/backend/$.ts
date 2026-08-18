@@ -32,7 +32,9 @@ const HOP_BY_HOP_HEADERS = new Set([
 
 async function proxy(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const targetPath = url.pathname.startsWith(PREFIX) ? url.pathname.slice(PREFIX.length) : url.pathname;
+  const targetPath = url.pathname.startsWith(PREFIX)
+    ? url.pathname.slice(PREFIX.length)
+    : url.pathname;
   const target = `${BACKEND_URL}${targetPath}${url.search}`;
 
   const headers = new Headers();

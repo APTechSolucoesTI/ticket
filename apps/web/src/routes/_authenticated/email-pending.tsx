@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
-import { syncTenantMailbox } from "@/lib/email-channel.functions";
+import { backendClient } from "@/lib/backend-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,13 +61,18 @@ function EmailPendingPage() {
   const qc = useQueryClient();
   const [linking, setLinking] = useState<PendingRow | null>(null);
   const [viewing, setViewing] = useState<PendingRow | null>(null);
-  const syncFn = useServerFn(syncTenantMailbox);
   const [syncing, setSyncing] = useState(false);
 
   async function handleSync() {
     setSyncing(true);
     try {
-      const r = await syncFn();
+      const r = await backendClient.post<{
+        processed: number;
+        created: number;
+        duplicates: number;
+        skipped: number;
+        errors: string[];
+      }>("/channels/email/accounts/me/sync");
       const parts = [`${r.processed} mensagem(ns) verificada(s)`];
       if (r.created) parts.push(`${r.created} ticket(s) criado(s)`);
       if (r.duplicates) parts.push(`${r.duplicates} duplicada(s)`);

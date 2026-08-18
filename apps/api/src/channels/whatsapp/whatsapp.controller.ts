@@ -18,6 +18,16 @@ export class WhatsappController {
     private readonly reply: WhatsappReplyService,
   ) {}
 
+  @Get()
+  @ApiOperation({
+    summary: 'Instância uazapi do tenant, salva no banco (sem chamar a uazapi)',
+  })
+  list(@CurrentUser() auth: AuthContext) {
+    return this.instances
+      .get(auth.tenantId)
+      .then((account) => (account ? [account] : []));
+  }
+
   @Post()
   @ApiOperation({ summary: 'Cria/atualiza a instância uazapi do tenant' })
   create(
