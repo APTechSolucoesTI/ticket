@@ -2643,13 +2643,19 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   async function test() {
     setTesting(true);
     try {
-      const r = await backendClient.get<{ connected: boolean; number: string | null }>(
-        "/channels/whatsapp/instances/me/status",
-      );
+      const r = await backendClient.get<{
+        ok: boolean;
+        connected: boolean;
+        number: string | null;
+      }>("/channels/whatsapp/instances/me/status");
       if (r.connected) {
         toast.success(`Instância conectada${r.number ? ` — ${r.number}` : ""}`);
-      } else {
+      } else if (r.ok) {
         toast.warning("Credenciais válidas, mas a instância não está conectada. Escaneie o QR.");
+      } else {
+        // `ok: false` aqui é a uazapi inalcançável (URL errada, instância fora do
+        // ar, timeout) — não confundir com "credenciais válidas" sem checar `ok`.
+        toast.error("Não foi possível conectar à uazapi. Confira a URL base.");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao testar");

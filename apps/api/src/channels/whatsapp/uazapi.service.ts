@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 // Portado de callUazapi + testUazapiConnection/connect/disconnect/send em
 // apps/web/src/lib/whatsapp.functions.ts. O token da uazapi só existe aqui
@@ -20,6 +20,8 @@ export interface UazapiResponse {
 
 @Injectable()
 export class UazapiService {
+  private readonly logger = new Logger(UazapiService.name);
+
   async call(
     baseUrl: string,
     token: string,
@@ -27,22 +29,37 @@ export class UazapiService {
     init?: RequestInit,
   ): Promise<UazapiResponse> {
     const url = `${normalizeBaseUrl(baseUrl)}${path.startsWith('/') ? path : `/${path}`}`;
-    const res = await fetch(url, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        token,
-        ...(init?.headers ?? {}),
-      },
-    });
-    const text = await res.text();
-    let body: unknown = text;
+    // fetch() lança (não retorna resposta com status de erro) quando a rede
+    // falha antes de qualquer resposta HTTP existir — DNS não resolve,
+    // conexão recusada, timeout. Sem isso virar um UazapiResponse igual ao
+    // de erro HTTP normal, esse throw sobe cru até o controller e vira 500
+    // genérico em vez de avisar "não deu pra falar com a uazapi".
     try {
-      body = text ? JSON.parse(text) : null;
-    } catch {
-      /* keep as text */
+      const res = await fetch(url, {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          token,
+          ...(init?.headers ?? {}),
+        },
+      });
+      const text = await res.text();
+      let body: unknown = text;
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        /* keep as text */
+      }
+      return { ok: res.ok, status: res.status, body };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`chamada pra uazapi (${url}) falhou: ${message}`);
+      return {
+        ok: false,
+        status: 0,
+        body: { error: `Não foi possível conectar à uazapi: ${message}` },
+      };
     }
-    return { ok: res.ok, status: res.status, body };
   }
 
   async status(baseUrl: string, token: string) {
