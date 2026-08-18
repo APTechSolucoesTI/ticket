@@ -1,0 +1,3123 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  Globe,
+  Hand,
+  Upload,
+} from "lucide-react";
+import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { getMyTenantId } from "@/lib/tenant";
+import { maskWhatsappPhone } from "@/lib/masks";
+import { PageHeader, EmptyStub } from "@/components/empty-stub";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { CompanyTab } from "@/components/settings/CompanyTab";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  testUazapiConnection,
+  connectUazapiInstance,
+  disconnectUazapiInstance,
+} from "@/lib/whatsapp.functions";
+import { testImapConnection } from "@/lib/email-channel.functions";
+import { inviteUser } from "@/lib/users.functions";
+
+export const Route = createFileRoute("/_authenticated/settings")({
+  head: () => ({ meta: [{ title: "Configurações — APTicket" }] }),
+  component: SettingsPage,
+});
+
+async function getTenantId() {
+  const data = { tenant_id: await getMyTenantId() };
+  if (!data?.tenant_id) throw new Error("Tenant não encontrado");
+  return data.tenant_id;
+}
+
+function SettingsPage() {
+  return (
+    <div className="p-6 space-y-4">
+      <PageHeader
+        title="Configurações"
+        subtitle="Usuários, departamentos, SLAs, tipos de contrato, canais e respostas padrão."
+      />
+      <Tabs defaultValue="company">
+        <TabsList>
+          <TabsTrigger value="company">Empresa</TabsTrigger>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="departments">Departamentos</TabsTrigger>
+          <TabsTrigger value="service-families">Família de Serviços</TabsTrigger>
+          <TabsTrigger value="provided-services">Serviços Prestados</TabsTrigger>
+          <TabsTrigger value="contract-types">Tipos de Contrato</TabsTrigger>
+          <TabsTrigger value="slas">SLAs</TabsTrigger>
+          <TabsTrigger value="canned">Respostas Padrão</TabsTrigger>
+          <TabsTrigger value="stickers">Figurinhas</TabsTrigger>
+          <TabsTrigger value="channels">Canais</TabsTrigger>
+        </TabsList>
+        <TabsContent value="company" className="mt-4">
+          <CompanyTab />
+        </TabsContent>
+        <TabsContent value="users" className="mt-4">
+          <UsersTab />
+        </TabsContent>
+        <TabsContent value="departments" className="mt-4">
+          <DepartmentsTab />
+        </TabsContent>
+        <TabsContent value="service-families" className="mt-4">
+          <ServiceFamiliesTab />
+        </TabsContent>
+        <TabsContent value="provided-services" className="mt-4">
+          <ProvidedServicesTab />
+        </TabsContent>
+        <TabsContent value="contract-types" className="mt-4">
+          <ContractTypesTab />
+        </TabsContent>
+        <TabsContent value="slas" className="mt-4">
+          <SlasTab />
+        </TabsContent>
+        <TabsContent value="canned" className="mt-4">
+          <CannedTab />
+        </TabsContent>
+        <TabsContent value="stickers" className="mt-4">
+          <StickersTab />
+        </TabsContent>
+        <TabsContent value="channels" className="mt-4">
+          <ChannelsTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/* ============================ USERS ============================ */
+
+type Profile = { id: string; name: string; email: string; is_active: boolean };
+type Role = "admin" | "agent" | "requester";
+type UserRoleRow = { user_id: string; role: Role };
+
+function UsersTab() {
+  const qc = useQueryClient();
+  const invite = useServerFn(inviteUser);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", role: "agent" as Role });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["settings_users"],
+    queryFn: async () => {
+      const [{ data: profiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
+        supabase.from("profiles").select("id,name,email,is_active").order("name"),
+        supabase.from("user_roles").select("user_id,role"),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      const byUser = new Map<string, Role[]>();
+      (roles as UserRoleRow[]).forEach((r) => {
+        if (!byUser.has(r.user_id)) byUser.set(r.user_id, []);
+        byUser.get(r.user_id)!.push(r.role);
+      });
+      return (profiles as Profile[]).map((p) => ({ ...p, roles: byUser.get(p.id) ?? [] }));
+    },
+  });
+
+  const { data: isAdmin } = useQuery({
+    queryKey: ["settings_users_is_admin"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return false;
+      const { data: rows, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", auth.user.id)
+        .eq("role", "admin");
+      if (error) throw error;
+      return (rows?.length ?? 0) > 0;
+    },
+  });
+
+  const sendInvite = useMutation({
+    mutationFn: async () => {
+      const parsed = z
+        .object({
+          name: z.string().trim().min(1, "Informe o nome").max(120),
+          email: z.string().trim().email("E-mail inválido").max(255),
+          role: z.enum(["admin", "agent", "requester"]),
+        })
+        .parse(form);
+      return await invite({ data: parsed });
+    },
+    onSuccess: (res) => {
+      toast.success(`Convite enviado para ${res.email}`);
+      setInviteOpen(false);
+      setForm({ name: "", email: "", role: "agent" });
+      qc.invalidateQueries({ queryKey: ["settings_users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setRole = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: Role }) => {
+      const tenant_id = await getTenantId();
+      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
+      if (delErr) throw delErr;
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, tenant_id, role });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Papel atualizado");
+      qc.invalidateQueries({ queryKey: ["settings_users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase.from("profiles").update({ is_active }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: ["settings_users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const inviteDialog = (
+    <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Convidar usuário</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="invite-name">Nome</Label>
+            <Input
+              id="invite-name"
+              value={form.name}
+              maxLength={120}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="invite-email">E-mail</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              value={form.email}
+              maxLength={255}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Papel</Label>
+            <Select
+              value={form.role}
+              onValueChange={(v: Role) => setForm((f) => ({ ...f, role: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="agent">Agente</SelectItem>
+                <SelectItem value="requester">Solicitante</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O convidado recebe um e-mail para definir a senha e já entra nesta organização.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setInviteOpen(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={() => sendInvite.mutate()} disabled={sendInvite.isPending}>
+            {sendInvite.isPending ? "Enviando…" : "Enviar convite"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <h3 className="text-sm font-semibold">Usuários</h3>
+      {isAdmin ? (
+        <Button size="sm" onClick={() => setInviteOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Convidar usuário
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  if (isLoading)
+    return <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>;
+
+  return (
+    <div className="space-y-3">
+      {header}
+      {!data?.length ? (
+        <EmptyStub title="Sem usuários" message="Convide membros para o workspace." />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Papel</TableHead>
+                <TableHead>Ativo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableCell className="text-sm">{u.email}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={u.roles[0] ?? "agent"}
+                      onValueChange={(v: Role) => setRole.mutate({ userId: u.id, role: v })}
+                    >
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="agent">Agente</SelectItem>
+                        <SelectItem value="requester">Solicitante</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={u.is_active}
+                      onCheckedChange={(v) => toggleActive.mutate({ id: u.id, is_active: v })}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+      {inviteDialog}
+    </div>
+  );
+}
+
+/* ============================ Generic CRUD section helper ============================ */
+
+type CrudRow = { id: string };
+
+function CrudHeader({ title, onNew }: { title: string; onNew: () => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <Button size="sm" onClick={onNew}>
+        <Plus className="h-4 w-4 mr-1" /> Novo
+      </Button>
+    </div>
+  );
+}
+
+function RowActions<T extends CrudRow>({
+  row,
+  onEdit,
+  onDelete,
+}: {
+  row: T;
+  onEdit: (r: T) => void;
+  onDelete: (r: T) => void;
+}) {
+  return (
+    <div className="text-right">
+      <Button variant="ghost" size="icon" onClick={() => onEdit(row)}>
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => onDelete(row)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+/* ============================ DEPARTMENTS ============================ */
+
+type Department = { id: string; name: string; description: string | null };
+const deptSchema = z.object({
+  name: z.string().trim().min(1, "Nome obrigatório").max(100),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+function DepartmentsTab() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Department | null>(null);
+  const [toDelete, setToDelete] = useState<Department | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("*").order("name");
+      if (error) throw error;
+      return data as Department[];
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("departments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removido");
+      qc.invalidateQueries({ queryKey: ["departments"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <CrudHeader
+        title="Departamentos"
+        onNew={() => {
+          setEditing(null);
+          setOpen(true);
+        }}
+      />
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !data?.length ? (
+        <EmptyStub
+          title="Nenhum departamento"
+          message="Crie departamentos para rotear tickets (ex.: Suporte N1, Infra, Field)."
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((d) => (
+                <TableRow key={d.id}>
+                  <TableCell className="font-medium">{d.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {d.description || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
+                      row={d}
+                      onEdit={(r) => {
+                        setEditing(r);
+                        setOpen(true);
+                      }}
+                      onDelete={setToDelete}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <DepartmentDialog open={open} onOpenChange={setOpen} editing={editing} />
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id)}
+        title="Remover departamento?"
+        body={
+          <>
+            Departamento <b>{toDelete?.name}</b> será removido.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function DepartmentDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: Department | null;
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: "", description: "" });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({ name: editing?.name ?? "", description: editing?.description ?? "" });
+  }, [open, editing]);
+
+  const save = useMutation({
+    mutationFn: async (payload: z.infer<typeof deptSchema>) => {
+      const tenant_id = await getTenantId();
+      const values = { name: payload.name, description: payload.description || null };
+      if (editing) {
+        const { error } = await supabase.from("departments").update(values).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("departments").insert({ ...values, tenant_id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["departments"] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar" : "Novo"} departamento</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const r = deptSchema.safeParse(form);
+            if (!r.success) return toast.error(r.error.issues[0].message);
+            save.mutate(r.data);
+          }}
+        >
+          <div>
+            <Label>Nome *</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div>
+            <Label>Descrição</Label>
+            <Textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ SERVICE FAMILIES ============================ */
+
+type ServiceFamily = { id: string; code: string; description: string; is_active: boolean };
+const familySchema = z.object({
+  code: z.string().trim().min(1, "Código obrigatório").max(40),
+  description: z.string().trim().min(1, "Descrição obrigatória").max(200),
+  is_active: z.boolean(),
+});
+
+function ServiceFamiliesTab() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ServiceFamily | null>(null);
+  const [toDelete, setToDelete] = useState<ServiceFamily | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["service_families"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("service_families")
+        .select("id, code, description, is_active")
+        .order("code");
+      if (error) throw error;
+      return data as ServiceFamily[];
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("service_families").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removido");
+      qc.invalidateQueries({ queryKey: ["service_families"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <CrudHeader
+        title="Família de Serviços"
+        onNew={() => {
+          setEditing(null);
+          setOpen(true);
+        }}
+      />
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !data?.length ? (
+        <EmptyStub
+          title="Nenhuma família de serviços"
+          message="Agrupe os serviços prestados por família (ex.: Redes, Hardware, Backup)."
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Código</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="w-20">Status</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((f) => (
+                <TableRow key={f.id}>
+                  <TableCell className="font-mono text-xs">{f.code}</TableCell>
+                  <TableCell className="font-medium">{f.description}</TableCell>
+                  <TableCell>
+                    <Badge variant={f.is_active ? "default" : "outline"}>
+                      {f.is_active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
+                      row={f}
+                      onEdit={(r) => {
+                        setEditing(r);
+                        setOpen(true);
+                      }}
+                      onDelete={setToDelete}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <ServiceFamilyDialog open={open} onOpenChange={setOpen} editing={editing} />
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id)}
+        title="Remover família de serviços?"
+        body={
+          <>
+            Família <b>{toDelete?.description}</b> será removida. Serviços prestados vinculados a
+            ela impedem a exclusão — inative em vez de excluir, se necessário.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function ServiceFamilyDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: ServiceFamily | null;
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ code: "", description: "", is_active: true });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      code: editing?.code ?? "",
+      description: editing?.description ?? "",
+      is_active: editing?.is_active ?? true,
+    });
+  }, [open, editing]);
+
+  const save = useMutation({
+    mutationFn: async (payload: z.infer<typeof familySchema>) => {
+      const tenant_id = await getTenantId();
+      if (editing) {
+        const { error } = await supabase
+          .from("service_families")
+          .update(payload)
+          .eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("service_families").insert({ ...payload, tenant_id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["service_families"] });
+      qc.invalidateQueries({ queryKey: ["provided_services"] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) =>
+      toast.error(e.message.includes("duplicate") ? "Código já cadastrado" : e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar" : "Nova"} família de serviços</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const r = familySchema.safeParse(form);
+            if (!r.success) return toast.error(r.error.issues[0].message);
+            save.mutate(r.data);
+          }}
+        >
+          <div>
+            <Label>Código *</Label>
+            <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+          </div>
+          <div>
+            <Label>Descrição *</Label>
+            <Input
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <Label className="text-sm">Ativo</Label>
+            <Switch
+              checked={form.is_active}
+              onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ PROVIDED SERVICES ============================ */
+
+type ProvidedService = {
+  id: string;
+  code: string;
+  description: string;
+  family_id: string;
+  includes_remote: boolean;
+  includes_lab: boolean;
+  includes_onsite: boolean;
+  is_active: boolean;
+  service_families?: { description: string } | null;
+};
+const providedServiceSchema = z.object({
+  code: z.string().trim().min(1, "Código obrigatório").max(40),
+  description: z.string().trim().min(1, "Descrição obrigatória").max(200),
+  family_id: z.string().uuid("Selecione a família"),
+  includes_remote: z.boolean(),
+  includes_lab: z.boolean(),
+  includes_onsite: z.boolean(),
+  is_active: z.boolean(),
+});
+
+function ProvidedServicesTab() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ProvidedService | null>(null);
+  const [toDelete, setToDelete] = useState<ProvidedService | null>(null);
+  const [familyFilter, setFamilyFilter] = useState<string>("all");
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["service_families", "options"],
+    queryFn: async () =>
+      (await supabase.from("service_families").select("id, description").order("description"))
+        .data ?? [],
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["provided_services"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("provided_services")
+        .select(
+          "id, code, description, family_id, includes_remote, includes_lab, includes_onsite, is_active, service_families(description)",
+        )
+        .order("code");
+      if (error) throw error;
+      return data as unknown as ProvidedService[];
+    },
+  });
+
+  const filtered = useMemo(
+    () =>
+      familyFilter === "all"
+        ? (data ?? [])
+        : (data ?? []).filter((s) => s.family_id === familyFilter),
+    [data, familyFilter],
+  );
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("provided_services").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removido");
+      qc.invalidateQueries({ queryKey: ["provided_services"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Serviços Prestados</h3>
+        <div className="flex items-center gap-2">
+          <Select value={familyFilter} onValueChange={setFamilyFilter}>
+            <SelectTrigger className="h-8 w-[200px] text-xs">
+              <SelectValue placeholder="Todas famílias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas famílias</SelectItem>
+              {families.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.description}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Novo
+          </Button>
+        </div>
+      </div>
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !filtered.length ? (
+        <EmptyStub
+          title="Nenhum serviço prestado"
+          message="Cadastre os serviços que a equipe executa, vinculados a uma família."
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Código</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Família</TableHead>
+                <TableHead>Execução</TableHead>
+                <TableHead className="w-20">Status</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((s) => {
+                const modes = [
+                  s.includes_remote && "Remoto",
+                  s.includes_lab && "Laboratório",
+                  s.includes_onsite && "Visita",
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-mono text-xs">{s.code}</TableCell>
+                    <TableCell className="font-medium">{s.description}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.service_families?.description ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{modes || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={s.is_active ? "default" : "outline"}>
+                        {s.is_active ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <RowActions
+                        row={s}
+                        onEdit={(r) => {
+                          setEditing(r);
+                          setOpen(true);
+                        }}
+                        onDelete={setToDelete}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <ProvidedServiceDialog
+        open={open}
+        onOpenChange={setOpen}
+        editing={editing}
+        families={families}
+      />
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id)}
+        title="Remover serviço prestado?"
+        body={
+          <>
+            Serviço <b>{toDelete?.description}</b> será removido.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function ProvidedServiceDialog({
+  open,
+  onOpenChange,
+  editing,
+  families,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: ProvidedService | null;
+  families: { id: string; description: string }[];
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    code: "",
+    description: "",
+    family_id: "",
+    includes_remote: false,
+    includes_lab: false,
+    includes_onsite: false,
+    is_active: true,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      code: editing?.code ?? "",
+      description: editing?.description ?? "",
+      family_id: editing?.family_id ?? "",
+      includes_remote: editing?.includes_remote ?? false,
+      includes_lab: editing?.includes_lab ?? false,
+      includes_onsite: editing?.includes_onsite ?? false,
+      is_active: editing?.is_active ?? true,
+    });
+  }, [open, editing]);
+
+  const save = useMutation({
+    mutationFn: async (payload: z.infer<typeof providedServiceSchema>) => {
+      const tenant_id = await getTenantId();
+      if (editing) {
+        const { error } = await supabase
+          .from("provided_services")
+          .update(payload)
+          .eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("provided_services")
+          .insert({ ...payload, tenant_id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["provided_services"] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) =>
+      toast.error(e.message.includes("duplicate") ? "Código já cadastrado" : e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar" : "Novo"} serviço prestado</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const r = providedServiceSchema.safeParse(form);
+            if (!r.success) return toast.error(r.error.issues[0].message);
+            save.mutate(r.data);
+          }}
+        >
+          <div>
+            <Label>Código *</Label>
+            <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+          </div>
+          <div>
+            <Label>Descrição *</Label>
+            <Input
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Família *</Label>
+            <Select
+              value={form.family_id}
+              onValueChange={(v) => setForm({ ...form, family_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                {families.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Tipo(s) de execução</Label>
+            <div className="flex items-center justify-between text-sm">
+              <span>Suporte remoto</span>
+              <Switch
+                checked={form.includes_remote}
+                onCheckedChange={(v) => setForm({ ...form, includes_remote: v })}
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Laboratório</span>
+              <Switch
+                checked={form.includes_lab}
+                onCheckedChange={(v) => setForm({ ...form, includes_lab: v })}
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Visita técnica</span>
+              <Switch
+                checked={form.includes_onsite}
+                onCheckedChange={(v) => setForm({ ...form, includes_onsite: v })}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <Label className="text-sm">Ativo</Label>
+            <Switch
+              checked={form.is_active}
+              onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ CONTRACT TYPES ============================ */
+
+type BillingModel = "hours_package" | "per_equipment" | "per_service";
+type EquipmentTier = { min: number; max: number; price: number };
+type ServiceItem = { reference: string; description: string; quantity: number; price: number };
+type ContractType = {
+  id: string;
+  name: string;
+  description: string | null;
+  billing_model: BillingModel;
+  default_hours_monthly: number;
+  default_monthly_value: number;
+  equipment_min: number | null;
+  equipment_max: number | null;
+  price_per_equipment: number | null;
+  equipment_tiers: EquipmentTier[] | null;
+  service_items: ServiceItem[] | null;
+  includes_remote: boolean;
+  includes_lab: boolean;
+  includes_onsite: boolean;
+};
+const tierSchema = z.object({
+  min: z.coerce.number().int().min(0).max(100000),
+  max: z.coerce.number().int().min(0).max(100000),
+  price: z.coerce.number().min(0).max(9999999),
+});
+const serviceSchema = z.object({
+  reference: z.string().trim().max(60),
+  description: z.string().trim().max(200),
+  quantity: z.coerce.number().min(0).max(100000),
+  price: z.coerce.number().min(0).max(9999999),
+});
+const ctSchema = z.object({
+  name: z.string().trim().min(1, "Nome obrigatório").max(100),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+  billing_model: z.enum(["hours_package", "per_equipment", "per_service"]),
+  default_hours_monthly: z.coerce.number().int().min(0).max(10000),
+  default_monthly_value: z.coerce.number().min(0).max(9999999),
+  equipment_tiers: z.array(tierSchema),
+  service_items: z.array(serviceSchema),
+  includes_remote: z.boolean(),
+  includes_lab: z.boolean(),
+  includes_onsite: z.boolean(),
+});
+
+const BILLING_LABEL: Record<BillingModel, string> = {
+  hours_package: "Pacote de horas",
+  per_equipment: "Por equipamento",
+  per_service: "Por serviço",
+};
+
+function ContractTypesTab() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ContractType | null>(null);
+  const [toDelete, setToDelete] = useState<ContractType | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["contract_types"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("contract_types").select("*").order("name");
+      if (error) throw error;
+      return data as ContractType[];
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("contract_types").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removido");
+      qc.invalidateQueries({ queryKey: ["contract_types"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <CrudHeader
+        title="Tipos de contrato"
+        onNew={() => {
+          setEditing(null);
+          setOpen(true);
+        }}
+      />
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !data?.length ? (
+        <EmptyStub
+          title="Nenhum tipo de contrato"
+          message="Defina presets (ex.: Pacote 10h ou faixa 1–10 equipamentos) para acelerar a criação de contratos."
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Modelo</TableHead>
+                <TableHead>Detalhes</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Inclui</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((t) => {
+                const inclui =
+                  [
+                    t.includes_remote && "Remoto",
+                    t.includes_lab && "Laboratório",
+                    t.includes_onsite && "Visita",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "—";
+                return (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-medium">
+                      <div>{t.name}</div>
+                      {t.description && (
+                        <div className="text-xs text-muted-foreground">{t.description}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{BILLING_LABEL[t.billing_model]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {t.billing_model === "hours_package"
+                        ? `${t.default_hours_monthly}h/mês`
+                        : t.billing_model === "per_service"
+                          ? `${t.service_items?.length ?? 0} serviço(s)`
+                          : t.equipment_tiers?.length
+                            ? `${t.equipment_tiers.length} faixa(s)`
+                            : `${t.equipment_min ?? 0} a ${t.equipment_max ?? 0} equip.`}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {t.billing_model === "hours_package" ? (
+                        Number(t.default_monthly_value).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })
+                      ) : t.billing_model === "per_service" ? (
+                        Number(
+                          (t.service_items ?? []).reduce(
+                            (s, it) => s + Number(it.quantity || 0) * Number(it.price || 0),
+                            0,
+                          ),
+                        ).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      ) : t.equipment_tiers?.length ? (
+                        <div className="space-y-0.5">
+                          {t.equipment_tiers.map((f, i) => (
+                            <div key={i} className="text-xs">
+                              {f.min}–{f.max}:{" "}
+                              {Number(f.price).toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        `${Number(t.price_per_equipment ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / equip.`
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-xs text-muted-foreground">{inclui}</TableCell>
+                    <TableCell>
+                      <RowActions
+                        row={t}
+                        onEdit={(r) => {
+                          setEditing(r);
+                          setOpen(true);
+                        }}
+                        onDelete={setToDelete}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <ContractTypeDialog open={open} onOpenChange={setOpen} editing={editing} />
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id)}
+        title="Remover tipo de contrato?"
+        body={
+          <>
+            <b>{toDelete?.name}</b> será removido.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function ContractTypeDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: ContractType | null;
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    billing_model: "hours_package" as BillingModel,
+    default_hours_monthly: "0",
+    default_monthly_value: "0",
+    equipment_tiers: [{ min: "1", max: "10", price: "0" }] as {
+      min: string;
+      max: string;
+      price: string;
+    }[],
+    service_items: [] as {
+      reference: string;
+      description: string;
+      quantity: string;
+      price: string;
+    }[],
+    includes_remote: false,
+    includes_lab: false,
+    includes_onsite: false,
+  });
+
+  const save = useMutation({
+    mutationFn: async (payload: z.infer<typeof ctSchema>) => {
+      const tenant_id = await getTenantId();
+      const isHours = payload.billing_model === "hours_package";
+      const isEquip = payload.billing_model === "per_equipment";
+      const isService = payload.billing_model === "per_service";
+      const servicesTotal = payload.service_items.reduce((s, it) => s + it.quantity * it.price, 0);
+      const values = {
+        name: payload.name,
+        description: payload.description || null,
+        billing_model: payload.billing_model,
+        default_hours_monthly: isHours ? payload.default_hours_monthly : 0,
+        default_monthly_value: isHours
+          ? payload.default_monthly_value
+          : isService
+            ? servicesTotal
+            : 0,
+        equipment_min:
+          isEquip && payload.equipment_tiers.length ? payload.equipment_tiers[0].min : null,
+        equipment_max:
+          isEquip && payload.equipment_tiers.length ? payload.equipment_tiers[0].max : null,
+        price_per_equipment:
+          isEquip && payload.equipment_tiers.length ? payload.equipment_tiers[0].price : null,
+        equipment_tiers: isEquip ? payload.equipment_tiers : [],
+        service_items: isService ? payload.service_items : [],
+        includes_remote: payload.includes_remote,
+        includes_lab: payload.includes_lab,
+        includes_onsite: payload.includes_onsite,
+      };
+      if (editing) {
+        const { error } = await supabase.from("contract_types").update(values).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("contract_types").insert({ ...values, tenant_id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["contract_types"] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const isHours = form.billing_model === "hours_package";
+  const isService = form.billing_model === "per_service";
+
+  useEffect(() => {
+    if (!open) return;
+    const tiers = editing?.equipment_tiers?.length
+      ? editing.equipment_tiers.map((t) => ({
+          min: String(t.min),
+          max: String(t.max),
+          price: String(t.price),
+        }))
+      : editing && editing.billing_model === "per_equipment"
+        ? [
+            {
+              min: String(editing.equipment_min ?? 1),
+              max: String(editing.equipment_max ?? 10),
+              price: String(editing.price_per_equipment ?? 0),
+            },
+          ]
+        : [{ min: "1", max: "10", price: "0" }];
+    setForm({
+      name: editing?.name ?? "",
+      description: editing?.description ?? "",
+      billing_model: editing?.billing_model ?? "hours_package",
+      default_hours_monthly: String(editing?.default_hours_monthly ?? 0),
+      default_monthly_value: String(editing?.default_monthly_value ?? 0),
+      equipment_tiers: tiers,
+      service_items: (editing?.service_items ?? []).map((s) => ({
+        reference: s.reference ?? "",
+        description: s.description ?? "",
+        quantity: String(s.quantity ?? 0),
+        price: String(s.price ?? 0),
+      })),
+      includes_remote: editing?.includes_remote ?? false,
+      includes_lab: editing?.includes_lab ?? false,
+      includes_onsite: editing?.includes_onsite ?? false,
+    });
+  }, [open, editing]);
+
+  const updateTier = (i: number, patch: Partial<{ min: string; max: string; price: string }>) =>
+    setForm((f) => ({
+      ...f,
+      equipment_tiers: f.equipment_tiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)),
+    }));
+  const addTier = () =>
+    setForm((f) => ({
+      ...f,
+      equipment_tiers: [...f.equipment_tiers, { min: "0", max: "0", price: "0" }],
+    }));
+  const removeTier = (i: number) =>
+    setForm((f) => ({ ...f, equipment_tiers: f.equipment_tiers.filter((_, idx) => idx !== i) }));
+
+  const updateService = (
+    i: number,
+    patch: Partial<{ reference: string; description: string; quantity: string; price: string }>,
+  ) =>
+    setForm((f) => ({
+      ...f,
+      service_items: f.service_items.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
+    }));
+  const addService = () =>
+    setForm((f) => ({
+      ...f,
+      service_items: [
+        ...f.service_items,
+        { reference: "", description: "", quantity: "1", price: "0" },
+      ],
+    }));
+  const removeService = (i: number) =>
+    setForm((f) => ({ ...f, service_items: f.service_items.filter((_, idx) => idx !== i) }));
+  const servicesTotal = form.service_items.reduce(
+    (s, it) => s + Number(it.quantity || 0) * Number(it.price || 0),
+    0,
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar" : "Novo"} tipo de contrato</DialogTitle>
+        </DialogHeader>
+        <form
+          className="grid grid-cols-2 gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const r = ctSchema.safeParse(form);
+            if (!r.success) return toast.error(r.error.issues[0].message);
+            save.mutate(r.data);
+          }}
+        >
+          <div className="col-span-2">
+            <Label>Nome *</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <Label>Descrição</Label>
+            <Textarea
+              rows={2}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+
+          <div className="col-span-2">
+            <Label>Modelo de cobrança *</Label>
+            <Select
+              value={form.billing_model}
+              onValueChange={(v) => setForm({ ...form, billing_model: v as BillingModel })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hours_package">Pacote de horas contratadas</SelectItem>
+                <SelectItem value="per_equipment">Por equipamento vinculado</SelectItem>
+                <SelectItem value="per_service">Por serviço vinculado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isHours ? (
+            <>
+              <div>
+                <Label>Horas contratadas</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.default_hours_monthly}
+                  onChange={(e) => setForm({ ...form, default_hours_monthly: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Valor do pacote (R$)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.default_monthly_value}
+                  onChange={(e) => setForm({ ...form, default_monthly_value: e.target.value })}
+                />
+              </div>
+            </>
+          ) : isService ? (
+            <div className="col-span-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Serviços</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addService}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar serviços
+                </Button>
+              </div>
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="grid grid-cols-[1fr_1.8fr_0.8fr_1.2fr_auto] gap-2 text-xs text-muted-foreground">
+                  <span>Referência</span>
+                  <span>Descrição</span>
+                  <span>Quantidade</span>
+                  <span>Valor unitário (R$)</span>
+                  <span></span>
+                </div>
+                {!form.service_items.length && (
+                  <div className="text-xs text-muted-foreground">Nenhum serviço adicionado.</div>
+                )}
+                {form.service_items.map((s, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_1.8fr_0.8fr_1.2fr_auto] gap-2 items-center"
+                  >
+                    <Input
+                      value={s.reference}
+                      onChange={(e) => updateService(i, { reference: e.target.value })}
+                    />
+                    <Input
+                      value={s.description}
+                      onChange={(e) => updateService(i, { description: e.target.value })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={s.quantity}
+                      onChange={(e) => updateService(i, { quantity: e.target.value })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={s.price}
+                      onChange={(e) => updateService(i, { price: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => removeService(i)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="text-right text-xs">
+                  Total:{" "}
+                  <span className="font-medium">
+                    {servicesTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="col-span-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Faixas de valor por equipamento</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addTier}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar faixa
+                </Button>
+              </div>
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 text-xs text-muted-foreground">
+                  <span>De</span>
+                  <span>Até</span>
+                  <span>Valor unitário (R$)</span>
+                  <span></span>
+                </div>
+                {form.equipment_tiers.map((t, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 items-center">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={t.min}
+                      onChange={(e) => updateTier(i, { min: e.target.value })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      value={t.max}
+                      onChange={(e) => updateTier(i, { max: e.target.value })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={t.price}
+                      onChange={(e) => updateTier(i, { price: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      disabled={form.equipment_tiers.length <= 1}
+                      onClick={() => removeTier(i)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="col-span-2 pt-2">
+            <Label className="text-sm font-semibold">Inclui</Label>
+            <div className="mt-2 space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span>Suporte remoto</span>
+                <Switch
+                  checked={form.includes_remote}
+                  onCheckedChange={(v) => setForm({ ...form, includes_remote: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span>Laboratório</span>
+                <Switch
+                  checked={form.includes_lab}
+                  onCheckedChange={(v) => setForm({ ...form, includes_lab: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span>Visita técnica</span>
+                <Switch
+                  checked={form.includes_onsite}
+                  onCheckedChange={(v) => setForm({ ...form, includes_onsite: v })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="col-span-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ SLAs ============================ */
+
+type Sla = {
+  id: string;
+  name: string;
+  priority: "low" | "medium" | "high" | "urgent" | null;
+  first_response_minutes: number;
+  resolution_minutes: number;
+};
+const slaSchema = z.object({
+  name: z.string().trim().min(1, "Nome obrigatório").max(100),
+  priority: z.enum(["low", "medium", "high", "urgent"]).nullable(),
+  first_response_minutes: z.coerce.number().int().min(1).max(100000),
+  resolution_minutes: z.coerce.number().int().min(1).max(1000000),
+});
+
+const PRIORITY_LABEL: Record<NonNullable<Sla["priority"]>, string> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  urgent: "Urgente",
+};
+
+function formatMinutes(m: number) {
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r ? `${h}h${r}m` : `${h}h`;
+}
+
+function SlasTab() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Sla | null>(null);
+  const [toDelete, setToDelete] = useState<Sla | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["sla_policies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sla_policies")
+        .select("*")
+        .order("first_response_minutes");
+      if (error) throw error;
+      return data as Sla[];
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sla_policies").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removido");
+      qc.invalidateQueries({ queryKey: ["sla_policies"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <CrudHeader
+        title="Políticas de SLA"
+        onNew={() => {
+          setEditing(null);
+          setOpen(true);
+        }}
+      />
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !data?.length ? (
+        <EmptyStub
+          title="Nenhuma SLA"
+          message="Defina tempos de primeira resposta e resolução por prioridade."
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Prioridade</TableHead>
+                <TableHead>1ª resposta</TableHead>
+                <TableHead>Resolução</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell>
+                    {s.priority ? (
+                      <Badge variant="outline">{PRIORITY_LABEL[s.priority]}</Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell>{formatMinutes(s.first_response_minutes)}</TableCell>
+                  <TableCell>{formatMinutes(s.resolution_minutes)}</TableCell>
+                  <TableCell>
+                    <RowActions
+                      row={s}
+                      onEdit={(r) => {
+                        setEditing(r);
+                        setOpen(true);
+                      }}
+                      onDelete={setToDelete}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <SlaDialog open={open} onOpenChange={setOpen} editing={editing} />
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id)}
+        title="Remover SLA?"
+        body={
+          <>
+            A política <b>{toDelete?.name}</b> será removida.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function SlaDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: Sla | null;
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: "",
+    priority: "" as string,
+    first_response_minutes: "60",
+    resolution_minutes: "480",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      name: editing?.name ?? "",
+      priority: editing?.priority ?? "",
+      first_response_minutes: String(editing?.first_response_minutes ?? 60),
+      resolution_minutes: String(editing?.resolution_minutes ?? 480),
+    });
+  }, [open, editing]);
+
+  const save = useMutation({
+    mutationFn: async (payload: z.infer<typeof slaSchema>) => {
+      const tenant_id = await getTenantId();
+      const values = {
+        name: payload.name,
+        priority: payload.priority,
+        first_response_minutes: payload.first_response_minutes,
+        resolution_minutes: payload.resolution_minutes,
+      };
+      if (editing) {
+        const { error } = await supabase.from("sla_policies").update(values).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("sla_policies").insert({ ...values, tenant_id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["sla_policies"] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar" : "Nova"} política de SLA</DialogTitle>
+        </DialogHeader>
+        <form
+          className="grid grid-cols-2 gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const r = slaSchema.safeParse({
+              name: form.name,
+              priority: form.priority || null,
+              first_response_minutes: form.first_response_minutes,
+              resolution_minutes: form.resolution_minutes,
+            });
+            if (!r.success) return toast.error(r.error.issues[0].message);
+            save.mutate(r.data);
+          }}
+        >
+          <div className="col-span-2">
+            <Label>Nome *</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <Label>Prioridade alvo</Label>
+            <Select
+              value={form.priority || "none"}
+              onValueChange={(v) => setForm({ ...form, priority: v === "none" ? "" : v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Qualquer —</SelectItem>
+                <SelectItem value="low">Baixa</SelectItem>
+                <SelectItem value="medium">Média</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+                <SelectItem value="urgent">Urgente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>1ª resposta (minutos) *</Label>
+            <Input
+              type="number"
+              min={1}
+              value={form.first_response_minutes}
+              onChange={(e) => setForm({ ...form, first_response_minutes: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Resolução (minutos) *</Label>
+            <Input
+              type="number"
+              min={1}
+              value={form.resolution_minutes}
+              onChange={(e) => setForm({ ...form, resolution_minutes: e.target.value })}
+            />
+          </div>
+          <DialogFooter className="col-span-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ CANNED RESPONSES ============================ */
+
+type Canned = { id: string; title: string; body: string };
+const cannedSchema = z.object({
+  title: z.string().trim().min(1, "Título obrigatório").max(150),
+  body: z.string().trim().min(1, "Conteúdo obrigatório").max(5000),
+});
+
+function CannedTab() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Canned | null>(null);
+  const [toDelete, setToDelete] = useState<Canned | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["canned_responses"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("canned_responses").select("*").order("title");
+      if (error) throw error;
+      return data as Canned[];
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("canned_responses").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removido");
+      qc.invalidateQueries({ queryKey: ["canned_responses"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <CrudHeader
+        title="Respostas padrão"
+        onNew={() => {
+          setEditing(null);
+          setOpen(true);
+        }}
+      />
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !data?.length ? (
+        <EmptyStub
+          title="Nenhuma resposta padrão"
+          message="Acelere atendimentos com modelos reutilizáveis (saudação, encerramento, pedido de logs)."
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Título</TableHead>
+                <TableHead>Prévia</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.title}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground truncate max-w-md">
+                    {c.body.slice(0, 120)}
+                    {c.body.length > 120 ? "…" : ""}
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
+                      row={c}
+                      onEdit={(r) => {
+                        setEditing(r);
+                        setOpen(true);
+                      }}
+                      onDelete={setToDelete}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <CannedDialog open={open} onOpenChange={setOpen} editing={editing} />
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id)}
+        title="Remover resposta?"
+        body={
+          <>
+            <b>{toDelete?.title}</b> será removida.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function CannedDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: Canned | null;
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ title: "", body: "" });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({ title: editing?.title ?? "", body: editing?.body ?? "" });
+  }, [open, editing]);
+
+  const save = useMutation({
+    mutationFn: async (payload: z.infer<typeof cannedSchema>) => {
+      const tenant_id = await getTenantId();
+      const { data: userData } = await supabase.auth.getUser();
+      const values = { title: payload.title, body: payload.body };
+      if (editing) {
+        const { error } = await supabase
+          .from("canned_responses")
+          .update(values)
+          .eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("canned_responses")
+          .insert({ ...values, tenant_id, created_by: userData.user?.id ?? null });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["canned_responses"] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar" : "Nova"} resposta padrão</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const r = cannedSchema.safeParse(form);
+            if (!r.success) return toast.error(r.error.issues[0].message);
+            save.mutate(r.data);
+          }}
+        >
+          <div>
+            <Label>Título *</Label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Conteúdo *</Label>
+            <Textarea
+              rows={8}
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ STICKERS ============================ */
+
+type StickerRow = { id: string; name: string; storage_path: string };
+
+function StickersTab() {
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [toDelete, setToDelete] = useState<StickerRow | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["stickers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stickers")
+        .select("id,name,storage_path")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as StickerRow[];
+      const withUrls = await Promise.all(
+        rows.map(async (r) => {
+          const { data: s } = await supabase.storage
+            .from("ticket-attachments")
+            .createSignedUrl(r.storage_path, 60 * 60);
+          return { ...r, url: s?.signedUrl ?? "" };
+        }),
+      );
+      return withUrls;
+    },
+  });
+
+  const onUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const { data: tid, error: tidErr } = await supabase.rpc("current_tenant_id");
+      if (tidErr || !tid) throw new Error(tidErr?.message ?? "Tenant não encontrado");
+      const tenant_id = tid as string;
+      const { data: userData } = await supabase.auth.getUser();
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) {
+          toast.error(`${file.name}: apenas imagens`);
+          continue;
+        }
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+        const path = `${tenant_id}/_stickers/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safe}`;
+        const { error: upErr } = await supabase.storage
+          .from("ticket-attachments")
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (upErr) throw upErr;
+        const { error: insErr } = await supabase.from("stickers").insert({
+          tenant_id,
+          name: file.name.replace(/\.[^.]+$/, ""),
+          storage_path: path,
+          created_by: userData.user?.id ?? null,
+        });
+        if (insErr) throw insErr;
+      }
+      toast.success("Figurinhas adicionadas");
+      qc.invalidateQueries({ queryKey: ["stickers"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const del = useMutation({
+    mutationFn: async (row: StickerRow) => {
+      await supabase.storage.from("ticket-attachments").remove([row.storage_path]);
+      const { error } = await supabase.from("stickers").delete().eq("id", row.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removida");
+      qc.invalidateQueries({ queryKey: ["stickers"] });
+      setToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Galeria de figurinhas</h2>
+          <p className="text-xs text-muted-foreground">
+            Imagens reutilizáveis para envio no WhatsApp (recomendado .webp 512×512).
+          </p>
+        </div>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              onUpload(e.target.files);
+              e.currentTarget.value = "";
+            }}
+          />
+          <Button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            {uploading ? "Enviando…" : "Adicionar"}
+          </Button>
+        </div>
+      </div>
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
+      ) : !data?.length ? (
+        <EmptyStub
+          title="Nenhuma figurinha"
+          message="Adicione imagens .webp para reutilizar em conversas."
+        />
+      ) : (
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+          {data.map((s) => (
+            <Card key={s.id} className="group relative aspect-square overflow-hidden p-2">
+              <img src={s.url} alt={s.name} className="h-full w-full object-contain" />
+              <button
+                onClick={() => setToDelete(s)}
+                className="absolute right-1 top-1 hidden rounded bg-destructive/90 p-1 text-destructive-foreground group-hover:block"
+                title="Remover"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+              <div className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1 text-[10px] text-muted-foreground">
+                {s.name}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+      <ConfirmDelete
+        open={!!toDelete}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete)}
+        title="Remover figurinha?"
+        body={
+          <>
+            <b>{toDelete?.name}</b> será removida.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+/* ============================ CHANNELS ============================ */
+
+const CHANNELS = [
+  {
+    key: "email",
+    label: "E-mail",
+    icon: Mail,
+    desc: "Receba tickets por e-mail via encaminhamento ou IMAP.",
+    status: "Ativo",
+  },
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    icon: MessageCircle,
+    desc: "Integração com UAZAPI: converse pelo WhatsApp direto no ticket.",
+    status: "Ativo",
+  },
+  {
+    key: "chat",
+    label: "Chat",
+    icon: MessageSquare,
+    desc: "Widget de chat embarcável no site do cliente.",
+    status: "Em breve",
+  },
+  {
+    key: "portal",
+    label: "Portal do Cliente",
+    icon: Globe,
+    desc: "Auto-atendimento e abertura de chamados pelos contatos.",
+    status: "Ativo",
+  },
+  {
+    key: "manual",
+    label: "Manual",
+    icon: Hand,
+    desc: "Tickets criados pelos próprios agentes.",
+    status: "Ativo",
+  },
+] as const;
+
+type ChannelConfig = {
+  defaultPriority: "low" | "medium" | "high" | "urgent";
+  defaultStatus: "open" | "pending";
+  requireContract: boolean;
+  signature: string;
+};
+
+const CHANNEL_DEFAULTS: ChannelConfig = {
+  defaultPriority: "medium",
+  defaultStatus: "open",
+  requireContract: true,
+  signature: "",
+};
+
+function loadChannelConfig(key: string): ChannelConfig {
+  if (typeof window === "undefined") return CHANNEL_DEFAULTS;
+  try {
+    const raw = localStorage.getItem(`apticket:channel:${key}`);
+    return raw ? { ...CHANNEL_DEFAULTS, ...JSON.parse(raw) } : CHANNEL_DEFAULTS;
+  } catch {
+    return CHANNEL_DEFAULTS;
+  }
+}
+
+function ChannelsTab() {
+  const [configuring, setConfiguring] = useState<string | null>(null);
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold">Canais de entrada</h3>
+      <div className="grid gap-3 md:grid-cols-2">
+        {CHANNELS.map((c) => {
+          const Icon = c.icon;
+          const active = c.status === "Ativo";
+          return (
+            <Card key={c.key} className="p-4 flex items-start gap-3">
+              <div className="rounded-md bg-primary/10 text-primary p-2">
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-semibold">{c.label}</div>
+                  <Badge variant={active ? "default" : "outline"}>{c.status}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{c.desc}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  disabled={!active}
+                  onClick={() => active && setConfiguring(c.key)}
+                >
+                  {active ? "Configurar" : "Conectar"}
+                </Button>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Integrações com e-mail e WhatsApp exigem credenciais externas e serão habilitadas na próxima
+        fase.
+      </p>
+      {configuring && (
+        <ChannelConfigDialog
+          channelKey={configuring}
+          channelLabel={CHANNELS.find((c) => c.key === configuring)?.label ?? ""}
+          onClose={() => setConfiguring(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChannelConfigDialog({
+  channelKey,
+  channelLabel,
+  onClose,
+}: {
+  channelKey: string;
+  channelLabel: string;
+  onClose: () => void;
+}) {
+  const [cfg, setCfg] = useState<ChannelConfig>(() => loadChannelConfig(channelKey));
+
+  function save() {
+    try {
+      localStorage.setItem(`apticket:channel:${channelKey}`, JSON.stringify(cfg));
+      toast.success(`Canal ${channelLabel} configurado`);
+      onClose();
+    } catch {
+      toast.error("Não foi possível salvar a configuração");
+    }
+  }
+
+  const generalSection = (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Prioridade padrão</Label>
+          <Select
+            value={cfg.defaultPriority}
+            onValueChange={(v) =>
+              setCfg({ ...cfg, defaultPriority: v as ChannelConfig["defaultPriority"] })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Baixa</SelectItem>
+              <SelectItem value="medium">Média</SelectItem>
+              <SelectItem value="high">Alta</SelectItem>
+              <SelectItem value="urgent">Urgente</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Status inicial</Label>
+          <Select
+            value={cfg.defaultStatus}
+            onValueChange={(v) =>
+              setCfg({ ...cfg, defaultStatus: v as ChannelConfig["defaultStatus"] })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="open">Aberto</SelectItem>
+              <SelectItem value="pending">Pendente</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div>
+          <div className="text-sm font-medium">Exigir contrato ativo</div>
+          <div className="text-xs text-muted-foreground">
+            Bloqueia abertura sem contrato vigente do cliente.
+          </div>
+        </div>
+        <Switch
+          checked={cfg.requireContract}
+          onCheckedChange={(v) => setCfg({ ...cfg, requireContract: v })}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Assinatura padrão</Label>
+        <Textarea
+          rows={3}
+          value={cfg.signature}
+          onChange={(e) => setCfg({ ...cfg, signature: e.target.value })}
+          placeholder="Atenciosamente, equipe de Suporte"
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
+        <DialogHeader>
+          <DialogTitle>Configurar canal — {channelLabel}</DialogTitle>
+        </DialogHeader>
+        {channelKey === "email" ? (
+          <EmailImapConfig onSaved={onClose} />
+        ) : channelKey === "whatsapp" ? (
+          <WhatsAppConfig onSaved={onClose} />
+        ) : (
+          generalSection
+        )}
+        {channelKey !== "whatsapp" && channelKey !== "email" && (
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={save}>Salvar</Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ Confirm delete ============================ */
+
+function ConfirmDelete({
+  open,
+  onCancel,
+  onConfirm,
+  title,
+  body,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  title: string;
+  body: React.ReactNode;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Remover</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/* ============================ WhatsApp (UAZAPI) ============================ */
+
+type WhatsAppSettings = {
+  whatsapp_enabled: boolean;
+  whatsapp_uazapi_base_url: string;
+  whatsapp_uazapi_token: string;
+  whatsapp_uazapi_instance: string;
+  whatsapp_connected_number: string | null;
+  whatsapp_webhook_secret: string;
+};
+
+function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
+  const qc = useQueryClient();
+  const testFn = useServerFn(testUazapiConnection);
+  const connectFn = useServerFn(connectUazapiInstance);
+  const disconnectFn = useServerFn(disconnectUazapiInstance);
+  const [form, setForm] = useState<WhatsAppSettings>({
+    whatsapp_enabled: false,
+    whatsapp_uazapi_base_url: "",
+    whatsapp_uazapi_token: "",
+    whatsapp_uazapi_instance: "",
+    whatsapp_connected_number: null,
+    whatsapp_webhook_secret: "",
+  });
+  const [testing, setTesting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState<string>("");
+  const qcWa = useQueryClient();
+
+  // Poll connection status while QR is shown; close QR and refresh when connected.
+  useEffect(() => {
+    if (!qrCode) return;
+    let stopped = false;
+    const interval = setInterval(async () => {
+      try {
+        const r = await testFn({ data: {} });
+        if (stopped) return;
+        if (r?.connected) {
+          setQrCode(null);
+          toast.success(`WhatsApp conectado${r.number ? `: ${r.number}` : ""}`);
+          await qcWa.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+          clearInterval(interval);
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 3000);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [qrCode, testFn, qcWa]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["tenant-whatsapp"],
+    queryFn: async () => {
+      const tid = await getTenantId();
+      const { data, error } = await supabase
+        .from("tenants")
+        .select(
+          "id, whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token, whatsapp_uazapi_instance, whatsapp_connected_number, whatsapp_webhook_secret",
+        )
+        .eq("id", tid)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (data) {
+      setForm({
+        whatsapp_enabled: data.whatsapp_enabled ?? false,
+        whatsapp_uazapi_base_url: data.whatsapp_uazapi_base_url ?? "",
+        whatsapp_uazapi_token: data.whatsapp_uazapi_token ?? "",
+        whatsapp_uazapi_instance: data.whatsapp_uazapi_instance ?? "",
+        whatsapp_connected_number: data.whatsapp_connected_number ?? null,
+        whatsapp_webhook_secret: data.whatsapp_webhook_secret ?? "",
+      });
+      if (typeof window !== "undefined" && data.id) {
+        // The editor host (id-preview--<uuid>.lovable.app) is auth-gated and
+        // redirects external POSTs to the login page (302). UAZAPI must call
+        // the stable public host instead:
+        //   project--<uuid>-dev.lovable.app  (preview)
+        //   project--<uuid>.lovable.app      (published)
+        const host = window.location.hostname;
+        let publicOrigin = window.location.origin;
+        const m = host.match(/^(?:id-preview--|project--)([0-9a-f-]{36})(?:-dev)?\.lovable\.app$/i);
+        if (m) {
+          publicOrigin = `https://project--${m[1]}-dev.lovable.app`;
+        }
+        const q = data.whatsapp_webhook_secret
+          ? `?secret=${encodeURIComponent(data.whatsapp_webhook_secret)}`
+          : "";
+        setWebhookUrl(`${publicOrigin}/api/public/hooks/uazapi/${data.id}${q}`);
+      }
+    }
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const tid = await getTenantId();
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          whatsapp_enabled: form.whatsapp_enabled,
+          whatsapp_uazapi_base_url:
+            form.whatsapp_uazapi_base_url.trim().replace(/\/+$/, "") || null,
+          whatsapp_uazapi_token: form.whatsapp_uazapi_token.trim() || null,
+          whatsapp_uazapi_instance: form.whatsapp_uazapi_instance.trim() || null,
+          whatsapp_webhook_secret: form.whatsapp_webhook_secret.trim() || null,
+        })
+        .eq("id", tid);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("WhatsApp configurado");
+      qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+      onSaved();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function test() {
+    if (!form.whatsapp_uazapi_base_url || !form.whatsapp_uazapi_token) {
+      toast.error("Informe URL base e token.");
+      return;
+    }
+    setTesting(true);
+    try {
+      const r = await testFn({
+        data: { base_url: form.whatsapp_uazapi_base_url, token: form.whatsapp_uazapi_token },
+      });
+      if (r.ok && r.connected) {
+        toast.success(`Instância conectada${r.number ? ` — ${r.number}` : ""}`);
+      } else if (r.ok) {
+        toast.warning(
+          "Credenciais válidas, mas a instância não está conectada. Escaneie o QR na UAZAPI.",
+        );
+      } else {
+        toast.error(r.message ?? "Falha ao conectar");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao testar");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  if (isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando…</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div>
+          <div className="text-sm font-medium">Habilitar WhatsApp</div>
+          <div className="text-xs text-muted-foreground">
+            Ativa recebimento e envio de mensagens via UAZAPI.
+          </div>
+        </div>
+        <Switch
+          checked={form.whatsapp_enabled}
+          onCheckedChange={(v) => setForm({ ...form, whatsapp_enabled: v })}
+        />
+      </div>
+
+      <div className="grid gap-3">
+        <div className="space-y-1.5">
+          <Label>URL base da UAZAPI *</Label>
+          <Input
+            value={form.whatsapp_uazapi_base_url}
+            onChange={(e) => setForm({ ...form, whatsapp_uazapi_base_url: e.target.value })}
+            placeholder="https://sua-instancia.uazapi.com"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Token da instância *</Label>
+          <Input
+            type="password"
+            value={form.whatsapp_uazapi_token}
+            onChange={(e) => setForm({ ...form, whatsapp_uazapi_token: e.target.value })}
+            placeholder="Token gerado na UAZAPI"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Nome da instância (opcional)</Label>
+          <Input
+            value={form.whatsapp_uazapi_instance}
+            onChange={(e) => setForm({ ...form, whatsapp_uazapi_instance: e.target.value })}
+            placeholder="minha-instancia"
+          />
+        </div>
+        {form.whatsapp_connected_number && (
+          <div className="text-xs text-muted-foreground">
+            Número conectado:{" "}
+            <span className="font-medium text-foreground">
+              {maskWhatsappPhone(form.whatsapp_connected_number)}
+            </span>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={testing} onClick={test}>
+            {testing ? "Testando…" : "Testar conexão"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={connecting || !form.whatsapp_uazapi_base_url || !form.whatsapp_uazapi_token}
+            onClick={async () => {
+              setConnecting(true);
+              setQrCode(null);
+              try {
+                const r = await connectFn();
+                if (r.connected) {
+                  toast.success("Instância já conectada");
+                } else if (r.qrcode) {
+                  setQrCode(r.qrcode);
+                  toast.info("Escaneie o QR code no WhatsApp do celular");
+                } else {
+                  toast.warning("Sem QR retornado — verifique a UAZAPI");
+                }
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Falha ao conectar");
+              } finally {
+                setConnecting(false);
+              }
+            }}
+          >
+            {connecting ? "Gerando QR…" : "Conectar / Gerar QR"}
+          </Button>
+          {form.whatsapp_connected_number && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await disconnectFn();
+                  setForm({ ...form, whatsapp_connected_number: null });
+                  toast.success("Instância desconectada");
+                  qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Falha ao desconectar");
+                }
+              }}
+            >
+              Desconectar
+            </Button>
+          )}
+        </div>
+        {qrCode && (
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-3">
+            <img src={qrCode} alt="QR WhatsApp" className="h-56 w-56" />
+            <p className="text-xs text-muted-foreground">
+              Abra WhatsApp → Aparelhos conectados → Conectar um aparelho e aponte a câmera.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2 rounded-md border p-3">
+        <div className="text-sm font-semibold">Webhook (UAZAPI → APTicket)</div>
+        <div className="space-y-1.5">
+          <Label>Segredo do webhook</Label>
+          <Input
+            value={form.whatsapp_webhook_secret}
+            onChange={(e) => setForm({ ...form, whatsapp_webhook_secret: e.target.value })}
+            placeholder="segredo compartilhado (mín. 16 chars)"
+          />
+          <p className="text-xs text-muted-foreground">
+            Configure a mesma string na UAZAPI. Ela valida a origem das mensagens recebidas.
+          </p>
+        </div>
+        {webhookUrl && (
+          <div className="space-y-1.5">
+            <Label>URL do webhook</Label>
+            <Input readOnly value={webhookUrl} onFocus={(e) => e.currentTarget.select()} />
+            <p className="text-xs text-muted-foreground">
+              Cadastre esta URL na configuração de webhook da sua instância UAZAPI. Use sempre este
+              host público (<code>project--…lovable.app</code>) — o host do editor (
+              <code>id-preview--…</code>) exige login e rejeita chamadas externas.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onSaved}>
+          Cancelar
+        </Button>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? "Salvando…" : "Salvar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ E-mail (IMAP) ============================ */
+
+type EmailSettings = {
+  email_enabled: boolean;
+  email_inbox_address: string;
+  email_imap_host: string;
+  email_imap_port: string;
+  email_imap_user: string;
+  email_imap_password: string;
+  email_imap_secure: boolean;
+  email_poll_interval_minutes: string;
+  email_smtp_host: string;
+  email_smtp_port: string;
+  email_smtp_secure: boolean;
+};
+
+const POLL_INTERVAL_OPTIONS = [1, 2, 5, 10, 15, 30, 60];
+
+function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
+  const qc = useQueryClient();
+  const testFn = useServerFn(testImapConnection);
+  const [form, setForm] = useState<EmailSettings>({
+    email_enabled: false,
+    email_inbox_address: "",
+    email_imap_host: "",
+    email_imap_port: "993",
+    email_imap_user: "",
+    email_imap_password: "",
+    email_imap_secure: true,
+    email_poll_interval_minutes: "5",
+    email_smtp_host: "",
+    email_smtp_port: "587",
+    email_smtp_secure: false,
+  });
+  const [testing, setTesting] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["tenant-email-imap"],
+    queryFn: async () => {
+      const tid = await getTenantId();
+      const { data, error } = await supabase
+        .from("tenants")
+        .select(
+          "id, email_enabled, email_inbox_address, email_imap_host, email_imap_port, email_imap_user, email_imap_password, email_imap_secure, email_poll_interval_minutes, email_smtp_host, email_smtp_port, email_smtp_secure",
+        )
+        .eq("id", tid)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (data) {
+      setForm({
+        email_enabled: data.email_enabled ?? false,
+        email_inbox_address: data.email_inbox_address ?? "",
+        email_imap_host: data.email_imap_host ?? "",
+        email_imap_port: String(data.email_imap_port ?? 993),
+        email_imap_user: data.email_imap_user ?? "",
+        email_imap_password: data.email_imap_password ?? "",
+        email_imap_secure: data.email_imap_secure ?? true,
+        email_poll_interval_minutes: String(data.email_poll_interval_minutes ?? 5),
+        email_smtp_host: data.email_smtp_host ?? "",
+        email_smtp_port: String(data.email_smtp_port ?? 587),
+        email_smtp_secure: data.email_smtp_secure ?? false,
+      });
+    }
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const tid = await getTenantId();
+      const port = Number(form.email_imap_port);
+      const interval = Number(form.email_poll_interval_minutes);
+      const smtpPort = Number(form.email_smtp_port);
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          email_enabled: form.email_enabled,
+          email_inbox_address: form.email_inbox_address.trim() || null,
+          email_imap_host: form.email_imap_host.trim() || null,
+          email_imap_port: Number.isInteger(port) && port > 0 ? port : 993,
+          email_imap_user: form.email_imap_user.trim() || null,
+          email_imap_password: form.email_imap_password || null,
+          email_imap_secure: form.email_imap_secure,
+          email_poll_interval_minutes:
+            Number.isInteger(interval) && interval >= 1 && interval <= 60 ? interval : 5,
+          email_smtp_host: form.email_smtp_host.trim() || null,
+          email_smtp_port: Number.isInteger(smtpPort) && smtpPort > 0 ? smtpPort : 587,
+          email_smtp_secure: form.email_smtp_secure,
+        })
+        .eq("id", tid);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("E-mail configurado");
+      qc.invalidateQueries({ queryKey: ["tenant-email-imap"] });
+      onSaved();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function test() {
+    if (!form.email_imap_host || !form.email_imap_user || !form.email_imap_password) {
+      toast.error("Informe servidor, usuário e senha.");
+      return;
+    }
+    setTesting(true);
+    try {
+      const r = await testFn({
+        data: {
+          host: form.email_imap_host,
+          port: Number(form.email_imap_port) || 993,
+          user: form.email_imap_user,
+          password: form.email_imap_password,
+          secure: form.email_imap_secure,
+        },
+      });
+      if (r.ok) toast.success(r.message);
+      else toast.error(r.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao testar");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  if (isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando…</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div>
+          <div className="text-sm font-medium">Habilitar e-mail (IMAP)</div>
+          <div className="text-xs text-muted-foreground">
+            Verifica a caixa a cada poucos minutos e abre chamados para contatos com contrato ativo.
+          </div>
+        </div>
+        <Switch
+          checked={form.email_enabled}
+          onCheckedChange={(v) => setForm({ ...form, email_enabled: v })}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Intervalo de verificação automática</Label>
+        <Select
+          value={form.email_poll_interval_minutes}
+          onValueChange={(v) => setForm({ ...form, email_poll_interval_minutes: v })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {POLL_INTERVAL_OPTIONS.map((m) => (
+              <SelectItem key={m} value={String(m)}>
+                A cada {m} minuto{m > 1 ? "s" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          De quanto em quanto tempo o sistema busca e-mails novos automaticamente. O botão
+          &quot;Sincronizar agora&quot; da Fila de E-mail sempre roda na hora, sem esperar esse
+          intervalo.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        <div className="space-y-1.5">
+          <Label>Endereço da caixa</Label>
+          <Input
+            type="email"
+            value={form.email_inbox_address}
+            onChange={(e) => setForm({ ...form, email_inbox_address: e.target.value })}
+            placeholder="suporte@suaempresa.com"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 space-y-1.5">
+            <Label>Servidor IMAP *</Label>
+            <Input
+              value={form.email_imap_host}
+              onChange={(e) => setForm({ ...form, email_imap_host: e.target.value })}
+              placeholder="imap.suaempresa.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Porta</Label>
+            <Input
+              value={form.email_imap_port}
+              onChange={(e) => setForm({ ...form, email_imap_port: e.target.value })}
+              placeholder="993"
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <Label className="text-sm">SSL/TLS</Label>
+            <Switch
+              checked={form.email_imap_secure}
+              onCheckedChange={(v) => setForm({ ...form, email_imap_secure: v })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Usuário *</Label>
+            <Input
+              value={form.email_imap_user}
+              onChange={(e) => setForm({ ...form, email_imap_user: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Senha *</Label>
+            <Input
+              type="password"
+              value={form.email_imap_password}
+              onChange={(e) => setForm({ ...form, email_imap_password: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" size="sm" disabled={testing} onClick={test}>
+            {testing ? "Testando…" : "Testar conexão"}
+          </Button>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3">
+        Um chamado só é aberto se o remetente já existir como contato e a empresa dele tiver
+        contrato ativo — a mensagem é ignorada silenciosamente caso contrário.
+      </p>
+
+      <div className="space-y-3 rounded-md border p-3">
+        <div>
+          <div className="text-sm font-semibold">Envio (SMTP)</div>
+          <p className="text-xs text-muted-foreground">
+            Usado para enviar as respostas do agente aos tickets desse canal. Usa o mesmo
+            usuário/senha do IMAP acima — normalmente a mesma caixa de e-mail.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 space-y-1.5">
+            <Label>Servidor SMTP</Label>
+            <Input
+              value={form.email_smtp_host}
+              onChange={(e) => setForm({ ...form, email_smtp_host: e.target.value })}
+              placeholder="smtp.suaempresa.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Porta</Label>
+            <Input
+              value={form.email_smtp_port}
+              onChange={(e) => setForm({ ...form, email_smtp_port: e.target.value })}
+              placeholder="587"
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <Label className="text-sm">SSL/TLS</Label>
+            <Switch
+              checked={form.email_smtp_secure}
+              onCheckedChange={(v) => setForm({ ...form, email_smtp_secure: v })}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Porta 465 costuma exigir SSL/TLS ligado; porta 587 costuma ser desligado (STARTTLS).
+        </p>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onSaved}>
+          Cancelar
+        </Button>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? "Salvando…" : "Salvar"}
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,238 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * APTicket — Visual aligned with APCHAT.
+ * Paleta: Deep Navy + Teal. Fontes: Inter (sans) + JetBrains Mono (display/mono).
+ */
+
+@theme {
+  --color-brand-dark: #0D2B5E;
+  --color-brand-medium: #1A6B8A;
+  --color-brand-accent: #00C2CB;
+  --color-brand-bg: #F0F4F8;
+  --color-brand-surface: #FFFFFF;
+  --color-brand-text: #1A1A2E;
+  --color-brand-muted: #4A5568;
+
+  --font-display: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
+  --animate-fade-up: fadeUp 0.6s ease-out both;
+}
+
+@theme inline {
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  --background: #F0F4F8;
+  --foreground: #1A1A2E;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A2E;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A2E;
+  --primary: #0D2B5E;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A6B8A;
+  --secondary-foreground: #FFFFFF;
+  --muted: #E2E8F0;
+  --muted-foreground: #4A5568;
+  --accent: #00C2CB;
+  --accent-foreground: #0D2B5E;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #00C2CB;
+
+  --chart-1: #0D2B5E;
+  --chart-2: #1A6B8A;
+  --chart-3: #00C2CB;
+  --chart-4: #4A5568;
+  --chart-5: #94A3B8;
+
+  --sidebar: #0D2B5E;
+  --sidebar-foreground: #E2E8F0;
+  --sidebar-primary: #00C2CB;
+  --sidebar-primary-foreground: #0D2B5E;
+  --sidebar-accent: #1A6B8A;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #00C2CB;
+}
+
+.dark {
+  --background: #0D2B5E;
+  --foreground: #E8EEF7;
+  --card: #102E66;
+  --card-foreground: #E8EEF7;
+  --popover: #102E66;
+  --popover-foreground: #E8EEF7;
+  --primary: #00C2CB;
+  --primary-foreground: #0D2B5E;
+  --secondary: #1A6B8A;
+  --secondary-foreground: #FFFFFF;
+  --muted: #173a7a;
+  --muted-foreground: #A8B3CC;
+  --accent: #00C2CB;
+  --accent-foreground: #0D2B5E;
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #00C2CB;
+
+  --chart-1: #00C2CB;
+  --chart-2: #1A6B8A;
+  --chart-3: #818cf8;
+  --chart-4: #A8B3CC;
+  --chart-5: #f472b6;
+
+  --sidebar: #07173a;
+  --sidebar-foreground: #E2E8F0;
+  --sidebar-primary: #00C2CB;
+  --sidebar-primary-foreground: #07173a;
+  --sidebar-accent: #1A6B8A;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #00C2CB;
+}
+
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; filter: brightness(1.3); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+@layer utilities {
+  .gradient-primary {
+    background-image: linear-gradient(135deg, #0D2B5E 0%, #1A6B8A 55%, #00C2CB 100%);
+  }
+  .gradient-cyan-soft {
+    background-image: linear-gradient(135deg, rgba(0,194,203,0.10) 0%, rgba(26,107,138,0.05) 100%);
+  }
+  .shadow-premium { box-shadow: 0 10px 40px -10px rgba(0, 194, 203, 0.35); }
+  .shadow-card { box-shadow: 0 1px 2px 0 rgba(13, 43, 94, 0.05), 0 1px 3px 0 rgba(13, 43, 94, 0.07); }
+  .shadow-card-hover { transition: box-shadow .2s ease, transform .2s ease; }
+  .shadow-card-hover:hover { box-shadow: 0 8px 24px -6px rgba(13, 43, 94, 0.15); transform: translateY(-2px); }
+  .text-gradient-primary {
+    background-image: linear-gradient(135deg, #0D2B5E 0%, #1A6B8A 55%, #00C2CB 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .animate-fade-in { animation: fadeUp 0.6s ease-out both; }
+}
+
+/* Compact form typography inside dialogs (cadastros) */
+[role="dialog"] label {
+  font-size: 11px;
+  line-height: 1.2;
+}
+[role="dialog"] input,
+[role="dialog"] textarea,
+[role="dialog"] select,
+[role="dialog"] [role="combobox"] {
+  font-size: 12px !important;
+}
+[role="dialog"] input,
+[role="dialog"] [role="combobox"] {
+  height: 32px;
+}
+[role="dialog"] [role="tab"] {
+  font-size: 12px;
+}
+[role="dialog"] button {
+  font-size: 12px;
+}
+
+/* Compact listing tables across the system */
+table th {
+  font-size: 11px !important;
+  height: 32px;
+}
+table td {
+  font-size: 12px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}

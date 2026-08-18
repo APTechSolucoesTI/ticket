@@ -1,0 +1,1 @@
+CREATE POLICY "Agents read tenant ticket attachments" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'ticket-attachments' AND (storage.foldername(name))[1] = public.current_tenant_id()::text);

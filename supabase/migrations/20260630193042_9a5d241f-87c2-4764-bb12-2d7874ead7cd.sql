@@ -1,0 +1,1 @@
+ALTER TABLE public.kb_articles ADD COLUMN IF NOT EXISTS attachments jsonb NOT NULL DEFAULT '[]'::jsonb;

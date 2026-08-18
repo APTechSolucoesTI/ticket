@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lovable"
+  short_description: "Projeta interfaces SaaS premium"
+  default_prompt: "Use $lovable to create or refine a polished SaaS UI."
