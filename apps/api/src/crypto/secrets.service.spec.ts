@@ -23,9 +23,14 @@ describe('SecretsService', () => {
     expect(a).not.toBe(b);
   });
 
-  it('rejeita um valor armazenado corrompido/mal formado', () => {
-    expect(() =>
-      secrets.decrypt('isso-nao-e-iv:authtag:ciphertext-valido'),
-    ).toThrow();
+  it('trata valor legado (texto puro, salvo antes da criptografia existir) como está', () => {
+    // Tenant com senha IMAP salva antes dessa feature — não é
+    // "<iv>:<authTag>:<ciphertext>" em hex, então decrypt() não tenta
+    // decifrar, só devolve como veio (ver comentário em decrypt()).
+    const legacyPlaintext = 'senha-antiga-em-texto-puro';
+    expect(secrets.decrypt(legacyPlaintext)).toBe(legacyPlaintext);
+
+    const malformed = 'isso-nao-e-iv:authtag:ciphertext-valido';
+    expect(secrets.decrypt(malformed)).toBe(malformed);
   });
 });

@@ -4,6 +4,7 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -46,7 +47,9 @@ function setAuth(socket: Socket, auth: SocketAuth): void {
   namespace: 'chat',
   cors: { origin: true, credentials: true },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server!: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
@@ -55,28 +58,59 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly redis: RedisService,
   ) {}
 
-  async handleConnection(socket: Socket) {
+  // Middleware de namespace: roda ANTES do handshake completar, ou seja,
+  // antes do client receber o evento "connect". Sem isso, autenticar dentro
+  // de handleConnection (que é async — 2 chamadas de rede) cria uma corrida:
+  // o client já recebe "connect" e dispara "ticket:join" antes do servidor
+  // terminar de resolver token → tenant, e o join é silenciosamente negado
+  // (socket.data.auth ainda undefined). Autenticando aqui, o handshake só
+  // termina depois que `socket.data.auth` já está setado.
+  afterInit(namespace: Server) {
+    namespace.use((socket: Socket, next: (err?: Error) => void) => {
+      this.authenticate(socket).then(
+        (auth) => {
+          if (!auth) {
+            next(new Error('unauthorized'));
+            return;
+          }
+          setAuth(socket, auth);
+          next();
+        },
+        (err: unknown) => {
+          this.logger.error(
+            `auth middleware falhou: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          next(new Error('unauthorized'));
+        },
+      );
+    });
+  }
+
+  private async authenticate(socket: Socket): Promise<SocketAuth | null> {
     const token = socket.handshake.auth?.token as string | undefined;
-    if (!token) return this.reject(socket, 'missing token');
+    if (!token) return null;
 
     const user = await this.supabase.getUserFromJwt(token);
-    if (!user) return this.reject(socket, 'invalid token');
+    if (!user) return null;
 
     const { data: profile } = await this.supabase.client
       .from('profiles')
       .select('tenant_id, name')
       .eq('id', user.id)
       .maybeSingle();
-    if (!profile?.tenant_id) return this.reject(socket, 'no tenant');
+    if (!profile?.tenant_id) return null;
 
-    const auth: SocketAuth = {
-      tenantId: profile.tenant_id,
-      userId: user.id,
-      name: profile.name,
-    };
-    setAuth(socket, auth);
+    return { tenantId: profile.tenant_id, userId: user.id, name: profile.name };
+  }
+
+  async handleConnection(socket: Socket) {
+    // Se chegou até aqui, o middleware de `afterInit` já autenticou e
+    // rejeitou quem não tinha token/tenant válido — isso aqui é só o que
+    // precisa da conexão já aceita (rooms, presença).
+    const auth = getAuth(socket);
+    if (!auth) return;
+
     await socket.join(`tenant:${auth.tenantId}`);
-
     await this.redis.client.set(
       `chat:presence:${auth.tenantId}:${auth.userId}`,
       '1',
@@ -97,28 +131,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`tenant:${auth.tenantId}`).emit('presence:update', event);
   }
 
-  private reject(socket: Socket, reason: string) {
-    this.logger.warn(`connection rejected: ${reason}`);
-    socket.disconnect(true);
-  }
-
   @SubscribeMessage('ticket:join')
   async onJoinTicket(
     @ConnectedSocket() socket: Socket,
     @MessageBody() body: { ticketId: string },
   ) {
     const auth = getAuth(socket);
-    if (!auth) return;
+    if (!auth) {
+      this.logger.warn('ticket:join sem auth no socket');
+      return;
+    }
     // Confia no RLS/tenant scoping do resto da API pra decidir quem pode ver
     // qual ticket — aqui só confere que o ticket é do mesmo tenant do socket.
-    const { data: ticket } = await this.supabase.client
+    const { data: ticket, error } = await this.supabase.client
       .from('tickets')
       .select('id')
       .eq('id', body.ticketId)
       .eq('tenant_id', auth.tenantId)
       .maybeSingle();
-    if (!ticket) return;
+    if (error) {
+      this.logger.error(`ticket:join lookup failed: ${error.message}`);
+      return;
+    }
+    if (!ticket) {
+      this.logger.warn(
+        `ticket:join negado — ticket ${body.ticketId} nao pertence ao tenant ${auth.tenantId}`,
+      );
+      return;
+    }
     await socket.join(`ticket:${body.ticketId}`);
+    this.logger.log(`socket ${socket.id} entrou em ticket:${body.ticketId}`);
   }
 
   @SubscribeMessage('message:send')
@@ -127,15 +169,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() body: { ticketId: string; content: string },
   ) {
     const auth = getAuth(socket);
-    if (!auth || !body.content?.trim()) return;
+    if (!auth) {
+      this.logger.warn('message:send sem auth no socket');
+      return;
+    }
+    if (!body.content?.trim()) {
+      this.logger.warn('message:send sem content');
+      return;
+    }
 
-    const { data: ticket } = await this.supabase.client
+    const { data: ticket, error: ticketError } = await this.supabase.client
       .from('tickets')
       .select('id, tenant_id')
       .eq('id', body.ticketId)
       .eq('tenant_id', auth.tenantId)
       .maybeSingle();
-    if (!ticket) return;
+    if (ticketError) {
+      this.logger.error(`ticket lookup failed: ${ticketError.message}`);
+      return;
+    }
+    if (!ticket) {
+      this.logger.warn(
+        `ticket ${body.ticketId} nao encontrado pro tenant ${auth.tenantId}`,
+      );
+      return;
+    }
 
     const { data: inserted, error } = await this.supabase.client
       .from('messages')
@@ -154,6 +212,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.error(`message insert failed: ${error.message}`);
       return;
     }
+    this.logger.log(`message:send ok, id=${inserted.id}`);
 
     const event: ChatMessageEventDto & { id: string; createdAt: string } = {
       ticketId: ticket.id,

@@ -285,12 +285,19 @@ function TicketDetailPage() {
   const [askOpen, setAskOpen] = useState(false);
   const [finalizeStatus, setFinalizeStatus] = useState<"resolved" | "closed" | null>(null);
 
-  // Ao abrir/fechar a tela do ticket, sempre verificar iniciar atendimento
+  // Ao abrir/fechar a tela do ticket, verificar se precisa perguntar "iniciar
+  // atendimento". Só pergunta se eu ainda não sou o técnico responsável —
+  // sem o `assigned_to` na dependência, qualquer invalidate de `["ticket", id]`
+  // (inclusive o que o próprio startAttendance() dispara) mudava `ticket.status`
+  // e reabria o dialog por cima da resposta que o técnico estava digitando.
   useEffect(() => {
     if (!ticket || !user) return;
     const finalized = ticket.status === "resolved" || ticket.status === "closed";
     if (finalized) {
       setAttendance("readonly");
+      setAskOpen(false);
+    } else if (ticket.assigned_to === user.id) {
+      setAttendance("active");
       setAskOpen(false);
     } else {
       setAttendance("ask");
@@ -301,7 +308,7 @@ function TicketDetailPage() {
       setAttendance("ask");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticket?.id, ticket?.status, user?.id]);
+  }, [ticket?.id, ticket?.status, ticket?.assigned_to, user?.id]);
 
   const isFinalized = ticket?.status === "resolved" || ticket?.status === "closed";
   const readOnly = attendance === "readonly" || isFinalized;

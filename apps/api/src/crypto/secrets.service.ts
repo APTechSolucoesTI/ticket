@@ -39,9 +39,22 @@ export class SecretsService {
   }
 
   decrypt(stored: string): string {
-    const [ivHex, authTagHex, ciphertextHex] = stored.split(':');
-    if (!ivHex || !authTagHex || !ciphertextHex) {
-      throw new Error('Formato de segredo criptografado inválido');
+    const parts = stored.split(':');
+    const [ivHex, authTagHex, ciphertextHex] = parts;
+    if (
+      parts.length !== 3 ||
+      !ivHex ||
+      !authTagHex ||
+      !ciphertextHex ||
+      !/^[0-9a-f]+$/i.test(ivHex) ||
+      !/^[0-9a-f]+$/i.test(authTagHex) ||
+      !/^[0-9a-f]+$/i.test(ciphertextHex)
+    ) {
+      // Valor pré-existente, salvo em texto puro antes dessa criptografia
+      // entrar (dado de antes da migração) — trata como legado e devolve
+      // como está. Assim que o tenant salvar de novo pela tela nova, vira
+      // formato criptografado. Sem isso, decrypt() quebra dado antigo.
+      return stored;
     }
     const decipher = createDecipheriv(
       ALGO,
