@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -31,6 +32,8 @@ export interface AuthenticatedRequest extends Request {
  */
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(SupabaseAuthGuard.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly reflector: Reflector,
@@ -58,7 +61,18 @@ export class SupabaseAuthGuard implements CanActivate {
       .select('tenant_id, name, is_active')
       .eq('id', user.id)
       .maybeSingle();
-    if (error || !profile || !profile.is_active) {
+    if (error) {
+      // Mensagem pro client fica genérica de propósito (não vaza detalhe de
+      // schema/infra), mas o erro real do Postgrest/Supabase (ex.: schema
+      // "apticket" não exposto na Data API) só aparece aqui no log — sem
+      // isso, um erro de config de infra parecia idêntico a "usuário sem
+      // perfil" e era impossível diferenciar só pela resposta HTTP.
+      this.logger.error(
+        `falha ao buscar profile de ${user.id}: ${error.message}`,
+      );
+      throw new UnauthorizedException('Usuário sem perfil ativo no tenant');
+    }
+    if (!profile || !profile.is_active) {
       throw new UnauthorizedException('Usuário sem perfil ativo no tenant');
     }
 
