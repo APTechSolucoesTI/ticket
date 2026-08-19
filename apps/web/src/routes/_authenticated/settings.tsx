@@ -2881,7 +2881,10 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
       const port = Number(form.email_imap_port);
       const interval = Number(form.email_poll_interval_minutes);
       const smtpPort = Number(form.email_smtp_port);
-      await backendClient.post("/channels/email/accounts/me", {
+      // POST na coleção (sem /:id) — o controller faz upsert, não existe
+      // rota POST /accounts/:id (só PATCH/test-connection/sync/send usam
+      // :id, aí sim como "me").
+      await backendClient.post("/channels/email/accounts", {
         inboxAddress: form.email_inbox_address.trim() || undefined,
         imapHost: form.email_imap_host.trim(),
         imapPort: Number.isInteger(port) && port > 0 ? port : 993,
