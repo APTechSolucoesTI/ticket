@@ -29,7 +29,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
 RUN pnpm install --frozen-lockfile --prod --filter api...
 COPY --from=build /repo/apps/api/dist apps/api/dist
-COPY packages/shared-types packages/shared-types
+COPY --from=build /repo/packages/shared-types packages/shared-types
 
 WORKDIR /repo/apps/api
 EXPOSE 3001
