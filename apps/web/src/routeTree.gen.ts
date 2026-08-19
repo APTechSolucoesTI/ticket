@@ -25,6 +25,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTicketsRouteImport } from './routes/_authenticated/tickets'
 import { Route as AuthenticatedWhatsappPendingRouteImport } from './routes/_authenticated/whatsapp-pending'
+import { Route as BackendSplatRouteImport } from './routes/backend/$'
 import { Route as CsatTokenRouteImport } from './routes/csat.$token'
 import { Route as DemoIndexRouteImport } from './routes/demo.index'
 import { Route as DemoClientesRouteImport } from './routes/demo.Clientes'
@@ -36,7 +37,6 @@ import { Route as KbSlugRouteImport } from './routes/kb.$slug'
 import { Route as ReportTokenRouteImport } from './routes/report.$token'
 import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticated/kb.admin'
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
-import { Route as ApiBackendSplatRouteImport } from './routes/api/backend/$'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
 import { Route as ApiPublicPortalChatStartRouteImport } from './routes/api/public/portal/chat-start'
 import { Route as ApiPublicPortalRequestOtpRouteImport } from './routes/api/public/portal/request-otp'
@@ -127,6 +127,11 @@ const AuthenticatedWhatsappPendingRoute =
     path: '/whatsapp-pending',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const BackendSplatRoute = BackendSplatRouteImport.update({
+  id: '/backend/$',
+  path: '/backend/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CsatTokenRoute = CsatTokenRouteImport.update({
   id: '/csat/$token',
   path: '/csat/$token',
@@ -181,11 +186,6 @@ const AuthenticatedTicketsIdRoute = AuthenticatedTicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AuthenticatedTicketsRoute,
-} as any)
-const ApiBackendSplatRoute = ApiBackendSplatRouteImport.update({
-  id: '/api/backend/$',
-  path: '/api/backend/$',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const DemoTicketsIdRoute = DemoTicketsIdRouteImport.update({
   id: '/$id',
@@ -249,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
   '/whatsapp-pending': typeof AuthenticatedWhatsappPendingRoute
+  '/backend/$': typeof BackendSplatRoute
   '/csat/$token': typeof CsatTokenRoute
   '/demo/Clientes': typeof DemoClientesRoute
   '/demo/Contratos': typeof DemoContratosRoute
@@ -260,7 +261,6 @@ export interface FileRoutesByFullPath {
   '/kb/': typeof KbIndexRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
-  '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
@@ -284,6 +284,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
   '/whatsapp-pending': typeof AuthenticatedWhatsappPendingRoute
+  '/backend/$': typeof BackendSplatRoute
   '/csat/$token': typeof CsatTokenRoute
   '/demo/Clientes': typeof DemoClientesRoute
   '/demo/Contratos': typeof DemoContratosRoute
@@ -295,7 +296,6 @@ export interface FileRoutesByTo {
   '/kb': typeof KbIndexRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
-  '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
@@ -323,6 +323,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tickets': typeof AuthenticatedTicketsRouteWithChildren
   '/_authenticated/whatsapp-pending': typeof AuthenticatedWhatsappPendingRoute
+  '/backend/$': typeof BackendSplatRoute
   '/csat/$token': typeof CsatTokenRoute
   '/demo/Clientes': typeof DemoClientesRoute
   '/demo/Contratos': typeof DemoContratosRoute
@@ -334,7 +335,6 @@ export interface FileRoutesById {
   '/kb/': typeof KbIndexRoute
   '/_authenticated/kb/admin': typeof AuthenticatedKbAdminRoute
   '/_authenticated/tickets/$id': typeof AuthenticatedTicketsIdRoute
-  '/api/backend/$': typeof ApiBackendSplatRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
@@ -362,6 +362,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tickets'
     | '/whatsapp-pending'
+    | '/backend/$'
     | '/csat/$token'
     | '/demo/Clientes'
     | '/demo/Contratos'
@@ -373,7 +374,6 @@ export interface FileRouteTypes {
     | '/kb/'
     | '/kb/admin'
     | '/tickets/$id'
-    | '/api/backend/$'
     | '/demo/Tickets/$id'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
@@ -397,6 +397,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tickets'
     | '/whatsapp-pending'
+    | '/backend/$'
     | '/csat/$token'
     | '/demo/Clientes'
     | '/demo/Contratos'
@@ -408,7 +409,6 @@ export interface FileRouteTypes {
     | '/kb'
     | '/kb/admin'
     | '/tickets/$id'
-    | '/api/backend/$'
     | '/demo/Tickets/$id'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
@@ -435,6 +435,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/tickets'
     | '/_authenticated/whatsapp-pending'
+    | '/backend/$'
     | '/csat/$token'
     | '/demo/Clientes'
     | '/demo/Contratos'
@@ -446,7 +447,6 @@ export interface FileRouteTypes {
     | '/kb/'
     | '/_authenticated/kb/admin'
     | '/_authenticated/tickets/$id'
-    | '/api/backend/$'
     | '/demo/Tickets/$id'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
@@ -464,9 +464,9 @@ export interface RootRouteChildren {
   DemoRoute: typeof DemoRouteWithChildren
   KbRoute: typeof KbRouteWithChildren
   PortalRoute: typeof PortalRoute
+  BackendSplatRoute: typeof BackendSplatRoute
   CsatTokenRoute: typeof CsatTokenRoute
   ReportTokenRoute: typeof ReportTokenRoute
-  ApiBackendSplatRoute: typeof ApiBackendSplatRoute
   ApiPublicPortalChatStartRoute: typeof ApiPublicPortalChatStartRoute
   ApiPublicPortalRequestOtpRoute: typeof ApiPublicPortalRequestOtpRoute
   ApiPublicPortalSessionRoute: typeof ApiPublicPortalSessionRoute
@@ -590,6 +590,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWhatsappPendingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/backend/$': {
+      id: '/backend/$'
+      path: '/backend/$'
+      fullPath: '/backend/$'
+      preLoaderRoute: typeof BackendSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/csat/$token': {
       id: '/csat/$token'
       path: '/csat/$token'
@@ -666,13 +673,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/tickets/$id'
       preLoaderRoute: typeof AuthenticatedTicketsIdRouteImport
       parentRoute: typeof AuthenticatedTicketsRoute
-    }
-    '/api/backend/$': {
-      id: '/api/backend/$'
-      path: '/api/backend/$'
-      fullPath: '/api/backend/$'
-      preLoaderRoute: typeof ApiBackendSplatRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/demo/Tickets/$id': {
       id: '/demo/Tickets/$id'
@@ -824,9 +824,9 @@ const rootRouteChildren: RootRouteChildren = {
   DemoRoute: DemoRouteWithChildren,
   KbRoute: KbRouteWithChildren,
   PortalRoute: PortalRoute,
+  BackendSplatRoute: BackendSplatRoute,
   CsatTokenRoute: CsatTokenRoute,
   ReportTokenRoute: ReportTokenRoute,
-  ApiBackendSplatRoute: ApiBackendSplatRoute,
   ApiPublicPortalChatStartRoute: ApiPublicPortalChatStartRoute,
   ApiPublicPortalRequestOtpRoute: ApiPublicPortalRequestOtpRoute,
   ApiPublicPortalSessionRoute: ApiPublicPortalSessionRoute,

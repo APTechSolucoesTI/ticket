@@ -1,7 +1,9 @@
 // Client do canal de chat em tempo real (ChatGateway, apps/api). Não passa
-// pelo proxy same-origin (src/routes/api/backend/$.ts) — upgrade de
-// WebSocket não dá pra fazer num handler de request comum, então conecta
-// direto em VITE_API_URL (ver README, seção "WebSocket atrás do proxy").
+// pelo proxy same-origin (src/routes/backend/$.ts) — upgrade de WebSocket
+// não dá pra fazer num handler de request comum. Conecta em VITE_API_URL,
+// que em produção é o MESMO domínio público do frontend (o Traefik roteia
+// /socket.io/ direto pro serviço da API, sem passar pelo proxy — ver
+// README, seção "WebSocket").
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { supabase } from "@/integrations/supabase/client";

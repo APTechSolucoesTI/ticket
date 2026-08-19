@@ -2569,7 +2569,7 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   // rota é pública (sem JWT), então o backend não tem como resolver "me".
   const webhookUrl =
     typeof window !== "undefined" && webhookSecret && webhookTenantId
-      ? `${window.location.origin}/api/backend/webhooks/whatsapp/${webhookTenantId}?secret=${encodeURIComponent(webhookSecret)}`
+      ? `${window.location.origin}/backend/webhooks/whatsapp/${webhookTenantId}?secret=${encodeURIComponent(webhookSecret)}`
       : "";
 
   // Enquanto o QR tá visível, confere status a cada poucos segundos e some

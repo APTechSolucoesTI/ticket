@@ -1,21 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Proxy reverso same-origin pra apps/api — mesma ideia do rewrites() do
-// Next.js que vocês já usam noutro projeto (apbling-backend), só que
-// implementado como rota do próprio TanStack Start em vez de config do
-// framework (Nitro/Vite não tem um "rewrites" nativo aqui). O browser só
-// fala com o domínio do frontend; ele que repassa pra API por trás.
+// Proxy reverso same-origin pra apps/api — mesmo padrão do rewrites() do
+// Next.js usado no Integrador Bling (outro projeto de vocês), só que
+// implementado como rota do próprio TanStack Start (Nitro/Vite não tem um
+// "rewrites" nativo). O browser só fala com o domínio do frontend
+// (apticket.aptechinfo.com.br); ele que repassa pra API por trás, então o
+// backend nunca fica exposto direto.
+//
+// /backend/tickets no browser vira /tickets no Nest — por isso a API NÃO
+// tem app.setGlobalPrefix('backend'): o prefixo existe só aqui, na borda,
+// e é removido antes de repassar.
 //
 // SÓ funciona pra REST — não dá pra fazer upgrade de WebSocket (Socket.IO,
-// canal de chat) através de um handler de request comum. Isso precisa ser
-// resolvido no reverse proxy de infra (Traefik/Nginx) apontando pro mesmo
-// `/backend` prefix com os headers de Upgrade — ver infra/docker-compose.yml
-// e o README. O client do chat conecta direto em VITE_API_URL.
+// canal de chat) através de um handler de request comum. Isso é resolvido
+// direto no Traefik, roteando /socket.io/ pro serviço da API sem passar por
+// aqui — ver infra/docker-compose.yml e o README.
 //
-// BACKEND_URL: nome do serviço Docker (ex.: "http://api:3001" dentro do
-// compose) — nunca aponta pra fora, só tráfego interno entre containers.
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://api:3001";
-const PREFIX = "/api/backend";
+// INTERNAL_BACKEND_URL: hostname interno do serviço Docker da API (nunca
+// aponta pra fora, só tráfego container-a-container dentro do Dokploy/Swarm).
+const BACKEND_URL = process.env.INTERNAL_BACKEND_URL ?? "http://api:3001";
+const PREFIX = "/backend";
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -58,7 +62,7 @@ async function proxy(request: Request): Promise<Response> {
   return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
 }
 
-export const Route = createFileRoute("/api/backend/$")({
+export const Route = createFileRoute("/backend/$")({
   server: {
     handlers: {
       GET: ({ request }) => proxy(request),
