@@ -60,7 +60,12 @@ function AuthPage() {
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { name, company_name: company },
+        // "app: apticket" é o que o trigger apticket.handle_new_user() checa
+        // antes de provisionar tenant — esse Supabase Auth é compartilhado
+        // com outro sistema (mesma base de auth.users), sem esse marcador
+        // qualquer conta criada em QUALQUER app que usa esse Supabase ganhava
+        // de graça um tenant+perfil admin aqui.
+        data: { name, company_name: company, app: "apticket" },
       },
     });
     setLoading(false);

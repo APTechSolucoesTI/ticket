@@ -45,14 +45,32 @@ export const inviteUser = createServerFn({ method: "POST" })
       throw new Error("Este usuário já faz parte da sua organização.");
     }
 
-    const request = getRequest();
-    const origin = request ? new URL(request.url).origin : undefined;
+    // PUBLIC_SITE_URL fixo em vez de derivar da requisição (new URL(request.url).origin)
+    // — atrás de Traefik/proxy isso depende dos headers X-Forwarded-* chegarem
+    // certos no Node, e quando não chegam o redirectTo vira algo que o GoTrue
+    // não reconhece e ele cai no fallback dele (o link do convite ia parar no
+    // próprio Supabase em vez do APTicket). Com env var fixa não tem essa
+    // dependência — mas o Supabase ainda precisa ter essa URL na allowlist de
+    // "Redirect URLs" (Auth → URL Configuration), senão ignora do mesmo jeito.
+    function resolveRedirectBase(): string | undefined {
+      if (process.env.PUBLIC_SITE_URL) return process.env.PUBLIC_SITE_URL;
+      console.warn(
+        "[inviteUser] PUBLIC_SITE_URL não setada — usando origin da requisição como fallback (pode falhar atrás de proxy).",
+      );
+      const request = getRequest();
+      return request ? new URL(request.url).origin : undefined;
+    }
+    const redirectBase = resolveRedirectBase();
 
     const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       data.email,
       {
-        data: { name: data.name, invited_tenant_id: tenantId },
-        ...(origin ? { redirectTo: `${origin}/auth` } : {}),
+        // "app: apticket" é o que o trigger apticket.handle_new_user() checa
+        // antes de provisionar — esse Supabase Auth é compartilhado com outro
+        // sistema, sem esse marcador qualquer signup em QUALQUER app que usa
+        // esse Supabase ganhava um tenant+perfil aqui de graça.
+        data: { name: data.name, invited_tenant_id: tenantId, app: "apticket" },
+        ...(redirectBase ? { redirectTo: `${redirectBase}/auth` } : {}),
       },
     );
     if (inviteErr) throw new Error(inviteErr.message);
