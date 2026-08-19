@@ -22,9 +22,20 @@ RUN pnpm install --frozen-lockfile --filter web...
 
 # ---- build: código de verdade entra aqui ----
 FROM deps AS build
+
 COPY apps/web apps/web
 COPY packages/shared-types packages/shared-types
+
+ARG VITE_API_URL
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+
 ENV NITRO_PRESET=node-server
+
 RUN pnpm --filter web build
 
 # ---- runtime: só o output do nitro, sem devDependencies/toolchain/fonte ----
