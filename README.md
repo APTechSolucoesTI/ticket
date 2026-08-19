@@ -119,6 +119,7 @@ de vocês) — Dokploy publica só o frontend pelo Traefik, backend nunca expost
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | iguais aos que já usam hoje |
 | `SUPABASE_SERVICE_ROLE_KEY` | idem (server-only, nunca com prefixo `VITE_`) |
 | `SMTP_*`, `PORTAL_SESSION_SECRET` | iguais aos que já usam hoje (portal do cliente, feature separada do canal de e-mail) |
+| `PUBLIC_SITE_URL` | `https://apticket.aptechinfo.com.br` — usada pro `redirectTo` do e-mail de convite (`inviteUserByEmail`). Sem ela, o link do convite podia sair errado atrás do proxy (dependia de header que nem sempre chega certo). |
 | `PORT` | Nitro usa isso pra escolher a porta — Dokploy geralmente injeta sozinho, conferir |
 
 **Serviço `api`** (`infra/docker-compose.yml`, `.env` conforme `infra/.env.example`):
@@ -144,6 +145,16 @@ de vocês) — Dokploy publica só o frontend pelo Traefik, backend nunca expost
 3. Ambos só importam quando o `apps/api` novo estiver realmente no ar — até lá nenhum dos dois
    caminhos (antigo ou novo) está recebendo tráfego de verdade, então não tem pressa, mas não
    esquecer antes do go-live.
+4. **Supabase Auth → URL Configuration → Redirect URLs**: adicionar
+   `https://apticket.aptechinfo.com.br/**` na allowlist (sem tirar as URLs que o outro sistema que
+   compartilha esse projeto já usa) — sem isso o GoTrue ignora o `redirectTo` do convite e cai no
+   fallback dele, mandando o link do e-mail pro próprio Supabase em vez do APTicket.
+5. **`apticket.handle_new_user()` (trigger `on_auth_user_created`)**: esse Supabase Auth é
+   compartilhado com outro sistema (mesma `auth.users`) — sem guard, esse trigger provisionava
+   tenant+perfil+role admin no APTicket pra QUALQUER signup de QUALQUER app que usa esse mesmo
+   Supabase. Fix em `supabase/migrations/20260819000000_guard_handle_new_user_cross_app.sql` — ainda
+   **não aplicado** no banco de produção, precisa rodar manualmente (é uma função compartilhada, não
+   passa por deploy automático de nenhum dos dois apps).
 
 ## Rodando local
 
