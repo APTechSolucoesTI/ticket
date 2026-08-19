@@ -34,4 +34,6 @@ WORKDIR /app
 COPY --from=build /repo/apps/web/.output ./.output
 
 EXPOSE 3000
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=10s \
+  CMD ["node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 CMD ["node", ".output/server/index.mjs"]
