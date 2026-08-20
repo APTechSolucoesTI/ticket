@@ -10,15 +10,23 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
 /** Gera um novo token de convite pro profile e manda o e-mail — usado tanto
  * no convite inicial quanto no reenvio. Convites antigos não aceitos do
- * mesmo profile são apagados antes: sem isso, um link velho continuaria
- * funcionando em paralelo ao novo (2 tokens válidos pro mesmo convite). */
+ * mesmo profile são invalidados antes (accepted_at = agora, mesmo truque que
+ * acceptInvite usa pra marcar "consumido" — service_role só tem grant de
+ * INSERT/SELECT/UPDATE em invites, sem DELETE, então é update, não delete):
+ * sem isso, um link velho continuaria funcionando em paralelo ao novo (2
+ * tokens válidos pro mesmo convite). */
 async function issueAndSendInvite(
   supabaseAdmin: SupabaseClient<Database>,
   profile: { id: string; email: string },
 ) {
   const { sendMail } = await import("@/lib/mailer.server");
 
-  await supabaseAdmin.from("invites").delete().eq("profile_id", profile.id).is("accepted_at", null);
+  const { error: invalidateErr } = await supabaseAdmin
+    .from("invites")
+    .update({ accepted_at: new Date().toISOString() })
+    .eq("profile_id", profile.id)
+    .is("accepted_at", null);
+  if (invalidateErr) throw new Error(invalidateErr.message);
 
   const token = randomBytes(32).toString("hex");
   const tokenHash = createHash("sha256").update(token).digest("hex");
