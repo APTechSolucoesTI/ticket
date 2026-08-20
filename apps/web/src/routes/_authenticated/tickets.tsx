@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -447,13 +448,13 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
       if (services?.length) {
         const t = tickets.find((x) => x.id === id);
         if (!t) return;
-        const { data: auth } = await supabase.auth.getUser();
+        const authorId = getCurrentUserId();
         const rows = services.map((s) => ({
           tenant_id: t.tenant_id,
           ticket_id: id,
           provided_service_id: s.provided_service_id,
           complement: s.complement || null,
-          created_by: auth.user?.id ?? null,
+          created_by: authorId,
         }));
         const { error: svcErr } = await supabase.from("ticket_services_performed").insert(rows);
         if (svcErr) throw svcErr;
@@ -783,12 +784,11 @@ function TicketDialog({
         if (eqErr) throw eqErr;
       }
       if (payload.description && ticket) {
-        const { data: u } = await supabase.auth.getUser();
         await supabase.from("messages").insert({
           tenant_id: prof.tenant_id,
           ticket_id: ticket.id,
           content: payload.description,
-          author_id: u.user?.id ?? null,
+          author_id: getCurrentUserId(),
           author_type: "agent",
           is_internal: false,
         });

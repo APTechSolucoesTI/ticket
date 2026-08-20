@@ -6,7 +6,7 @@
 // README, seção "WebSocket").
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { supabase } from "@/integrations/supabase/client";
+import { getToken } from "@/lib/session";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -38,40 +38,34 @@ export function useChatSocket(
 
   useEffect(() => {
     if (!ticketId) return;
-    let cancelled = false;
+    const token = getToken();
+    if (!token) return;
 
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token || cancelled) return;
+    const socket = io(`${API_URL}/chat`, { auth: { token }, transports: ["websocket"] });
+    socketRef.current = socket;
 
-      const socket = io(`${API_URL}/chat`, { auth: { token }, transports: ["websocket"] });
-      socketRef.current = socket;
-
-      socket.on("connect", () => {
-        setConnected(true);
-        socket.emit("ticket:join", { ticketId });
+    socket.on("connect", () => {
+      setConnected(true);
+      socket.emit("ticket:join", { ticketId });
+    });
+    socket.on("disconnect", () => setConnected(false));
+    socket.on("message:receive", (msg: ChatMessageEvent) => {
+      if (msg.ticketId === ticketId) onMessageRef.current(msg);
+    });
+    socket.on("typing", (ev: TypingEvent) => {
+      if (ev.ticketId !== ticketId) return;
+      setTypingUsers((prev) => {
+        const next = new Set(prev);
+        if (ev.isTyping) next.add(ev.userId);
+        else next.delete(ev.userId);
+        return next;
       });
-      socket.on("disconnect", () => setConnected(false));
-      socket.on("message:receive", (msg: ChatMessageEvent) => {
-        if (msg.ticketId === ticketId) onMessageRef.current(msg);
-      });
-      socket.on("typing", (ev: TypingEvent) => {
-        if (ev.ticketId !== ticketId) return;
-        setTypingUsers((prev) => {
-          const next = new Set(prev);
-          if (ev.isTyping) next.add(ev.userId);
-          else next.delete(ev.userId);
-          return next;
-        });
-      });
-      // presence:update existe no gateway mas essa tela só precisa de
-      // typing/mensagem por enquanto — sem consumidor de presença ainda.
-      socket.on("presence:update", (_ev: PresenceEvent) => {});
-    })();
+    });
+    // presence:update existe no gateway mas essa tela só precisa de
+    // typing/mensagem por enquanto — sem consumidor de presença ainda.
+    socket.on("presence:update", (_ev: PresenceEvent) => {});
 
     return () => {
-      cancelled = true;
       socketRef.current?.disconnect();
       socketRef.current = null;
       setConnected(false);

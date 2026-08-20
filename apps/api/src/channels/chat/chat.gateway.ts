@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
   MessageBody,
@@ -12,6 +13,8 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { RedisService } from '../../queue/redis.service';
+import { verifySessionToken } from '../../auth/jwt.util';
+import type { Env } from '../../config/env.validation';
 import type {
   ChatMessageEventDto,
   ChatPresenceEventDto,
@@ -52,11 +55,15 @@ export class ChatGateway
 {
   @WebSocketServer() server!: Server;
   private readonly logger = new Logger(ChatGateway.name);
+  private readonly jwtSecret: string;
 
   constructor(
     private readonly supabase: SupabaseService,
     private readonly redis: RedisService,
-  ) {}
+    config: ConfigService<Env, true>,
+  ) {
+    this.jwtSecret = config.get('JWT_SECRET', { infer: true });
+  }
 
   // Middleware de namespace: roda ANTES do handshake completar, ou seja,
   // antes do client receber o evento "connect". Sem isso, autenticar dentro
@@ -90,17 +97,21 @@ export class ChatGateway
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) return null;
 
-    const user = await this.supabase.getUserFromJwt(token);
-    if (!user) return null;
+    const claims = verifySessionToken(token, this.jwtSecret);
+    if (!claims) return null;
 
     const { data: profile } = await this.supabase.client
       .from('profiles')
       .select('tenant_id, name')
-      .eq('id', user.id)
+      .eq('id', claims.sub)
       .maybeSingle();
     if (!profile?.tenant_id) return null;
 
-    return { tenantId: profile.tenant_id, userId: user.id, name: profile.name };
+    return {
+      tenantId: profile.tenant_id,
+      userId: claims.sub,
+      name: profile.name,
+    };
   }
 
   async handleConnection(socket: Socket) {

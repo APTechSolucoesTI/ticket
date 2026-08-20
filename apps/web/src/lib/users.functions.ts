@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
+import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { inviteEmailHtml, inviteEmailText } from "@/lib/email-templates.server";
+
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
 const inviteSchema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
@@ -32,11 +35,16 @@ export const inviteUser = createServerFn({ method: "POST" })
     const tenantId = me.tenant_id;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sendMail } = await import("@/lib/mailer.server");
 
+    // Checa "já existe" só em apticket.profiles — nunca mais em auth.users
+    // (Supabase Auth global, compartilhado com outro sistema no mesmo host).
+    // Era essa dependência que fazia convidar um e-mail que já existia em
+    // auth.users de OUTRO sistema falhar com "usuário já cadastrado".
     const { data: existing } = await supabaseAdmin
       .from("profiles")
       .select("id, tenant_id")
-      .eq("email", data.email)
+      .eq("email", data.email.toLowerCase())
       .maybeSingle();
     if (existing) {
       if (existing.tenant_id !== tenantId) {
@@ -45,62 +53,42 @@ export const inviteUser = createServerFn({ method: "POST" })
       throw new Error("Este usuário já faz parte da sua organização.");
     }
 
-    // PUBLIC_SITE_URL fixo em vez de derivar da requisição (new URL(request.url).origin)
-    // — atrás de Traefik/proxy isso depende dos headers X-Forwarded-* chegarem
-    // certos no Node, e quando não chegam o redirectTo vira algo que o GoTrue
-    // não reconhece e ele cai no fallback dele (o link do convite ia parar no
-    // próprio Supabase em vez do APTicket). Com env var fixa não tem essa
-    // dependência — mas o Supabase ainda precisa ter essa URL na allowlist de
-    // "Redirect URLs" (Auth → URL Configuration), senão ignora do mesmo jeito.
-    function resolveRedirectBase(): string | undefined {
-      if (process.env.PUBLIC_SITE_URL) return process.env.PUBLIC_SITE_URL;
-      console.warn(
-        "[inviteUser] PUBLIC_SITE_URL não setada — usando origin da requisição como fallback (pode falhar atrás de proxy).",
-      );
-      const request = getRequest();
-      return request ? new URL(request.url).origin : undefined;
-    }
-    const redirectBase = resolveRedirectBase();
-
-    const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      data.email,
-      {
-        // "app: apticket" é o que o trigger apticket.handle_new_user() checa
-        // antes de provisionar — esse Supabase Auth é compartilhado com outro
-        // sistema, sem esse marcador qualquer signup em QUALQUER app que usa
-        // esse Supabase ganhava um tenant+perfil aqui de graça.
-        data: { name: data.name, invited_tenant_id: tenantId, app: "apticket" },
-        ...(redirectBase ? { redirectTo: `${redirectBase}/auth` } : {}),
-      },
-    );
-    if (inviteErr) throw new Error(inviteErr.message);
-    const newUserId = invited?.user?.id;
-    if (!newUserId) throw new Error("Não foi possível criar o convite.");
-
-    // The signup trigger creates a separate workspace for every new user.
-    // Move the invited user into the inviting organization instead.
-    const { data: created } = await supabaseAdmin
+    const { data: profile, error: profErr } = await supabaseAdmin
       .from("profiles")
-      .select("tenant_id")
-      .eq("id", newUserId)
-      .maybeSingle();
-    const orphanTenantId = created?.tenant_id;
-
-    const { error: profErr } = await supabaseAdmin
-      .from("profiles")
-      .update({ tenant_id: tenantId, name: data.name })
-      .eq("id", newUserId);
+      .insert({
+        id: randomUUID(),
+        tenant_id: tenantId,
+        name: data.name,
+        email: data.email.toLowerCase(),
+        password_hash: null,
+        is_active: false, // vira true só quando aceitar o convite (define senha)
+      })
+      .select("id")
+      .single();
     if (profErr) throw new Error(profErr.message);
 
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId);
     const { error: rolesErr } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: newUserId, tenant_id: tenantId, role: data.role });
+      .insert({ user_id: profile.id, tenant_id: tenantId, role: data.role });
     if (rolesErr) throw new Error(rolesErr.message);
 
-    if (orphanTenantId && orphanTenantId !== tenantId) {
-      await supabaseAdmin.from("tenants").delete().eq("id", orphanTenantId);
-    }
+    const token = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const { error: inviteErr } = await supabaseAdmin.from("invites").insert({
+      profile_id: profile.id,
+      token_hash: tokenHash,
+      expires_at: new Date(Date.now() + INVITE_TTL_MS).toISOString(),
+    });
+    if (inviteErr) throw new Error(inviteErr.message);
+
+    const siteUrl = process.env.PUBLIC_SITE_URL ?? "http://localhost:8080";
+    const url = `${siteUrl}/auth?invite=${token}`;
+    await sendMail({
+      to: data.email,
+      subject: "Convite para acessar o APTicket",
+      html: inviteEmailHtml(url),
+      text: inviteEmailText(url),
+    });
 
     return { ok: true as const, email: data.email };
   });

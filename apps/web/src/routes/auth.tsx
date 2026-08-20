@@ -9,6 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Ticket } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { setToken } from "@/lib/session";
+import {
+  login,
+  acceptInvite,
+  requestPasswordReset,
+  resetPassword,
+  signUpTenant,
+} from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -20,6 +28,14 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// "own-invite"/"own-reset": token da autenticação própria do APTicket, vem
+// como query string (?invite=<token>/?reset=<token>) — foi o próprio server
+// (auth.functions.ts/users.functions.ts) que montou o link, então dá pra
+// usar query direto, sem o problema do hash (que só existe pra link montado
+// pelo GoTrue, cliente-only). "invite"/"recovery" (hash, #type=...) ficam
+// como fallback pra qualquer link antigo do GoTrue ainda em trânsito.
+type AuthAction = "invite" | "recovery" | "own-invite" | "own-reset" | null;
+
 function AuthPage() {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
@@ -28,21 +44,35 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSending, setForgotSending] = useState(false);
 
-  // Link de convite/redefinição de senha do Supabase chega como
-  // #access_token=...&type=invite (ou type=recovery) no hash da URL — hash
-  // nunca chega no servidor (não vai na requisição HTTP), então não dá pra
-  // ler isso num inicializador de useState (quebra a hidratação: SSR
-  // sempre renderiza sem saber do hash, cliente tentaria renderizar
-  // diferente no primeiro paint). Tem que ser useEffect mesmo (só roda
-  // depois de montar) — mas `checkedHash` é o que evita a corrida: o efeito
-  // de redirect só decide depois que este aqui já rodou, nunca antes.
-  const [authAction, setAuthAction] = useState<"invite" | "recovery" | null>(null);
+  // Hash (#type=invite/recovery, link antigo do GoTrue) nunca chega no
+  // servidor — não dá pra ler num inicializador de useState (quebra
+  // hidratação SSR). Query string (?invite=/?reset=, link novo, montado pelo
+  // próprio servidor) chega nos dois, mas lê aqui também por consistência —
+  // um único lugar decide tudo. `checkedHash` evita a corrida: o efeito de
+  // redirect só decide depois que este aqui já rodou, nunca antes.
+  const [authAction, setAuthAction] = useState<AuthAction>(null);
+  const [actionToken, setActionToken] = useState<string | null>(null);
   const [checkedHash, setCheckedHash] = useState(false);
   useEffect(() => {
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
-    setAuthAction(type === "invite" || type === "recovery" ? type : null);
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(search);
+    const invite = params.get("invite");
+    const reset = params.get("reset");
+    if (invite) {
+      setAuthAction("own-invite");
+      setActionToken(invite);
+    } else if (reset) {
+      setAuthAction("own-reset");
+      setActionToken(reset);
+    } else {
+      const hash = typeof window !== "undefined" ? window.location.hash : "";
+      const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
+      setAuthAction(type === "invite" || type === "recovery" ? type : null);
+    }
     setCheckedHash(true);
   }, []);
 
@@ -61,12 +91,26 @@ function AuthPage() {
       return;
     }
     setSettingPassword(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setSettingPassword(false);
-    if (error) {
-      toast.error(error.message);
+    try {
+      if (authAction === "own-invite" || authAction === "own-reset") {
+        if (!actionToken) throw new Error("Link inválido.");
+        const fn = authAction === "own-invite" ? acceptInvite : resetPassword;
+        const { token } = await fn({ data: { token: actionToken, password: newPassword } });
+        setToken(token);
+      } else {
+        // Fallback: link antigo do GoTrue ainda em trânsito (detectSessionInUrl
+        // já processou o hash e criou uma sessão real do GoTrue sozinho —
+        // updateUser() aqui não tem o problema de "sub não existe", porque o
+        // sub É real, existe em auth.users).
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível definir a senha.");
+      setSettingPassword(false);
       return;
     }
+    setSettingPassword(false);
     toast.success("Senha definida! Bem-vindo ao APTicket.");
     window.history.replaceState(null, "", window.location.pathname);
     navigate({ to: "/dashboard", replace: true });
@@ -81,13 +125,34 @@ function AuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      // login() já cobre os dois casos server-side: senha própria (migrado)
+      // ou fallback pro GoTrue (ainda não migrado) — sempre devolve o mesmo
+      // formato de token, cliente nunca precisa saber qual dos dois foi.
+      const { token } = await login({ data: { email, password } });
+      setToken(token);
       toast.success("Bem-vindo de volta!");
       navigate({ to: "/dashboard", replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "E-mail ou senha inválidos.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotSending(true);
+    try {
+      await requestPasswordReset({ data: { email: forgotEmail } });
+      toast.success("Se o e-mail existir, enviamos um link de redefinição.");
+      setForgotOpen(false);
+      setForgotEmail("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível solicitar a redefinição.");
+    } finally {
+      setForgotSending(false);
     }
   };
 
@@ -98,24 +163,15 @@ function AuthPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        // "app: apticket" é o que o trigger apticket.handle_new_user() checa
-        // antes de provisionar tenant — esse Supabase Auth é compartilhado
-        // com outro sistema (mesma base de auth.users), sem esse marcador
-        // qualquer conta criada em QUALQUER app que usa esse Supabase ganhava
-        // de graça um tenant+perfil admin aqui.
-        data: { name, company_name: company, app: "apticket" },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Conta criada! Você já pode entrar.");
+    try {
+      const { token } = await signUpTenant({ data: { name, company, email, password } });
+      setToken(token);
+      toast.success("Conta criada! Bem-vindo ao APTicket.");
+      navigate({ to: "/dashboard", replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível criar a conta.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,10 +191,12 @@ function AuthPage() {
             <form onSubmit={handleSetPassword} className="space-y-3">
               <div>
                 <h2 className="text-sm font-semibold">
-                  {authAction === "invite" ? "Bem-vindo(a) ao APTicket" : "Redefinir senha"}
+                  {authAction === "invite" || authAction === "own-invite"
+                    ? "Bem-vindo(a) ao APTicket"
+                    : "Redefinir senha"}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {authAction === "invite"
+                  {authAction === "invite" || authAction === "own-invite"
                     ? "Defina uma senha de acesso pra concluir seu cadastro."
                     : "Escolha uma nova senha pra sua conta."}
                 </p>
@@ -168,6 +226,35 @@ function AuthPage() {
               <Button type="submit" className="w-full" disabled={settingPassword}>
                 {settingPassword ? "Salvando…" : "Definir senha e entrar"}
               </Button>
+            </form>
+          ) : forgotOpen ? (
+            <form onSubmit={handleForgotPassword} className="space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold">Esqueci minha senha</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Informe seu e-mail — se existir uma conta, enviamos um link de redefinição.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fp-email">E-mail</Label>
+                <Input
+                  id="fp-email"
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={forgotSending}>
+                {forgotSending ? "Enviando…" : "Enviar link de redefinição"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(false)}
+                className="text-xs text-muted-foreground hover:underline w-full text-center"
+              >
+                ← Voltar
+              </button>
             </form>
           ) : (
             <Tabs defaultValue="signin" className="w-full">
@@ -201,6 +288,13 @@ function AuthPage() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Entrando…" : "Entrar"}
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(true)}
+                    className="text-xs text-muted-foreground hover:underline w-full text-center"
+                  >
+                    Esqueci minha senha
+                  </button>
                 </form>
               </TabsContent>
 

@@ -24,11 +24,4 @@ export class SupabaseService {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }
-
-  /** Valida o JWT emitido pelo Supabase Auth pro usuário logado no frontend. */
-  async getUserFromJwt(jwt: string) {
-    const { data, error } = await this.client.auth.getUser(jwt);
-    if (error || !data.user) return null;
-    return data.user;
-  }
 }

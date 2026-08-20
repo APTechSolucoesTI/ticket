@@ -872,6 +872,7 @@ export type Database = {
           id: string;
           is_active: boolean;
           name: string;
+          password_hash: string | null;
           tenant_id: string;
           tickets_auto_refresh_enabled: boolean;
           tickets_auto_refresh_seconds: number;
@@ -884,6 +885,7 @@ export type Database = {
           id: string;
           is_active?: boolean;
           name: string;
+          password_hash?: string | null;
           tenant_id: string;
           tickets_auto_refresh_enabled?: boolean;
           tickets_auto_refresh_seconds?: number;
@@ -896,6 +898,7 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name?: string;
+          password_hash?: string | null;
           tenant_id?: string;
           tickets_auto_refresh_enabled?: boolean;
           tickets_auto_refresh_seconds?: number;
@@ -907,6 +910,76 @@ export type Database = {
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      invites: {
+        Row: {
+          accepted_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          profile_id: string;
+          token_hash: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          profile_id: string;
+          token_hash: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          profile_id?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invites_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      password_resets: {
+        Row: {
+          accepted_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          profile_id: string;
+          token_hash: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          profile_id: string;
+          token_hash: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          profile_id?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "password_resets_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];

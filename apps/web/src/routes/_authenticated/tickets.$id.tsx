@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Paperclip, Play, Printer, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -448,7 +449,7 @@ function TicketDetailPage() {
       .replaceAll("{{cliente}}", ticket?.companies?.name ?? "")
       .replaceAll("{{ticket}}", `#${ticket?.number ?? ""}`)
       .replaceAll("{{assunto}}", ticket?.subject ?? "")
-      .replaceAll("{{agente}}", user?.user_metadata?.name ?? user?.email ?? "");
+      .replaceAll("{{agente}}", user?.name ?? user?.email ?? "");
   };
 
   const handleComposerPublicSent = () => {
@@ -460,14 +461,14 @@ function TicketDetailPage() {
     mutationFn: async () => {
       const n = parseInt(minutesInput || "0", 10);
       if (!n || !ticket) return;
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sem usuário");
+      const uid = getCurrentUserId();
+      if (!uid) throw new Error("Sem usuário");
       const endedAt = new Date();
       const startedAt = timerStartedAt ?? new Date(endedAt.getTime() - n * 60_000);
       const { error } = await supabase.from("time_entries").insert({
         tenant_id: ticket.tenant_id,
         ticket_id: id,
-        agent_id: u.user.id,
+        agent_id: uid,
         minutes: n,
         started_at: startedAt.toISOString(),
         ended_at: endedAt.toISOString(),
@@ -607,9 +608,7 @@ function TicketDetailPage() {
               ticketId={id}
               tenantId={ticket.tenant_id}
               channel={ticket.channel}
-              agentName={
-                (user?.user_metadata as { name?: string } | undefined)?.name ?? user?.email ?? ""
-              }
+              agentName={user?.name ?? user?.email ?? ""}
               cannedList={cannedList}
               applyTemplate={applyTemplate}
               onSent={() => {

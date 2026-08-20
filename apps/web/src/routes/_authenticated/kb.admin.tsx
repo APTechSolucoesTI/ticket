@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { PageHeader, EmptyStub } from "@/components/empty-stub";
 import { Button } from "@/components/ui/button";
@@ -633,7 +634,6 @@ function ArticleDialog({
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof articleSchema>) => {
       const tenant_id = await getTenantId();
-      const { data: userData } = await supabase.auth.getUser();
       const values = {
         title: payload.title,
         slug: payload.slug,
@@ -654,7 +654,7 @@ function ArticleDialog({
         const { error } = await supabase.from("kb_articles").insert({
           ...values,
           tenant_id,
-          created_by: userData.user?.id ?? null,
+          created_by: getCurrentUserId(),
         });
         if (error) throw error;
       }

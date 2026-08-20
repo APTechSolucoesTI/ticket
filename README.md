@@ -119,7 +119,8 @@ de vocês) — Dokploy publica só o frontend pelo Traefik, backend nunca expost
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | iguais aos que já usam hoje |
 | `SUPABASE_SERVICE_ROLE_KEY` | idem (server-only, nunca com prefixo `VITE_`) |
 | `SMTP_*`, `PORTAL_SESSION_SECRET` | iguais aos que já usam hoje (portal do cliente, feature separada do canal de e-mail) |
-| `PUBLIC_SITE_URL` | `https://apticket.aptechinfo.com.br` — usada pro `redirectTo` do e-mail de convite (`inviteUserByEmail`). Sem ela, o link do convite podia sair errado atrás do proxy (dependia de header que nem sempre chega certo). |
+| `PUBLIC_SITE_URL` | `https://apticket.aptechinfo.com.br` — usada nos links de convite/redefinição de senha (autenticação própria, ver seção abaixo) e no `redirectTo` de qualquer link antigo do GoTrue ainda em trânsito. |
+| `JWT_SECRET` | **mesmo valor de `GOTRUE_JWT_SECRET`/`PGRST_JWT_SECRET`** do `.env` do Supabase self-hosted — não gerar um novo. Ver seção "Autenticação própria" abaixo. |
 | `PORT` | Nitro usa isso pra escolher a porta — Dokploy geralmente injeta sozinho, conferir |
 
 **Serviço `api`** (`infra/docker-compose.yml`, `.env` conforme `infra/.env.example`):
@@ -127,10 +128,53 @@ de vocês) — Dokploy publica só o frontend pelo Traefik, backend nunca expost
 | Variável | Valor |
 |---|---|
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | mesmo projeto Supabase |
+| `JWT_SECRET` | **mesmo valor usado no `apps/web`** (e mesmo do Supabase) — API valida o JWT localmente (assinatura), não pergunta pro GoTrue. |
 | `REDIS_URL` | preenchido automaticamente pelo compose (`redis://redis:6379`) |
 | `SECRETS_ENCRYPTION_KEY` | **gerar uma chave nova pra produção** — não reusar nenhuma chave de teste/dev; `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `CORS_ORIGIN` | `https://apticket.aptechinfo.com.br` |
 | `SWAGGER_ENABLED` | `false` em produção pública (expõe o contrato completo da API), ou deixar `true` só se o `/docs` também ficar atrás de basic auth no Traefik |
+
+## Autenticação própria (não depende mais de `auth.users` do Supabase)
+
+Esse Supabase é compartilhado com outro sistema (mesma instância de Auth) — convidar um e-mail
+que já existisse em `auth.users` de outro sistema bloqueava o convite com "usuário já
+cadastrado". Investigado o blast radius antes de mudar qualquer coisa: **163 chamadas
+`supabase.from(...)` direto do browser, em 21 arquivos**, dependiam 100% de RLS
+(`tenant_id = apticket.current_tenant_id()`, via `auth.uid()`) — desativar RLS pra resolver o
+convite teria exigido reescrever a camada de dado do app inteiro. Decisão: **manter RLS
+funcionando**, trocando só quem emite o JWT.
+
+- `apticket.profiles` ganhou `password_hash` (nullable) e perdeu a FK pra `auth.users(id)` — id
+  vira um uuid livre, não precisa mais existir em `auth.users`. As outras 6 FKs do schema que
+  apontavam pra `auth.users` (`user_roles.user_id`, `tickets.assigned_to`, `messages.author_id`,
+  `time_entries.agent_id`, `canned_responses.created_by`, `kb_articles.created_by`) foram
+  repontadas pra `apticket.profiles(id)` — nenhum dado mudou, os valores já batiam 1:1.
+- Login/convite/redefinição de senha (`apps/web/src/lib/auth.functions.ts`) assinam um JWT
+  HS256 próprio com o **mesmo `JWT_SECRET`** que `GOTRUE_JWT_SECRET`/`PGRST_JWT_SECRET` já usam
+  no Supabase self-hosted — o PostgREST aceita como se fosse do GoTrue (verifica só a
+  assinatura, não se o usuário existe em `auth.users`), então RLS/`auth.uid()` continuam
+  funcionando sem tocar em nenhum dos 163 pontos.
+- **Achado no meio do caminho**: `supabase.auth.setSession()`/`getSession()`/`getUser()` do
+  supabase-js fazem (ou dependem de) chamada de rede pro GoTrue pra "hidratar" a sessão — e o
+  GoTrue rejeita qualquer `sub` que não exista em `auth.users`, mesmo com assinatura válida
+  (`"User from sub claim in JWT does not exist"`). Por isso a sessão é gerenciada por fora do
+  supabase-js: `apps/web/src/lib/session.ts` (token em `localStorage`, decodificado localmente,
+  nunca verificado contra o GoTrue) — o client Supabase (`integrations/supabase/client.ts`)
+  injeta o `Authorization: Bearer` via fetch customizado, sem passar pelo subsistema `.auth`.
+- Login cobre os dois casos no **servidor** (nunca no client): se o profile tem `password_hash`,
+  compara bcrypt; se não tem (usuário ainda não migrado), tenta autenticar contra o GoTrue
+  direto e, se aceitar, re-assina um JWT nosso com os mesmos dados. O client sempre recebe o
+  mesmo formato de token, nunca sabe qual dos dois caminhos foi usado.
+- `apps/api`: `SupabaseAuthGuard`/`ChatGateway` verificam o JWT localmente
+  (`src/auth/jwt.util.ts`, `jsonwebtoken.verify` com `JWT_SECRET`) em vez de perguntar pro
+  GoTrue — mais rápido, e funciona pra usuário que o GoTrue nunca viu.
+- **Fase 2, não incluída nesta entrega**: migração em massa dos usuários que ainda só têm conta
+  no GoTrue (reset de senha obrigatório) + desligar o fallback antigo de vez. Por enquanto os
+  dois caminhos coexistem.
+- **Fora de escopo**: papéis/permissões dinâmicos (matriz de módulos × ações, overrides por
+  usuário) — o sistema continua no enum simples `apticket.app_role` (admin/agent/requester) que
+  já existia, usado direto em `has_role()`/RLS/UI. Trocar isso é outro projeto do mesmo porte,
+  não coube junto com a troca de autenticação.
 
 ## Antes de ir pra produção com isso (cutover, não é código)
 

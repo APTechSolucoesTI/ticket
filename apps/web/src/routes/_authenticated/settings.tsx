@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { maskWhatsappPhone } from "@/lib/masks";
 import { PageHeader, EmptyStub } from "@/components/empty-stub";
@@ -163,12 +164,12 @@ function UsersTab() {
   const { data: isAdmin } = useQuery({
     queryKey: ["settings_users_is_admin"],
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return false;
+      const uid = getCurrentUserId();
+      if (!uid) return false;
       const { data: rows, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", auth.user.id)
+        .eq("user_id", uid)
         .eq("role", "admin");
       if (error) throw error;
       return (rows?.length ?? 0) > 0;
@@ -2061,7 +2062,6 @@ function CannedDialog({
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof cannedSchema>) => {
       const tenant_id = await getTenantId();
-      const { data: userData } = await supabase.auth.getUser();
       const values = { title: payload.title, body: payload.body };
       if (editing) {
         const { error } = await supabase
@@ -2072,7 +2072,7 @@ function CannedDialog({
       } else {
         const { error } = await supabase
           .from("canned_responses")
-          .insert({ ...values, tenant_id, created_by: userData.user?.id ?? null });
+          .insert({ ...values, tenant_id, created_by: getCurrentUserId() });
         if (error) throw error;
       }
     },
@@ -2166,7 +2166,7 @@ function StickersTab() {
       const { data: tid, error: tidErr } = await supabase.rpc("current_tenant_id");
       if (tidErr || !tid) throw new Error(tidErr?.message ?? "Tenant não encontrado");
       const tenant_id = tid as string;
-      const { data: userData } = await supabase.auth.getUser();
+      const authorId = getCurrentUserId();
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) {
           toast.error(`${file.name}: apenas imagens`);
@@ -2182,7 +2182,7 @@ function StickersTab() {
           tenant_id,
           name: file.name.replace(/\.[^.]+$/, ""),
           storage_path: path,
-          created_by: userData.user?.id ?? null,
+          created_by: authorId,
         });
         if (insErr) throw insErr;
       }

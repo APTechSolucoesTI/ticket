@@ -14,6 +14,12 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
 
+  // Mesmo valor de GOTRUE_JWT_SECRET/PGRST_JWT_SECRET do Supabase self-hosted —
+  // autenticação própria do APTicket (apps/web assina, apps/api só valida
+  // localmente, sem chamar o GoTrue) usa esse segredo pra continuar
+  // compatível com RLS/auth.uid(). Ver supabase-auth.guard.ts.
+  JWT_SECRET: z.string().min(20),
+
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
 
   // AES-256-GCM: chave de 32 bytes em hex (64 chars) usada pra criptografar

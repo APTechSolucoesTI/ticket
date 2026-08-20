@@ -1,38 +1,47 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getToken,
+  clearToken,
+  subscribe,
+  decodeSessionUser,
+  type SessionUser,
+} from "@/lib/session";
 
+// Sessão própria do APTicket — não usa supabase.auth.* (ver session.ts pro
+// motivo: setSession()/getSession() fariam chamada de rede pro GoTrue, que
+// rejeita qualquer usuário que não exista em auth.users). `user`/`session`
+// aqui são derivados só do JWT decodificado localmente.
 type AuthCtx = {
-  user: User | null;
-  session: Session | null;
+  user: SessionUser | null;
+  session: { user: SessionUser } | null;
   loading: boolean;
   signOut: () => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
 
+function readUser(): SessionUser | null {
+  const token = getToken();
+  return token ? decodeSessionUser(token) : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setLoading(false);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+    setUser(readUser());
+    setLoading(false);
+    return subscribe(() => setUser(readUser()));
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    clearToken();
+    setUser(null);
   };
 
   return (
-    <Ctx.Provider value={{ user: session?.user ?? null, session, loading, signOut }}>
+    <Ctx.Provider value={{ user, session: user ? { user } : null, loading, signOut }}>
       {children}
     </Ctx.Provider>
   );

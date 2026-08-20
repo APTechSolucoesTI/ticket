@@ -1,18 +1,18 @@
 // Client HTTP pro backend novo (apps/api) — passa pela rota de proxy
 // same-origin (src/routes/backend/$.ts), então o browser nunca fala
-// direto com o container da API. Anexa o JWT da sessão Supabase atual como
-// Bearer — é isso que o SupabaseAuthGuard da API valida.
-import { supabase } from "@/integrations/supabase/client";
+// direto com o container da API. Anexa o JWT da sessão própria (session.ts)
+// como Bearer — é isso que o SupabaseAuthGuard da API valida (localmente,
+// mesmo JWT_SECRET, sem chamar o GoTrue).
+import { getToken } from "@/lib/session";
 
-async function authHeader(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+function authHeader(): Record<string, string> {
+  const token = getToken();
   if (!token) throw new Error("Sessão expirada — faça login novamente.");
   return { Authorization: `Bearer ${token}` };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = { ...(await authHeader()), "Content-Type": "application/json", ...init?.headers };
+  const headers = { ...authHeader(), "Content-Type": "application/json", ...init?.headers };
   const res = await fetch(`/backend${path}`, { ...init, headers });
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;

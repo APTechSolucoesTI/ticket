@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { maskPhone } from "@/lib/masks";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
@@ -164,12 +165,12 @@ export function TicketComposer({
             },
           });
         } else {
-          const { data: u } = await supabase.auth.getUser();
+          const authorId = getCurrentUserId();
           const { error } = await supabase.from("messages").insert({
             tenant_id: tenantId,
             ticket_id: ticketId,
             content: caption ?? `[anexo] ${f.name}`,
-            author_id: u.user?.id ?? null,
+            author_id: authorId,
             author_type: "agent",
             is_internal: internal,
             channel: (channel === "manual" ? "email" : channel) as
@@ -195,12 +196,12 @@ export function TicketComposer({
           onSendChat(text);
           onTyping?.(false);
         } else {
-          const { data: u } = await supabase.auth.getUser();
+          const authorId = getCurrentUserId();
           const { error } = await supabase.from("messages").insert({
             tenant_id: tenantId,
             ticket_id: ticketId,
             content: text,
-            author_id: u.user?.id ?? null,
+            author_id: authorId,
             author_type: "agent",
             is_internal: internal,
             channel: (channel === "manual" ? "email" : channel) as
@@ -252,12 +253,12 @@ export function TicketComposer({
               },
             });
           } else {
-            const { data: u } = await supabase.auth.getUser();
+            const authorId = getCurrentUserId();
             await supabase.from("messages").insert({
               tenant_id: tenantId,
               ticket_id: ticketId,
               content: "🎤 Mensagem de voz",
-              author_id: u.user?.id ?? null,
+              author_id: authorId,
               author_type: "agent",
               is_internal: internal,
               channel: (channel === "manual" ? "email" : channel) as
@@ -942,12 +943,11 @@ function StickerDialog({
           .from("ticket-attachments")
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
-        const { data: userData } = await supabase.auth.getUser();
         const { error: insErr } = await supabase.from("stickers").insert({
           tenant_id,
           name: file.name.replace(/\.[^.]+$/, ""),
           storage_path: path,
-          created_by: userData.user?.id ?? null,
+          created_by: getCurrentUserId(),
         });
         if (insErr) throw insErr;
       }

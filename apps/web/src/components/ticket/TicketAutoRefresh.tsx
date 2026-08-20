@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Minus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -29,8 +30,7 @@ export function TicketAutoRefresh({ onRefresh }: { onRefresh: () => void }) {
   const { data: prefs } = useQuery({
     queryKey: ["my-ticket-auto-refresh-prefs"],
     queryFn: async (): Promise<Prefs> => {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth.user?.id;
+      const uid = getCurrentUserId();
       if (!uid)
         return {
           tickets_auto_refresh_enabled: true,
@@ -55,8 +55,7 @@ export function TicketAutoRefresh({ onRefresh }: { onRefresh: () => void }) {
 
   const save = useMutation({
     mutationFn: async (patch: Partial<Prefs>) => {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth.user?.id;
+      const uid = getCurrentUserId();
       if (!uid) throw new Error("Não autenticado");
       const { error } = await supabase.from("profiles").update(patch).eq("id", uid);
       if (error) throw error;
