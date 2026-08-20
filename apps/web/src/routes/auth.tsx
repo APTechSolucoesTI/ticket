@@ -29,11 +29,51 @@ function AuthPage() {
   const [company, setCompany] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Link de convite/redefinição de senha do Supabase chega como
+  // #access_token=...&type=invite (ou type=recovery) no hash da URL. O
+  // supabase-js já processa esse hash sozinho (detectSessionInUrl: true) e
+  // cria uma sessão — sem essa checagem, o useEffect abaixo mandava direto
+  // pro dashboard, e o usuário convidado nunca tinha chance de definir uma
+  // senha (ele não tem nenhuma até aqui).
+  const [authAction, setAuthAction] = useState<"invite" | "recovery" | null>(null);
   useEffect(() => {
-    if (!authLoading && session) {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
+    if (type === "invite" || type === "recovery") setAuthAction(type);
+  }, []);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [settingPassword, setSettingPassword] = useState(false);
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      toast.error("A senha precisa ter pelo menos 8 caracteres");
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+    setSettingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSettingPassword(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Senha definida! Bem-vindo ao APTicket.");
+    window.history.replaceState(null, "", window.location.pathname);
+    setAuthAction(null);
+    navigate({ to: "/dashboard", replace: true });
+  };
+
+  useEffect(() => {
+    if (!authLoading && session && !authAction) {
       navigate({ to: "/dashboard", replace: true });
     }
-  }, [authLoading, session, navigate]);
+  }, [authLoading, session, authAction, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +128,45 @@ function AuthPage() {
         </div>
 
         <Card className="p-6">
+          {authAction ? (
+            <form onSubmit={handleSetPassword} className="space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold">
+                  {authAction === "invite" ? "Bem-vindo(a) ao APTicket" : "Redefinir senha"}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {authAction === "invite"
+                    ? "Defina uma senha de acesso pra concluir seu cadastro."
+                    : "Escolha uma nova senha pra sua conta."}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="np-pass">Nova senha</Label>
+                <Input
+                  id="np-pass"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="np-pass-confirm">Confirmar senha</Label>
+                <Input
+                  id="np-pass-confirm"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={settingPassword}>
+                {settingPassword ? "Salvando…" : "Definir senha e entrar"}
+              </Button>
+            </form>
+          ) : (
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Entrar</TabsTrigger>
@@ -137,6 +216,7 @@ function AuthPage() {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </Card>
 
         <div className="text-center mt-4">
