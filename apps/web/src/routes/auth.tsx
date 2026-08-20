@@ -30,16 +30,20 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   // Link de convite/redefinição de senha do Supabase chega como
-  // #access_token=...&type=invite (ou type=recovery) no hash da URL. O
-  // supabase-js já processa esse hash sozinho (detectSessionInUrl: true) e
-  // cria uma sessão — sem essa checagem, o useEffect abaixo mandava direto
-  // pro dashboard, e o usuário convidado nunca tinha chance de definir uma
-  // senha (ele não tem nenhuma até aqui).
+  // #access_token=...&type=invite (ou type=recovery) no hash da URL — hash
+  // nunca chega no servidor (não vai na requisição HTTP), então não dá pra
+  // ler isso num inicializador de useState (quebra a hidratação: SSR
+  // sempre renderiza sem saber do hash, cliente tentaria renderizar
+  // diferente no primeiro paint). Tem que ser useEffect mesmo (só roda
+  // depois de montar) — mas `checkedHash` é o que evita a corrida: o efeito
+  // de redirect só decide depois que este aqui já rodou, nunca antes.
   const [authAction, setAuthAction] = useState<"invite" | "recovery" | null>(null);
+  const [checkedHash, setCheckedHash] = useState(false);
   useEffect(() => {
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
-    if (type === "invite" || type === "recovery") setAuthAction(type);
+    setAuthAction(type === "invite" || type === "recovery" ? type : null);
+    setCheckedHash(true);
   }, []);
 
   const [newPassword, setNewPassword] = useState("");
@@ -65,15 +69,14 @@ function AuthPage() {
     }
     toast.success("Senha definida! Bem-vindo ao APTicket.");
     window.history.replaceState(null, "", window.location.pathname);
-    setAuthAction(null);
     navigate({ to: "/dashboard", replace: true });
   };
 
   useEffect(() => {
-    if (!authLoading && session && !authAction) {
+    if (!authLoading && checkedHash && session && !authAction) {
       navigate({ to: "/dashboard", replace: true });
     }
-  }, [authLoading, session, authAction, navigate]);
+  }, [authLoading, checkedHash, session, authAction, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,55 +170,91 @@ function AuthPage() {
               </Button>
             </form>
           ) : (
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Entrar</TabsTrigger>
-              <TabsTrigger value="signup">Criar conta</TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="signin" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Entrar</TabsTrigger>
+                <TabsTrigger value="signup">Criar conta</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-3 pt-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="si-email">E-mail</Label>
-                  <Input id="si-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="si-pass">Senha</Label>
-                  <Input id="si-pass" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Entrando…" : "Entrar"}
-                </Button>
-              </form>
-            </TabsContent>
+              <TabsContent value="signin">
+                <form onSubmit={handleSignIn} className="space-y-3 pt-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="si-email">E-mail</Label>
+                    <Input
+                      id="si-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="si-pass">Senha</Label>
+                    <Input
+                      id="si-pass"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Entrando…" : "Entrar"}
+                  </Button>
+                </form>
+              </TabsContent>
 
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-3 pt-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-name">Seu nome</Label>
-                  <Input id="su-name" required value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-company">Empresa (MSP)</Label>
-                  <Input id="su-company" required value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Ex: AP Tech Suporte" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-email">E-mail</Label>
-                  <Input id="su-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-pass">Senha</Label>
-                  <Input id="su-pass" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Criando…" : "Criar conta"}
-                </Button>
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Ao criar uma conta, um workspace exclusivo é provisionado para sua empresa.
-                </p>
-              </form>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="signup">
+                <form onSubmit={handleSignUp} className="space-y-3 pt-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-name">Seu nome</Label>
+                    <Input
+                      id="su-name"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-company">Empresa (MSP)</Label>
+                    <Input
+                      id="su-company"
+                      required
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      placeholder="Ex: AP Tech Suporte"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-email">E-mail</Label>
+                    <Input
+                      id="su-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-pass">Senha</Label>
+                    <Input
+                      id="su-pass"
+                      type="password"
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Criando…" : "Criar conta"}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Ao criar uma conta, um workspace exclusivo é provisionado para sua empresa.
+                  </p>
+                </form>
+              </TabsContent>
+            </Tabs>
           )}
         </Card>
 
