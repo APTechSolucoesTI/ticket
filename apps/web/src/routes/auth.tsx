@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,13 +27,12 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-// "own-invite"/"own-reset": token da autenticação própria do APTicket, vem
-// como query string (?invite=<token>/?reset=<token>) — foi o próprio server
-// (auth.functions.ts/users.functions.ts) que montou o link, então dá pra
-// usar query direto, sem o problema do hash (que só existe pra link montado
-// pelo GoTrue, cliente-only). "invite"/"recovery" (hash, #type=...) ficam
-// como fallback pra qualquer link antigo do GoTrue ainda em trânsito.
-type AuthAction = "invite" | "recovery" | "own-invite" | "own-reset" | null;
+// Token da autenticação própria do APTicket, vem como query string
+// (?invite=<token>/?reset=<token>) — o próprio server (auth.functions.ts/
+// users.functions.ts) que montou o link. Fase 2 concluída (todo usuário
+// legado migrado) — fallback de hash antigo do GoTrue (#type=invite/
+// recovery) removido, não tem mais nenhum link desses em circulação.
+type AuthAction = "own-invite" | "own-reset" | null;
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -48,11 +46,11 @@ function AuthPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSending, setForgotSending] = useState(false);
 
-  // Hash (#type=invite/recovery, link antigo do GoTrue) nunca chega no
-  // servidor — não dá pra ler num inicializador de useState (quebra
-  // hidratação SSR). Query string (?invite=/?reset=, link novo, montado pelo
-  // próprio servidor) chega nos dois, mas lê aqui também por consistência —
-  // um único lugar decide tudo. `checkedHash` evita a corrida: o efeito de
+  // Query string (?invite=/?reset=) nunca chega no servidor durante o SSR
+  // inicial nesse sentido de decisão de UI — não dá pra ler num
+  // inicializador de useState sem arriscar mismatch de hidratação, então
+  // fica em useEffect (roda só depois de montar, server e client renderizam
+  // igual no primeiro paint). `checkedHash` evita a corrida: o efeito de
   // redirect só decide depois que este aqui já rodou, nunca antes.
   const [authAction, setAuthAction] = useState<AuthAction>(null);
   const [actionToken, setActionToken] = useState<string | null>(null);
@@ -68,10 +66,6 @@ function AuthPage() {
     } else if (reset) {
       setAuthAction("own-reset");
       setActionToken(reset);
-    } else {
-      const hash = typeof window !== "undefined" ? window.location.hash : "";
-      const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
-      setAuthAction(type === "invite" || type === "recovery" ? type : null);
     }
     setCheckedHash(true);
   }, []);
@@ -92,19 +86,10 @@ function AuthPage() {
     }
     setSettingPassword(true);
     try {
-      if (authAction === "own-invite" || authAction === "own-reset") {
-        if (!actionToken) throw new Error("Link inválido.");
-        const fn = authAction === "own-invite" ? acceptInvite : resetPassword;
-        const { token } = await fn({ data: { token: actionToken, password: newPassword } });
-        setToken(token);
-      } else {
-        // Fallback: link antigo do GoTrue ainda em trânsito (detectSessionInUrl
-        // já processou o hash e criou uma sessão real do GoTrue sozinho —
-        // updateUser() aqui não tem o problema de "sub não existe", porque o
-        // sub É real, existe em auth.users).
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) throw error;
-      }
+      if (!actionToken) throw new Error("Link inválido.");
+      const fn = authAction === "own-invite" ? acceptInvite : resetPassword;
+      const { token } = await fn({ data: { token: actionToken, password: newPassword } });
+      setToken(token);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível definir a senha.");
       setSettingPassword(false);
@@ -126,9 +111,6 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // login() já cobre os dois casos server-side: senha própria (migrado)
-      // ou fallback pro GoTrue (ainda não migrado) — sempre devolve o mesmo
-      // formato de token, cliente nunca precisa saber qual dos dois foi.
       const { token } = await login({ data: { email, password } });
       setToken(token);
       toast.success("Bem-vindo de volta!");
@@ -191,12 +173,10 @@ function AuthPage() {
             <form onSubmit={handleSetPassword} className="space-y-3">
               <div>
                 <h2 className="text-sm font-semibold">
-                  {authAction === "invite" || authAction === "own-invite"
-                    ? "Bem-vindo(a) ao APTicket"
-                    : "Redefinir senha"}
+                  {authAction === "own-invite" ? "Bem-vindo(a) ao APTicket" : "Redefinir senha"}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {authAction === "invite" || authAction === "own-invite"
+                  {authAction === "own-invite"
                     ? "Defina uma senha de acesso pra concluir seu cadastro."
                     : "Escolha uma nova senha pra sua conta."}
                 </p>

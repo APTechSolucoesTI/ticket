@@ -36,43 +36,6 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-/**
- * Fallback pra usuário que ainda não foi migrado pra autenticação própria
- * (sem password_hash — Fase 2 do plano ainda não rodou pra essa conta).
- * Autentica direto contra o GoTrue (mesma senha antiga) e, se aceitar,
- * re-assina um JWT NOSSO com os mesmos dados — o client nunca precisa saber
- * se o token veio do GoTrue ou daqui, sempre é o mesmo formato/fluxo
- * (session.ts, sem envolver supabase.auth.* nunca no client).
- */
-async function loginViaGoTrue(
-  email: string,
-  password: string,
-  profile: { id: string; tenant_id: string; email: string; name: string },
-): Promise<string | null> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !anonKey) return null;
-
-  const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: anonKey },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) return null;
-  const body = (await res.json()) as { user?: { id?: string } };
-  // Confere que o id que o GoTrue devolveu bate com o profile que achamos
-  // por e-mail — profiles.id == auth.users.id pra quem nunca foi migrado
-  // (era assim que o trigger antigo criava).
-  if (body.user?.id !== profile.id) return null;
-
-  return signSessionToken({
-    id: profile.id,
-    email: profile.email,
-    name: profile.name,
-    tenantId: profile.tenant_id,
-  });
-}
-
 export const login = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => loginSchema.parse(input))
   .handler(async ({ data }) => {
@@ -83,27 +46,19 @@ export const login = createServerFn({ method: "POST" })
       .eq("email", data.email.toLowerCase())
       .maybeSingle();
 
-    // Mensagem sempre genérica — não vaza se o e-mail existe ou não, nem se
-    // a conta ainda não foi migrada (sem password_hash) ou está desativada.
-    if (!profile || !profile.is_active) {
+    // Mensagem sempre genérica — não vaza se o e-mail existe ou não.
+    if (!profile || !profile.is_active || !profile.password_hash) {
       throw new Error(GENERIC_LOGIN_ERROR);
     }
+    const ok = await bcrypt.compare(data.password, profile.password_hash);
+    if (!ok) throw new Error(GENERIC_LOGIN_ERROR);
 
-    if (profile.password_hash) {
-      const ok = await bcrypt.compare(data.password, profile.password_hash);
-      if (!ok) throw new Error(GENERIC_LOGIN_ERROR);
-      const token = signSessionToken({
-        id: profile.id,
-        email: profile.email,
-        name: profile.name,
-        tenantId: profile.tenant_id,
-      });
-      return { token };
-    }
-
-    // Sem password_hash: conta ainda não migrada — tenta o caminho antigo.
-    const token = await loginViaGoTrue(data.email, data.password, profile);
-    if (!token) throw new Error(GENERIC_LOGIN_ERROR);
+    const token = signSessionToken({
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      tenantId: profile.tenant_id,
+    });
     return { token };
   });
 
