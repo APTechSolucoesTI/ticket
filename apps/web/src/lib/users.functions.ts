@@ -3,8 +3,41 @@ import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { inviteEmailHtml, inviteEmailText } from "@/lib/email-templates.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+
+/** Gera um novo token de convite pro profile e manda o e-mail — usado tanto
+ * no convite inicial quanto no reenvio. Convites antigos não aceitos do
+ * mesmo profile são apagados antes: sem isso, um link velho continuaria
+ * funcionando em paralelo ao novo (2 tokens válidos pro mesmo convite). */
+async function issueAndSendInvite(
+  supabaseAdmin: SupabaseClient<Database>,
+  profile: { id: string; email: string },
+) {
+  const { sendMail } = await import("@/lib/mailer.server");
+
+  await supabaseAdmin.from("invites").delete().eq("profile_id", profile.id).is("accepted_at", null);
+
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const { error: inviteErr } = await supabaseAdmin.from("invites").insert({
+    profile_id: profile.id,
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + INVITE_TTL_MS).toISOString(),
+  });
+  if (inviteErr) throw new Error(inviteErr.message);
+
+  const siteUrl = process.env.PUBLIC_SITE_URL ?? "http://localhost:8080";
+  const url = `${siteUrl}/auth?invite=${token}`;
+  await sendMail({
+    to: profile.email,
+    subject: "Convite para acessar o APTicket",
+    html: inviteEmailHtml(url),
+    text: inviteEmailText(url),
+  });
+}
 
 const inviteSchema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
@@ -36,7 +69,6 @@ export const inviteUser = createServerFn({ method: "POST" })
     const tenantId = me.tenant_id;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { sendMail } = await import("@/lib/mailer.server");
 
     // Checa "já existe" só em apticket.profiles — nunca mais em auth.users
     // (Supabase Auth global, compartilhado com outro sistema no mesmo host).
@@ -73,23 +105,51 @@ export const inviteUser = createServerFn({ method: "POST" })
       .insert({ user_id: profile.id, tenant_id: tenantId, role_id: data.roleId });
     if (rolesErr) throw new Error(rolesErr.message);
 
-    const token = randomBytes(32).toString("hex");
-    const tokenHash = createHash("sha256").update(token).digest("hex");
-    const { error: inviteErr } = await supabaseAdmin.from("invites").insert({
-      profile_id: profile.id,
-      token_hash: tokenHash,
-      expires_at: new Date(Date.now() + INVITE_TTL_MS).toISOString(),
-    });
-    if (inviteErr) throw new Error(inviteErr.message);
-
-    const siteUrl = process.env.PUBLIC_SITE_URL ?? "http://localhost:8080";
-    const url = `${siteUrl}/auth?invite=${token}`;
-    await sendMail({
-      to: data.email,
-      subject: "Convite para acessar o APTicket",
-      html: inviteEmailHtml(url),
-      text: inviteEmailText(url),
-    });
+    await issueAndSendInvite(supabaseAdmin, { id: profile.id, email: data.email.toLowerCase() });
 
     return { ok: true as const, email: data.email };
+  });
+
+const resendInviteSchema = z.object({ userId: z.string().uuid() });
+
+export const resendInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => resendInviteSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: canInvite, error: permErr } = await supabase.rpc("has_permission", {
+      _user_id: userId,
+      _module: "usuarios",
+      _action: "create",
+    });
+    if (permErr) throw new Error(permErr.message);
+    if (!canInvite) throw new Error("Você não tem permissão para reenviar convites.");
+
+    const { data: me, error: meErr } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (meErr) throw new Error(meErr.message);
+    if (!me?.tenant_id) throw new Error("Organização não encontrada.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: target, error: targetErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id, tenant_id, email, is_active")
+      .eq("id", data.userId)
+      .maybeSingle();
+    if (targetErr) throw new Error(targetErr.message);
+    if (!target || target.tenant_id !== me.tenant_id) {
+      throw new Error("Usuário não encontrado.");
+    }
+    if (target.is_active) {
+      throw new Error("Este usuário já aceitou o convite.");
+    }
+
+    await issueAndSendInvite(supabaseAdmin, { id: target.id, email: target.email });
+
+    return { ok: true as const, email: target.email };
   });

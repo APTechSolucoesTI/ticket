@@ -64,7 +64,7 @@ import { CompanyTab } from "@/components/settings/CompanyTab";
 import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
 import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
-import { inviteUser } from "@/lib/users.functions";
+import { inviteUser, resendInvite } from "@/lib/users.functions";
 import { usePermissions } from "@/lib/use-permissions";
 import {
   listRoles,
@@ -170,6 +170,7 @@ type Profile = { id: string; name: string; email: string; is_active: boolean };
 function UsersTab() {
   const qc = useQueryClient();
   const invite = useServerFn(inviteUser);
+  const resend = useServerFn(resendInvite);
   const listUsers = useServerFn(listTenantUsers);
   const listRolesFn = useServerFn(listRoles);
   const assignRole = useServerFn(assignUserRole);
@@ -226,6 +227,12 @@ function UsersTab() {
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const resendInviteMutation = useMutation({
+    mutationFn: (userId: string) => resend({ data: { userId } }),
+    onSuccess: (res) => toast.success(`Convite reenviado para ${res.email}`),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -317,6 +324,7 @@ function UsersTab() {
                 <TableHead>E-mail</TableHead>
                 <TableHead>Papel</TableHead>
                 <TableHead>Ativo</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -348,6 +356,18 @@ function UsersTab() {
                         checked={u.is_active}
                         onCheckedChange={(v) => toggleActive.mutate({ id: u.id, is_active: v })}
                       />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {!u.is_active && perms.has("usuarios", "create") ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={resendInviteMutation.isPending}
+                          onClick={() => resendInviteMutation.mutate(u.id)}
+                        >
+                          <Mail className="h-3.5 w-3.5 mr-1" /> Reenviar convite
+                        </Button>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 );
