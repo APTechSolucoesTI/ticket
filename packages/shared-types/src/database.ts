@@ -1632,27 +1632,232 @@ export type Database = {
         Row: {
           created_at: string;
           id: string;
-          role: Database["apticket"]["Enums"]["app_role"];
+          role_id: string;
           tenant_id: string;
           user_id: string;
         };
         Insert: {
           created_at?: string;
           id?: string;
-          role: Database["apticket"]["Enums"]["app_role"];
+          role_id: string;
           tenant_id: string;
           user_id: string;
         };
         Update: {
           created_at?: string;
           id?: string;
-          role?: Database["apticket"]["Enums"]["app_role"];
+          role_id?: string;
           tenant_id?: string;
           user_id?: string;
         };
         Relationships: [
           {
             foreignKeyName: "user_roles_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_roles_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      roles: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_system: boolean;
+          name: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_system?: boolean;
+          name: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_system?: boolean;
+          name?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "roles_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      permissions: {
+        Row: {
+          action: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          module: string;
+        };
+        Insert: {
+          action: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          module: string;
+        };
+        Update: {
+          action?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          module?: string;
+        };
+        Relationships: [];
+      };
+      role_permissions: {
+        Row: {
+          created_at: string;
+          id: string;
+          permission_id: string;
+          role_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          permission_id: string;
+          role_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          permission_id?: string;
+          role_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey";
+            columns: ["permission_id"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_permissions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          granted: boolean;
+          id: string;
+          permission_id: string;
+          tenant_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          granted: boolean;
+          id?: string;
+          permission_id: string;
+          tenant_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          granted?: boolean;
+          id?: string;
+          permission_id?: string;
+          tenant_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_permissions_permission_id_fkey";
+            columns: ["permission_id"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_permissions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      permission_audit_log: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          created_at: string;
+          detail: Json | null;
+          id: string;
+          target_id: string;
+          target_type: string;
+          tenant_id: string;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          created_at?: string;
+          detail?: Json | null;
+          id?: string;
+          target_id: string;
+          target_type: string;
+          tenant_id: string;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          created_at?: string;
+          detail?: Json | null;
+          id?: string;
+          target_id?: string;
+          target_type?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "permission_audit_log_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -1729,11 +1934,18 @@ export type Database = {
           responded_at: string;
         }[];
       };
-      has_role: {
-        Args: {
-          _role: Database["apticket"]["Enums"]["app_role"];
-          _user_id: string;
-        };
+      get_effective_permissions: {
+        Args: { _user_id: string };
+        Returns: {
+          action: string;
+          effective: boolean;
+          granted_by_role: boolean;
+          module: string;
+          override: boolean | null;
+        }[];
+      };
+      has_permission: {
+        Args: { _action: string; _module: string; _user_id: string };
         Returns: boolean;
       };
       submit_csat: {
@@ -1742,7 +1954,6 @@ export type Database = {
       };
     };
     Enums: {
-      app_role: "admin" | "agent" | "requester";
       contract_status: "active" | "suspended" | "cancelled" | "expired";
       kb_status: "draft" | "published";
       message_author_type: "agent" | "contact" | "system";
@@ -1870,7 +2081,6 @@ export type CompositeTypes<
 export const Constants = {
   apticket: {
     Enums: {
-      app_role: ["admin", "agent", "requester"],
       contract_status: ["active", "suspended", "cancelled", "expired"],
       kb_status: ["draft", "published"],
       message_author_type: ["agent", "contact", "system"],

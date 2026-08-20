@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/current-user.decorator';
+import { RequirePermission } from '../../auth/require-permission.decorator';
 import type { AuthContext } from '../../auth/supabase-auth.guard';
 import { EmailAccountService } from './email-account.service';
 import { EmailPollingService } from './email-polling.service';
@@ -35,6 +36,7 @@ export class EmailController {
   }
 
   @Post()
+  @RequirePermission('canais', 'manage')
   @ApiOperation({
     summary: 'Cria/atualiza a conta de e-mail (IMAP/SMTP) do tenant',
   })
@@ -43,18 +45,21 @@ export class EmailController {
   }
 
   @Patch(':id')
+  @RequirePermission('canais', 'manage')
   @ApiOperation({ summary: 'Atualiza a conta de e-mail' })
   update(@CurrentUser() auth: AuthContext, @Body() dto: UpsertEmailAccountDto) {
     return this.accounts.upsert(auth.tenantId, dto);
   }
 
   @Delete(':id')
+  @RequirePermission('canais', 'manage')
   @ApiOperation({ summary: 'Remove a configuração de e-mail do tenant' })
   remove(@CurrentUser() auth: AuthContext) {
     return this.accounts.remove(auth.tenantId);
   }
 
   @Post(':id/test-connection')
+  @RequirePermission('canais', 'manage')
   @ApiOperation({
     summary: 'Testa IMAP com as credenciais salvas ou informadas no corpo',
   })
@@ -66,6 +71,7 @@ export class EmailController {
   }
 
   @Post(':id/sync')
+  @RequirePermission('canais', 'send')
   @ApiOperation({
     summary: "Sincroniza a caixa agora (botão 'Sincronizar agora')",
   })
@@ -74,6 +80,7 @@ export class EmailController {
   }
 
   @Post(':id/send')
+  @RequirePermission('canais', 'send')
   @ApiOperation({ summary: 'Responde um ticket de origem e-mail' })
   send(@CurrentUser() auth: AuthContext, @Body() dto: SendEmailReplyDto) {
     return this.reply.reply(

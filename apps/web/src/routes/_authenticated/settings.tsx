@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
@@ -64,6 +65,23 @@ import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
 import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
 import { inviteUser } from "@/lib/users.functions";
+import { usePermissions } from "@/lib/use-permissions";
+import {
+  listRoles,
+  listPermissionsCatalog,
+  createRole,
+  updateRole,
+  deleteRole,
+  getRolePermissions,
+  setRolePermissions,
+} from "@/lib/roles.functions";
+import {
+  listTenantUsers,
+  getUserEffectivePermissions,
+  assignUserRole,
+  setUserOverride,
+  restoreUserDefault,
+} from "@/lib/user-permissions.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Configurações — APTicket" }] }),
@@ -77,6 +95,8 @@ async function getTenantId() {
 }
 
 function SettingsPage() {
+  const perms = usePermissions();
+  const canManageRoles = perms.has("papeis", "manage");
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -87,6 +107,8 @@ function SettingsPage() {
         <TabsList>
           <TabsTrigger value="company">Empresa</TabsTrigger>
           <TabsTrigger value="users">Usuários</TabsTrigger>
+          {canManageRoles ? <TabsTrigger value="roles">Papéis</TabsTrigger> : null}
+          {canManageRoles ? <TabsTrigger value="user-permissions">Permissões</TabsTrigger> : null}
           <TabsTrigger value="departments">Departamentos</TabsTrigger>
           <TabsTrigger value="service-families">Família de Serviços</TabsTrigger>
           <TabsTrigger value="provided-services">Serviços Prestados</TabsTrigger>
@@ -102,6 +124,16 @@ function SettingsPage() {
         <TabsContent value="users" className="mt-4">
           <UsersTab />
         </TabsContent>
+        {canManageRoles ? (
+          <TabsContent value="roles" className="mt-4">
+            <RolesTab />
+          </TabsContent>
+        ) : null}
+        {canManageRoles ? (
+          <TabsContent value="user-permissions" className="mt-4">
+            <UserPermissionsTab />
+          </TabsContent>
+        ) : null}
         <TabsContent value="departments" className="mt-4">
           <DepartmentsTab />
         </TabsContent>
@@ -134,46 +166,25 @@ function SettingsPage() {
 /* ============================ USERS ============================ */
 
 type Profile = { id: string; name: string; email: string; is_active: boolean };
-type Role = "admin" | "agent" | "requester";
-type UserRoleRow = { user_id: string; role: Role };
 
 function UsersTab() {
   const qc = useQueryClient();
   const invite = useServerFn(inviteUser);
+  const listUsers = useServerFn(listTenantUsers);
+  const listRolesFn = useServerFn(listRoles);
+  const assignRole = useServerFn(assignUserRole);
+  const perms = usePermissions();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role: "agent" as Role });
+  const [form, setForm] = useState({ name: "", email: "", roleId: "" });
+
+  const { data: rolesList } = useQuery({
+    queryKey: ["settings_roles_list"],
+    queryFn: () => listRolesFn(),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["settings_users"],
-    queryFn: async () => {
-      const [{ data: profiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
-        supabase.from("profiles").select("id,name,email,is_active").order("name"),
-        supabase.from("user_roles").select("user_id,role"),
-      ]);
-      if (e1) throw e1;
-      if (e2) throw e2;
-      const byUser = new Map<string, Role[]>();
-      (roles as UserRoleRow[]).forEach((r) => {
-        if (!byUser.has(r.user_id)) byUser.set(r.user_id, []);
-        byUser.get(r.user_id)!.push(r.role);
-      });
-      return (profiles as Profile[]).map((p) => ({ ...p, roles: byUser.get(p.id) ?? [] }));
-    },
-  });
-
-  const { data: isAdmin } = useQuery({
-    queryKey: ["settings_users_is_admin"],
-    queryFn: async () => {
-      const uid = getCurrentUserId();
-      if (!uid) return false;
-      const { data: rows, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", uid)
-        .eq("role", "admin");
-      if (error) throw error;
-      return (rows?.length ?? 0) > 0;
-    },
+    queryFn: () => listUsers(),
   });
 
   const sendInvite = useMutation({
@@ -182,7 +193,7 @@ function UsersTab() {
         .object({
           name: z.string().trim().min(1, "Informe o nome").max(120),
           email: z.string().trim().email("E-mail inválido").max(255),
-          role: z.enum(["admin", "agent", "requester"]),
+          roleId: z.string().uuid("Escolha um papel"),
         })
         .parse(form);
       return await invite({ data: parsed });
@@ -190,22 +201,15 @@ function UsersTab() {
     onSuccess: (res) => {
       toast.success(`Convite enviado para ${res.email}`);
       setInviteOpen(false);
-      setForm({ name: "", email: "", role: "agent" });
+      setForm({ name: "", email: "", roleId: "" });
       qc.invalidateQueries({ queryKey: ["settings_users"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const setRole = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: Role }) => {
-      const tenant_id = await getTenantId();
-      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
-      if (delErr) throw delErr;
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: userId, tenant_id, role });
-      if (error) throw error;
-    },
+    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
+      assignRole({ data: { userId, roleId } }),
     onSuccess: () => {
       toast.success("Papel atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });
@@ -254,16 +258,18 @@ function UsersTab() {
           <div className="space-y-1">
             <Label>Papel</Label>
             <Select
-              value={form.role}
-              onValueChange={(v: Role) => setForm((f) => ({ ...f, role: v }))}
+              value={form.roleId}
+              onValueChange={(v: string) => setForm((f) => ({ ...f, roleId: v }))}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Escolha um papel" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="agent">Agente</SelectItem>
-                <SelectItem value="requester">Solicitante</SelectItem>
+                {rolesList?.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -286,7 +292,7 @@ function UsersTab() {
   const header = (
     <div className="flex items-center justify-between">
       <h3 className="text-sm font-semibold">Usuários</h3>
-      {isAdmin ? (
+      {perms.has("usuarios", "create") ? (
         <Button size="sm" onClick={() => setInviteOpen(true)}>
           <Plus className="h-4 w-4 mr-1" /> Convidar usuário
         </Button>
@@ -314,38 +320,477 @@ function UsersTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.name}</TableCell>
-                  <TableCell className="text-sm">{u.email}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={u.roles[0] ?? "agent"}
-                      onValueChange={(v: Role) => setRole.mutate({ userId: u.id, role: v })}
-                    >
-                      <SelectTrigger className="w-36">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="agent">Agente</SelectItem>
-                        <SelectItem value="requester">Solicitante</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={u.is_active}
-                      onCheckedChange={(v) => toggleActive.mutate({ id: u.id, is_active: v })}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {data.map((u) => {
+                const currentRoleId = u.user_roles?.role_id ?? "";
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name}</TableCell>
+                    <TableCell className="text-sm">{u.email}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={currentRoleId}
+                        onValueChange={(v: string) => setRole.mutate({ userId: u.id, roleId: v })}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Sem papel" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rolesList?.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={u.is_active}
+                        onCheckedChange={(v) => toggleActive.mutate({ id: u.id, is_active: v })}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Card>
       )}
       {inviteDialog}
+    </div>
+  );
+}
+
+/* ============================ ROLES (Bloco 2) ============================ */
+
+type RoleRow = { id: string; name: string; description: string | null; is_system: boolean };
+type PermissionRow = { id: string; module: string; action: string; description: string | null };
+
+function groupByModule(permissions: PermissionRow[]): [string, PermissionRow[]][] {
+  const byModule = new Map<string, PermissionRow[]>();
+  for (const p of permissions) {
+    if (!byModule.has(p.module)) byModule.set(p.module, []);
+    byModule.get(p.module)!.push(p);
+  }
+  return Array.from(byModule.entries());
+}
+
+function RolesTab() {
+  const qc = useQueryClient();
+  const listRolesFn = useServerFn(listRoles);
+  const listCatalog = useServerFn(listPermissionsCatalog);
+  const getPerms = useServerFn(getRolePermissions);
+  const saveRolePerms = useServerFn(setRolePermissions);
+  const createRoleFn = useServerFn(createRole);
+  const updateRoleFn = useServerFn(updateRole);
+  const deleteRoleFn = useServerFn(deleteRole);
+
+  const [selected, setSelected] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<RoleRow | null>(null);
+  const [form, setForm] = useState({ name: "", description: "" });
+  const [deleteTarget, setDeleteTarget] = useState<RoleRow | null>(null);
+
+  const { data: roles } = useQuery({ queryKey: ["roles_list"], queryFn: () => listRolesFn() });
+  const { data: catalog } = useQuery({
+    queryKey: ["permissions_catalog"],
+    queryFn: () => listCatalog(),
+  });
+  const { data: rolePerms } = useQuery({
+    queryKey: ["role_permissions", selected],
+    queryFn: () => getPerms({ data: { roleId: selected! } }),
+    enabled: !!selected,
+  });
+
+  useEffect(() => {
+    setChecked(new Set(rolePerms ?? []));
+  }, [rolePerms]);
+
+  const selectedRole = roles?.find((r) => r.id === selected) ?? null;
+
+  const saveRole = useMutation({
+    mutationFn: async () => {
+      const parsed = z
+        .object({ name: z.string().trim().min(1).max(80), description: z.string().trim().max(300) })
+        .parse(form);
+      if (editing) {
+        return updateRoleFn({ data: { roleId: editing.id, ...parsed } });
+      }
+      return createRoleFn({ data: parsed });
+    },
+    onSuccess: () => {
+      toast.success(editing ? "Papel atualizado" : "Papel criado");
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({ name: "", description: "" });
+      qc.invalidateQueries({ queryKey: ["roles_list"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeRole = useMutation({
+    mutationFn: (roleId: string) => deleteRoleFn({ data: { roleId } }),
+    onSuccess: () => {
+      toast.success("Papel excluído");
+      setDeleteTarget(null);
+      if (selected === deleteTarget?.id) setSelected(null);
+      qc.invalidateQueries({ queryKey: ["roles_list"] });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+      setDeleteTarget(null);
+    },
+  });
+
+  const saveMatrix = useMutation({
+    mutationFn: () =>
+      saveRolePerms({ data: { roleId: selected!, permissionIds: Array.from(checked) } }),
+    onSuccess: () => {
+      toast.success("Matriz de permissões salva");
+      qc.invalidateQueries({ queryKey: ["role_permissions", selected] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggle = (permId: string) => {
+    if (selectedRole?.is_system) return;
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(permId)) next.delete(permId);
+      else next.add(permId);
+      return next;
+    });
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+      <Card className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Papéis</h3>
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setForm({ name: "", description: "" });
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Novo
+          </Button>
+        </div>
+        <div className="space-y-1">
+          {roles?.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setSelected(r.id)}
+              className={`w-full flex items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${
+                selected === r.id ? "bg-muted font-medium" : ""
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                {r.name}
+                {r.is_system ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    sistema
+                  </Badge>
+                ) : null}
+              </span>
+              <span className="flex gap-1">
+                <Pencil
+                  className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditing(r);
+                    setForm({ name: r.name, description: r.description ?? "" });
+                    setDialogOpen(true);
+                  }}
+                />
+                {!r.is_system && (
+                  <Trash2
+                    className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(r);
+                    }}
+                  />
+                )}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        {!selected ? (
+          <p className="text-sm text-muted-foreground">Selecione um papel pra ver a matriz.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Permissões — {selectedRole?.name}</h3>
+              {!selectedRole?.is_system && (
+                <Button
+                  size="sm"
+                  onClick={() => saveMatrix.mutate()}
+                  disabled={saveMatrix.isPending}
+                >
+                  {saveMatrix.isPending ? "Salvando…" : "Salvar matriz"}
+                </Button>
+              )}
+            </div>
+            {selectedRole?.is_system && (
+              <p className="text-xs text-muted-foreground">
+                Papel de sistema — tem acesso total, não pode ser restringido.
+              </p>
+            )}
+            <div className="space-y-3">
+              {groupByModule(catalog ?? []).map(([module, perms]) => (
+                <div key={module}>
+                  <div className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    {module}
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    {perms.map((p) => (
+                      <label key={p.id} className="flex items-center gap-1.5 text-sm">
+                        <Checkbox
+                          checked={selectedRole?.is_system || checked.has(p.id)}
+                          disabled={selectedRole?.is_system}
+                          onCheckedChange={() => toggle(p.id)}
+                        />
+                        {p.action}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar papel" : "Novo papel"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="role-name">Nome</Label>
+              <Input
+                id="role-name"
+                value={form.name}
+                maxLength={80}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="role-desc">Descrição</Label>
+              <Textarea
+                id="role-desc"
+                value={form.description}
+                maxLength={300}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => saveRole.mutate()} disabled={saveRole.isPending}>
+              {saveRole.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir papel "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Só é possível excluir papéis sem usuários atribuídos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && removeRole.mutate(deleteTarget.id)}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/* ============================ PERMISSÕES POR USUÁRIO (Bloco 2) ============================ */
+
+function UserPermissionsTab() {
+  const listUsersFn = useServerFn(listTenantUsers);
+  const listRolesFn = useServerFn(listRoles);
+  const listCatalog = useServerFn(listPermissionsCatalog);
+  const getEffective = useServerFn(getUserEffectivePermissions);
+  const assignRole = useServerFn(assignUserRole);
+  const setOverride = useServerFn(setUserOverride);
+  const restoreDefault = useServerFn(restoreUserDefault);
+  const qc = useQueryClient();
+
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+
+  const { data: users } = useQuery({ queryKey: ["perm_users"], queryFn: () => listUsersFn() });
+  const { data: roles } = useQuery({ queryKey: ["perm_roles"], queryFn: () => listRolesFn() });
+  const { data: catalog } = useQuery({
+    queryKey: ["permissions_catalog"],
+    queryFn: () => listCatalog(),
+  });
+  const { data: effective, refetch: refetchEffective } = useQuery({
+    queryKey: ["user_effective_permissions", selectedUser],
+    queryFn: () => getEffective({ data: { userId: selectedUser! } }),
+    enabled: !!selectedUser,
+  });
+
+  const user = users?.find((u) => u.id === selectedUser) ?? null;
+  const currentRoleId = user?.user_roles?.role_id ?? "";
+
+  const changeRole = useMutation({
+    mutationFn: (roleId: string) => assignRole({ data: { userId: selectedUser!, roleId } }),
+    onSuccess: () => {
+      toast.success("Papel atualizado");
+      qc.invalidateQueries({ queryKey: ["perm_users"] });
+      refetchEffective();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const override = useMutation({
+    mutationFn: (vars: { permissionId: string; granted: boolean }) =>
+      setOverride({ data: { userId: selectedUser!, ...vars } }),
+    onSuccess: () => refetchEffective(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const restore = useMutation({
+    mutationFn: (permissionId: string) =>
+      restoreDefault({ data: { userId: selectedUser!, permissionId } }),
+    onSuccess: () => refetchEffective(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const effectiveByPermission = new Map(
+    (effective ?? []).map((e) => [`${e.module}:${e.action}`, e]),
+  );
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+      <Card className="p-3 space-y-1">
+        <h3 className="text-sm font-semibold mb-2">Usuários</h3>
+        {users?.map((u) => (
+          <button
+            key={u.id}
+            onClick={() => setSelectedUser(u.id)}
+            className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${
+              selectedUser === u.id ? "bg-muted font-medium" : ""
+            }`}
+          >
+            {u.name}
+            <div className="text-xs text-muted-foreground">{u.email}</div>
+          </button>
+        ))}
+      </Card>
+
+      <Card className="p-4">
+        {!user ? (
+          <p className="text-sm text-muted-foreground">Selecione um usuário.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-semibold">{user.name}</h3>
+              <Select value={currentRoleId} onValueChange={(v) => changeRole.mutate(v)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Papel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles?.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cinza = herdado do papel · verde = concedido individualmente · vermelho = revogado
+              individualmente.
+            </p>
+            <div className="space-y-3">
+              {groupByModule(catalog ?? []).map(([module, perms]) => (
+                <div key={module}>
+                  <div className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    {module}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {perms.map((p) => {
+                      const eff = effectiveByPermission.get(`${p.module}:${p.action}`);
+                      const isOverride = eff?.override !== null && eff?.override !== undefined;
+                      const state = isOverride
+                        ? eff!.override
+                          ? "granted"
+                          : "revoked"
+                        : eff?.granted_by_role
+                          ? "inherited-on"
+                          : "inherited-off";
+                      const colors: Record<string, string> = {
+                        "inherited-on": "bg-muted text-foreground border-border",
+                        "inherited-off": "bg-transparent text-muted-foreground border-border",
+                        granted: "bg-green-100 text-green-800 border-green-300",
+                        revoked: "bg-red-100 text-red-800 border-red-300",
+                      };
+                      return (
+                        <div
+                          key={p.id}
+                          className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${colors[state]}`}
+                        >
+                          <span>{p.action}</span>
+                          {state !== "granted" && (
+                            <button
+                              title="Conceder"
+                              className="hover:underline"
+                              onClick={() => override.mutate({ permissionId: p.id, granted: true })}
+                            >
+                              +
+                            </button>
+                          )}
+                          {state !== "revoked" && (
+                            <button
+                              title="Revogar"
+                              className="hover:underline"
+                              onClick={() =>
+                                override.mutate({ permissionId: p.id, granted: false })
+                              }
+                            >
+                              −
+                            </button>
+                          )}
+                          {isOverride && (
+                            <button
+                              title="Restaurar padrão do papel"
+                              className="hover:underline"
+                              onClick={() => restore.mutate(p.id)}
+                            >
+                              ↺
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

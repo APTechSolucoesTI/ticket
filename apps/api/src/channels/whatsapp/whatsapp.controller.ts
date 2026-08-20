@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/current-user.decorator';
+import { RequirePermission } from '../../auth/require-permission.decorator';
 import type { AuthContext } from '../../auth/supabase-auth.guard';
 import { WhatsappInstanceService } from './whatsapp-instance.service';
 import { WhatsappReplyService } from './whatsapp-reply.service';
@@ -29,6 +30,7 @@ export class WhatsappController {
   }
 
   @Post()
+  @RequirePermission('canais', 'manage')
   @ApiOperation({ summary: 'Cria/atualiza a instância uazapi do tenant' })
   create(
     @CurrentUser() auth: AuthContext,
@@ -50,12 +52,14 @@ export class WhatsappController {
   }
 
   @Post(':id/disconnect')
+  @RequirePermission('canais', 'manage')
   @ApiOperation({ summary: 'Desconecta a instância' })
   disconnect(@CurrentUser() auth: AuthContext) {
     return this.instances.disconnect(auth.tenantId);
   }
 
   @Post(':id/send')
+  @RequirePermission('canais', 'send')
   @ApiOperation({ summary: 'Responde um ticket de origem WhatsApp' })
   send(@CurrentUser() auth: AuthContext, @Body() dto: WhatsappSendMessageDto) {
     return this.reply.reply(

@@ -9,7 +9,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 const inviteSchema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
   name: z.string().trim().min(1, "Informe o nome").max(120),
-  role: z.enum(["admin", "agent", "requester"]),
+  roleId: z.string().uuid(),
 });
 
 export const inviteUser = createServerFn({ method: "POST" })
@@ -18,12 +18,13 @@ export const inviteUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
+    const { data: canInvite, error: permErr } = await supabase.rpc("has_permission", {
       _user_id: userId,
-      _role: "admin",
+      _module: "usuarios",
+      _action: "create",
     });
-    if (roleErr) throw new Error(roleErr.message);
-    if (!isAdmin) throw new Error("Apenas administradores podem convidar usuários.");
+    if (permErr) throw new Error(permErr.message);
+    if (!canInvite) throw new Error("Você não tem permissão para convidar usuários.");
 
     const { data: me, error: meErr } = await supabase
       .from("profiles")
@@ -69,7 +70,7 @@ export const inviteUser = createServerFn({ method: "POST" })
 
     const { error: rolesErr } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: profile.id, tenant_id: tenantId, role: data.role });
+      .insert({ user_id: profile.id, tenant_id: tenantId, role_id: data.roleId });
     if (rolesErr) throw new Error(rolesErr.message);
 
     const token = randomBytes(32).toString("hex");

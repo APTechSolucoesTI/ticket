@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -11,6 +12,10 @@ import type { Request } from 'express';
 import { SupabaseService } from '../supabase/supabase.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import { verifySessionToken } from './jwt.util';
+import {
+  PERMISSION_KEY,
+  type RequiredPermission,
+} from './require-permission.decorator';
 import type { Env } from '../config/env.validation';
 
 export interface AuthContext {
@@ -19,6 +24,8 @@ export interface AuthContext {
   tenantId: string;
   name: string;
   roles: string[];
+  /** Bloco 2 — permissões efetivas (módulo×ação) já resolvidas pro usuário. */
+  permissions: { module: string; action: string }[];
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -94,17 +101,44 @@ export class SupabaseAuthGuard implements CanActivate {
 
     const { data: roleRows } = await this.supabase.client
       .from('user_roles')
-      .select('role')
-      .eq('user_id', claims.sub)
-      .eq('tenant_id', profile.tenant_id);
+      .select('role_id')
+      .eq('user_id', claims.sub);
+
+    const { data: permRows, error: permErr } = await this.supabase.client.rpc(
+      'get_effective_permissions',
+      { _user_id: claims.sub },
+    );
+    if (permErr) {
+      this.logger.error(
+        `falha ao resolver permissões efetivas de ${claims.sub}: ${permErr.message}`,
+      );
+    }
+    const permissions = (permRows ?? [])
+      .filter((p) => p.effective)
+      .map((p) => ({ module: p.module, action: p.action }));
 
     req.auth = {
       userId: claims.sub,
       email: claims.email,
       tenantId: profile.tenant_id,
       name: profile.name,
-      roles: (roleRows ?? []).map((r) => r.role),
+      roles: (roleRows ?? []).map((r) => r.role_id),
+      permissions,
     };
+
+    const required = this.reflector.getAllAndOverride<RequiredPermission>(
+      PERMISSION_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (
+      required &&
+      !permissions.some(
+        (p) => p.module === required.module && p.action === required.action,
+      )
+    ) {
+      throw new ForbiddenException('Sem permissão para esta ação');
+    }
+
     return true;
   }
 }

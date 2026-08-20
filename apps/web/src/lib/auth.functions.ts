@@ -244,9 +244,20 @@ export const signUpTenant = createServerFn({ method: "POST" })
       .single();
     if (profErr) throw new Error(profErr.message);
 
+    // O papel "Admin" já existe aqui — o trigger tenants_seed_default_roles
+    // (Bloco 2, migration 20260821000000) roda síncrono na própria inserção
+    // do tenant acima, antes deste ponto do código.
+    const { data: adminRole, error: adminRoleErr } = await supabaseAdmin
+      .from("roles")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("name", "Admin")
+      .single();
+    if (adminRoleErr) throw new Error(adminRoleErr.message);
+
     const { error: roleErr } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: profile.id, tenant_id: tenant.id, role: "admin" });
+      .insert({ user_id: profile.id, tenant_id: tenant.id, role_id: adminRole.id });
     if (roleErr) throw new Error(roleErr.message);
 
     const token = signSessionToken({
