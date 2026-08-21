@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, List, Plus, Search } from "lucide-react";
+import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
@@ -35,6 +35,8 @@ import { ConfigurableTable, type ListColumn } from "@/components/configurable-ta
 import { TicketAutoRefresh } from "@/components/ticket/TicketAutoRefresh";
 import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
   head: () => ({ meta: [{ title: "Tickets — APTicket" }] }),
@@ -81,15 +83,38 @@ const statusColumns: { key: TicketStatus; label: string }[] = [
   { key: "resolved", label: "Resolvido" },
 ];
 
+const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
+  { value: "new", label: "Novo" },
+  { value: "in_progress", label: "Em atendimento" },
+  { value: "pending", label: "Pendente" },
+  { value: "resolved", label: "Resolvido" },
+  { value: "closed", label: "Fechado" },
+];
+
+const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
+  { value: "low", label: "Baixa" },
+  { value: "medium", label: "Média" },
+  { value: "high", label: "Alta" },
+  { value: "urgent", label: "Urgente" },
+];
+
+const CHANNEL_OPTIONS: { value: TicketChannel; label: string }[] = [
+  { value: "email", label: "E-mail" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "chat", label: "Chat" },
+  { value: "manual", label: "Manual" },
+  { value: "portal", label: "Portal" },
+];
+
 function TicketsInbox() {
   const access = useModulePermissions("tickets");
   const qc = useQueryClient();
   const [view, setView] = useState<"list" | "kanban">("list");
-  const [status, setStatus] = useState<string>("all");
-  const [priority, setPriority] = useState<string>("all");
-  const [assignee, setAssignee] = useState<string>("all");
-  const [channel, setChannel] = useState<string>("all");
-  const [department, setDepartment] = useState<string>("all");
+  const [status, setStatus] = useState<TicketStatus[]>(["new", "in_progress", "pending"]);
+  const [priority, setPriority] = useState<TicketPriority[]>([]);
+  const [assignee, setAssignee] = useState<string[]>([]);
+  const [channel, setChannel] = useState<TicketChannel[]>([]);
+  const [department, setDepartment] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [openNew, setOpenNew] = useState(false);
   const filterRef = useRef<HTMLButtonElement>(null);
@@ -149,11 +174,12 @@ function TicketsInbox() {
     () =>
       tickets.filter(
         (t) =>
-          (status === "all" || t.status === status) &&
-          (priority === "all" || t.priority === priority) &&
-          (assignee === "all" || t.assigned_to === assignee) &&
-          (channel === "all" || t.channel === channel) &&
-          (department === "all" || t.department_id === department) &&
+          (status.length === 0 || status.includes(t.status)) &&
+          (priority.length === 0 || priority.includes(t.priority)) &&
+          (assignee.length === 0 || (t.assigned_to !== null && assignee.includes(t.assigned_to))) &&
+          (channel.length === 0 || channel.includes(t.channel)) &&
+          (department.length === 0 ||
+            (t.department_id !== null && department.includes(t.department_id))) &&
           (!q ||
             `${t.number} ${t.subject} ${t.companies?.name ?? ""}`
               .toLowerCase()
@@ -175,62 +201,31 @@ function TicketsInbox() {
             className="h-7 w-56 pl-7 text-xs"
           />
         </div>
-        <FilterSelect
+        <MultiFilter
           triggerRef={filterRef}
-          value={department}
+          label="Departamento"
+          values={department}
           onChange={setDepartment}
-          placeholder="Todos departamentos"
-          options={[
-            { value: "all", label: "Todos departamentos" },
-            ...departments.map((d) => ({ value: d.id, label: d.name })),
-          ]}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
         />
-        <FilterSelect
-          value={status}
-          onChange={setStatus}
-          placeholder="Todos status"
-          options={[
-            { value: "all", label: "Todos status" },
-            { value: "new", label: "Novo" },
-            { value: "in_progress", label: "Em Atendimento" },
-            { value: "pending", label: "Pendente" },
-            { value: "resolved", label: "Resolvido" },
-            { value: "closed", label: "Fechado" },
-          ]}
-        />
-        <FilterSelect
-          value={priority}
+        <MultiFilter label="Status" values={status} onChange={setStatus} options={STATUS_OPTIONS} />
+        <MultiFilter
+          label="Prioridade"
+          values={priority}
           onChange={setPriority}
-          placeholder="Todas prioridades"
-          options={[
-            { value: "all", label: "Todas prioridades" },
-            { value: "low", label: "Baixa" },
-            { value: "medium", label: "Média" },
-            { value: "high", label: "Alta" },
-            { value: "urgent", label: "Urgente" },
-          ]}
+          options={PRIORITY_OPTIONS}
         />
-        <FilterSelect
-          value={assignee}
+        <MultiFilter
+          label="Técnico"
+          values={assignee}
           onChange={setAssignee}
-          placeholder="Todos técnicos"
-          options={[
-            { value: "all", label: "Todos técnicos" },
-            ...agents.map((a) => ({ value: a.id, label: a.name })),
-          ]}
+          options={agents.map((a) => ({ value: a.id, label: a.name }))}
         />
-        <FilterSelect
-          value={channel}
+        <MultiFilter
+          label="Canal"
+          values={channel}
           onChange={setChannel}
-          placeholder="Todos canais"
-          options={[
-            { value: "all", label: "Todos canais" },
-            { value: "email", label: "E-mail" },
-            { value: "whatsapp", label: "WhatsApp" },
-            { value: "chat", label: "Chat" },
-            { value: "manual", label: "Manual" },
-            { value: "portal", label: "Portal" },
-          ]}
+          options={CHANNEL_OPTIONS}
         />
 
         <div className="ml-auto flex items-center gap-1">
@@ -286,32 +281,76 @@ function TicketsInbox() {
   );
 }
 
-function FilterSelect({
-  value,
+function MultiFilter<T extends string>({
+  label,
+  values,
   onChange,
   options,
-  placeholder,
   triggerRef,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  placeholder: string;
+  label: string;
+  values: T[];
+  onChange: (values: T[]) => void;
+  options: { value: T; label: string }[];
   triggerRef?: React.RefObject<HTMLButtonElement | null>;
 }) {
+  const toggle = (value: T) => {
+    onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
+  };
+  const summary = values.length === 0 ? `${label}: todos` : `${label}: ${values.length}`;
+
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger ref={triggerRef} className="h-7 w-auto min-w-[140px] gap-1 text-xs">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          ref={triggerRef}
+          type="button"
+          variant="outline"
+          className="h-7 min-w-[140px] justify-between gap-2 px-2 text-xs font-normal"
+        >
+          <span className="truncate">{summary}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-1" align="start">
+        <div className="flex items-center justify-between border-b px-2 py-1.5 text-xs">
+          <span className="text-muted-foreground">
+            {values.length === 0 ? "Todos" : `${values.length} selecionado(s)`}
+          </span>
+          {values.length > 0 ? (
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => onChange([])}
+            >
+              Limpar
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => onChange(options.map((option) => option.value))}
+            >
+              Todos
+            </button>
+          )}
+        </div>
+        <div className="max-h-64 overflow-y-auto py-1">
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+            >
+              <Checkbox
+                checked={values.includes(option.value)}
+                onCheckedChange={() => toggle(option.value)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
