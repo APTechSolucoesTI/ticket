@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
-import { maskCNPJ, maskCEP, maskPhone } from "@/lib/masks";
+import { maskCNPJ, maskCEP, maskPhone, normalizePhone } from "@/lib/masks";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -159,6 +159,9 @@ export function CompanyTab() {
       const payload = {
         ...form,
         name: form.name.trim() || form.trade_name?.trim() || form.legal_name?.trim() || "Empresa",
+        phone: form.phone ? normalizePhone(form.phone) : null,
+        whatsapp: form.whatsapp ? normalizePhone(form.whatsapp) : null,
+        support_phone: form.support_phone ? normalizePhone(form.support_phone) : null,
       };
       const { error } = await supabase.from("tenants").update(payload).eq("id", tid);
       if (error) throw error;
@@ -349,6 +352,7 @@ export function CompanyTab() {
                 <Input
                   value={form.phone ?? ""}
                   onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
+                  placeholder="55 11 99999-9999"
                 />
               </div>
               <div>
@@ -356,6 +360,7 @@ export function CompanyTab() {
                 <Input
                   value={form.whatsapp ?? ""}
                   onChange={(e) => setForm({ ...form, whatsapp: maskPhone(e.target.value) })}
+                  placeholder="55 11 99999-9999"
                 />
               </div>
               <div className="md:col-span-2">
@@ -379,6 +384,7 @@ export function CompanyTab() {
                 <Input
                   value={form.support_phone ?? ""}
                   onChange={(e) => setForm({ ...form, support_phone: maskPhone(e.target.value) })}
+                  placeholder="55 11 9999-9999"
                 />
               </div>
             </div>

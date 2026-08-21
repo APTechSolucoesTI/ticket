@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ, isValidWebsite, unmask } from "@/lib/masks";
+import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ, isValidWebsite, normalizePhone, unmask } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/customers")({
@@ -345,7 +345,7 @@ function CompanyDialog({
         fantasy_name: payload.fantasy_name || null,
         cnpj: payload.cnpj || null,
         segment: payload.segment || null,
-        phone: payload.phone || null,
+        phone: payload.phone ? normalizePhone(payload.phone) : null,
         website: payload.website || null,
         address_zip: payload.address_zip || null,
         address_street: payload.address_street || null,
@@ -503,7 +503,7 @@ function CompanyDialog({
                   <Input
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-                    placeholder="(00) 00000-0000"
+                    placeholder="55 11 99999-9999"
                   />
                 </div>
                 <div className="col-span-2">

@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { maskPhone, unmask } from "@/lib/masks";
+import { maskPhone, normalizePhone, unmask } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
@@ -293,7 +293,7 @@ function ContactDialog({
         company_id: payload.company_id,
         name: payload.name,
         email: payload.email,
-        phone: payload.phone || null,
+        phone: payload.phone ? normalizePhone(payload.phone) : null,
         job_title: payload.job_title || null,
         can_open_tickets: payload.can_open_tickets,
         receives_csat: payload.receives_csat,
@@ -301,13 +301,15 @@ function ContactDialog({
       };
 
       if (payload.phone) {
-        const digits = unmask(payload.phone);
+        const digits = normalizePhone(payload.phone);
         const { data: existing, error: checkErr } = await supabase
           .from("contacts")
           .select("id, phone")
           .not("phone", "is", null);
         if (checkErr) throw checkErr;
-        const dup = existing?.find((c) => c.id !== editing?.id && unmask(c.phone ?? "") === digits);
+        const dup = existing?.find(
+          (c) => c.id !== editing?.id && normalizePhone(c.phone ?? "") === digits,
+        );
         if (dup) throw new Error("Já existe um contato cadastrado com este telefone.");
       }
 
@@ -416,7 +418,7 @@ function ContactDialog({
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-                placeholder="(00) 00000-0000"
+                placeholder="55 11 99999-9999"
               />
             </div>
             <div className="col-span-2 flex items-center justify-between rounded-md border p-3">

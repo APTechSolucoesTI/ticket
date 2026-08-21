@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { unmask } from "@/lib/masks";
+import { normalizePhone } from "@/lib/masks";
 
 const NONE = "__none__";
 
@@ -72,7 +72,7 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
 
   function downloadTemplate() {
     const headersRow = ["Nome", "Cliente", "E-mail", "Telefone", "Cargo", "Observações", "Pode abrir tickets", "Recebe CSAT", "Ativo"];
-    const sample = ["João Silva", "ACME LTDA", "joao@acme.com", "(11) 98888-7777", "Gerente de TI", "Contato principal", "sim", "sim", "sim"];
+    const sample = ["João Silva", "ACME LTDA", "joao@acme.com", "55 11 98888-7777", "Gerente de TI", "Contato principal", "sim", "sim", "sim"];
     const ws = XLSX.utils.aoa_to_sheet([headersRow, sample]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contatos");
@@ -139,7 +139,7 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
           if (!val) continue;
           if (field === "company_name") companyName = val;
           else if (field === "email") rec.email = val.toLowerCase();
-          else if (field === "phone") rec.phone = unmask(val) || val;
+          else if (field === "phone") rec.phone = normalizePhone(val) || val;
           else if (field === "can_open_tickets") rec.can_open_tickets = parseBool(val, true);
           else if (field === "receives_csat") rec.receives_csat = parseBool(val, true);
           else if (field === "is_active") rec.is_active = parseBool(val, true);

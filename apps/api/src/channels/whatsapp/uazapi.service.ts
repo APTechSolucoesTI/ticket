@@ -9,7 +9,11 @@ function normalizeBaseUrl(url: string): string {
 }
 
 export function normalizeNumber(raw: string): string {
-  return String(raw).replace(/\D/g, '');
+  const digits = String(raw).replace(/\D/g, '');
+  return (digits.length === 10 || digits.length === 11) &&
+    !digits.startsWith('55')
+    ? `55${digits}`
+    : digits;
 }
 
 export interface UazapiResponse {

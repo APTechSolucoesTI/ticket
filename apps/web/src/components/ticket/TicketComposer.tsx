@@ -33,7 +33,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
-import { maskPhone } from "@/lib/masks";
+import { maskPhone, normalizePhone } from "@/lib/masks";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -690,7 +690,7 @@ function ContactDialog({
     setMode("search");
   };
   const submit = async (n: string, p: string) => {
-    const digits = p.replace(/\D/g, "");
+    const digits = normalizePhone(p);
     if (!n || !digits) return toast.error("Informe nome e telefone");
     await onSubmit(n, digits);
     reset();
@@ -777,9 +777,9 @@ function ContactDialog({
             />
             <input
               className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              placeholder="Telefone com DDI (ex: 5511999999999)"
+              placeholder="55 11 99999-9999"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(maskPhone(e.target.value))}
             />
             <DialogFooter>
               <Button variant="ghost" onClick={() => onOpenChange(false)}>

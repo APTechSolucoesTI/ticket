@@ -25,7 +25,10 @@ function normalizeBaseUrl(url: string): string {
 
 function normalizeNumber(raw: string): string {
   // UAZAPI expects digits only, including country code.
-  return String(raw).replace(/\D/g, "");
+  const digits = String(raw).replace(/\D/g, "");
+  return (digits.length === 10 || digits.length === 11) && !digits.startsWith("55")
+    ? `55${digits}`
+    : digits;
 }
 
 async function callUazapi(
