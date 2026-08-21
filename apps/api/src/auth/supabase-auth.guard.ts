@@ -95,7 +95,11 @@ export class SupabaseAuthGuard implements CanActivate {
       );
       throw new UnauthorizedException('Usuário sem perfil ativo no tenant');
     }
-    if (!profile || !profile.is_active) {
+    if (
+      !profile ||
+      !profile.is_active ||
+      claims.tenantId !== profile.tenant_id
+    ) {
       throw new UnauthorizedException('Usuário sem perfil ativo no tenant');
     }
 

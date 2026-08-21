@@ -8,6 +8,43 @@ import type { Database } from "@/integrations/supabase/types";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
+async function assertRoleDelegable(
+  supabase: SupabaseClient<Database>,
+  supabaseAdmin: SupabaseClient<Database>,
+  actorId: string,
+  tenantId: string,
+  roleId: string,
+) {
+  const { data: role } = await supabaseAdmin
+    .from("roles")
+    .select("id")
+    .eq("id", roleId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!role) throw new Error("Papel não encontrado nesta organização.");
+
+  const [{ data: actorRows, error: actorError }, { data: roleRows, error: roleError }] =
+    await Promise.all([
+      supabase.rpc("get_effective_permissions", { _user_id: actorId }),
+      supabaseAdmin.from("role_permissions").select("permission_id").eq("role_id", roleId),
+    ]);
+  if (actorError) throw new Error(actorError.message);
+  if (roleError) throw new Error(roleError.message);
+  const ids = (roleRows ?? []).map((row) => row.permission_id);
+  if (ids.length === 0) return;
+  const { data: permissions, error: permissionsError } = await supabaseAdmin
+    .from("permissions")
+    .select("id, module, action")
+    .in("id", ids);
+  if (permissionsError) throw new Error(permissionsError.message);
+  const actorPermissions = new Set(
+    (actorRows ?? []).filter((row) => row.effective).map((row) => `${row.module}:${row.action}`),
+  );
+  if ((permissions ?? []).some((p) => !actorPermissions.has(`${p.module}:${p.action}`))) {
+    throw new Error("Não é permitido delegar acesso superior ao seu.");
+  }
+}
+
 /** Gera um novo token de convite pro profile e manda o e-mail — usado tanto
  * no convite inicial quanto no reenvio. Convites antigos não aceitos do
  * mesmo profile são invalidados antes (accepted_at = agora, mesmo truque que
@@ -77,6 +114,7 @@ export const inviteUser = createServerFn({ method: "POST" })
     const tenantId = me.tenant_id;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertRoleDelegable(supabase, supabaseAdmin, userId, tenantId, data.roleId);
 
     // Checa "já existe" só em apticket.profiles — nunca mais em auth.users
     // (Supabase Auth global, compartilhado com outro sistema no mesmo host).

@@ -65,8 +65,9 @@ export function decodeSessionUser(token: string): SessionUser | null {
       name?: string;
       tenant_id?: string;
       exp?: number;
+      app?: string;
     };
-    if (!claims.sub || !claims.email) return null;
+    if (!claims.sub || !claims.email || claims.app !== "apticket") return null;
     if (claims.exp && claims.exp * 1000 < Date.now()) return null;
     return {
       id: claims.sub,

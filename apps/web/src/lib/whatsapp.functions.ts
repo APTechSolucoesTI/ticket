@@ -2,6 +2,23 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function requirePermission(
+  supabase: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  userId: string,
+  module: string,
+  action: string,
+) {
+  const { data: allowed, error } = await supabase.rpc("has_permission", {
+    _user_id: userId,
+    _module: module,
+    _action: action,
+  });
+  if (error) throw new Error(error.message);
+  if (!allowed) throw new Error("Sem permissão para esta ação.");
+}
+
 function normalizeBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }
@@ -51,6 +68,7 @@ export const testUazapiConnection = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "canais", "edit");
     const { data: profile } = await supabase
       .from("profiles")
       .select("tenant_id")
@@ -93,7 +111,9 @@ export const testUazapiConnection = createServerFn({ method: "POST" })
         instance?.status === "connected" ||
         instance?.state === "open" ||
         (b as { connected?: boolean }).connected === true,
-      number: ((instance?.owner as string | undefined) ?? (instance?.number as string | undefined) ?? null) as string | null,
+      number: ((instance?.owner as string | undefined) ??
+        (instance?.number as string | undefined) ??
+        null) as string | null,
       raw: rawText,
       message: "OK",
     };
@@ -103,10 +123,16 @@ export const testUazapiConnection = createServerFn({ method: "POST" })
  * Connect instance — returns QR code (base64) to pair the phone
  * ============================================================ */
 async function loadTenantCreds(
-  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
+  supabase: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
   userId: string,
 ) {
-  const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", userId).maybeSingle();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", userId)
+    .maybeSingle();
   if (!profile?.tenant_id) throw new Error("Tenant não encontrado");
   const { data: t } = await supabase
     .from("tenants")
@@ -123,6 +149,7 @@ export const connectUazapiInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "canais", "edit");
     const { baseUrl, token } = await loadTenantCreds(supabase, userId);
     const r = await callUazapi(baseUrl, token, "/instance/connect", { method: "POST", body: "{}" });
     const b = (r.body ?? {}) as Record<string, unknown>;
@@ -147,13 +174,15 @@ export const disconnectUazapiInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "canais", "edit");
     const { tenantId, baseUrl, token } = await loadTenantCreds(supabase, userId);
-    const r = await callUazapi(baseUrl, token, "/instance/disconnect", { method: "POST", body: "{}" });
+    const r = await callUazapi(baseUrl, token, "/instance/disconnect", {
+      method: "POST",
+      body: "{}",
+    });
     await supabase.from("tenants").update({ whatsapp_connected_number: null }).eq("id", tenantId);
     return { ok: r.ok, status: r.status };
   });
-
-
 
 /* ============================================================
  * Send WhatsApp reply for a ticket
@@ -170,6 +199,7 @@ export const sendWhatsAppReply = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "tickets", "edit");
 
     const { data: ticket, error: tErr } = await supabase
       .from("tickets")
@@ -188,7 +218,11 @@ export const sendWhatsAppReply = createServerFn({ method: "POST" })
       .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
       .eq("id", ticket.tenant_id)
       .maybeSingle();
-    if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token) {
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    ) {
       throw new Error("WhatsApp não configurado para este tenant");
     }
 
@@ -200,10 +234,15 @@ export const sendWhatsAppReply = createServerFn({ method: "POST" })
     // Retry with backoff for rate limiting
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/send/text", {
-        method: "POST",
-        body: JSON.stringify({ number, text: data.content }),
-      });
+      const r = await callUazapi(
+        tenant.whatsapp_uazapi_base_url,
+        tenant.whatsapp_uazapi_token,
+        "/send/text",
+        {
+          method: "POST",
+          body: JSON.stringify({ number, text: data.content }),
+        },
+      );
       if (r.ok) {
         deliveryStatus = "sent";
         const b = (r.body ?? {}) as Record<string, unknown>;
@@ -264,6 +303,7 @@ export const sendWhatsAppMedia = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "tickets", "edit");
     const { data: ticket } = await supabase
       .from("tickets")
       .select("id, tenant_id, channel, contacts(phone)")
@@ -279,7 +319,11 @@ export const sendWhatsAppMedia = createServerFn({ method: "POST" })
       .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
       .eq("id", ticket.tenant_id)
       .maybeSingle();
-    if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token) {
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    ) {
       throw new Error("WhatsApp não configurado");
     }
 
@@ -291,16 +335,21 @@ export const sendWhatsAppMedia = createServerFn({ method: "POST" })
           ? "video"
           : "document";
 
-    const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/send/media", {
-      method: "POST",
-      body: JSON.stringify({
-        number: normalizeNumber(phone),
-        type: kind,
-        file: data.url,
-        filename: data.filename,
-        text: data.caption ?? "",
-      }),
-    });
+    const r = await callUazapi(
+      tenant.whatsapp_uazapi_base_url,
+      tenant.whatsapp_uazapi_token,
+      "/send/media",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          number: normalizeNumber(phone),
+          type: kind,
+          file: data.url,
+          filename: data.filename,
+          text: data.caption ?? "",
+        }),
+      },
+    );
     const b = (r.body ?? {}) as Record<string, unknown>;
     const externalId =
       (b.messageid as string | undefined) ??
@@ -320,12 +369,17 @@ export const sendWhatsAppMedia = createServerFn({ method: "POST" })
         channel: "whatsapp",
         external_id: externalId,
         delivery_status: r.ok ? "sent" : "failed",
-        attachments: [{ path: data.url, name: data.filename, size: 0, type: data.mimetype, url: data.url }],
+        attachments: [
+          { path: data.url, name: data.filename, size: 0, type: data.mimetype, url: data.url },
+        ],
       })
       .select("id")
       .single();
     if (insErr) throw insErr;
-    if (!r.ok) throw new Error(`Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`);
+    if (!r.ok)
+      throw new Error(
+        `Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`,
+      );
     return { ok: true, message_id: inserted.id, external_id: externalId };
   });
 
@@ -333,7 +387,9 @@ export const sendWhatsAppMedia = createServerFn({ method: "POST" })
  * Send status change notification via WhatsApp
  * ============================================================ */
 async function sendPlainWa(
-  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
+  supabase: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
   ticketId: string,
   text: string,
 ) {
@@ -351,13 +407,22 @@ async function sendPlainWa(
     .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
     .eq("id", ticket.tenant_id)
     .maybeSingle();
-  if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token) {
+  if (
+    !tenant?.whatsapp_enabled ||
+    !tenant.whatsapp_uazapi_base_url ||
+    !tenant.whatsapp_uazapi_token
+  ) {
     return { skipped: true as const };
   }
-  const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/send/text", {
-    method: "POST",
-    body: JSON.stringify({ number: normalizeNumber(phone), text }),
-  });
+  const r = await callUazapi(
+    tenant.whatsapp_uazapi_base_url,
+    tenant.whatsapp_uazapi_token,
+    "/send/text",
+    {
+      method: "POST",
+      body: JSON.stringify({ number: normalizeNumber(phone), text }),
+    },
+  );
   await supabase.from("messages").insert({
     tenant_id: ticket.tenant_id,
     ticket_id: ticket.id,
@@ -367,7 +432,12 @@ async function sendPlainWa(
     channel: "whatsapp",
     delivery_status: r.ok ? "sent" : "failed",
   });
-  return { skipped: false as const, ok: r.ok, contact_id: ticket.contact_id, tenant_id: ticket.tenant_id };
+  return {
+    skipped: false as const,
+    ok: r.ok,
+    contact_id: ticket.contact_id,
+    tenant_id: ticket.tenant_id,
+  };
 }
 
 export const notifyTicketStatus = createServerFn({ method: "POST" })
@@ -381,10 +451,12 @@ export const notifyTicketStatus = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    await requirePermission(context.supabase, context.userId, "tickets", "edit");
     const messages: Record<string, string> = {
       in_progress: "Seu chamado está em atendimento. Retornaremos em breve.",
       pending: "Seu chamado está pendente. Aguardamos retorno para prosseguir.",
-      resolved: "Seu chamado foi resolvido. Se o problema persistir, responda esta mensagem para reabrir.",
+      resolved:
+        "Seu chamado foi resolvido. Se o problema persistir, responda esta mensagem para reabrir.",
       closed: "Seu chamado foi fechado. Obrigado por escolher nosso suporte!",
     };
     return await sendPlainWa(context.supabase, data.ticket_id, messages[data.status]);
@@ -398,6 +470,7 @@ export const sendCsatInvite = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ ticket_id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    await requirePermission(supabase, context.userId, "tickets", "edit");
     const { data: ticket } = await supabase
       .from("tickets")
       .select("id, tenant_id, contact_id, channel, contacts(phone)")
@@ -416,7 +489,10 @@ export const sendCsatInvite = createServerFn({ method: "POST" })
     if (!token) {
       token = crypto.randomUUID().replace(/-/g, "");
       const row = existing
-        ? await supabase.from("csat_responses").update({ token, sent_at: new Date().toISOString() }).eq("id", existing.id)
+        ? await supabase
+            .from("csat_responses")
+            .update({ token, sent_at: new Date().toISOString() })
+            .eq("id", existing.id)
         : await supabase.from("csat_responses").insert({
             tenant_id: ticket.tenant_id,
             ticket_id: ticket.id,
@@ -429,7 +505,8 @@ export const sendCsatInvite = createServerFn({ method: "POST" })
 
     // Send WhatsApp invite if applicable
     if (ticket.channel === "whatsapp") {
-      const origin = (process.env.PUBLIC_APP_URL as string | undefined) ?? "https://app.example.com";
+      const origin =
+        (process.env.PUBLIC_APP_URL as string | undefined) ?? "https://app.example.com";
       const link = `${origin.replace(/\/+$/, "")}/csat/${token}`;
       await sendPlainWa(
         context.supabase,
@@ -456,6 +533,7 @@ export const sendWhatsAppContact = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "tickets", "edit");
     const { data: ticket } = await supabase
       .from("tickets")
       .select("id, tenant_id, channel, contacts(phone)")
@@ -469,16 +547,25 @@ export const sendWhatsAppContact = createServerFn({ method: "POST" })
       .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
       .eq("id", ticket.tenant_id)
       .maybeSingle();
-    if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token)
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    )
       throw new Error("WhatsApp não configurado");
-    const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/send/contact", {
-      method: "POST",
-      body: JSON.stringify({
-        number: normalizeNumber(phone),
-        fullName: data.contact_name,
-        phoneNumber: normalizeNumber(data.contact_phone),
-      }),
-    });
+    const r = await callUazapi(
+      tenant.whatsapp_uazapi_base_url,
+      tenant.whatsapp_uazapi_token,
+      "/send/contact",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          number: normalizeNumber(phone),
+          fullName: data.contact_name,
+          phoneNumber: normalizeNumber(data.contact_phone),
+        }),
+      },
+    );
     const b = (r.body ?? {}) as Record<string, unknown>;
     const externalId = (b.messageid as string | undefined) ?? (b.id as string | undefined) ?? null;
     await supabase.from("messages").insert({
@@ -492,7 +579,10 @@ export const sendWhatsAppContact = createServerFn({ method: "POST" })
       external_id: externalId,
       delivery_status: r.ok ? "sent" : "failed",
     });
-    if (!r.ok) throw new Error(`Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`);
+    if (!r.ok)
+      throw new Error(
+        `Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`,
+      );
     return { ok: true };
   });
 
@@ -514,6 +604,7 @@ export const sendWhatsAppLocation = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "tickets", "edit");
     const { data: ticket } = await supabase
       .from("tickets")
       .select("id, tenant_id, channel, contacts(phone)")
@@ -527,24 +618,34 @@ export const sendWhatsAppLocation = createServerFn({ method: "POST" })
       .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
       .eq("id", ticket.tenant_id)
       .maybeSingle();
-    if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token)
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    )
       throw new Error("WhatsApp não configurado");
-    const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/send/location", {
-      method: "POST",
-      body: JSON.stringify({
-        number: normalizeNumber(phone),
-        latitude: data.latitude,
-        longitude: data.longitude,
-        name: data.name ?? "",
-        address: data.address ?? "",
-      }),
-    });
+    const r = await callUazapi(
+      tenant.whatsapp_uazapi_base_url,
+      tenant.whatsapp_uazapi_token,
+      "/send/location",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          number: normalizeNumber(phone),
+          latitude: data.latitude,
+          longitude: data.longitude,
+          name: data.name ?? "",
+          address: data.address ?? "",
+        }),
+      },
+    );
     const b = (r.body ?? {}) as Record<string, unknown>;
     const externalId = (b.messageid as string | undefined) ?? (b.id as string | undefined) ?? null;
     await supabase.from("messages").insert({
       tenant_id: ticket.tenant_id,
       ticket_id: ticket.id,
-      content: `📍 Localização: ${data.name ?? ""} ${data.address ?? ""} (${data.latitude}, ${data.longitude})`.trim(),
+      content:
+        `📍 Localização: ${data.name ?? ""} ${data.address ?? ""} (${data.latitude}, ${data.longitude})`.trim(),
       author_id: userId,
       author_type: "agent",
       is_internal: false,
@@ -552,7 +653,10 @@ export const sendWhatsAppLocation = createServerFn({ method: "POST" })
       external_id: externalId,
       delivery_status: r.ok ? "sent" : "failed",
     });
-    if (!r.ok) throw new Error(`Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`);
+    if (!r.ok)
+      throw new Error(
+        `Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`,
+      );
     return { ok: true };
   });
 
@@ -566,6 +670,7 @@ export const sendWhatsAppSticker = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "tickets", "edit");
     const { data: ticket } = await supabase
       .from("tickets")
       .select("id, tenant_id, channel, contacts(phone)")
@@ -579,12 +684,21 @@ export const sendWhatsAppSticker = createServerFn({ method: "POST" })
       .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
       .eq("id", ticket.tenant_id)
       .maybeSingle();
-    if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token)
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    )
       throw new Error("WhatsApp não configurado");
-    const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/send/media", {
-      method: "POST",
-      body: JSON.stringify({ number: normalizeNumber(phone), type: "sticker", file: data.url }),
-    });
+    const r = await callUazapi(
+      tenant.whatsapp_uazapi_base_url,
+      tenant.whatsapp_uazapi_token,
+      "/send/media",
+      {
+        method: "POST",
+        body: JSON.stringify({ number: normalizeNumber(phone), type: "sticker", file: data.url }),
+      },
+    );
     const b = (r.body ?? {}) as Record<string, unknown>;
     const externalId = (b.messageid as string | undefined) ?? (b.id as string | undefined) ?? null;
     await supabase.from("messages").insert({
@@ -597,9 +711,14 @@ export const sendWhatsAppSticker = createServerFn({ method: "POST" })
       channel: "whatsapp",
       external_id: externalId,
       delivery_status: r.ok ? "sent" : "failed",
-      attachments: [{ path: data.url, name: "sticker.webp", size: 0, type: "image/webp", url: data.url }],
+      attachments: [
+        { path: data.url, name: "sticker.webp", size: 0, type: "image/webp", url: data.url },
+      ],
     });
-    if (!r.ok) throw new Error(`Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`);
+    if (!r.ok)
+      throw new Error(
+        `Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`,
+      );
     return { ok: true };
   });
 
@@ -618,6 +737,7 @@ export const sendWhatsAppCall = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requirePermission(supabase, userId, "tickets", "edit");
     const { data: ticket } = await supabase
       .from("tickets")
       .select("id, tenant_id, channel, contacts(phone)")
@@ -631,13 +751,22 @@ export const sendWhatsAppCall = createServerFn({ method: "POST" })
       .select("whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token")
       .eq("id", ticket.tenant_id)
       .maybeSingle();
-    if (!tenant?.whatsapp_enabled || !tenant.whatsapp_uazapi_base_url || !tenant.whatsapp_uazapi_token)
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    )
       throw new Error("WhatsApp não configurado");
     const duration = data.duration ?? 15;
-    const r = await callUazapi(tenant.whatsapp_uazapi_base_url, tenant.whatsapp_uazapi_token, "/call/make", {
-      method: "POST",
-      body: JSON.stringify({ number: normalizeNumber(phone), duration }),
-    });
+    const r = await callUazapi(
+      tenant.whatsapp_uazapi_base_url,
+      tenant.whatsapp_uazapi_token,
+      "/call/make",
+      {
+        method: "POST",
+        body: JSON.stringify({ number: normalizeNumber(phone), duration }),
+      },
+    );
     await supabase.from("messages").insert({
       tenant_id: ticket.tenant_id,
       ticket_id: ticket.id,
@@ -648,7 +777,9 @@ export const sendWhatsAppCall = createServerFn({ method: "POST" })
       channel: "whatsapp",
       delivery_status: r.ok ? "sent" : "failed",
     });
-    if (!r.ok) throw new Error(`Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`);
+    if (!r.ok)
+      throw new Error(
+        `Falha UAZAPI: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`,
+      );
     return { ok: true };
   });
-

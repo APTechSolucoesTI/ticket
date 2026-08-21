@@ -26,6 +26,7 @@ export class EmailController {
   ) {}
 
   @Get()
+  @RequirePermission('canais', 'view')
   @ApiOperation({
     summary: 'Conta de e-mail do tenant (null se ainda não configurada)',
   })

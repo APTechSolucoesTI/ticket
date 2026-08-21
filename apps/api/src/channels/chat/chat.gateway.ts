@@ -28,6 +28,7 @@ interface SocketAuth {
   tenantId: string;
   userId: string;
   name: string;
+  permissions: Set<string>;
 }
 
 interface SocketData {
@@ -102,15 +103,34 @@ export class ChatGateway
 
     const { data: profile } = await this.supabase.client
       .from('profiles')
-      .select('tenant_id, name')
+      .select('tenant_id, name, is_active')
       .eq('id', claims.sub)
       .maybeSingle();
-    if (!profile?.tenant_id) return null;
+    if (
+      !profile?.tenant_id ||
+      !profile.is_active ||
+      profile.tenant_id !== claims.tenantId
+    )
+      return null;
+
+    const { data: permissionRows, error: permissionError } =
+      await this.supabase.client.rpc('get_effective_permissions', {
+        _user_id: claims.sub,
+      });
+    if (permissionError) return null;
+
+    const permissions = new Set(
+      (permissionRows ?? [])
+        .filter((row) => row.effective)
+        .map((row) => `${row.module}:${row.action}`),
+    );
+    if (!permissions.has('tickets:view')) return null;
 
     return {
       tenantId: profile.tenant_id,
       userId: claims.sub,
       name: profile.name,
+      permissions,
     };
   }
 
@@ -152,6 +172,7 @@ export class ChatGateway
       this.logger.warn('ticket:join sem auth no socket');
       return;
     }
+    if (!auth.permissions.has('tickets:view')) return;
     // Confia no RLS/tenant scoping do resto da API pra decidir quem pode ver
     // qual ticket — aqui só confere que o ticket é do mesmo tenant do socket.
     const { data: ticket, error } = await this.supabase.client
@@ -184,6 +205,7 @@ export class ChatGateway
       this.logger.warn('message:send sem auth no socket');
       return;
     }
+    if (!auth.permissions.has('tickets:edit')) return;
     if (!body.content?.trim()) {
       this.logger.warn('message:send sem content');
       return;
@@ -243,6 +265,11 @@ export class ChatGateway
   ) {
     const auth = getAuth(socket);
     if (!auth) return;
+    if (
+      !auth.permissions.has('tickets:view') ||
+      !socket.rooms.has(`ticket:${body.ticketId}`)
+    )
+      return;
     const key = `chat:typing:${body.ticketId}:${auth.userId}`;
     if (body.isTyping)
       await this.redis.client.set(key, '1', 'EX', TYPING_TTL_SECONDS);

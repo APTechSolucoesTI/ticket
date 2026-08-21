@@ -20,6 +20,7 @@ export class WhatsappController {
   ) {}
 
   @Get()
+  @RequirePermission('canais', 'view')
   @ApiOperation({
     summary: 'Instância uazapi do tenant, salva no banco (sem chamar a uazapi)',
   })
@@ -40,12 +41,14 @@ export class WhatsappController {
   }
 
   @Get(':id/status')
+  @RequirePermission('canais', 'view')
   @ApiOperation({ summary: 'Status da conexão (conectado/desconectado)' })
   status(@CurrentUser() auth: AuthContext) {
     return this.instances.status(auth.tenantId);
   }
 
   @Get(':id/qrcode')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({ summary: 'Gera QR code pra parear o número' })
   qrcode(@CurrentUser() auth: AuthContext) {
     return this.instances.qrcode(auth.tenantId);

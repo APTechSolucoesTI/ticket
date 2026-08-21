@@ -103,7 +103,9 @@ export function CompanyTab() {
       const tid = await requireTenantId();
       const { data, error } = await supabase
         .from("tenants")
-        .select("*")
+        .select(
+          "id, name, legal_name, trade_name, cnpj, state_registration, municipal_registration, email, phone, whatsapp, website, support_email, support_phone, zip_code, address_street, address_number, address_complement, address_district, address_city, address_state, address_country, logo_url, primary_color, timezone, business_hours_start, business_hours_end, business_days, notes",
+        )
         .eq("id", tid)
         .maybeSingle();
       if (error) throw error;

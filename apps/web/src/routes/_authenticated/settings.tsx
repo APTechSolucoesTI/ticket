@@ -88,6 +88,7 @@ import {
   assignUserRole,
   setUserOverride,
   restoreUserDefault,
+  setUserActive,
 } from "@/lib/user-permissions.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -220,6 +221,7 @@ function UsersTab() {
   const listUsers = useServerFn(listTenantUsers);
   const listRolesFn = useServerFn(listRoles);
   const assignRole = useServerFn(assignUserRole);
+  const updateUserActive = useServerFn(setUserActive);
   const perms = usePermissions();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", roleId: "" });
@@ -265,10 +267,8 @@ function UsersTab() {
   });
 
   const toggleActive = useMutation({
-    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase.from("profiles").update({ is_active }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      updateUserActive({ data: { userId: id, isActive: is_active } }),
     onSuccess: () => {
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });

@@ -98,6 +98,15 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
       throw new Error("Unauthorized: Invalid token");
     }
 
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("tenant_id, is_active")
+      .eq("id", claims.sub)
+      .maybeSingle();
+    if (profileError || !profile?.is_active || profile.tenant_id !== claims.tenantId) {
+      throw new Error("Unauthorized: Inactive or invalid profile");
+    }
+
     return next({
       context: {
         supabase,

@@ -19,6 +19,7 @@ export interface SessionClaims {
   email: string;
   name: string;
   tenantId: string;
+  app: "apticket";
 }
 
 export function signSessionToken(profile: {
@@ -34,25 +35,37 @@ export function signSessionToken(profile: {
       name: profile.name,
       role: "authenticated",
       aud: "authenticated",
+      app: "apticket",
       tenant_id: profile.tenantId,
     },
     SECRET,
-    { subject: profile.id, expiresIn: "7d" },
+    { subject: profile.id, expiresIn: "7d", algorithm: "HS256" },
   );
 }
 
 export function verifySessionToken(token: string): SessionClaims | null {
   if (!SECRET) return null;
   try {
-    const decoded = jwt.verify(token, SECRET);
-    if (typeof decoded === "string" || !decoded.sub || typeof decoded.email !== "string") {
+    const decoded = jwt.verify(token, SECRET, {
+      algorithms: ["HS256"],
+      audience: "authenticated",
+    });
+    if (
+      typeof decoded === "string" ||
+      !decoded.sub ||
+      typeof decoded.email !== "string" ||
+      decoded.role !== "authenticated" ||
+      decoded.app !== "apticket" ||
+      typeof decoded.tenant_id !== "string"
+    ) {
       return null;
     }
     return {
       sub: decoded.sub,
       email: decoded.email,
       name: typeof decoded.name === "string" ? decoded.name : "",
-      tenantId: typeof decoded.tenant_id === "string" ? decoded.tenant_id : "",
+      tenantId: decoded.tenant_id,
+      app: "apticket",
     };
   } catch {
     return null;
