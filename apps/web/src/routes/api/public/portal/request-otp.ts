@@ -9,7 +9,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const Schema = z.object({ email: z.string().email() });
+const Schema = z.object({ email: z.string().trim().email() });
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 
@@ -40,15 +40,27 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        const { data: contact } = await supabaseAdmin
+        const { data: contacts, error: contactError } = await supabaseAdmin
           .from("contacts")
           .select("id, tenant_id, company_id, can_open_tickets, is_active")
           .ilike("email", email)
-          .maybeSingle();
+          .not("company_id", "is", null)
+          .eq("is_active", true)
+          .eq("can_open_tickets", true)
+          .limit(2);
 
         // Always respond identically whether or not the contact exists —
         // otherwise this endpoint becomes an email-enumeration oracle.
         const genericResponse = () => Response.json({ ok: true }, { status: 200, headers: CORS });
+
+        if (contactError) {
+          console.error("[portal/request-otp] contact lookup error", contactError);
+          return genericResponse();
+        }
+
+        // The public flow has no tenant selector. Refuse ambiguous identities
+        // instead of silently choosing a contact from another organization.
+        const contact = contacts?.length === 1 ? contacts[0] : null;
 
         if (
           !contact ||
@@ -61,6 +73,17 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
 
         const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
         const codeHash = createHash("sha256").update(code).digest("hex");
+        const now = new Date().toISOString();
+
+        const { error: invalidateError } = await supabaseAdmin
+          .from("portal_otp_codes")
+          .update({ consumed_at: now })
+          .eq("contact_id", contact.id)
+          .is("consumed_at", null);
+        if (invalidateError) {
+          console.error("[portal/request-otp] invalidate error", invalidateError);
+          return genericResponse();
+        }
 
         const { error: insErr } = await supabaseAdmin.from("portal_otp_codes").insert({
           tenant_id: contact.tenant_id,
@@ -76,14 +99,25 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
 
         try {
           const { sendMail } = await import("@/lib/mailer.server");
-          await sendMail({
+          const delivery = await sendMail({
             to: email,
-            subject: `Seu código de acesso: ${code}`,
+            subject: "Código de acesso ao APTicket",
             text: `Seu código de verificação é ${code}. Ele expira em 10 minutos. Se você não solicitou este código, ignore este e-mail.`,
-            html: `<p>Seu código de verificação é:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p><p>Ele expira em 10 minutos. Se você não solicitou este código, ignore este e-mail.</p>`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#172033"><h2 style="margin-bottom:8px">Acesso ao APTicket</h2><p>Use o código abaixo para confirmar seu acesso:</p><div style="margin:24px 0;padding:18px;border-radius:10px;background:#f3f6fb;text-align:center;font-size:30px;font-weight:700;letter-spacing:6px">${code}</div><p>Ele expira em 10 minutos.</p><p style="color:#64748b;font-size:13px">Se você não solicitou este código, ignore este e-mail.</p></div>`,
+          });
+          console.info("[portal/request-otp] mail accepted", {
+            messageId: delivery.messageId,
+            accepted: Array.isArray(delivery.accepted) ? delivery.accepted.length : undefined,
+            rejected: Array.isArray(delivery.rejected) ? delivery.rejected.length : undefined,
           });
         } catch (mailErr) {
           console.error("[portal/request-otp] mail send error", mailErr);
+          await supabaseAdmin
+            .from("portal_otp_codes")
+            .update({ consumed_at: new Date().toISOString() })
+            .eq("code_hash", codeHash)
+            .eq("contact_id", contact.id)
+            .is("consumed_at", null);
           // Do not leak delivery failure details to the caller (enumeration/DoS surface).
         }
 

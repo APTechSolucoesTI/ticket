@@ -263,7 +263,7 @@ function UsersTab() {
     queryFn: () => listRolesFn(),
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["settings_users"],
     queryFn: () => listUsers(),
   });
@@ -391,6 +391,19 @@ function UsersTab() {
 
   if (isLoading)
     return <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>;
+
+  if (isError)
+    return (
+      <Card className="p-6 space-y-3 text-center">
+        <p className="text-sm font-medium text-destructive">
+          Não foi possível carregar os usuários.
+        </p>
+        <p className="text-xs text-muted-foreground">{(error as Error).message}</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </Card>
+    );
 
   return (
     <div className="space-y-3">
@@ -934,7 +947,8 @@ function UserPermissionsTab() {
 
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
-  const { data: users } = useQuery({ queryKey: ["perm_users"], queryFn: () => listUsersFn() });
+  const usersQuery = useQuery({ queryKey: ["perm_users"], queryFn: () => listUsersFn() });
+  const users = usersQuery.data;
   const { data: roles } = useQuery({ queryKey: ["perm_roles"], queryFn: () => listRolesFn() });
   const { data: catalog } = useQuery({
     queryKey: ["permissions_catalog"],
@@ -986,6 +1000,24 @@ function UserPermissionsTab() {
   const permsByModule = useMemo(() => indexByModule(catalog ?? []), [catalog]);
   const hasEffectiveView = (module: string) =>
     effectiveByPermission.get(`${module}:view`)?.effective ?? false;
+
+  if (usersQuery.isLoading) {
+    return <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>;
+  }
+
+  if (usersQuery.isError) {
+    return (
+      <Card className="p-6 space-y-3 text-center">
+        <p className="text-sm font-medium text-destructive">
+          Não foi possível carregar os usuários.
+        </p>
+        <p className="text-xs text-muted-foreground">{(usersQuery.error as Error).message}</p>
+        <Button variant="outline" size="sm" onClick={() => usersQuery.refetch()}>
+          Tentar novamente
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">

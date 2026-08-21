@@ -109,7 +109,7 @@ export const listTenantUsers = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("id, name, email, is_active, user_roles(role_id)")
+      .select("id, name, email, is_active, user_roles!user_roles_user_id_fkey(role_id)")
       .order("name");
     if (error) throw new Error(error.message);
     return data;

@@ -151,8 +151,12 @@ export default function HomeChat() {
     try {
       await requestPortalOtp(email.trim());
       setStep("otp");
-    } catch {
-      setError("Não foi possível enviar o código. Tente novamente.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar o código. Tente novamente.",
+      );
     } finally {
       setLoading(false);
     }
@@ -394,7 +398,16 @@ export default function HomeChat() {
               <button
                 type="button"
                 className="text-primary underline"
-                onClick={() => requestPortalOtp(email.trim())}
+                onClick={() => {
+                  setError(null);
+                  requestPortalOtp(email.trim()).catch((error: unknown) =>
+                    setError(
+                      error instanceof Error
+                        ? error.message
+                        : "Não foi possível reenviar o código.",
+                    ),
+                  );
+                }}
               >
                 Reenviar código
               </button>

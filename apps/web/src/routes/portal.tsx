@@ -134,6 +134,8 @@ function PortalPage() {
       await requestPortalOtp(email.trim());
       setStep("otp");
       toast.success("Se o e-mail estiver cadastrado, um código foi enviado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o código.");
     } finally {
       setLoading(false);
     }
@@ -250,11 +252,17 @@ function PortalPage() {
                     <button
                       type="button"
                       className="text-primary underline"
-                      onClick={() =>
-                        requestPortalOtp(email.trim()).then(() =>
-                          toast.success("Código reenviado."),
-                        )
-                      }
+                      onClick={() => {
+                        requestPortalOtp(email.trim())
+                          .then(() => toast.success("Código reenviado."))
+                          .catch((error: unknown) =>
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Não foi possível reenviar o código.",
+                            ),
+                          );
+                      }}
                     >
                       Reenviar código
                     </button>

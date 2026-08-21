@@ -1,7 +1,7 @@
 // Server-only. Sends transactional email for the customer portal (OTP codes).
 // Separate from GoTrue's own mailer — this is used for portal_otp_codes delivery,
 // which is app-level (contacts are not Supabase Auth users).
-import nodemailer, { type Transporter } from "nodemailer";
+import nodemailer, { type SentMessageInfo, type Transporter } from "nodemailer";
 
 let _transporter: Transporter | undefined;
 
@@ -25,6 +25,9 @@ function getTransporter(): Transporter {
     port,
     secure, // true = implicit TLS (port 465), false = STARTTLS (port 587)
     auth: { user, pass },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
   });
   return _transporter;
 }
@@ -34,10 +37,10 @@ export async function sendMail(opts: {
   subject: string;
   html: string;
   text: string;
-}): Promise<void> {
+}): Promise<SentMessageInfo> {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   const transporter = getTransporter();
-  await transporter.sendMail({
+  return transporter.sendMail({
     from,
     to: opts.to,
     subject: opts.subject,

@@ -24,13 +24,19 @@ export async function portalFetch(path: string, init: RequestInit = {}): Promise
 }
 
 export async function requestPortalOtp(email: string): Promise<void> {
-  await fetch("/api/public/portal/request-otp", {
+  const response = await fetch("/api/public/portal/request-otp", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  // Always resolves — the endpoint intentionally responds the same way whether
-  // or not the email is registered, to avoid leaking which emails exist.
+  if (response.status === 429) {
+    throw new Error("Muitas tentativas. Aguarde alguns minutos antes de reenviar.");
+  }
+  if (!response.ok) {
+    throw new Error("Não foi possível solicitar o código. Tente novamente.");
+  }
+  // A successful request remains intentionally indistinguishable for registered
+  // and unknown addresses; transport and rate-limit failures still reach the UI.
 }
 
 export async function verifyPortalOtp(
