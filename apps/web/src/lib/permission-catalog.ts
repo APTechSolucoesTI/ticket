@@ -96,6 +96,30 @@ export const ACTION_LABELS: Record<string, string> = {
   delete: "Exclui",
 };
 
+/** Prefixo de rota -> módulo que precisa de `view` pra acessar. Usado no
+ * guard de rota (route.tsx) — checagem real, não só esconder link da
+ * sidebar. Ordem importa: primeiro match (mais específico) vence. */
+export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
+  { prefix: "/tickets", module: "tickets" },
+  { prefix: "/whatsapp-pending", module: "fila_whatsapp" },
+  { prefix: "/email-pending", module: "fila_email" },
+  { prefix: "/customers", module: "clientes" },
+  { prefix: "/contacts", module: "contatos" },
+  { prefix: "/equipments", module: "equipamentos" },
+  { prefix: "/contracts", module: "contratos" },
+  { prefix: "/kb", module: "base_conhecimento" },
+  { prefix: "/reports", module: "relatorios" },
+  { prefix: "/settings", module: "configuracoes" },
+];
+
+/** null = rota livre (não precisa de permissão pra entrar, ex: /dashboard). */
+export function moduleForRoute(pathname: string): string | null {
+  const hit = ROUTE_MODULE_MAP.find(
+    (r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"),
+  );
+  return hit?.module ?? null;
+}
+
 export function moduleLabel(key: string): string {
   return MODULE_ORDER.find((m) => m.key === key)?.label ?? key;
 }
