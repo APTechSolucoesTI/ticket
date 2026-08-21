@@ -15,6 +15,8 @@ export function usePermissions() {
     queryFn: () => fn(),
     enabled: !!user,
     staleTime: 60_000,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: "always",
   });
 
   const set = useMemo(() => new Set((data ?? []).map((p) => `${p.module}:${p.action}`)), [data]);

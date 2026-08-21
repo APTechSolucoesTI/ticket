@@ -1,9 +1,11 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useReadOnly } from "@/lib/permission-ui";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    const contextReadOnly = useReadOnly();
     return (
       <input
         type={type}
@@ -13,6 +15,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         )}
         ref={ref}
         {...props}
+        readOnly={contextReadOnly || props.readOnly}
+        aria-readonly={contextReadOnly || props.readOnly || undefined}
       />
     );
   },

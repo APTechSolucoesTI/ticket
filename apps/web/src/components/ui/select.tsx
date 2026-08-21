@@ -5,8 +5,12 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useReadOnly } from "@/lib/permission-ui";
 
-const Select = SelectPrimitive.Root;
+function Select(props: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  const readOnly = useReadOnly();
+  return <SelectPrimitive.Root {...props} disabled={readOnly || props.disabled} />;
+}
 
 const SelectGroup = SelectPrimitive.Group;
 

@@ -22,6 +22,7 @@ import { AttachmentPreview } from "@/components/ticket/AttachmentPreview";
 import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
 import { useChatSocket } from "@/lib/chat-socket";
 import DOMPurify from "isomorphic-dompurify";
+import { useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/tickets/$id")({
   head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} — APTicket` }] }),
@@ -67,6 +68,7 @@ function TicketDetailPage() {
   const { user } = useAuth();
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const access = useModulePermissions("tickets");
   const chat = useChatSocket(id, () => {
     qc.invalidateQueries({ queryKey: ["messages", id] });
   });
@@ -254,6 +256,7 @@ function TicketDetailPage() {
 
   const toggleEquipment = useMutation({
     mutationFn: async ({ equipmentId, checked }: { equipmentId: string; checked: boolean }) => {
+      if (!access.edit) throw new Error("Sem permissão para editar chamados");
       if (!ticket) return;
       if (checked) {
         const { error } = await supabase.from("ticket_equipments").insert({
@@ -293,6 +296,17 @@ function TicketDetailPage() {
   // e reabria o dialog por cima da resposta que o técnico estava digitando.
   useEffect(() => {
     if (!ticket || !user) return;
+    if (!access.edit) {
+      setAttendance("readonly");
+      setAskOpen(false);
+      setTimerRunning(false);
+      setTimerStartedAt(null);
+      setPendingTime(null);
+      setAskResolved(false);
+      setAskCustomerReturn(false);
+      setFinalizeStatus(null);
+      return;
+    }
     const finalized = ticket.status === "resolved" || ticket.status === "closed";
     if (finalized) {
       setAttendance("readonly");
@@ -309,12 +323,13 @@ function TicketDetailPage() {
       setAttendance("ask");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticket?.id, ticket?.status, ticket?.assigned_to, user?.id]);
+  }, [ticket?.id, ticket?.status, ticket?.assigned_to, user?.id, access.edit]);
 
   const isFinalized = ticket?.status === "resolved" || ticket?.status === "closed";
-  const readOnly = attendance === "readonly" || isFinalized;
+  const readOnly = !access.edit || attendance === "readonly" || isFinalized;
 
   const startAttendance = async () => {
+    if (!access.edit) return;
     if (!ticket || !user) return;
     try {
       const { error } = await supabase
@@ -368,6 +383,7 @@ function TicketDetailPage() {
         services: Array<{ provided_service_id: string; complement: string }>;
       }>,
     ) => {
+      if (!access.edit) throw new Error("Sem permissão para editar chamados");
       const { services, ...rest } = patch;
       const full: Partial<{
         status: TicketStatus;
@@ -429,6 +445,7 @@ function TicketDetailPage() {
   // Resolver/fechar exige laudo final (resumo + diagnóstico) — a menos que o
   // ticket já tenha um (ex: indo de "resolvido" pra "fechado" sem reabrir).
   const requestStatusChange = (status: TicketStatus) => {
+    if (!access.edit) return;
     const needsReport =
       (status === "resolved" || status === "closed") && !ticket?.resolution_summary?.trim();
     if (needsReport) {
@@ -439,6 +456,7 @@ function TicketDetailPage() {
   };
 
   const submitFinalReport = (report: FinalReport) => {
+    if (!access.edit) return;
     if (!finalizeStatus) return;
     updateTicket.mutate({ status: finalizeStatus, ...report });
   };
@@ -459,6 +477,7 @@ function TicketDetailPage() {
 
   const saveTime = useMutation({
     mutationFn: async () => {
+      if (!access.edit) throw new Error("Sem permissão para editar chamados");
       const n = parseInt(minutesInput || "0", 10);
       if (!n || !ticket) return;
       const uid = getCurrentUserId();
@@ -583,7 +602,9 @@ function TicketDetailPage() {
           </div>
           {readOnly ? (
             <div className="border-t bg-muted/30 p-3 text-center text-xs text-muted-foreground">
-              {isFinalized ? (
+              {!access.edit ? (
+                <>Modo somente leitura — você não tem permissão para editar chamados.</>
+              ) : isFinalized ? (
                 <>
                   Ticket {ticket?.status === "closed" ? "fechado" : "resolvido"} — somente leitura.
                 </>
@@ -1123,7 +1144,7 @@ function TicketDetailPage() {
         </div>
       )}
 
-      {finalizeStatus && (
+      {finalizeStatus && access.edit && (
         <FinalizeTicketDialog
           status={finalizeStatus}
           ticketSubject={ticket.subject}
@@ -1191,7 +1212,7 @@ function TicketDetailPage() {
         </div>
       )}
 
-      {askOpen && (
+      {askOpen && access.edit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
             <h3 className="text-sm font-semibold">Iniciar atendimento?</h3>

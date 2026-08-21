@@ -1,9 +1,11 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useReadOnly } from "@/lib/permission-ui";
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
   ({ className, ...props }, ref) => {
+    const contextReadOnly = useReadOnly();
     return (
       <textarea
         className={cn(
@@ -12,6 +14,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"tex
         )}
         ref={ref}
         {...props}
+        readOnly={contextReadOnly || props.readOnly}
+        aria-readonly={contextReadOnly || props.readOnly || undefined}
       />
     );
   },

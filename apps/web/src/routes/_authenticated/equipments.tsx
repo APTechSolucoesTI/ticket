@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Monitor, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Monitor, Upload, Eye } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { EquipmentImportDialog } from "@/components/equipment-import-dialog";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
+import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/equipments")({
   head: () => ({ meta: [{ title: "Equipamentos — APTicket" }] }),
@@ -231,6 +232,7 @@ const COLUMNS: ListColumn<Equipment>[] = [
 ];
 
 function EquipmentsPage() {
+  const access = useModulePermissions("equipamentos");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Equipment | null>(null);
@@ -268,20 +270,22 @@ function EquipmentsPage() {
         title="Equipamentos"
         subtitle="Ativos vinculados a clientes e contatos, rastreados nos atendimentos."
         actions={
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4 mr-1" /> Importar
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-1" /> Novo equipamento
-            </Button>
-          </div>
+          access.create ? (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-1" /> Importar
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" /> Novo equipamento
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -310,37 +314,46 @@ function EquipmentsPage() {
                     setOpen(true);
                   }}
                 >
-                  <Pencil className="h-4 w-4" />
+                  {access.edit ? <Pencil className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setToDelete(e)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {access.delete && (
+                  <Button variant="ghost" size="icon" onClick={() => setToDelete(e)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           />
         </Card>
       )}
 
-      <EquipmentDialog open={open} onOpenChange={setOpen} editing={editing} />
-      <EquipmentImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <EquipmentDialog
+        open={open}
+        onOpenChange={setOpen}
+        editing={editing}
+        readOnly={editing ? !access.edit : !access.create}
+      />
+      {access.create && <EquipmentImportDialog open={importOpen} onOpenChange={setImportOpen} />}
 
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover equipamento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação removerá <b>{toDelete?.name}</b>. Tickets vinculados manterão o histórico
-              mas perderão a referência.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {access.delete && (
+        <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover equipamento?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação removerá <b>{toDelete?.name}</b>. Tickets vinculados manterão o histórico
+                mas perderão a referência.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -349,10 +362,12 @@ function EquipmentDialog({
   open,
   onOpenChange,
   editing,
+  readOnly,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   editing: Equipment | null;
+  readOnly: boolean;
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
@@ -486,214 +501,224 @@ function EquipmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[98vw] max-h-[95vh] overflow-y-auto p-4 text-xs [&_label]:text-xs [&_input]:h-8 [&_input]:text-xs [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs">
-        <DialogHeader className="pb-1">
-          <DialogTitle className="text-sm">
-            {editing ? "Editar equipamento" : "Novo equipamento"}
-          </DialogTitle>
-        </DialogHeader>
-        <form
-          className="grid grid-cols-4 gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const r = schema.safeParse({ ...form, contact_id: form.contact_id || null });
-            if (!r.success) {
-              toast.error(r.error.issues[0].message);
-              return;
-            }
-            save.mutate(r.data);
-          }}
-        >
-          <div className="col-span-2">
-            <Label>Cliente *</Label>
-            <Select
-              value={form.company_id}
-              onValueChange={(v) => setForm({ ...form, company_id: v, contact_id: "" })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione…" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="col-span-2">
-            <Label>Contato responsável</Label>
-            <Select
-              value={form.contact_id || NONE}
-              onValueChange={(v) => setForm({ ...form, contact_id: v === NONE ? "" : v })}
-              disabled={!form.company_id}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={form.company_id ? "Nenhum" : "Selecione o cliente"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>Nenhum</SelectItem>
-                {contacts?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Linha 2 */}
-          <div>
-            <Label>Nome / Identificação *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Ex: Notebook Diretoria"
-            />
-          </div>
-          <div>
-            <Label>Patrimônio</Label>
-            <Input
-              value={form.asset_tag}
-              onChange={(e) => setForm({ ...form, asset_tag: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Número de série</Label>
-            <Input
-              value={form.serial_number}
-              onChange={(e) => setForm({ ...form, serial_number: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Status</Label>
-            <Select
-              value={form.status}
-              onValueChange={(v) => setForm({ ...form, status: v as typeof form.status })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="maintenance">Manutenção</SelectItem>
-                <SelectItem value="retired">Baixado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Linha 3 */}
-          <div>
-            <Label>Localização</Label>
-            <Input
-              value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Tipo</Label>
-            <Input
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-              placeholder="Notebook, Desktop…"
-            />
-          </div>
-          <div>
-            <Label>Marca</Label>
-            <Input
-              value={form.brand}
-              onChange={(e) => setForm({ ...form, brand: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Modelo</Label>
-            <Input
-              value={form.model}
-              onChange={(e) => setForm({ ...form, model: e.target.value })}
-            />
-          </div>
-          {/* Linha 4 */}
-          <div className="col-span-2">
-            <Label>Processador</Label>
-            <Input
-              value={form.processor}
-              onChange={(e) => setForm({ ...form, processor: e.target.value })}
-              placeholder="Ex: i7-1260P"
-            />
-          </div>
-          <div>
-            <Label>Memória</Label>
-            <Input
-              value={form.memory}
-              onChange={(e) => setForm({ ...form, memory: e.target.value })}
-              placeholder="Ex: 16 GB"
-            />
-          </div>
-          <div>
-            <Label>Armazenamento</Label>
-            <Input
-              value={form.storage}
-              onChange={(e) => setForm({ ...form, storage: e.target.value })}
-              placeholder="Ex: SSD 512 GB"
-            />
-          </div>
-          {/* Linha 5 */}
-          <div className="col-span-2">
-            <Label>Sistema operacional</Label>
-            <Input
-              value={form.operating_system}
-              onChange={(e) => setForm({ ...form, operating_system: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Data de aquisição</Label>
-            <Input
-              type="date"
-              value={form.purchase_date}
-              onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Garantia até</Label>
-            <Input
-              type="date"
-              value={form.warranty_until}
-              onChange={(e) => setForm({ ...form, warranty_until: e.target.value })}
-            />
-          </div>
-          {/* Linha 6 */}
-          <div className="col-span-2">
-            <Label>Chave do Sistema Operacional</Label>
-            <Input
-              value={form.os_key}
-              onChange={(e) => setForm({ ...form, os_key: e.target.value })}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label>Chave do Office</Label>
-            <Input
-              value={form.office_key}
-              onChange={(e) => setForm({ ...form, office_key: e.target.value })}
-            />
-          </div>
-          <div className="col-span-4">
-            <Label>Observações</Label>
-            <div className="[&_.ProseMirror]:min-h-[80px] [&_.ProseMirror]:max-h-[120px] [&_.ProseMirror]:overflow-y-auto">
-              <RichTextEditor
-                value={form.notes}
-                onChange={(html) => setForm({ ...form, notes: html })}
+      <ReadOnlyProvider readOnly={readOnly}>
+        <DialogContent className="max-w-5xl w-[98vw] max-h-[95vh] overflow-y-auto p-4 text-xs [&_label]:text-xs [&_input]:h-8 [&_input]:text-xs [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs">
+          <DialogHeader className="pb-1">
+            <DialogTitle className="text-sm">
+              {readOnly
+                ? "Visualizar equipamento"
+                : editing
+                  ? "Editar equipamento"
+                  : "Novo equipamento"}
+            </DialogTitle>
+          </DialogHeader>
+          <ReadOnlyNotice show={readOnly} />
+          <form
+            className="grid grid-cols-4 gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (readOnly) return;
+              const r = schema.safeParse({ ...form, contact_id: form.contact_id || null });
+              if (!r.success) {
+                toast.error(r.error.issues[0].message);
+                return;
+              }
+              save.mutate(r.data);
+            }}
+          >
+            <div className="col-span-2">
+              <Label>Cliente *</Label>
+              <Select
+                value={form.company_id}
+                onValueChange={(v) => setForm({ ...form, company_id: v, contact_id: "" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2">
+              <Label>Contato responsável</Label>
+              <Select
+                value={form.contact_id || NONE}
+                onValueChange={(v) => setForm({ ...form, contact_id: v === NONE ? "" : v })}
+                disabled={!form.company_id}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={form.company_id ? "Nenhum" : "Selecione o cliente"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Nenhum</SelectItem>
+                  {contacts?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Linha 2 */}
+            <div>
+              <Label>Nome / Identificação *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ex: Notebook Diretoria"
               />
             </div>
-          </div>
-          <DialogFooter className="col-span-4 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            <div>
+              <Label>Patrimônio</Label>
+              <Input
+                value={form.asset_tag}
+                onChange={(e) => setForm({ ...form, asset_tag: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Número de série</Label>
+              <Input
+                value={form.serial_number}
+                onChange={(e) => setForm({ ...form, serial_number: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v as typeof form.status })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="maintenance">Manutenção</SelectItem>
+                  <SelectItem value="retired">Baixado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Linha 3 */}
+            <div>
+              <Label>Localização</Label>
+              <Input
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Tipo</Label>
+              <Input
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                placeholder="Notebook, Desktop…"
+              />
+            </div>
+            <div>
+              <Label>Marca</Label>
+              <Input
+                value={form.brand}
+                onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Modelo</Label>
+              <Input
+                value={form.model}
+                onChange={(e) => setForm({ ...form, model: e.target.value })}
+              />
+            </div>
+            {/* Linha 4 */}
+            <div className="col-span-2">
+              <Label>Processador</Label>
+              <Input
+                value={form.processor}
+                onChange={(e) => setForm({ ...form, processor: e.target.value })}
+                placeholder="Ex: i7-1260P"
+              />
+            </div>
+            <div>
+              <Label>Memória</Label>
+              <Input
+                value={form.memory}
+                onChange={(e) => setForm({ ...form, memory: e.target.value })}
+                placeholder="Ex: 16 GB"
+              />
+            </div>
+            <div>
+              <Label>Armazenamento</Label>
+              <Input
+                value={form.storage}
+                onChange={(e) => setForm({ ...form, storage: e.target.value })}
+                placeholder="Ex: SSD 512 GB"
+              />
+            </div>
+            {/* Linha 5 */}
+            <div className="col-span-2">
+              <Label>Sistema operacional</Label>
+              <Input
+                value={form.operating_system}
+                onChange={(e) => setForm({ ...form, operating_system: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Data de aquisição</Label>
+              <Input
+                type="date"
+                value={form.purchase_date}
+                onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Garantia até</Label>
+              <Input
+                type="date"
+                value={form.warranty_until}
+                onChange={(e) => setForm({ ...form, warranty_until: e.target.value })}
+              />
+            </div>
+            {/* Linha 6 */}
+            <div className="col-span-2">
+              <Label>Chave do Sistema Operacional</Label>
+              <Input
+                value={form.os_key}
+                onChange={(e) => setForm({ ...form, os_key: e.target.value })}
+              />
+            </div>
+            <div className="col-span-2">
+              <Label>Chave do Office</Label>
+              <Input
+                value={form.office_key}
+                onChange={(e) => setForm({ ...form, office_key: e.target.value })}
+              />
+            </div>
+            <div className="col-span-4">
+              <Label>Observações</Label>
+              <div className="[&_.ProseMirror]:min-h-[80px] [&_.ProseMirror]:max-h-[120px] [&_.ProseMirror]:overflow-y-auto">
+                <RichTextEditor
+                  value={form.notes}
+                  onChange={(html) => setForm({ ...form, notes: html })}
+                />
+              </div>
+            </div>
+            <DialogFooter className="col-span-4 pt-1">
+              <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                {readOnly ? "Fechar" : "Cancelar"}
+              </Button>
+              {!readOnly && (
+                <Button type="submit" size="sm" disabled={save.isPending}>
+                  {save.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </ReadOnlyProvider>
     </Dialog>
   );
 }

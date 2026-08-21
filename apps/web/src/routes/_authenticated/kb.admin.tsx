@@ -12,6 +12,7 @@ import {
   X,
   Upload,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +54,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/kb/admin")({
   head: () => ({ meta: [{ title: "Base de Conhecimento — APTicket" }] }),
@@ -125,6 +127,7 @@ const categorySchema = z.object({
 });
 
 function CategoriesTab() {
+  const access = useModulePermissions("base_conhecimento");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -154,17 +157,19 @@ function CategoriesTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-1" /> Nova categoria
-        </Button>
-      </div>
+      {access.create && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Nova categoria
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>
@@ -206,11 +211,13 @@ function CategoriesTab() {
                     setOpen(true);
                   }}
                 >
-                  <Pencil className="h-4 w-4" />
+                  {access.edit ? <Pencil className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {access.delete && (
+                  <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           />
@@ -224,22 +231,24 @@ function CategoriesTab() {
         categories={data ?? []}
       />
 
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover categoria?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Artigos vinculados ficarão sem categoria. <b>{toDelete?.name}</b> será removida.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {access.delete && (
+        <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover categoria?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Artigos vinculados ficarão sem categoria. <b>{toDelete?.name}</b> será removida.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -255,6 +264,8 @@ function CategoryDialog({
   editing: Category | null;
   categories: Category[];
 }) {
+  const access = useModulePermissions("base_conhecimento");
+  const readOnly = editing ? !access.edit : !access.create;
   const qc = useQueryClient();
   const [form, setForm] = useState({ name: "", slug: "", parent_id: "" as string });
 
@@ -269,6 +280,8 @@ function CategoryDialog({
 
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof categorySchema>) => {
+      if (editing && !access.edit) throw new Error("Sem permissão para editar artigos");
+      if (!editing && !access.create) throw new Error("Sem permissão para criar artigos");
       const tenant_id = await getTenantId();
       const values = { name: payload.name, slug: payload.slug, parent_id: payload.parent_id };
       if (editing) {
@@ -289,77 +302,82 @@ function CategoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{editing ? "Editar categoria" : "Nova categoria"}</DialogTitle>
-        </DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const r = categorySchema.safeParse({
-              name: form.name,
-              slug: form.slug || slugify(form.name),
-              parent_id: form.parent_id || null,
-            });
-            if (!r.success) {
-              toast.error(r.error.issues[0].message);
-              return;
-            }
-            save.mutate(r.data);
-          }}
-        >
-          <div>
-            <Label>Nome *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  name: e.target.value,
-                  slug: f.slug && editing ? f.slug : slugify(e.target.value),
-                }))
+      <ReadOnlyProvider readOnly={readOnly}>
+        <DialogContent>
+          <ReadOnlyNotice show={readOnly} />
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar categoria" : "Nova categoria"}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const r = categorySchema.safeParse({
+                name: form.name,
+                slug: form.slug || slugify(form.name),
+                parent_id: form.parent_id || null,
+              });
+              if (!r.success) {
+                toast.error(r.error.issues[0].message);
+                return;
               }
-            />
-          </div>
-          <div>
-            <Label>Slug</Label>
-            <Input
-              value={form.slug}
-              onChange={(e) => setForm({ ...form, slug: slugify(e.target.value) })}
-            />
-          </div>
-          <div>
-            <Label>Categoria pai</Label>
-            <Select
-              value={form.parent_id || "none"}
-              onValueChange={(v) => setForm({ ...form, parent_id: v === "none" ? "" : v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— Nenhuma —</SelectItem>
-                {categories
-                  .filter((c) => c.id !== editing?.id)
-                  .map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+              if (!readOnly) save.mutate(r.data);
+            }}
+          >
+            <div>
+              <Label>Nome *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    name: e.target.value,
+                    slug: f.slug && editing ? f.slug : slugify(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Slug</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: slugify(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Categoria pai</Label>
+              <Select
+                value={form.parent_id || "none"}
+                onValueChange={(v) => setForm({ ...form, parent_id: v === "none" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Nenhuma —</SelectItem>
+                  {categories
+                    .filter((c) => c.id !== editing?.id)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </ReadOnlyProvider>
     </Dialog>
   );
 }
@@ -384,6 +402,7 @@ const articleSchema = z.object({
 });
 
 function ArticlesTab() {
+  const access = useModulePermissions("base_conhecimento");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Article | null>(null);
@@ -425,17 +444,19 @@ function ArticlesTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-1" /> Novo artigo
-        </Button>
-      </div>
+      {access.create && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Novo artigo
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>
@@ -499,11 +520,13 @@ function ArticlesTab() {
                     setOpen(true);
                   }}
                 >
-                  <Pencil className="h-4 w-4" />
+                  {access.edit ? <Pencil className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setToDelete(a)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {access.delete && (
+                  <Button variant="ghost" size="icon" onClick={() => setToDelete(a)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           />
@@ -517,22 +540,24 @@ function ArticlesTab() {
         categories={categories ?? []}
       />
 
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover artigo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <b>{toDelete?.title}</b> será removido permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {access.delete && (
+        <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover artigo?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <b>{toDelete?.title}</b> será removido permanentemente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -548,6 +573,8 @@ function ArticleDialog({
   editing: Article | null;
   categories: Category[];
 }) {
+  const access = useModulePermissions("base_conhecimento");
+  const readOnly = editing ? !access.edit : !access.create;
   const qc = useQueryClient();
   const [form, setForm] = useState({
     title: "",
@@ -575,6 +602,7 @@ function ArticleDialog({
   }, [open, editing]);
 
   const handleUpload = async (files: FileList | null) => {
+    if (readOnly) return;
     if (!files?.length) return;
     setUploading(true);
     try {
@@ -604,6 +632,7 @@ function ArticleDialog({
   };
 
   const removeAttachment = async (att: ArticleAttachment) => {
+    if (readOnly) return;
     await supabase.storage.from("kb-attachments").remove([att.path]);
     setForm((f) => ({ ...f, attachments: f.attachments.filter((a) => a.path !== att.path) }));
   };
@@ -633,6 +662,8 @@ function ArticleDialog({
 
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof articleSchema>) => {
+      if (editing && !access.edit) throw new Error("Sem permissão para editar artigos");
+      if (!editing && !access.create) throw new Error("Sem permissão para criar artigos");
       const tenant_id = await getTenantId();
       const values = {
         title: payload.title,
@@ -669,192 +700,203 @@ function ArticleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[95vh] p-0 flex flex-col gap-0">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
-          <DialogTitle>{editing ? "Editar artigo" : "Novo artigo"}</DialogTitle>
-        </DialogHeader>
-        <form
-          className="flex flex-col flex-1 min-h-0"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const r = articleSchema.safeParse({
-              title: form.title,
-              slug: form.slug || slugify(form.title),
-              body: form.body,
-              category_id: form.category_id || null,
-              is_public: form.is_public,
-              status: form.status,
-              attachments: form.attachments,
-            });
-            if (!r.success) {
-              toast.error(r.error.issues[0].message);
-              return;
-            }
-            save.mutate(r.data);
-          }}
-        >
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 grid grid-cols-4 gap-3">
-            <div className="col-span-2">
-              <Label>Título *</Label>
-              <Input
-                value={form.title}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    title: e.target.value,
-                    slug: f.slug && editing ? f.slug : slugify(e.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <Label>Categoria</Label>
-              <Select
-                value={form.category_id || "none"}
-                onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Sem categoria —</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v: "draft" | "published") => setForm({ ...form, status: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Rascunho</SelectItem>
-                  <SelectItem value="published">Publicado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2">
-              <Label>Slug</Label>
-              <Input
-                value={form.slug}
-                onChange={(e) => setForm({ ...form, slug: slugify(e.target.value) })}
-              />
-            </div>
-            <div className="col-span-2 flex items-center justify-between rounded-md border px-3 py-1.5">
+      <ReadOnlyProvider readOnly={readOnly}>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[95vh] p-0 flex flex-col gap-0">
+          <ReadOnlyNotice show={readOnly} />
+          <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
+            <DialogTitle>{editing ? "Editar artigo" : "Novo artigo"}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="flex flex-col flex-1 min-h-0"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const r = articleSchema.safeParse({
+                title: form.title,
+                slug: form.slug || slugify(form.title),
+                body: form.body,
+                category_id: form.category_id || null,
+                is_public: form.is_public,
+                status: form.status,
+                attachments: form.attachments,
+              });
+              if (!r.success) {
+                toast.error(r.error.issues[0].message);
+                return;
+              }
+              if (!readOnly) save.mutate(r.data);
+            }}
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 grid grid-cols-4 gap-3">
+              <div className="col-span-2">
+                <Label>Título *</Label>
+                <Input
+                  value={form.title}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      title: e.target.value,
+                      slug: f.slug && editing ? f.slug : slugify(e.target.value),
+                    }))
+                  }
+                />
+              </div>
               <div>
-                <div className="text-sm font-medium">Artigo público</div>
-                <div className="text-xs text-muted-foreground">
-                  Acessível no portal sem autenticação.
-                </div>
+                <Label>Categoria</Label>
+                <Select
+                  value={form.category_id || "none"}
+                  onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem categoria —</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Switch
-                checked={form.is_public}
-                onCheckedChange={(v) => setForm({ ...form, is_public: v })}
-              />
-            </div>
-            <div className="col-span-4">
-              <Label>Conteúdo *</Label>
-              <RichTextEditor
-                value={form.body}
-                onChange={(html) => setForm({ ...form, body: html })}
-              />
-            </div>
-            <div className="col-span-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Paperclip className="h-4 w-4" /> Anexos
-                </Label>
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v: "draft" | "published") => setForm({ ...form, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Rascunho</SelectItem>
+                    <SelectItem value="published">Publicado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Slug</Label>
+                <Input
+                  value={form.slug}
+                  onChange={(e) => setForm({ ...form, slug: slugify(e.target.value) })}
+                />
+              </div>
+              <div className="col-span-2 flex items-center justify-between rounded-md border px-3 py-1.5">
                 <div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleUpload(e.target.files)}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={uploading}
-                    onClick={() => fileRef.current?.click()}
-                  >
-                    <Upload className="h-3.5 w-3.5 mr-1" />{" "}
-                    {uploading ? "Enviando…" : "Adicionar arquivo"}
-                  </Button>
+                  <div className="text-sm font-medium">Artigo público</div>
+                  <div className="text-xs text-muted-foreground">
+                    Acessível no portal sem autenticação.
+                  </div>
                 </div>
+                <Switch
+                  checked={form.is_public}
+                  onCheckedChange={(v) => setForm({ ...form, is_public: v })}
+                />
               </div>
-              {form.attachments.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum anexo. Máx 20MB por arquivo.</p>
-              ) : (
-                <ul className="rounded-md border divide-y">
-                  {form.attachments.map((a) => (
-                    <li
-                      key={a.path}
-                      className="flex items-center justify-between gap-2 p-2 text-sm"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => openAttachment(a)}
-                        className="min-w-0 flex-1 truncate text-left text-primary hover:underline"
-                        title="Abrir anexo"
-                      >
-                        <span className="font-medium">{a.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {(a.size / 1024).toFixed(1)} KB
-                        </span>
-                      </button>
+              <div className="col-span-4">
+                <Label>Conteúdo *</Label>
+                <RichTextEditor
+                  value={form.body}
+                  onChange={(html) => setForm({ ...form, body: html })}
+                />
+              </div>
+              <div className="col-span-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" /> Anexos
+                  </Label>
+                  {!readOnly && (
+                    <div>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleUpload(e.target.files)}
+                      />
                       <Button
                         type="button"
-                        variant="ghost"
                         size="sm"
-                        onClick={() => openAttachment(a)}
-                        title="Abrir"
+                        variant="outline"
+                        disabled={uploading}
+                        onClick={() => fileRef.current?.click()}
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        <Upload className="h-3.5 w-3.5 mr-1" />{" "}
+                        {uploading ? "Enviando…" : "Adicionar arquivo"}
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyLink(a)}
-                        title="Copiar link"
+                    </div>
+                  )}
+                </div>
+                {form.attachments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum anexo. Máx 20MB por arquivo.
+                  </p>
+                ) : (
+                  <ul className="rounded-md border divide-y">
+                    {form.attachments.map((a) => (
+                      <li
+                        key={a.path}
+                        className="flex items-center justify-between gap-2 p-2 text-sm"
                       >
-                        <LinkIcon className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAttachment(a)}
-                        title="Remover"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                        <button
+                          type="button"
+                          onClick={() => openAttachment(a)}
+                          className="min-w-0 flex-1 truncate text-left text-primary hover:underline"
+                          title="Abrir anexo"
+                        >
+                          <span className="font-medium">{a.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {(a.size / 1024).toFixed(1)} KB
+                          </span>
+                        </button>
+                        {!readOnly && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openAttachment(a)}
+                            title="Abrir"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyLink(a)}
+                          title="Copiar link"
+                        >
+                          <LinkIcon className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAttachment(a)}
+                          title="Remover"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
-          <DialogFooter className="px-6 py-3 border-t shrink-0">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            <DialogFooter className="px-6 py-3 border-t shrink-0">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </ReadOnlyProvider>
     </Dialog>
   );
 }

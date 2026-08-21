@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import { TicketAutoRefresh } from "@/components/ticket/TicketAutoRefresh";
 import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
+import { useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
   head: () => ({ meta: [{ title: "Tickets — APTicket" }] }),
@@ -81,6 +82,7 @@ const statusColumns: { key: TicketStatus; label: string }[] = [
 ];
 
 function TicketsInbox() {
+  const access = useModulePermissions("tickets");
   const qc = useQueryClient();
   const [view, setView] = useState<"list" | "kanban">("list");
   const [status, setStatus] = useState<string>("all");
@@ -100,14 +102,14 @@ function TicketsInbox() {
         e.preventDefault();
         filterRef.current?.focus();
       }
-      if (e.key.toLowerCase() === "n") {
+      if (e.key.toLowerCase() === "n" && access.create) {
         e.preventDefault();
         setOpenNew(true);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [access.create]);
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["tickets"],
@@ -252,9 +254,11 @@ function TicketsInbox() {
               <LayoutGrid className="h-3 w-3" /> Kanban
             </button>
           </div>
-          <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setOpenNew(true)}>
-            <Plus className="h-3.5 w-3.5" /> Novo ticket
-          </Button>
+          {access.create && (
+            <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setOpenNew(true)}>
+              <Plus className="h-3.5 w-3.5" /> Novo ticket
+            </Button>
+          )}
         </div>
       </div>
 
@@ -268,11 +272,16 @@ function TicketsInbox() {
         )}
       </div>
       <div className="border-t bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground">
-        Atalhos: <kbd className="rounded border px-1">N</kbd> novo ·{" "}
+        Atalhos:{" "}
+        {access.create && (
+          <>
+            <kbd className="rounded border px-1">N</kbd> novo ·{" "}
+          </>
+        )}
         <kbd className="rounded border px-1">F</kbd> filtros
       </div>
 
-      <TicketDialog open={openNew} onOpenChange={setOpenNew} />
+      {access.create && <TicketDialog open={openNew} onOpenChange={setOpenNew} />}
     </div>
   );
 }
@@ -424,6 +433,7 @@ function TicketList({ tickets }: { tickets: TicketRow[] }) {
 }
 
 function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
+  const access = useModulePermissions("tickets");
   const qc = useQueryClient();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<TicketStatus | null>(null);
@@ -439,6 +449,7 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
       services,
       ...report
     }: { id: string; status: TicketStatus } & Partial<FinalReport>) => {
+      if (!access.edit) throw new Error("Sem permissão para editar chamados");
       const { error } = await supabase
         .from("tickets")
         .update({ status, ...report })
@@ -481,6 +492,7 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
 
   // Resolver exige laudo final — a menos que o ticket já tenha um.
   const requestMove = (id: string, status: TicketStatus) => {
+    if (!access.edit) return;
     const t = tickets.find((x) => x.id === id);
     if (!t || t.status === status) return;
     if (status === "resolved" && !t.resolution_summary?.trim()) {
@@ -499,11 +511,13 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
           <div
             key={col.key}
             onDragOver={(e) => {
+              if (!access.edit) return;
               e.preventDefault();
               setOverCol(col.key);
             }}
             onDragLeave={() => setOverCol((c) => (c === col.key ? null : c))}
             onDrop={(e) => {
+              if (!access.edit) return;
               e.preventDefault();
               const id = e.dataTransfer.getData("text/ticket-id") || dragId;
               setOverCol(null);
@@ -530,8 +544,9 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
                     key={t.id}
                     to="/tickets/$id"
                     params={{ id: t.id }}
-                    draggable
+                    draggable={access.edit}
                     onDragStart={(e) => {
+                      if (!access.edit) return;
                       setDragId(t.id);
                       e.dataTransfer.setData("text/ticket-id", t.id);
                       e.dataTransfer.effectAllowed = "move";
@@ -541,7 +556,8 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
                       setOverCol(null);
                     }}
                     className={cn(
-                      "block cursor-grab rounded-md border border-l-4 bg-background p-2 text-xs hover:bg-accent active:cursor-grabbing",
+                      "block rounded-md border border-l-4 bg-background p-2 text-xs hover:bg-accent",
+                      access.edit && "cursor-grab active:cursor-grabbing",
                       slaBorderClass(state),
                       dragId === t.id && "opacity-50",
                     )}
@@ -572,7 +588,7 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
           </div>
         );
       })}
-      {finalizeTarget && (
+      {finalizeTarget && access.edit && (
         <FinalizeTicketDialog
           status={finalizeTarget.status}
           ticketSubject={tickets.find((t) => t.id === finalizeTarget.id)?.subject ?? ""}

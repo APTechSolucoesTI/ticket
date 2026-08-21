@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 type TenantRow = {
   id: string;
@@ -97,6 +98,7 @@ async function requireTenantId() {
 
 export function CompanyTab() {
   const qc = useQueryClient();
+  const access = useModulePermissions("empresa");
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant-config"],
     queryFn: async (): Promise<TenantRow | null> => {
@@ -152,6 +154,7 @@ export function CompanyTab() {
 
   const save = useMutation({
     mutationFn: async () => {
+      if (!access.edit) throw new Error("Sem permissão para editar a empresa");
       const tid = await requireTenantId();
       const payload = {
         ...form,
@@ -245,347 +248,365 @@ export function CompanyTab() {
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        save.mutate();
-      }}
-      className="space-y-4"
-    >
-      <Card className="p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold">Identificação</h3>
-          <p className="text-xs text-muted-foreground">Dados legais e comerciais da empresa MSP.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <Label>Nome de exibição *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Razão social</Label>
-            <Input
-              value={form.legal_name ?? ""}
-              onChange={(e) => setForm({ ...form, legal_name: e.target.value })}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Nome fantasia</Label>
-            <Input
-              value={form.trade_name ?? ""}
-              onChange={(e) => setForm({ ...form, trade_name: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>CNPJ</Label>
-            <div className="flex gap-1">
-              <Input
-                value={form.cnpj ?? ""}
-                onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })}
-                placeholder="00.000.000/0000-00"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={lookupCnpj}
-                disabled={lookingUpCnpj}
-              >
-                {lookingUpCnpj ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
+    <ReadOnlyProvider readOnly={!access.edit}>
+      <div className="space-y-3">
+        <ReadOnlyNotice show={!access.edit} />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (access.edit) save.mutate();
+          }}
+          className="space-y-4"
+        >
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Identificação</h3>
+              <p className="text-xs text-muted-foreground">
+                Dados legais e comerciais da empresa MSP.
+              </p>
             </div>
-          </div>
-          <div>
-            <Label>Inscrição estadual</Label>
-            <Input
-              value={form.state_registration ?? ""}
-              onChange={(e) => setForm({ ...form, state_registration: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Inscrição municipal</Label>
-            <Input
-              value={form.municipal_registration ?? ""}
-              onChange={(e) => setForm({ ...form, municipal_registration: e.target.value })}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold">Contato</h3>
-          <p className="text-xs text-muted-foreground">
-            Canais de comunicação da empresa e do suporte.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <Label>E-mail corporativo</Label>
-            <Input
-              type="email"
-              value={form.email ?? ""}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Telefone</Label>
-            <Input
-              value={form.phone ?? ""}
-              onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-            />
-          </div>
-          <div>
-            <Label>WhatsApp</Label>
-            <Input
-              value={form.whatsapp ?? ""}
-              onChange={(e) => setForm({ ...form, whatsapp: maskPhone(e.target.value) })}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Site</Label>
-            <Input
-              value={form.website ?? ""}
-              onChange={(e) => setForm({ ...form, website: e.target.value })}
-              placeholder="https://"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>E-mail de suporte</Label>
-            <Input
-              type="email"
-              value={form.support_email ?? ""}
-              onChange={(e) => setForm({ ...form, support_email: e.target.value })}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Telefone de suporte</Label>
-            <Input
-              value={form.support_phone ?? ""}
-              onChange={(e) => setForm({ ...form, support_phone: maskPhone(e.target.value) })}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold">Endereço</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-          <div className="md:col-span-2">
-            <Label>CEP</Label>
-            <div className="flex gap-1">
-              <Input
-                value={form.zip_code ?? ""}
-                onChange={(e) => setForm({ ...form, zip_code: maskCEP(e.target.value) })}
-                placeholder="00000-000"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={lookupCep}
-                disabled={lookingUpCep}
-              >
-                {lookingUpCep ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-          <div className="md:col-span-3">
-            <Label>Logradouro</Label>
-            <Input
-              value={form.address_street ?? ""}
-              onChange={(e) => setForm({ ...form, address_street: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Número</Label>
-            <Input
-              value={form.address_number ?? ""}
-              onChange={(e) => setForm({ ...form, address_number: e.target.value })}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Complemento</Label>
-            <Input
-              value={form.address_complement ?? ""}
-              onChange={(e) => setForm({ ...form, address_complement: e.target.value })}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Bairro</Label>
-            <Input
-              value={form.address_district ?? ""}
-              onChange={(e) => setForm({ ...form, address_district: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Cidade</Label>
-            <Input
-              value={form.address_city ?? ""}
-              onChange={(e) => setForm({ ...form, address_city: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>UF</Label>
-            <Input
-              maxLength={2}
-              value={form.address_state ?? ""}
-              onChange={(e) => setForm({ ...form, address_state: e.target.value.toUpperCase() })}
-            />
-          </div>
-          <div>
-            <Label>País</Label>
-            <Input
-              maxLength={2}
-              value={form.address_country ?? ""}
-              onChange={(e) => setForm({ ...form, address_country: e.target.value.toUpperCase() })}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold">Marca</h3>
-          <p className="text-xs text-muted-foreground">
-            Personalização visual usada em e-mails e portal.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-3">
-            <Label>URL do logo</Label>
-            <Input
-              value={form.logo_url ?? ""}
-              onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-              placeholder="https://..."
-            />
-          </div>
-          <div>
-            <Label>Cor primária</Label>
-            <div className="flex gap-1">
-              <Input
-                type="color"
-                className="w-14 p-1"
-                value={form.primary_color || "#0EA5E9"}
-                onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
-              />
-              <Input
-                value={form.primary_color ?? ""}
-                onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
-                placeholder="#0EA5E9"
-              />
-            </div>
-          </div>
-          {form.logo_url && (
-            <div className="md:col-span-4">
-              <div className="rounded-md border p-3 bg-muted/30 inline-flex">
-                <img src={form.logo_url} alt="Prévia do logo" className="max-h-16 object-contain" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-2">
+                <Label>Nome de exibição *</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Razão social</Label>
+                <Input
+                  value={form.legal_name ?? ""}
+                  onChange={(e) => setForm({ ...form, legal_name: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Nome fantasia</Label>
+                <Input
+                  value={form.trade_name ?? ""}
+                  onChange={(e) => setForm({ ...form, trade_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>CNPJ</Label>
+                <div className="flex gap-1">
+                  <Input
+                    value={form.cnpj ?? ""}
+                    onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })}
+                    placeholder="00.000.000/0000-00"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={lookupCnpj}
+                    disabled={lookingUpCnpj || !access.edit}
+                  >
+                    {lookingUpCnpj ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label>Inscrição estadual</Label>
+                <Input
+                  value={form.state_registration ?? ""}
+                  onChange={(e) => setForm({ ...form, state_registration: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Inscrição municipal</Label>
+                <Input
+                  value={form.municipal_registration ?? ""}
+                  onChange={(e) => setForm({ ...form, municipal_registration: e.target.value })}
+                />
               </div>
             </div>
-          )}
-        </div>
-      </Card>
+          </Card>
 
-      <Card className="p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold">Operação</h3>
-          <p className="text-xs text-muted-foreground">
-            Fuso, horário comercial e dias úteis usados no cálculo de SLAs.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <Label>Fuso horário</Label>
-            <Select
-              value={form.timezone ?? "America/Sao_Paulo"}
-              onValueChange={(v) => setForm({ ...form, timezone: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="America/Sao_Paulo">America/Sao_Paulo (GMT-3)</SelectItem>
-                <SelectItem value="America/Manaus">America/Manaus (GMT-4)</SelectItem>
-                <SelectItem value="America/Belem">America/Belem (GMT-3)</SelectItem>
-                <SelectItem value="America/Fortaleza">America/Fortaleza (GMT-3)</SelectItem>
-                <SelectItem value="America/Recife">America/Recife (GMT-3)</SelectItem>
-                <SelectItem value="America/Cuiaba">America/Cuiaba (GMT-4)</SelectItem>
-                <SelectItem value="America/Rio_Branco">America/Rio_Branco (GMT-5)</SelectItem>
-                <SelectItem value="UTC">UTC</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Início do expediente</Label>
-            <Input
-              type="time"
-              value={form.business_hours_start ?? ""}
-              onChange={(e) => setForm({ ...form, business_hours_start: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Fim do expediente</Label>
-            <Input
-              type="time"
-              value={form.business_hours_end ?? ""}
-              onChange={(e) => setForm({ ...form, business_hours_end: e.target.value })}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <Label>Dias úteis</Label>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {WEEKDAYS.map((d) => {
-                const active = form.business_days?.includes(d.id);
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => toggleDay(d.id)}
-                    className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
-                      active
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background hover:bg-muted"
-                    }`}
-                  >
-                    {d.label}
-                  </button>
-                );
-              })}
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Contato</h3>
+              <p className="text-xs text-muted-foreground">
+                Canais de comunicação da empresa e do suporte.
+              </p>
             </div>
-          </div>
-        </div>
-      </Card>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-2">
+                <Label>E-mail corporativo</Label>
+                <Input
+                  type="email"
+                  value={form.email ?? ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Telefone</Label>
+                <Input
+                  value={form.phone ?? ""}
+                  onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>WhatsApp</Label>
+                <Input
+                  value={form.whatsapp ?? ""}
+                  onChange={(e) => setForm({ ...form, whatsapp: maskPhone(e.target.value) })}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Site</Label>
+                <Input
+                  value={form.website ?? ""}
+                  onChange={(e) => setForm({ ...form, website: e.target.value })}
+                  placeholder="https://"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>E-mail de suporte</Label>
+                <Input
+                  type="email"
+                  value={form.support_email ?? ""}
+                  onChange={(e) => setForm({ ...form, support_email: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Telefone de suporte</Label>
+                <Input
+                  value={form.support_phone ?? ""}
+                  onChange={(e) => setForm({ ...form, support_phone: maskPhone(e.target.value) })}
+                />
+              </div>
+            </div>
+          </Card>
 
-      <Card className="p-5 space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Observações internas</h3>
-        </div>
-        <Textarea
-          rows={4}
-          value={form.notes ?? ""}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-        />
-      </Card>
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Endereço</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+              <div className="md:col-span-2">
+                <Label>CEP</Label>
+                <div className="flex gap-1">
+                  <Input
+                    value={form.zip_code ?? ""}
+                    onChange={(e) => setForm({ ...form, zip_code: maskCEP(e.target.value) })}
+                    placeholder="00000-000"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={lookupCep}
+                    disabled={lookingUpCep || !access.edit}
+                  >
+                    {lookingUpCep ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div className="md:col-span-3">
+                <Label>Logradouro</Label>
+                <Input
+                  value={form.address_street ?? ""}
+                  onChange={(e) => setForm({ ...form, address_street: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Número</Label>
+                <Input
+                  value={form.address_number ?? ""}
+                  onChange={(e) => setForm({ ...form, address_number: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Complemento</Label>
+                <Input
+                  value={form.address_complement ?? ""}
+                  onChange={(e) => setForm({ ...form, address_complement: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Bairro</Label>
+                <Input
+                  value={form.address_district ?? ""}
+                  onChange={(e) => setForm({ ...form, address_district: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Cidade</Label>
+                <Input
+                  value={form.address_city ?? ""}
+                  onChange={(e) => setForm({ ...form, address_city: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>UF</Label>
+                <Input
+                  maxLength={2}
+                  value={form.address_state ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, address_state: e.target.value.toUpperCase() })
+                  }
+                />
+              </div>
+              <div>
+                <Label>País</Label>
+                <Input
+                  maxLength={2}
+                  value={form.address_country ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, address_country: e.target.value.toUpperCase() })
+                  }
+                />
+              </div>
+            </div>
+          </Card>
 
-      <div className="flex justify-end gap-2">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Salvando..." : "Salvar configurações"}
-        </Button>
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Marca</h3>
+              <p className="text-xs text-muted-foreground">
+                Personalização visual usada em e-mails e portal.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-3">
+                <Label>URL do logo</Label>
+                <Input
+                  value={form.logo_url ?? ""}
+                  onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <Label>Cor primária</Label>
+                <div className="flex gap-1">
+                  <Input
+                    type="color"
+                    className="w-14 p-1"
+                    value={form.primary_color || "#0EA5E9"}
+                    onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+                  />
+                  <Input
+                    value={form.primary_color ?? ""}
+                    onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+                    placeholder="#0EA5E9"
+                  />
+                </div>
+              </div>
+              {form.logo_url && (
+                <div className="md:col-span-4">
+                  <div className="rounded-md border p-3 bg-muted/30 inline-flex">
+                    <img
+                      src={form.logo_url}
+                      alt="Prévia do logo"
+                      className="max-h-16 object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Operação</h3>
+              <p className="text-xs text-muted-foreground">
+                Fuso, horário comercial e dias úteis usados no cálculo de SLAs.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-2">
+                <Label>Fuso horário</Label>
+                <Select
+                  value={form.timezone ?? "America/Sao_Paulo"}
+                  onValueChange={(v) => setForm({ ...form, timezone: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/Sao_Paulo">America/Sao_Paulo (GMT-3)</SelectItem>
+                    <SelectItem value="America/Manaus">America/Manaus (GMT-4)</SelectItem>
+                    <SelectItem value="America/Belem">America/Belem (GMT-3)</SelectItem>
+                    <SelectItem value="America/Fortaleza">America/Fortaleza (GMT-3)</SelectItem>
+                    <SelectItem value="America/Recife">America/Recife (GMT-3)</SelectItem>
+                    <SelectItem value="America/Cuiaba">America/Cuiaba (GMT-4)</SelectItem>
+                    <SelectItem value="America/Rio_Branco">America/Rio_Branco (GMT-5)</SelectItem>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Início do expediente</Label>
+                <Input
+                  type="time"
+                  value={form.business_hours_start ?? ""}
+                  onChange={(e) => setForm({ ...form, business_hours_start: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Fim do expediente</Label>
+                <Input
+                  type="time"
+                  value={form.business_hours_end ?? ""}
+                  onChange={(e) => setForm({ ...form, business_hours_end: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-4">
+                <Label>Dias úteis</Label>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {WEEKDAYS.map((d) => {
+                    const active = form.business_days?.includes(d.id);
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => toggleDay(d.id)}
+                        disabled={!access.edit}
+                        className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                          active
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">Observações internas</h3>
+            </div>
+            <Textarea
+              rows={4}
+              value={form.notes ?? ""}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </Card>
+
+          {access.edit && (
+            <div className="flex justify-end gap-2">
+              <Button type="submit" disabled={save.isPending}>
+                {save.isPending ? "Salvando..." : "Salvar configurações"}
+              </Button>
+            </div>
+          )}
+        </form>
       </div>
-    </form>
+    </ReadOnlyProvider>
   );
 }

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { useReadOnly } from "@/lib/permission-ui";
 
 type Props = {
   value: string;
@@ -12,6 +13,7 @@ const LazyEditor = lazy(() =>
 );
 
 export function RichTextEditor(props: Props) {
+  const readOnly = useReadOnly();
   return (
     <Suspense
       fallback={
@@ -20,7 +22,7 @@ export function RichTextEditor(props: Props) {
         </div>
       }
     >
-      <LazyEditor {...props} />
+      <LazyEditor {...props} readOnly={readOnly} />
     </Suspense>
   );
 }

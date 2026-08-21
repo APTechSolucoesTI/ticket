@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Link2, Mail, Trash2, Ban, RefreshCw, Paperclip, Eye, Download } from "lucide-react";
+import { useModulePermissions } from "@/lib/permission-ui";
 
 // Supabase/Postgrest/Storage errors are plain objects ({message, details,
 // hint, code}), not real Error instances — `e instanceof Error` silently
@@ -58,12 +59,14 @@ type PendingRow = {
 };
 
 function EmailPendingPage() {
+  const access = useModulePermissions("fila_email");
   const qc = useQueryClient();
   const [linking, setLinking] = useState<PendingRow | null>(null);
   const [viewing, setViewing] = useState<PendingRow | null>(null);
   const [syncing, setSyncing] = useState(false);
 
   async function handleSync() {
+    if (!access.create) return;
     setSyncing(true);
     try {
       const r = await backendClient.post<{
@@ -138,6 +141,7 @@ function EmailPendingPage() {
 
   const discard = useMutation({
     mutationFn: async (row: PendingRow) => {
+      if (!access.edit) throw new Error("Sem permissão para editar a fila");
       await supabase
         .from("email_pending_messages")
         .update({ resolved_at: new Date().toISOString() })
@@ -154,6 +158,7 @@ function EmailPendingPage() {
 
   const block = useMutation({
     mutationFn: async (row: PendingRow) => {
+      if (!access.edit) throw new Error("Sem permissão para editar a fila");
       const { error: upErr } = await supabase
         .from("contacts")
         .update({ is_active: false, can_open_tickets: false })
@@ -179,6 +184,7 @@ function EmailPendingPage() {
 
   const remove = useMutation({
     mutationFn: async (row: PendingRow) => {
+      if (!access.delete) throw new Error("Sem permissão para excluir contatos da fila");
       const { error } = await supabase.from("contacts").delete().eq("id", row.contact_id);
       if (error) throw error;
     },
@@ -202,10 +208,12 @@ function EmailPendingPage() {
             para liberar a abertura automática de tickets, ou bloqueie/exclua o remetente.
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Sincronizando…" : "Sincronizar agora"}
-        </Button>
+        {access.create && (
+          <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando…" : "Sincronizar agora"}
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -232,35 +240,41 @@ function EmailPendingPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => setLinking(row)}>
-                    <Link2 className="h-4 w-4 mr-1" /> Vincular
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => block.mutate(row)}
-                    disabled={block.isPending}
-                    title="Bloquear remetente"
-                  >
-                    <Ban className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `Excluir o contato "${row.name}" (${row.email})? Essa ação não pode ser desfeita.`,
-                        )
-                      ) {
-                        remove.mutate(row);
-                      }
-                    }}
-                    disabled={remove.isPending}
-                    title="Excluir contato"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {access.edit && (
+                    <Button size="sm" onClick={() => setLinking(row)}>
+                      <Link2 className="h-4 w-4 mr-1" /> Vincular
+                    </Button>
+                  )}
+                  {access.edit && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => block.mutate(row)}
+                      disabled={block.isPending}
+                      title="Bloquear remetente"
+                    >
+                      <Ban className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {access.delete && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Excluir o contato "${row.name}" (${row.email})? Essa ação não pode ser desfeita.`,
+                          )
+                        ) {
+                          remove.mutate(row);
+                        }
+                      }}
+                      disabled={remove.isPending}
+                      title="Excluir contato"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
               <button
@@ -292,17 +306,19 @@ function EmailPendingPage() {
                   </div>
                 )}
               </button>
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="link"
-                  className="h-auto p-0 text-xs"
-                  onClick={() => discard.mutate(row)}
-                  disabled={discard.isPending}
-                >
-                  Descartar mensagens (manter contato)
-                </Button>
-              </div>
+              {access.edit && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="link"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => discard.mutate(row)}
+                    disabled={discard.isPending}
+                  >
+                    Descartar mensagens (manter contato)
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -310,7 +326,7 @@ function EmailPendingPage() {
 
       {viewing && <MessagesDialog row={viewing} onClose={() => setViewing(null)} />}
 
-      {linking && (
+      {linking && access.edit && (
         <LinkDialog
           row={linking}
           onClose={() => setLinking(null)}
@@ -448,6 +464,7 @@ function LinkDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const access = useModulePermissions("fila_email");
   const [companyId, setCompanyId] = useState<string>("");
   const [name, setName] = useState(row.name);
   const [email, setEmail] = useState(row.email);
@@ -512,6 +529,7 @@ function LinkDialog({
   const INSERT_BATCH_SIZE = 50;
 
   async function handleSave() {
+    if (!access.edit) return;
     setSaving(true);
     try {
       const { error: upErr } = await supabase

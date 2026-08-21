@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Link2, MessageCircle, Trash2 } from "lucide-react";
+import { useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/whatsapp-pending")({
   component: WhatsAppPendingPage,
@@ -36,6 +37,7 @@ type PendingRow = {
 };
 
 function WhatsAppPendingPage() {
+  const access = useModulePermissions("fila_whatsapp");
   const qc = useQueryClient();
   const [linking, setLinking] = useState<PendingRow | null>(null);
 
@@ -72,6 +74,7 @@ function WhatsAppPendingPage() {
 
   const discard = useMutation({
     mutationFn: async (row: PendingRow) => {
+      if (!access.delete) throw new Error("Sem permissão para descartar mensagens");
       await supabase
         .from("whatsapp_pending_messages")
         .update({ resolved_at: new Date().toISOString() })
@@ -120,17 +123,21 @@ function WhatsAppPendingPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => setLinking(row)}>
-                    <Link2 className="h-4 w-4 mr-1" /> Vincular
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => discard.mutate(row)}
-                    disabled={discard.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {access.edit && (
+                    <Button size="sm" onClick={() => setLinking(row)}>
+                      <Link2 className="h-4 w-4 mr-1" /> Vincular
+                    </Button>
+                  )}
+                  {access.delete && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => discard.mutate(row)}
+                      disabled={discard.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="space-y-1 max-h-40 overflow-auto rounded-md bg-muted/40 p-2 text-xs">
@@ -148,7 +155,7 @@ function WhatsAppPendingPage() {
         </div>
       )}
 
-      {linking && (
+      {linking && access.edit && (
         <LinkDialog
           row={linking}
           onClose={() => setLinking(null)}
@@ -171,6 +178,7 @@ function LinkDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const access = useModulePermissions("fila_whatsapp");
   const [companyId, setCompanyId] = useState<string>("");
   const [name, setName] = useState(row.name);
   const [email, setEmail] = useState("");
@@ -188,6 +196,7 @@ function LinkDialog({
   const canSave = useMemo(() => !!companyId && !!name.trim(), [companyId, name]);
 
   async function handleSave() {
+    if (!access.edit) return;
     if (!row.contact_id) return;
     setSaving(true);
     try {

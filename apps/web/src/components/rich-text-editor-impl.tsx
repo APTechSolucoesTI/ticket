@@ -30,6 +30,7 @@ type Props = {
   value: string;
   onChange: (html: string) => void;
   className?: string;
+  readOnly?: boolean;
 };
 
 function ToolbarBtn({
@@ -189,7 +190,7 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
-export function RichTextEditor({ value, onChange, className }: Props) {
+export function RichTextEditor({ value, onChange, className, readOnly = false }: Props) {
   const editor = useEditor({
     // Cria o editor dentro de um efeito, não durante o render. Sem isso, o
     // StrictMode do React (dev) dispara um segundo render antes do efeito
@@ -204,6 +205,7 @@ export function RichTextEditor({ value, onChange, className }: Props) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: value || "",
+    editable: !readOnly,
     editorProps: {
       attributes: {
         class: "prose prose-sm dark:prose-invert max-w-none min-h-[260px] p-3 focus:outline-none",
@@ -217,11 +219,15 @@ export function RichTextEditor({ value, onChange, className }: Props) {
     if (value !== editor.getHTML()) editor.commands.setContent(value || "", { emitUpdate: false });
   }, [editor, value]);
 
+  useEffect(() => {
+    editor?.setEditable(!readOnly);
+  }, [editor, readOnly]);
+
   if (!editor) return null;
 
   return (
     <div className={cn("rounded-md border bg-background", className)}>
-      <Toolbar editor={editor} />
+      {!readOnly && <Toolbar editor={editor} />}
       <EditorContent editor={editor} />
     </div>
   );

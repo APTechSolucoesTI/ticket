@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, User, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, User, Upload, Eye } from "lucide-react";
 import { ContactImportDialog } from "@/components/contact-import-dialog";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { maskPhone, unmask } from "@/lib/masks";
+import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
   head: () => ({ meta: [{ title: "Contatos — APTicket" }] }),
@@ -77,6 +78,7 @@ const schema = z.object({
 });
 
 function ContactsPage() {
+  const access = useModulePermissions("contatos");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -114,20 +116,22 @@ function ContactsPage() {
         title="Contatos"
         subtitle="Pessoas vinculadas aos clientes. E-mail e telefone identificam mensagens recebidas."
         actions={
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4 mr-1" /> Importar
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-1" /> Novo contato
-            </Button>
-          </div>
+          access.create ? (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-1" /> Importar
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" /> Novo contato
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -204,36 +208,45 @@ function ContactsPage() {
                     setOpen(true);
                   }}
                 >
-                  <Pencil className="h-4 w-4" />
+                  {access.edit ? <Pencil className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {access.delete && (
+                  <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           />
         </Card>
       )}
 
-      <ContactDialog open={open} onOpenChange={setOpen} editing={editing} />
-      <ContactImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ContactDialog
+        open={open}
+        onOpenChange={setOpen}
+        editing={editing}
+        readOnly={editing ? !access.edit : !access.create}
+      />
+      {access.create && <ContactImportDialog open={importOpen} onOpenChange={setImportOpen} />}
 
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover contato?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação removerá <b>{toDelete?.name}</b>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {access.delete && (
+        <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover contato?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação removerá <b>{toDelete?.name}</b>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -242,10 +255,12 @@ function ContactDialog({
   open,
   onOpenChange,
   editing,
+  readOnly,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   editing: Contact | null;
+  readOnly: boolean;
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
@@ -335,98 +350,109 @@ function ContactDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Editar contato" : "Novo contato"}</DialogTitle>
-        </DialogHeader>
-        <form
-          className="grid grid-cols-2 gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const r = schema.safeParse(form);
-            if (!r.success) {
-              toast.error(r.error.issues[0].message);
-              return;
-            }
-            save.mutate(r.data);
-          }}
-        >
-          <div className="col-span-2">
-            <Label>Cliente *</Label>
-            <Select
-              value={form.company_id}
-              onValueChange={(v) => setForm({ ...form, company_id: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione…" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Nome *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div>
-            <Label>Cargo</Label>
-            <Input
-              value={form.job_title}
-              onChange={(e) => setForm({ ...form, job_title: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>E-mail *</Label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Telefone</Label>
-            <Input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-          <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
-            <div className="text-sm">Pode abrir tickets</div>
-            <Switch
-              checked={form.can_open_tickets}
-              onCheckedChange={(v) => setForm({ ...form, can_open_tickets: v })}
-            />
-          </div>
-          <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
-            <div className="text-sm">Recebe pesquisa CSAT</div>
-            <Switch
-              checked={form.receives_csat}
-              onCheckedChange={(v) => setForm({ ...form, receives_csat: v })}
-            />
-          </div>
-          <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
-            <div className="text-sm">Ativo</div>
-            <Switch
-              checked={form.is_active}
-              onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-            />
-          </div>
-          <DialogFooter className="col-span-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+      <ReadOnlyProvider readOnly={readOnly}>
+        <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {readOnly ? "Visualizar contato" : editing ? "Editar contato" : "Novo contato"}
+            </DialogTitle>
+          </DialogHeader>
+          <ReadOnlyNotice show={readOnly} />
+          <form
+            className="grid grid-cols-2 gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (readOnly) return;
+              const r = schema.safeParse(form);
+              if (!r.success) {
+                toast.error(r.error.issues[0].message);
+                return;
+              }
+              save.mutate(r.data);
+            }}
+          >
+            <div className="col-span-2">
+              <Label>Cliente *</Label>
+              <Select
+                value={form.company_id}
+                onValueChange={(v) => setForm({ ...form, company_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Nome *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Cargo</Label>
+              <Input
+                value={form.job_title}
+                onChange={(e) => setForm({ ...form, job_title: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>E-mail *</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+              <div className="text-sm">Pode abrir tickets</div>
+              <Switch
+                checked={form.can_open_tickets}
+                onCheckedChange={(v) => setForm({ ...form, can_open_tickets: v })}
+              />
+            </div>
+            <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+              <div className="text-sm">Recebe pesquisa CSAT</div>
+              <Switch
+                checked={form.receives_csat}
+                onCheckedChange={(v) => setForm({ ...form, receives_csat: v })}
+              />
+            </div>
+            <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+              <div className="text-sm">Ativo</div>
+              <Switch
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
+            </div>
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                {readOnly ? "Fechar" : "Cancelar"}
+              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </ReadOnlyProvider>
     </Dialog>
   );
 }

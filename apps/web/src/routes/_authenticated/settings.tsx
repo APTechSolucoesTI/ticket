@@ -11,6 +11,7 @@ import {
   Globe,
   Hand,
   Upload,
+  Eye,
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +67,13 @@ import { backendClient } from "@/lib/backend-client";
 import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
 import { inviteUser, resendInvite } from "@/lib/users.functions";
 import { usePermissions } from "@/lib/use-permissions";
+import {
+  ModulePermissionProvider,
+  ReadOnlyNotice,
+  ReadOnlyProvider,
+  useCurrentModulePermissions,
+  useModulePermissions,
+} from "@/lib/permission-ui";
 import {
   MODULE_ORDER,
   ACTION_LABELS,
@@ -147,62 +155,86 @@ function SettingsPage() {
         </TabsList>
         {perms.has("empresa", "view") && (
           <TabsContent value="company" className="mt-4">
-            <CompanyTab />
+            <ModulePermissionProvider module="empresa">
+              <CompanyTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("usuarios", "view") && (
           <TabsContent value="users" className="mt-4">
-            <UsersTab />
+            <ModulePermissionProvider module="usuarios">
+              <UsersTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("papeis", "view") && (
           <TabsContent value="roles" className="mt-4">
-            <RolesTab />
+            <ModulePermissionProvider module="papeis">
+              <RolesTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("permissoes", "view") && (
           <TabsContent value="user-permissions" className="mt-4">
-            <UserPermissionsTab />
+            <ModulePermissionProvider module="permissoes">
+              <UserPermissionsTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("departamentos", "view") && (
           <TabsContent value="departments" className="mt-4">
-            <DepartmentsTab />
+            <ModulePermissionProvider module="departamentos">
+              <DepartmentsTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("familia_servicos", "view") && (
           <TabsContent value="service-families" className="mt-4">
-            <ServiceFamiliesTab />
+            <ModulePermissionProvider module="familia_servicos">
+              <ServiceFamiliesTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("servicos_prestados", "view") && (
           <TabsContent value="provided-services" className="mt-4">
-            <ProvidedServicesTab />
+            <ModulePermissionProvider module="servicos_prestados">
+              <ProvidedServicesTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("tipos_contrato", "view") && (
           <TabsContent value="contract-types" className="mt-4">
-            <ContractTypesTab />
+            <ModulePermissionProvider module="tipos_contrato">
+              <ContractTypesTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("slas", "view") && (
           <TabsContent value="slas" className="mt-4">
-            <SlasTab />
+            <ModulePermissionProvider module="slas">
+              <SlasTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("respostas_padrao", "view") && (
           <TabsContent value="canned" className="mt-4">
-            <CannedTab />
+            <ModulePermissionProvider module="respostas_padrao">
+              <CannedTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("figurinhas", "view") && (
           <TabsContent value="stickers" className="mt-4">
-            <StickersTab />
+            <ModulePermissionProvider module="figurinhas">
+              <StickersTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
         {perms.has("canais", "view") && (
           <TabsContent value="channels" className="mt-4">
-            <ChannelsTab />
+            <ModulePermissionProvider module="canais">
+              <ChannelsTab />
+            </ModulePermissionProvider>
           </TabsContent>
         )}
       </Tabs>
@@ -257,8 +289,10 @@ function UsersTab() {
   });
 
   const setRole = useMutation({
-    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
-      assignRole({ data: { userId, roleId } }),
+    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) => {
+      if (!perms.has("usuarios", "edit")) throw new Error("Sem permissão para editar usuários");
+      return assignRole({ data: { userId, roleId } });
+    },
     onSuccess: () => {
       toast.success("Papel atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });
@@ -267,8 +301,10 @@ function UsersTab() {
   });
 
   const toggleActive = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      updateUserActive({ data: { userId: id, isActive: is_active } }),
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => {
+      if (!perms.has("usuarios", "edit")) throw new Error("Sem permissão para editar usuários");
+      return updateUserActive({ data: { userId: id, isActive: is_active } });
+    },
     onSuccess: () => {
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });
@@ -383,6 +419,7 @@ function UsersTab() {
                     <TableCell>
                       <Select
                         value={currentRoleId}
+                        disabled={!perms.has("usuarios", "edit")}
                         onValueChange={(v: string) => setRole.mutate({ userId: u.id, roleId: v })}
                       >
                         <SelectTrigger className="w-40">
@@ -400,6 +437,7 @@ function UsersTab() {
                     <TableCell>
                       <Switch
                         checked={u.is_active}
+                        disabled={!perms.has("usuarios", "edit")}
                         onCheckedChange={(v) => toggleActive.mutate({ id: u.id, is_active: v })}
                       />
                     </TableCell>
@@ -486,6 +524,7 @@ function RoleModuleRow({
 }
 
 function RolesTab() {
+  const access = useModulePermissions("papeis");
   const qc = useQueryClient();
   const listRolesFn = useServerFn(listRoles);
   const listCatalog = useServerFn(listPermissionsCatalog);
@@ -501,6 +540,7 @@ function RolesTab() {
   const [editing, setEditing] = useState<RoleRow | null>(null);
   const [form, setForm] = useState({ name: "", description: "" });
   const [deleteTarget, setDeleteTarget] = useState<RoleRow | null>(null);
+  const roleReadOnly = editing ? !access.edit : !access.create;
 
   const { data: roles } = useQuery({ queryKey: ["roles_list"], queryFn: () => listRolesFn() });
   const { data: catalog } = useQuery({
@@ -521,6 +561,8 @@ function RolesTab() {
 
   const saveRole = useMutation({
     mutationFn: async () => {
+      if (editing && !access.edit) throw new Error("Sem permissão para editar papéis");
+      if (!editing && !access.create) throw new Error("Sem permissão para criar papéis");
       const parsed = z
         .object({ name: z.string().trim().min(1).max(80), description: z.string().trim().max(300) })
         .parse(form);
@@ -540,7 +582,10 @@ function RolesTab() {
   });
 
   const removeRole = useMutation({
-    mutationFn: (roleId: string) => deleteRoleFn({ data: { roleId } }),
+    mutationFn: (roleId: string) => {
+      if (!access.delete) throw new Error("Sem permissão para excluir papéis");
+      return deleteRoleFn({ data: { roleId } });
+    },
     onSuccess: () => {
       toast.success("Papel excluído");
       setDeleteTarget(null);
@@ -554,8 +599,10 @@ function RolesTab() {
   });
 
   const saveMatrix = useMutation({
-    mutationFn: () =>
-      saveRolePerms({ data: { roleId: selected!, permissionIds: Array.from(checked) } }),
+    mutationFn: () => {
+      if (!access.edit) throw new Error("Sem permissão para editar papéis");
+      return saveRolePerms({ data: { roleId: selected!, permissionIds: Array.from(checked) } });
+    },
     onSuccess: () => {
       toast.success("Matriz de permissões salva");
       qc.invalidateQueries({ queryKey: ["role_permissions", selected] });
@@ -575,6 +622,7 @@ function RolesTab() {
   // Configurações, desmarca os sub-itens inteiros junto (pedido do usuário:
   // sem ver Configurações não faz sentido ver nada debaixo dela).
   const toggle = (module: string, action: string, permId: string) => {
+    if (!access.edit) return;
     if (selectedRole?.is_system) return;
     setChecked((prev) => {
       const already = prev.has(permId);
@@ -599,16 +647,18 @@ function RolesTab() {
       <Card className="p-3 space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Papéis</h3>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditing(null);
-              setForm({ name: "", description: "" });
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Novo
-          </Button>
+          {access.create && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null);
+                setForm({ name: "", description: "" });
+                setDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Novo
+            </Button>
+          )}
         </div>
         <div className="space-y-1">
           {roles?.map((r) => (
@@ -628,16 +678,28 @@ function RolesTab() {
                 ) : null}
               </span>
               <span className="flex gap-1">
-                <Pencil
-                  className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditing(r);
-                    setForm({ name: r.name, description: r.description ?? "" });
-                    setDialogOpen(true);
-                  }}
-                />
-                {!r.is_system && (
+                {access.edit ? (
+                  <Pencil
+                    className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(r);
+                      setForm({ name: r.name, description: r.description ?? "" });
+                      setDialogOpen(true);
+                    }}
+                  />
+                ) : (
+                  <Eye
+                    className="h-3.5 w-3.5 text-muted-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(r);
+                      setForm({ name: r.name, description: r.description ?? "" });
+                      setDialogOpen(true);
+                    }}
+                  />
+                )}
+                {!r.is_system && access.delete && (
                   <Trash2
                     className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive"
                     onClick={(e) => {
@@ -659,7 +721,7 @@ function RolesTab() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">Permissões — {selectedRole?.name}</h3>
-              {!selectedRole?.is_system && (
+              {!selectedRole?.is_system && access.edit && (
                 <Button
                   size="sm"
                   onClick={() => saveMatrix.mutate()}
@@ -681,7 +743,7 @@ function RolesTab() {
                     meta={m}
                     perms={permsByModule.get(m.key) ?? []}
                     checked={checked}
-                    isSystem={!!selectedRole?.is_system}
+                    isSystem={!!selectedRole?.is_system || !access.edit}
                     locked={isModuleLocked(m.key, hasViewChecked)}
                     hasViewChecked={hasViewChecked(m.key)}
                     onToggle={toggle}
@@ -694,7 +756,7 @@ function RolesTab() {
                           meta={c}
                           perms={permsByModule.get(c.key) ?? []}
                           checked={checked}
-                          isSystem={!!selectedRole?.is_system}
+                          isSystem={!!selectedRole?.is_system || !access.edit}
                           locked={isModuleLocked(c.key, hasViewChecked)}
                           hasViewChecked={hasViewChecked(c.key)}
                           onToggle={toggle}
@@ -710,57 +772,64 @@ function RolesTab() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar papel" : "Novo papel"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="role-name">Nome</Label>
-              <Input
-                id="role-name"
-                value={form.name}
-                maxLength={80}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              />
+        <ReadOnlyProvider readOnly={roleReadOnly}>
+          <DialogContent>
+            <ReadOnlyNotice show={roleReadOnly} />
+            <DialogHeader>
+              <DialogTitle>{editing ? "Editar papel" : "Novo papel"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="role-name">Nome</Label>
+                <Input
+                  id="role-name"
+                  value={form.name}
+                  maxLength={80}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="role-desc">Descrição</Label>
+                <Textarea
+                  id="role-desc"
+                  value={form.description}
+                  maxLength={300}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="role-desc">Descrição</Label>
-              <Textarea
-                id="role-desc"
-                value={form.description}
-                maxLength={300}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => saveRole.mutate()} disabled={saveRole.isPending}>
-              {saveRole.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancelar
+              </Button>
+              {(editing ? access.edit : access.create) && (
+                <Button onClick={() => saveRole.mutate()} disabled={saveRole.isPending}>
+                  {saveRole.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </ReadOnlyProvider>
       </Dialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir papel "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Só é possível excluir papéis sem usuários atribuídos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTarget && removeRole.mutate(deleteTarget.id)}>
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {access.delete && (
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir papel "{deleteTarget?.name}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Só é possível excluir papéis sem usuários atribuídos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteTarget && removeRole.mutate(deleteTarget.id)}>
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -784,6 +853,7 @@ function UserModuleRow({
   onGrant,
   onRevoke,
   onRestore,
+  editable,
 }: {
   meta: ModuleMeta;
   perms: PermissionRow[];
@@ -793,6 +863,7 @@ function UserModuleRow({
   onGrant: (permissionId: string) => void;
   onRevoke: (permissionId: string) => void;
   onRestore: (permissionId: string) => void;
+  editable: boolean;
 }) {
   const colors: Record<string, string> = {
     "inherited-on": "bg-muted text-foreground border-border",
@@ -823,17 +894,17 @@ function UserModuleRow({
               className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${colors[state]} ${rowLocked ? "opacity-40" : ""}`}
             >
               <span>{ACTION_LABELS[action] ?? action}</span>
-              {!rowLocked && state !== "granted" && (
+              {editable && !rowLocked && state !== "granted" && (
                 <button title="Conceder" className="hover:underline" onClick={() => onGrant(p.id)}>
                   +
                 </button>
               )}
-              {!rowLocked && state !== "revoked" && (
+              {editable && !rowLocked && state !== "revoked" && (
                 <button title="Revogar" className="hover:underline" onClick={() => onRevoke(p.id)}>
                   −
                 </button>
               )}
-              {!rowLocked && isOverride && (
+              {editable && !rowLocked && isOverride && (
                 <button
                   title="Restaurar padrão do papel"
                   className="hover:underline"
@@ -851,6 +922,7 @@ function UserModuleRow({
 }
 
 function UserPermissionsTab() {
+  const access = useModulePermissions("permissoes");
   const listUsersFn = useServerFn(listTenantUsers);
   const listRolesFn = useServerFn(listRoles);
   const listCatalog = useServerFn(listPermissionsCatalog);
@@ -878,7 +950,10 @@ function UserPermissionsTab() {
   const currentRoleId = user?.user_roles?.role_id ?? "";
 
   const changeRole = useMutation({
-    mutationFn: (roleId: string) => assignRole({ data: { userId: selectedUser!, roleId } }),
+    mutationFn: (roleId: string) => {
+      if (!access.edit) throw new Error("Sem permissão para editar permissões");
+      return assignRole({ data: { userId: selectedUser!, roleId } });
+    },
     onSuccess: () => {
       toast.success("Papel atualizado");
       qc.invalidateQueries({ queryKey: ["perm_users"] });
@@ -888,15 +963,19 @@ function UserPermissionsTab() {
   });
 
   const override = useMutation({
-    mutationFn: (vars: { permissionId: string; granted: boolean }) =>
-      setOverride({ data: { userId: selectedUser!, ...vars } }),
+    mutationFn: (vars: { permissionId: string; granted: boolean }) => {
+      if (!access.edit) throw new Error("Sem permissão para editar permissões");
+      return setOverride({ data: { userId: selectedUser!, ...vars } });
+    },
     onSuccess: () => refetchEffective(),
     onError: (e: Error) => toast.error(e.message),
   });
 
   const restore = useMutation({
-    mutationFn: (permissionId: string) =>
-      restoreDefault({ data: { userId: selectedUser!, permissionId } }),
+    mutationFn: (permissionId: string) => {
+      if (!access.edit) throw new Error("Sem permissão para editar permissões");
+      return restoreDefault({ data: { userId: selectedUser!, permissionId } });
+    },
     onSuccess: () => refetchEffective(),
     onError: (e: Error) => toast.error(e.message),
   });
@@ -933,7 +1012,11 @@ function UserPermissionsTab() {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <h3 className="text-sm font-semibold">{user.name}</h3>
-              <Select value={currentRoleId} onValueChange={(v) => changeRole.mutate(v)}>
+              <Select
+                value={currentRoleId}
+                disabled={!access.edit}
+                onValueChange={(v) => changeRole.mutate(v)}
+              >
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Papel" />
                 </SelectTrigger>
@@ -962,6 +1045,7 @@ function UserPermissionsTab() {
                     onGrant={(id) => override.mutate({ permissionId: id, granted: true })}
                     onRevoke={(id) => override.mutate({ permissionId: id, granted: false })}
                     onRestore={(id) => restore.mutate(id)}
+                    editable={access.edit}
                   />
                   {childModules(m.key).length > 0 && (
                     <div className="ml-5 mt-2 space-y-2 border-l pl-3">
@@ -976,6 +1060,7 @@ function UserPermissionsTab() {
                           onGrant={(id) => override.mutate({ permissionId: id, granted: true })}
                           onRevoke={(id) => override.mutate({ permissionId: id, granted: false })}
                           onRestore={(id) => restore.mutate(id)}
+                          editable={access.edit}
                         />
                       ))}
                     </div>
@@ -994,13 +1079,37 @@ function UserPermissionsTab() {
 
 type CrudRow = { id: string };
 
+function CrudDialogContent({
+  editing,
+  className = "",
+  children,
+}: {
+  editing: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const access = useCurrentModulePermissions();
+  const readOnly = editing ? !access.edit : !access.create;
+  return (
+    <ReadOnlyProvider readOnly={readOnly}>
+      <DialogContent className={`${className} ${readOnly ? "[&_button[type=submit]]:hidden" : ""}`}>
+        <ReadOnlyNotice show={readOnly} />
+        {children}
+      </DialogContent>
+    </ReadOnlyProvider>
+  );
+}
+
 function CrudHeader({ title, onNew }: { title: string; onNew: () => void }) {
+  const access = useCurrentModulePermissions();
   return (
     <div className="flex items-center justify-between">
       <h3 className="text-sm font-semibold">{title}</h3>
-      <Button size="sm" onClick={onNew}>
-        <Plus className="h-4 w-4 mr-1" /> Novo
-      </Button>
+      {access.create && (
+        <Button size="sm" onClick={onNew}>
+          <Plus className="h-4 w-4 mr-1" /> Novo
+        </Button>
+      )}
     </div>
   );
 }
@@ -1014,14 +1123,17 @@ function RowActions<T extends CrudRow>({
   onEdit: (r: T) => void;
   onDelete: (r: T) => void;
 }) {
+  const access = useCurrentModulePermissions();
   return (
     <div className="text-right">
       <Button variant="ghost" size="icon" onClick={() => onEdit(row)}>
-        <Pencil className="h-4 w-4" />
+        {access.edit ? <Pencil className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </Button>
-      <Button variant="ghost" size="icon" onClick={() => onDelete(row)}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {access.delete && (
+        <Button variant="ghost" size="icon" onClick={() => onDelete(row)}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -1167,7 +1279,7 @@ function DepartmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <CrudDialogContent editing={!!editing}>
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Novo"} departamento</DialogTitle>
         </DialogHeader>
@@ -1201,7 +1313,7 @@ function DepartmentDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </CrudDialogContent>
     </Dialog>
   );
 }
@@ -1364,7 +1476,7 @@ function ServiceFamilyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <CrudDialogContent editing={!!editing}>
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Nova"} família de serviços</DialogTitle>
         </DialogHeader>
@@ -1404,7 +1516,7 @@ function ServiceFamilyDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </CrudDialogContent>
     </Dialog>
   );
 }
@@ -1433,6 +1545,7 @@ const providedServiceSchema = z.object({
 });
 
 function ProvidedServicesTab() {
+  const access = useCurrentModulePermissions();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProvidedService | null>(null);
@@ -1499,15 +1612,17 @@ function ProvidedServicesTab() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Novo
-          </Button>
+          {access.create && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Novo
+            </Button>
+          )}
         </div>
       </div>
       {isLoading ? (
@@ -1653,7 +1768,7 @@ function ProvidedServiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <CrudDialogContent editing={!!editing}>
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Novo"} serviço prestado</DialogTitle>
         </DialogHeader>
@@ -1735,7 +1850,7 @@ function ProvidedServiceDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </CrudDialogContent>
     </Dialog>
   );
 }
@@ -1953,6 +2068,8 @@ function ContractTypeDialog({
   editing: ContractType | null;
 }) {
   const qc = useQueryClient();
+  const access = useCurrentModulePermissions();
+  const readOnly = editing ? !access.edit : !access.create;
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -2097,7 +2214,7 @@ function ContractTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <CrudDialogContent editing={!!editing} className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Novo"} tipo de contrato</DialogTitle>
         </DialogHeader>
@@ -2166,7 +2283,13 @@ function ContractTypeDialog({
             <div className="col-span-2 space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold">Serviços</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addService}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={addService}
+                  disabled={readOnly}
+                >
                   <Plus className="h-3 w-3 mr-1" /> Adicionar serviços
                 </Button>
               </div>
@@ -2211,6 +2334,7 @@ function ContractTypeDialog({
                     <Button
                       type="button"
                       size="icon"
+                      disabled={readOnly}
                       variant="ghost"
                       onClick={() => removeService(i)}
                     >
@@ -2230,7 +2354,13 @@ function ContractTypeDialog({
             <div className="col-span-2 space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold">Faixas de valor por equipamento</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addTier}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={addTier}
+                  disabled={readOnly}
+                >
                   <Plus className="h-3 w-3 mr-1" /> Adicionar faixa
                 </Button>
               </div>
@@ -2266,7 +2396,7 @@ function ContractTypeDialog({
                       type="button"
                       size="icon"
                       variant="ghost"
-                      disabled={form.equipment_tiers.length <= 1}
+                      disabled={readOnly || form.equipment_tiers.length <= 1}
                       onClick={() => removeTier(i)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -2313,7 +2443,7 @@ function ContractTypeDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </CrudDialogContent>
     </Dialog>
   );
 }
@@ -2507,7 +2637,7 @@ function SlaDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <CrudDialogContent editing={!!editing}>
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Nova"} política de SLA</DialogTitle>
         </DialogHeader>
@@ -2574,7 +2704,7 @@ function SlaDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </CrudDialogContent>
     </Dialog>
   );
 }
@@ -2726,7 +2856,10 @@ function CannedDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
+      <CrudDialogContent
+        editing={!!editing}
+        className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Nova"} resposta padrão</DialogTitle>
         </DialogHeader>
@@ -2763,7 +2896,7 @@ function CannedDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </CrudDialogContent>
     </Dialog>
   );
 }
@@ -2773,6 +2906,7 @@ function CannedDialog({
 type StickerRow = { id: string; name: string; storage_path: string };
 
 function StickersTab() {
+  const access = useModulePermissions("figurinhas");
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [toDelete, setToDelete] = useState<StickerRow | null>(null);
@@ -2800,6 +2934,7 @@ function StickersTab() {
   });
 
   const onUpload = async (files: FileList | null) => {
+    if (!access.create) return;
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
@@ -2837,6 +2972,7 @@ function StickersTab() {
 
   const del = useMutation({
     mutationFn: async (row: StickerRow) => {
+      if (!access.delete) throw new Error("Sem permissão para excluir figurinhas");
       await supabase.storage.from("ticket-attachments").remove([row.storage_path]);
       const { error } = await supabase.from("stickers").delete().eq("id", row.id);
       if (error) throw error;
@@ -2858,23 +2994,29 @@ function StickersTab() {
             Imagens reutilizáveis para envio no WhatsApp (recomendado .webp 512×512).
           </p>
         </div>
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              onUpload(e.target.files);
-              e.currentTarget.value = "";
-            }}
-          />
-          <Button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-            <Upload className="mr-2 h-4 w-4" />
-            {uploading ? "Enviando…" : "Adicionar"}
-          </Button>
-        </div>
+        {access.create && (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                onUpload(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+            <Button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {uploading ? "Enviando…" : "Adicionar"}
+            </Button>
+          </div>
+        )}
       </div>
       {isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Carregando…</Card>
@@ -2888,13 +3030,15 @@ function StickersTab() {
           {data.map((s) => (
             <Card key={s.id} className="group relative aspect-square overflow-hidden p-2">
               <img src={s.url} alt={s.name} className="h-full w-full object-contain" />
-              <button
-                onClick={() => setToDelete(s)}
-                className="absolute right-1 top-1 hidden rounded bg-destructive/90 p-1 text-destructive-foreground group-hover:block"
-                title="Remover"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+              {access.delete && (
+                <button
+                  onClick={() => setToDelete(s)}
+                  className="absolute right-1 top-1 hidden rounded bg-destructive/90 p-1 text-destructive-foreground group-hover:block"
+                  title="Remover"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
               <div className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1 text-[10px] text-muted-foreground">
                 {s.name}
               </div>
@@ -2902,17 +3046,19 @@ function StickersTab() {
           ))}
         </div>
       )}
-      <ConfirmDelete
-        open={!!toDelete}
-        onCancel={() => setToDelete(null)}
-        onConfirm={() => toDelete && del.mutate(toDelete)}
-        title="Remover figurinha?"
-        body={
-          <>
-            <b>{toDelete?.name}</b> será removida.
-          </>
-        }
-      />
+      {access.delete && (
+        <ConfirmDelete
+          open={!!toDelete}
+          onCancel={() => setToDelete(null)}
+          onConfirm={() => toDelete && del.mutate(toDelete)}
+          title="Remover figurinha?"
+          body={
+            <>
+              <b>{toDelete?.name}</b> será removida.
+            </>
+          }
+        />
+      )}
     </div>
   );
 }
@@ -2982,6 +3128,7 @@ function loadChannelConfig(key: string): ChannelConfig {
 }
 
 function ChannelsTab() {
+  const access = useModulePermissions("canais");
   const [configuring, setConfiguring] = useState<string | null>(null);
   return (
     <div className="space-y-3">
@@ -3008,7 +3155,7 @@ function ChannelsTab() {
                   disabled={!active}
                   onClick={() => active && setConfiguring(c.key)}
                 >
-                  {active ? "Configurar" : "Conectar"}
+                  {active ? (access.edit ? "Configurar" : "Visualizar") : "Conectar"}
                 </Button>
               </div>
             </Card>
@@ -3023,6 +3170,7 @@ function ChannelsTab() {
         <ChannelConfigDialog
           channelKey={configuring}
           channelLabel={CHANNELS.find((c) => c.key === configuring)?.label ?? ""}
+          readOnly={!access.edit}
           onClose={() => setConfiguring(null)}
         />
       )}
@@ -3034,14 +3182,17 @@ function ChannelConfigDialog({
   channelKey,
   channelLabel,
   onClose,
+  readOnly,
 }: {
   channelKey: string;
   channelLabel: string;
   onClose: () => void;
+  readOnly: boolean;
 }) {
   const [cfg, setCfg] = useState<ChannelConfig>(() => loadChannelConfig(channelKey));
 
   function save() {
+    if (readOnly) return;
     try {
       localStorage.setItem(`apticket:channel:${channelKey}`, JSON.stringify(cfg));
       toast.success(`Canal ${channelLabel} configurado`);
@@ -3122,26 +3273,29 @@ function ChannelConfigDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
-        <DialogHeader>
-          <DialogTitle>Configurar canal — {channelLabel}</DialogTitle>
-        </DialogHeader>
-        {channelKey === "email" ? (
-          <EmailImapConfig onSaved={onClose} />
-        ) : channelKey === "whatsapp" ? (
-          <WhatsAppConfig onSaved={onClose} />
-        ) : (
-          generalSection
-        )}
-        {channelKey !== "whatsapp" && channelKey !== "email" && (
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button onClick={save}>Salvar</Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
+      <ReadOnlyProvider readOnly={readOnly}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
+          <ReadOnlyNotice show={readOnly} />
+          <DialogHeader>
+            <DialogTitle>Configurar canal — {channelLabel}</DialogTitle>
+          </DialogHeader>
+          {channelKey === "email" ? (
+            <EmailImapConfig onSaved={onClose} readOnly={readOnly} />
+          ) : channelKey === "whatsapp" ? (
+            <WhatsAppConfig onSaved={onClose} readOnly={readOnly} />
+          ) : (
+            generalSection
+          )}
+          {channelKey !== "whatsapp" && channelKey !== "email" && (
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              {!readOnly && <Button onClick={save}>Salvar</Button>}
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </ReadOnlyProvider>
     </Dialog>
   );
 }
@@ -3161,6 +3315,8 @@ function ConfirmDelete({
   title: string;
   body: React.ReactNode;
 }) {
+  const access = useCurrentModulePermissions();
+  if (!access.delete) return null;
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialogContent>
@@ -3187,7 +3343,7 @@ type WhatsAppSettings = {
   whatsapp_connected_number: string | null;
 };
 
-function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
+function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: boolean }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<WhatsAppSettings>({
     whatsapp_enabled: false,
@@ -3265,13 +3421,15 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   const hasSavedToken = !!data?.baseUrl;
 
   const save = useMutation({
-    mutationFn: () =>
-      backendClient.post<WhatsappInstanceDto>("/channels/whatsapp/instances", {
+    mutationFn: () => {
+      if (readOnly) throw new Error("Sem permissão para editar canais");
+      return backendClient.post<WhatsappInstanceDto>("/channels/whatsapp/instances", {
         baseUrl: form.whatsapp_uazapi_base_url.trim().replace(/\/+$/, ""),
         token: form.whatsapp_uazapi_token.trim() || undefined,
         instanceName: form.whatsapp_uazapi_instance.trim() || undefined,
         enabled: form.whatsapp_enabled,
-      }),
+      });
+    },
     onSuccess: () => {
       toast.success("WhatsApp configurado");
       qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
@@ -3281,6 +3439,7 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   });
 
   async function test() {
+    if (readOnly) return;
     setTesting(true);
     try {
       const r = await backendClient.get<{
@@ -3305,6 +3464,7 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   }
 
   async function connect() {
+    if (readOnly) return;
     setConnecting(true);
     setQrCode(null);
     try {
@@ -3324,6 +3484,7 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
   }
 
   async function disconnect() {
+    if (readOnly) return;
     try {
       await backendClient.post("/channels/whatsapp/instances/me/disconnect");
       setForm((f) => ({ ...f, whatsapp_connected_number: null }));
@@ -3388,7 +3549,13 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={testing} onClick={test}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={testing || readOnly}
+            onClick={test}
+          >
             {testing ? "Testando…" : "Testar conexão"}
           </Button>
           <Button
@@ -3397,6 +3564,7 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
             size="sm"
             disabled={
               connecting ||
+              readOnly ||
               !form.whatsapp_uazapi_base_url ||
               (!hasSavedToken && !form.whatsapp_uazapi_token)
             }
@@ -3404,7 +3572,7 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
           >
             {connecting ? "Gerando QR…" : "Conectar / Gerar QR"}
           </Button>
-          {form.whatsapp_connected_number && (
+          {form.whatsapp_connected_number && !readOnly && (
             <Button type="button" variant="ghost" size="sm" onClick={disconnect}>
               Desconectar
             </Button>
@@ -3443,9 +3611,11 @@ function WhatsAppConfig({ onSaved }: { onSaved: () => void }) {
         <Button variant="outline" onClick={onSaved}>
           Cancelar
         </Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? "Salvando…" : "Salvar"}
-        </Button>
+        {!readOnly && (
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? "Salvando…" : "Salvar"}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -3469,7 +3639,7 @@ type EmailSettings = {
 
 const POLL_INTERVAL_OPTIONS = [1, 2, 5, 10, 15, 30, 60];
 
-function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
+function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: boolean }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<EmailSettings>({
     email_enabled: false,
@@ -3518,6 +3688,7 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
 
   const save = useMutation({
     mutationFn: async () => {
+      if (readOnly) throw new Error("Sem permissão para editar canais");
       const port = Number(form.email_imap_port);
       const interval = Number(form.email_poll_interval_minutes);
       const smtpPort = Number(form.email_smtp_port);
@@ -3548,6 +3719,7 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
   });
 
   async function test() {
+    if (readOnly) return;
     if (
       !form.email_imap_host ||
       !form.email_imap_user ||
@@ -3670,7 +3842,13 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
           </div>
         </div>
         <div className="flex justify-end">
-          <Button type="button" variant="outline" size="sm" disabled={testing} onClick={test}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={testing || readOnly}
+            onClick={test}
+          >
             {testing ? "Testando…" : "Testar conexão"}
           </Button>
         </div>
@@ -3723,9 +3901,11 @@ function EmailImapConfig({ onSaved }: { onSaved: () => void }) {
         <Button variant="outline" onClick={onSaved}>
           Cancelar
         </Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? "Salvando…" : "Salvar"}
-        </Button>
+        {!readOnly && (
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? "Salvando…" : "Salvar"}
+          </Button>
+        )}
       </div>
     </div>
   );

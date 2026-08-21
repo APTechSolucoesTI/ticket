@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Building2, Search, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Search, Loader2, Eye } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ, isValidWebsite, unmask } from "@/lib/masks";
+import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/customers")({
   head: () => ({ meta: [{ title: "Clientes — APTicket" }] }),
@@ -104,6 +105,7 @@ const schema = z.object({
 });
 
 function CustomersPage() {
+  const access = useModulePermissions("clientes");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
@@ -137,15 +139,17 @@ function CustomersPage() {
         title="Clientes"
         subtitle="Empresas atendidas, contratos e franquia de horas."
         actions={
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Novo cliente
-          </Button>
+          access.create ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Novo cliente
+            </Button>
+          ) : undefined
         }
       />
 
@@ -234,35 +238,45 @@ function CustomersPage() {
                     setOpen(true);
                   }}
                 >
-                  <Pencil className="h-4 w-4" />
+                  {access.edit ? <Pencil className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {access.delete && (
+                  <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           />
         </Card>
       )}
 
-      <CompanyDialog open={open} onOpenChange={setOpen} editing={editing} />
+      <CompanyDialog
+        open={open}
+        onOpenChange={setOpen}
+        editing={editing}
+        readOnly={editing ? !access.edit : !access.create}
+      />
 
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover cliente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação removerá <b>{toDelete?.name}</b> e todos os contatos e contratos vinculados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {access.delete && (
+        <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover cliente?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação removerá <b>{toDelete?.name}</b> e todos os contatos e contratos
+                vinculados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -271,10 +285,12 @@ function CompanyDialog({
   open,
   onOpenChange,
   editing,
+  readOnly,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   editing: Company | null;
+  readOnly: boolean;
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
@@ -378,243 +394,255 @@ function CompanyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Editar cliente" : "Novo cliente"}</DialogTitle>
-        </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const r = schema.safeParse(form);
-            if (!r.success) {
-              toast.error(r.error.issues[0].message);
-              return;
-            }
-            save.mutate(r.data);
-          }}
-        >
-          <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="dados">Dados</TabsTrigger>
-              <TabsTrigger value="endereco">Endereço</TabsTrigger>
-            </TabsList>
-            <TabsContent value="dados" className="grid grid-cols-2 gap-3 mt-4">
-              <div className="col-span-2">
-                <Label>Razão social *</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Nome fantasia</Label>
-                <Input
-                  value={form.fantasy_name}
-                  onChange={(e) => setForm({ ...form, fantasy_name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>CNPJ</Label>
-                <div className="flex gap-2">
+      <ReadOnlyProvider readOnly={readOnly}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>
+              {readOnly ? "Visualizar cliente" : editing ? "Editar cliente" : "Novo cliente"}
+            </DialogTitle>
+          </DialogHeader>
+          <ReadOnlyNotice show={readOnly} />
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (readOnly) return;
+              const r = schema.safeParse(form);
+              if (!r.success) {
+                toast.error(r.error.issues[0].message);
+                return;
+              }
+              save.mutate(r.data);
+            }}
+          >
+            <Tabs defaultValue="dados" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="dados">Dados</TabsTrigger>
+                <TabsTrigger value="endereco">Endereço</TabsTrigger>
+              </TabsList>
+              <TabsContent value="dados" className="grid grid-cols-2 gap-3 mt-4">
+                <div className="col-span-2">
+                  <Label>Razão social *</Label>
                   <Input
-                    value={form.cnpj}
-                    onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })}
-                    placeholder="00.000.000/0000-00"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={lookingUp}
-                    onClick={async () => {
-                      const digits = unmask(form.cnpj);
-                      if (digits.length !== 14 || !isValidCNPJ(digits)) {
-                        toast.error("Informe um CNPJ válido");
-                        return;
-                      }
-                      setLookingUp(true);
-                      try {
-                        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-                        if (!res.ok) throw new Error("CNPJ não encontrado");
-                        const d = await res.json();
-                        setForm((f) => ({
-                          ...f,
-                          name: d.razao_social || f.name,
-                          fantasy_name: d.nome_fantasia || f.fantasy_name,
-                          segment: d.cnae_fiscal_descricao || f.segment,
-                          phone: d.ddd_telefone_1 ? maskPhone(d.ddd_telefone_1) : f.phone,
-                          address_zip: d.cep ? maskCEP(String(d.cep)) : f.address_zip,
-                          address_street: d.logradouro || f.address_street,
-                          address_number: d.numero ? String(d.numero) : f.address_number,
-                          address_neighborhood: d.bairro || f.address_neighborhood,
-                          address_complement: d.complemento || f.address_complement,
-                          address_city: d.municipio || f.address_city,
-                          address_state: d.uf || f.address_state,
-                        }));
-                        toast.success("Dados preenchidos pela Receita Federal");
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Falha ao consultar CNPJ");
-                      } finally {
-                        setLookingUp(false);
-                      }
-                    }}
-                  >
-                    {lookingUp ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
-              </div>
-              <div>
-                <Label>Segmento</Label>
-                <Input
-                  value={form.segment}
-                  onChange={(e) => setForm({ ...form, segment: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Telefone</Label>
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-              <div className="col-span-2">
-                <Label>Website</Label>
-                <Input
-                  value={form.website}
-                  onChange={(e) => setForm({ ...form, website: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
                 <div>
-                  <div className="text-sm font-medium">Cliente VIP</div>
-                  <div className="text-xs text-muted-foreground">Prioriza tickets na inbox.</div>
-                </div>
-                <Switch
-                  checked={form.is_vip}
-                  onCheckedChange={(v) => setForm({ ...form, is_vip: v })}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label>Observações</Label>
-                <Textarea
-                  rows={3}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </div>
-            </TabsContent>
-            <TabsContent value="endereco" className="grid grid-cols-2 gap-3 mt-4">
-              <div>
-                <Label>CEP</Label>
-                <div className="flex gap-2">
+                  <Label>Nome fantasia</Label>
                   <Input
-                    value={form.address_zip}
-                    onChange={(e) => setForm({ ...form, address_zip: maskCEP(e.target.value) })}
-                    placeholder="00000-000"
+                    value={form.fantasy_name}
+                    onChange={(e) => setForm({ ...form, fantasy_name: e.target.value })}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={cepLookup}
-                    onClick={async () => {
-                      const digits = unmask(form.address_zip);
-                      if (digits.length !== 8) {
-                        toast.error("Informe um CEP válido");
-                        return;
-                      }
-                      setCepLookup(true);
-                      try {
-                        const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${digits}`);
-                        if (!res.ok) throw new Error("CEP não encontrado");
-                        const d = await res.json();
-                        setForm((f) => ({
-                          ...f,
-                          address_street: d.street || f.address_street,
-                          address_neighborhood: d.neighborhood || f.address_neighborhood,
-                          address_city: d.city || f.address_city,
-                          address_state: d.state || f.address_state,
-                        }));
-                        toast.success("Endereço preenchido pelo CEP");
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Falha ao consultar CEP");
-                      } finally {
-                        setCepLookup(false);
-                      }
-                    }}
-                  >
-                    {cepLookup ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
-              </div>
-              <div>
-                <Label>Estado (UF)</Label>
-                <Input
-                  maxLength={2}
-                  value={form.address_state}
-                  onChange={(e) =>
-                    setForm({ ...form, address_state: e.target.value.toUpperCase() })
-                  }
-                  placeholder="SP"
-                />
-              </div>
-              <div className="col-span-2">
-                <Label>Logradouro</Label>
-                <Input
-                  value={form.address_street}
-                  onChange={(e) => setForm({ ...form, address_street: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Número</Label>
-                <Input
-                  value={form.address_number}
-                  onChange={(e) => setForm({ ...form, address_number: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Bairro</Label>
-                <Input
-                  value={form.address_neighborhood}
-                  onChange={(e) => setForm({ ...form, address_neighborhood: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Complemento</Label>
-                <Input
-                  value={form.address_complement}
-                  onChange={(e) => setForm({ ...form, address_complement: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label>Cidade</Label>
-                <Input
-                  value={form.address_city}
-                  onChange={(e) => setForm({ ...form, address_city: e.target.value })}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+                <div>
+                  <Label>CNPJ</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.cnpj}
+                      onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })}
+                      placeholder="00.000.000/0000-00"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={readOnly || lookingUp}
+                      onClick={async () => {
+                        const digits = unmask(form.cnpj);
+                        if (digits.length !== 14 || !isValidCNPJ(digits)) {
+                          toast.error("Informe um CNPJ válido");
+                          return;
+                        }
+                        setLookingUp(true);
+                        try {
+                          const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+                          if (!res.ok) throw new Error("CNPJ não encontrado");
+                          const d = await res.json();
+                          setForm((f) => ({
+                            ...f,
+                            name: d.razao_social || f.name,
+                            fantasy_name: d.nome_fantasia || f.fantasy_name,
+                            segment: d.cnae_fiscal_descricao || f.segment,
+                            phone: d.ddd_telefone_1 ? maskPhone(d.ddd_telefone_1) : f.phone,
+                            address_zip: d.cep ? maskCEP(String(d.cep)) : f.address_zip,
+                            address_street: d.logradouro || f.address_street,
+                            address_number: d.numero ? String(d.numero) : f.address_number,
+                            address_neighborhood: d.bairro || f.address_neighborhood,
+                            address_complement: d.complemento || f.address_complement,
+                            address_city: d.municipio || f.address_city,
+                            address_state: d.uf || f.address_state,
+                          }));
+                          toast.success("Dados preenchidos pela Receita Federal");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error ? err.message : "Falha ao consultar CNPJ",
+                          );
+                        } finally {
+                          setLookingUp(false);
+                        }
+                      }}
+                    >
+                      {lookingUp ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label>Segmento</Label>
+                  <Input
+                    value={form.segment}
+                    onChange={(e) => setForm({ ...form, segment: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Telefone</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Website</Label>
+                  <Input
+                    value={form.website}
+                    onChange={(e) => setForm({ ...form, website: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <div className="text-sm font-medium">Cliente VIP</div>
+                    <div className="text-xs text-muted-foreground">Prioriza tickets na inbox.</div>
+                  </div>
+                  <Switch
+                    checked={form.is_vip}
+                    onCheckedChange={(v) => setForm({ ...form, is_vip: v })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Observações</Label>
+                  <Textarea
+                    rows={3}
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="endereco" className="grid grid-cols-2 gap-3 mt-4">
+                <div>
+                  <Label>CEP</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.address_zip}
+                      onChange={(e) => setForm({ ...form, address_zip: maskCEP(e.target.value) })}
+                      placeholder="00000-000"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={readOnly || cepLookup}
+                      onClick={async () => {
+                        const digits = unmask(form.address_zip);
+                        if (digits.length !== 8) {
+                          toast.error("Informe um CEP válido");
+                          return;
+                        }
+                        setCepLookup(true);
+                        try {
+                          const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${digits}`);
+                          if (!res.ok) throw new Error("CEP não encontrado");
+                          const d = await res.json();
+                          setForm((f) => ({
+                            ...f,
+                            address_street: d.street || f.address_street,
+                            address_neighborhood: d.neighborhood || f.address_neighborhood,
+                            address_city: d.city || f.address_city,
+                            address_state: d.state || f.address_state,
+                          }));
+                          toast.success("Endereço preenchido pelo CEP");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error ? err.message : "Falha ao consultar CEP",
+                          );
+                        } finally {
+                          setCepLookup(false);
+                        }
+                      }}
+                    >
+                      {cepLookup ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label>Estado (UF)</Label>
+                  <Input
+                    maxLength={2}
+                    value={form.address_state}
+                    onChange={(e) =>
+                      setForm({ ...form, address_state: e.target.value.toUpperCase() })
+                    }
+                    placeholder="SP"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Logradouro</Label>
+                  <Input
+                    value={form.address_street}
+                    onChange={(e) => setForm({ ...form, address_street: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Número</Label>
+                  <Input
+                    value={form.address_number}
+                    onChange={(e) => setForm({ ...form, address_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Bairro</Label>
+                  <Input
+                    value={form.address_neighborhood}
+                    onChange={(e) => setForm({ ...form, address_neighborhood: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Complemento</Label>
+                  <Input
+                    value={form.address_complement}
+                    onChange={(e) => setForm({ ...form, address_complement: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Cidade</Label>
+                  <Input
+                    value={form.address_city}
+                    onChange={(e) => setForm({ ...form, address_city: e.target.value })}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                {readOnly ? "Fechar" : "Cancelar"}
+              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </ReadOnlyProvider>
     </Dialog>
   );
 }
