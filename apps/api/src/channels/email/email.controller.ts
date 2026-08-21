@@ -36,7 +36,7 @@ export class EmailController {
   }
 
   @Post()
-  @RequirePermission('canais', 'manage')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({
     summary: 'Cria/atualiza a conta de e-mail (IMAP/SMTP) do tenant',
   })
@@ -45,21 +45,21 @@ export class EmailController {
   }
 
   @Patch(':id')
-  @RequirePermission('canais', 'manage')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({ summary: 'Atualiza a conta de e-mail' })
   update(@CurrentUser() auth: AuthContext, @Body() dto: UpsertEmailAccountDto) {
     return this.accounts.upsert(auth.tenantId, dto);
   }
 
   @Delete(':id')
-  @RequirePermission('canais', 'manage')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({ summary: 'Remove a configuração de e-mail do tenant' })
   remove(@CurrentUser() auth: AuthContext) {
     return this.accounts.remove(auth.tenantId);
   }
 
   @Post(':id/test-connection')
-  @RequirePermission('canais', 'manage')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({
     summary: 'Testa IMAP com as credenciais salvas ou informadas no corpo',
   })
@@ -71,7 +71,7 @@ export class EmailController {
   }
 
   @Post(':id/sync')
-  @RequirePermission('canais', 'send')
+  @RequirePermission('fila_email', 'create')
   @ApiOperation({
     summary: "Sincroniza a caixa agora (botão 'Sincronizar agora')",
   })
@@ -80,7 +80,7 @@ export class EmailController {
   }
 
   @Post(':id/send')
-  @RequirePermission('canais', 'send')
+  @RequirePermission('tickets', 'edit')
   @ApiOperation({ summary: 'Responde um ticket de origem e-mail' })
   send(@CurrentUser() auth: AuthContext, @Body() dto: SendEmailReplyDto) {
     return this.reply.reply(

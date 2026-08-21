@@ -14,23 +14,27 @@ import {
   Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/lib/use-permissions";
 
+// `module: null` = sempre visível (Dashboard não tem permissão própria).
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/tickets", label: "Tickets", icon: Inbox },
-  { to: "/whatsapp-pending", label: "Fila WhatsApp", icon: MessageCircle },
-  { to: "/email-pending", label: "Fila E-mail", icon: Mail },
-  { to: "/customers", label: "Clientes", icon: Building2 },
-  { to: "/contacts", label: "Contatos", icon: Users },
-  { to: "/equipments", label: "Equipamentos", icon: Monitor },
-  { to: "/contracts", label: "Contratos", icon: FileText },
-  { to: "/kb/admin", label: "Base de Conhecimento", icon: BookOpen },
-  { to: "/reports", label: "Relatórios", icon: BarChart3 },
-  { to: "/settings", label: "Configurações", icon: Settings },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: null },
+  { to: "/tickets", label: "Tickets", icon: Inbox, module: "tickets" },
+  { to: "/whatsapp-pending", label: "Fila WhatsApp", icon: MessageCircle, module: "fila_whatsapp" },
+  { to: "/email-pending", label: "Fila E-mail", icon: Mail, module: "fila_email" },
+  { to: "/customers", label: "Clientes", icon: Building2, module: "clientes" },
+  { to: "/contacts", label: "Contatos", icon: Users, module: "contatos" },
+  { to: "/equipments", label: "Equipamentos", icon: Monitor, module: "equipamentos" },
+  { to: "/contracts", label: "Contratos", icon: FileText, module: "contratos" },
+  { to: "/kb/admin", label: "Base de Conhecimento", icon: BookOpen, module: "base_conhecimento" },
+  { to: "/reports", label: "Relatórios", icon: BarChart3, module: "relatorios" },
+  { to: "/settings", label: "Configurações", icon: Settings, module: "configuracoes" },
 ] as const;
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const perms = usePermissions();
+  const nav = NAV.filter((item) => item.module === null || perms.has(item.module, "view"));
 
   return (
     <aside className="hidden lg:flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
@@ -46,7 +50,7 @@ export function AppSidebar() {
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-2 text-sm">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
           return (

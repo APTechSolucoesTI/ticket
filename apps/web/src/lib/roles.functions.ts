@@ -2,7 +2,7 @@
 // passa pelo client RLS-scoped do usuário (`context.supabase`, via
 // requireSupabaseAuth) — a própria migration 20260821000000 já gate
 // insert/update/delete em apticket.roles/role_permissions por
-// has_permission(auth.uid(),'papeis','manage'), então o Postgres barra quem
+// has_permission(auth.uid(),'papeis','create'/'edit'/'delete'), então o Postgres barra quem
 // não tem a permissão mesmo que este código tivesse um bug. O log de
 // auditoria usa supabaseAdmin (service_role) porque permission_audit_log não
 // tem policy pra authenticated (só server-side escreve lá, mesmo padrão de

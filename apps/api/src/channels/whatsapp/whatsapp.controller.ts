@@ -30,7 +30,7 @@ export class WhatsappController {
   }
 
   @Post()
-  @RequirePermission('canais', 'manage')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({ summary: 'Cria/atualiza a instância uazapi do tenant' })
   create(
     @CurrentUser() auth: AuthContext,
@@ -52,14 +52,14 @@ export class WhatsappController {
   }
 
   @Post(':id/disconnect')
-  @RequirePermission('canais', 'manage')
+  @RequirePermission('canais', 'edit')
   @ApiOperation({ summary: 'Desconecta a instância' })
   disconnect(@CurrentUser() auth: AuthContext) {
     return this.instances.disconnect(auth.tenantId);
   }
 
   @Post(':id/send')
-  @RequirePermission('canais', 'send')
+  @RequirePermission('tickets', 'edit')
   @ApiOperation({ summary: 'Responde um ticket de origem WhatsApp' })
   send(@CurrentUser() auth: AuthContext, @Body() dto: WhatsappSendMessageDto) {
     return this.reply.reply(

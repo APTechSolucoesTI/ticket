@@ -67,6 +67,13 @@ import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-type
 import { inviteUser, resendInvite } from "@/lib/users.functions";
 import { usePermissions } from "@/lib/use-permissions";
 import {
+  MODULE_ORDER,
+  ACTION_LABELS,
+  childModules,
+  isModuleLocked,
+  type ModuleMeta,
+} from "@/lib/permission-catalog";
+import {
   listRoles,
   listPermissionsCatalog,
   createRole,
@@ -94,70 +101,109 @@ async function getTenantId() {
   return data.tenant_id;
 }
 
+const SETTINGS_TABS = [
+  { value: "company", module: "empresa", label: "Empresa" },
+  { value: "users", module: "usuarios", label: "Usuários" },
+  { value: "roles", module: "papeis", label: "Papéis" },
+  { value: "user-permissions", module: "permissoes", label: "Permissões" },
+  { value: "departments", module: "departamentos", label: "Departamentos" },
+  { value: "service-families", module: "familia_servicos", label: "Família de Serviços" },
+  { value: "provided-services", module: "servicos_prestados", label: "Serviços Prestados" },
+  { value: "contract-types", module: "tipos_contrato", label: "Tipos de Contrato" },
+  { value: "slas", module: "slas", label: "SLAs" },
+  { value: "canned", module: "respostas_padrao", label: "Respostas Padrão" },
+  { value: "stickers", module: "figurinhas", label: "Figurinhas" },
+  { value: "channels", module: "canais", label: "Canais" },
+] as const;
+
 function SettingsPage() {
   const perms = usePermissions();
-  const canManageRoles = perms.has("papeis", "manage");
+  if (perms.loading) {
+    return <div className="p-6 text-sm text-muted-foreground">Carregando…</div>;
+  }
+  if (!perms.has("configuracoes", "view")) {
+    return (
+      <div className="p-6">
+        <EmptyStub title="Sem acesso" message="Você não tem permissão pra ver Configurações." />
+      </div>
+    );
+  }
+  const visibleTabs = SETTINGS_TABS.filter((t) => perms.has(t.module, "view"));
+  const firstTab = visibleTabs[0]?.value ?? "company";
   return (
     <div className="p-6 space-y-4">
       <PageHeader
         title="Configurações"
         subtitle="Usuários, departamentos, SLAs, tipos de contrato, canais e respostas padrão."
       />
-      <Tabs defaultValue="company">
+      <Tabs defaultValue={firstTab}>
         <TabsList>
-          <TabsTrigger value="company">Empresa</TabsTrigger>
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-          {canManageRoles ? <TabsTrigger value="roles">Papéis</TabsTrigger> : null}
-          {canManageRoles ? <TabsTrigger value="user-permissions">Permissões</TabsTrigger> : null}
-          <TabsTrigger value="departments">Departamentos</TabsTrigger>
-          <TabsTrigger value="service-families">Família de Serviços</TabsTrigger>
-          <TabsTrigger value="provided-services">Serviços Prestados</TabsTrigger>
-          <TabsTrigger value="contract-types">Tipos de Contrato</TabsTrigger>
-          <TabsTrigger value="slas">SLAs</TabsTrigger>
-          <TabsTrigger value="canned">Respostas Padrão</TabsTrigger>
-          <TabsTrigger value="stickers">Figurinhas</TabsTrigger>
-          <TabsTrigger value="channels">Canais</TabsTrigger>
+          {visibleTabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="company" className="mt-4">
-          <CompanyTab />
-        </TabsContent>
-        <TabsContent value="users" className="mt-4">
-          <UsersTab />
-        </TabsContent>
-        {canManageRoles ? (
+        {perms.has("empresa", "view") && (
+          <TabsContent value="company" className="mt-4">
+            <CompanyTab />
+          </TabsContent>
+        )}
+        {perms.has("usuarios", "view") && (
+          <TabsContent value="users" className="mt-4">
+            <UsersTab />
+          </TabsContent>
+        )}
+        {perms.has("papeis", "view") && (
           <TabsContent value="roles" className="mt-4">
             <RolesTab />
           </TabsContent>
-        ) : null}
-        {canManageRoles ? (
+        )}
+        {perms.has("permissoes", "view") && (
           <TabsContent value="user-permissions" className="mt-4">
             <UserPermissionsTab />
           </TabsContent>
-        ) : null}
-        <TabsContent value="departments" className="mt-4">
-          <DepartmentsTab />
-        </TabsContent>
-        <TabsContent value="service-families" className="mt-4">
-          <ServiceFamiliesTab />
-        </TabsContent>
-        <TabsContent value="provided-services" className="mt-4">
-          <ProvidedServicesTab />
-        </TabsContent>
-        <TabsContent value="contract-types" className="mt-4">
-          <ContractTypesTab />
-        </TabsContent>
-        <TabsContent value="slas" className="mt-4">
-          <SlasTab />
-        </TabsContent>
-        <TabsContent value="canned" className="mt-4">
-          <CannedTab />
-        </TabsContent>
-        <TabsContent value="stickers" className="mt-4">
-          <StickersTab />
-        </TabsContent>
-        <TabsContent value="channels" className="mt-4">
-          <ChannelsTab />
-        </TabsContent>
+        )}
+        {perms.has("departamentos", "view") && (
+          <TabsContent value="departments" className="mt-4">
+            <DepartmentsTab />
+          </TabsContent>
+        )}
+        {perms.has("familia_servicos", "view") && (
+          <TabsContent value="service-families" className="mt-4">
+            <ServiceFamiliesTab />
+          </TabsContent>
+        )}
+        {perms.has("servicos_prestados", "view") && (
+          <TabsContent value="provided-services" className="mt-4">
+            <ProvidedServicesTab />
+          </TabsContent>
+        )}
+        {perms.has("tipos_contrato", "view") && (
+          <TabsContent value="contract-types" className="mt-4">
+            <ContractTypesTab />
+          </TabsContent>
+        )}
+        {perms.has("slas", "view") && (
+          <TabsContent value="slas" className="mt-4">
+            <SlasTab />
+          </TabsContent>
+        )}
+        {perms.has("respostas_padrao", "view") && (
+          <TabsContent value="canned" className="mt-4">
+            <CannedTab />
+          </TabsContent>
+        )}
+        {perms.has("figurinhas", "view") && (
+          <TabsContent value="stickers" className="mt-4">
+            <StickersTab />
+          </TabsContent>
+        )}
+        {perms.has("canais", "view") && (
+          <TabsContent value="channels" className="mt-4">
+            <ChannelsTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
@@ -386,13 +432,57 @@ function UsersTab() {
 type RoleRow = { id: string; name: string; description: string | null; is_system: boolean };
 type PermissionRow = { id: string; module: string; action: string; description: string | null };
 
-function groupByModule(permissions: PermissionRow[]): [string, PermissionRow[]][] {
+function indexByModule(permissions: PermissionRow[]): Map<string, PermissionRow[]> {
   const byModule = new Map<string, PermissionRow[]>();
   for (const p of permissions) {
     if (!byModule.has(p.module)) byModule.set(p.module, []);
     byModule.get(p.module)!.push(p);
   }
-  return Array.from(byModule.entries());
+  return byModule;
+}
+
+function RoleModuleRow({
+  meta,
+  perms,
+  checked,
+  isSystem,
+  locked,
+  hasViewChecked,
+  onToggle,
+}: {
+  meta: ModuleMeta;
+  perms: PermissionRow[];
+  checked: Set<string>;
+  isSystem: boolean;
+  locked: boolean;
+  hasViewChecked: boolean;
+  onToggle: (module: string, action: string, permId: string) => void;
+}) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-muted-foreground mb-1">{meta.label}</div>
+      <div className="flex flex-wrap gap-4">
+        {meta.actions.map((action) => {
+          const p = perms.find((x) => x.action === action);
+          if (!p) return null;
+          const disabled = isSystem || locked || (action !== "view" && !hasViewChecked);
+          return (
+            <label
+              key={p.id}
+              className={`flex items-center gap-1.5 text-sm ${disabled && !isSystem ? "opacity-40" : ""}`}
+            >
+              <Checkbox
+                checked={isSystem || checked.has(p.id)}
+                disabled={disabled}
+                onCheckedChange={() => onToggle(meta.key, action, p.id)}
+              />
+              {ACTION_LABELS[action] ?? action}
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function RolesTab() {
@@ -473,11 +563,32 @@ function RolesTab() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const toggle = (permId: string) => {
+  const permsByModule = useMemo(() => indexByModule(catalog ?? []), [catalog]);
+  const permIdOf = (module: string, action: string) =>
+    permsByModule.get(module)?.find((p) => p.action === action)?.id;
+  const hasViewChecked = (module: string) => {
+    const id = permIdOf(module, "view");
+    return id ? checked.has(id) : false;
+  };
+
+  // Visualiza desmarcado trava/desmarca o resto do módulo — e, sendo
+  // Configurações, desmarca os sub-itens inteiros junto (pedido do usuário:
+  // sem ver Configurações não faz sentido ver nada debaixo dela).
+  const toggle = (module: string, action: string, permId: string) => {
     if (selectedRole?.is_system) return;
     setChecked((prev) => {
+      const already = prev.has(permId);
+      if (action === "view" && already) {
+        const next = new Set(prev);
+        for (const p of permsByModule.get(module) ?? []) next.delete(p.id);
+        for (const child of childModules(module)) {
+          for (const p of permsByModule.get(child.key) ?? []) next.delete(p.id);
+        }
+        return next;
+      }
+      if (action !== "view" && !already && !hasViewChecked(module)) return prev; // travado
       const next = new Set(prev);
-      if (next.has(permId)) next.delete(permId);
+      if (already) next.delete(permId);
       else next.add(permId);
       return next;
     });
@@ -564,23 +675,33 @@ function RolesTab() {
               </p>
             )}
             <div className="space-y-3">
-              {groupByModule(catalog ?? []).map(([module, perms]) => (
-                <div key={module}>
-                  <div className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                    {module}
-                  </div>
-                  <div className="flex flex-wrap gap-4">
-                    {perms.map((p) => (
-                      <label key={p.id} className="flex items-center gap-1.5 text-sm">
-                        <Checkbox
-                          checked={selectedRole?.is_system || checked.has(p.id)}
-                          disabled={selectedRole?.is_system}
-                          onCheckedChange={() => toggle(p.id)}
+              {MODULE_ORDER.filter((m) => !m.parent).map((m) => (
+                <div key={m.key}>
+                  <RoleModuleRow
+                    meta={m}
+                    perms={permsByModule.get(m.key) ?? []}
+                    checked={checked}
+                    isSystem={!!selectedRole?.is_system}
+                    locked={isModuleLocked(m.key, hasViewChecked)}
+                    hasViewChecked={hasViewChecked(m.key)}
+                    onToggle={toggle}
+                  />
+                  {childModules(m.key).length > 0 && (
+                    <div className="ml-5 mt-2 space-y-2 border-l pl-3">
+                      {childModules(m.key).map((c) => (
+                        <RoleModuleRow
+                          key={c.key}
+                          meta={c}
+                          perms={permsByModule.get(c.key) ?? []}
+                          checked={checked}
+                          isSystem={!!selectedRole?.is_system}
+                          locked={isModuleLocked(c.key, hasViewChecked)}
+                          hasViewChecked={hasViewChecked(c.key)}
+                          onToggle={toggle}
                         />
-                        {p.action}
-                      </label>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -646,6 +767,89 @@ function RolesTab() {
 
 /* ============================ PERMISSÕES POR USUÁRIO (Bloco 2) ============================ */
 
+type EffectiveRow = {
+  module: string;
+  action: string;
+  granted_by_role: boolean;
+  override: boolean | null;
+  effective: boolean;
+};
+
+function UserModuleRow({
+  meta,
+  perms,
+  effectiveByPermission,
+  locked,
+  hasEffectiveView,
+  onGrant,
+  onRevoke,
+  onRestore,
+}: {
+  meta: ModuleMeta;
+  perms: PermissionRow[];
+  effectiveByPermission: Map<string, EffectiveRow>;
+  locked: boolean;
+  hasEffectiveView: boolean;
+  onGrant: (permissionId: string) => void;
+  onRevoke: (permissionId: string) => void;
+  onRestore: (permissionId: string) => void;
+}) {
+  const colors: Record<string, string> = {
+    "inherited-on": "bg-muted text-foreground border-border",
+    "inherited-off": "bg-transparent text-muted-foreground border-border",
+    granted: "bg-green-100 text-green-800 border-green-300",
+    revoked: "bg-red-100 text-red-800 border-red-300",
+  };
+  return (
+    <div>
+      <div className="text-xs font-medium text-muted-foreground mb-1">{meta.label}</div>
+      <div className="flex flex-wrap gap-2">
+        {meta.actions.map((action) => {
+          const p = perms.find((x) => x.action === action);
+          if (!p) return null;
+          const eff = effectiveByPermission.get(`${meta.key}:${action}`);
+          const isOverride = eff?.override !== null && eff?.override !== undefined;
+          const state = isOverride
+            ? eff!.override
+              ? "granted"
+              : "revoked"
+            : eff?.granted_by_role
+              ? "inherited-on"
+              : "inherited-off";
+          const rowLocked = locked || (action !== "view" && !hasEffectiveView);
+          return (
+            <div
+              key={p.id}
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${colors[state]} ${rowLocked ? "opacity-40" : ""}`}
+            >
+              <span>{ACTION_LABELS[action] ?? action}</span>
+              {!rowLocked && state !== "granted" && (
+                <button title="Conceder" className="hover:underline" onClick={() => onGrant(p.id)}>
+                  +
+                </button>
+              )}
+              {!rowLocked && state !== "revoked" && (
+                <button title="Revogar" className="hover:underline" onClick={() => onRevoke(p.id)}>
+                  −
+                </button>
+              )}
+              {!rowLocked && isOverride && (
+                <button
+                  title="Restaurar padrão do papel"
+                  className="hover:underline"
+                  onClick={() => onRestore(p.id)}
+                >
+                  ↺
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function UserPermissionsTab() {
   const listUsersFn = useServerFn(listTenantUsers);
   const listRolesFn = useServerFn(listRoles);
@@ -697,9 +901,12 @@ function UserPermissionsTab() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const effectiveByPermission = new Map(
+  const effectiveByPermission = new Map<string, EffectiveRow>(
     (effective ?? []).map((e) => [`${e.module}:${e.action}`, e]),
   );
+  const permsByModule = useMemo(() => indexByModule(catalog ?? []), [catalog]);
+  const hasEffectiveView = (module: string) =>
+    effectiveByPermission.get(`${module}:view`)?.effective ?? false;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
@@ -744,67 +951,35 @@ function UserPermissionsTab() {
               individualmente.
             </p>
             <div className="space-y-3">
-              {groupByModule(catalog ?? []).map(([module, perms]) => (
-                <div key={module}>
-                  <div className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                    {module}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {perms.map((p) => {
-                      const eff = effectiveByPermission.get(`${p.module}:${p.action}`);
-                      const isOverride = eff?.override !== null && eff?.override !== undefined;
-                      const state = isOverride
-                        ? eff!.override
-                          ? "granted"
-                          : "revoked"
-                        : eff?.granted_by_role
-                          ? "inherited-on"
-                          : "inherited-off";
-                      const colors: Record<string, string> = {
-                        "inherited-on": "bg-muted text-foreground border-border",
-                        "inherited-off": "bg-transparent text-muted-foreground border-border",
-                        granted: "bg-green-100 text-green-800 border-green-300",
-                        revoked: "bg-red-100 text-red-800 border-red-300",
-                      };
-                      return (
-                        <div
-                          key={p.id}
-                          className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${colors[state]}`}
-                        >
-                          <span>{p.action}</span>
-                          {state !== "granted" && (
-                            <button
-                              title="Conceder"
-                              className="hover:underline"
-                              onClick={() => override.mutate({ permissionId: p.id, granted: true })}
-                            >
-                              +
-                            </button>
-                          )}
-                          {state !== "revoked" && (
-                            <button
-                              title="Revogar"
-                              className="hover:underline"
-                              onClick={() =>
-                                override.mutate({ permissionId: p.id, granted: false })
-                              }
-                            >
-                              −
-                            </button>
-                          )}
-                          {isOverride && (
-                            <button
-                              title="Restaurar padrão do papel"
-                              className="hover:underline"
-                              onClick={() => restore.mutate(p.id)}
-                            >
-                              ↺
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+              {MODULE_ORDER.filter((m) => !m.parent).map((m) => (
+                <div key={m.key}>
+                  <UserModuleRow
+                    meta={m}
+                    perms={permsByModule.get(m.key) ?? []}
+                    effectiveByPermission={effectiveByPermission}
+                    locked={isModuleLocked(m.key, hasEffectiveView)}
+                    hasEffectiveView={hasEffectiveView(m.key)}
+                    onGrant={(id) => override.mutate({ permissionId: id, granted: true })}
+                    onRevoke={(id) => override.mutate({ permissionId: id, granted: false })}
+                    onRestore={(id) => restore.mutate(id)}
+                  />
+                  {childModules(m.key).length > 0 && (
+                    <div className="ml-5 mt-2 space-y-2 border-l pl-3">
+                      {childModules(m.key).map((c) => (
+                        <UserModuleRow
+                          key={c.key}
+                          meta={c}
+                          perms={permsByModule.get(c.key) ?? []}
+                          effectiveByPermission={effectiveByPermission}
+                          locked={isModuleLocked(c.key, hasEffectiveView)}
+                          hasEffectiveView={hasEffectiveView(c.key)}
+                          onGrant={(id) => override.mutate({ permissionId: id, granted: true })}
+                          onRevoke={(id) => override.mutate({ permissionId: id, granted: false })}
+                          onRestore={(id) => restore.mutate(id)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

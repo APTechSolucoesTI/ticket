@@ -1,25 +1,34 @@
 // Bloco 2 — atribuição de papel + overrides individuais (grant/revoke) por
-// usuário. Gate explícito em código (papeis:manage) antes de qualquer leitura
-// cross-user via supabaseAdmin — diferente de roles.functions.ts, aqui não dá
-// pra confiar só na RLS pro READ cross-user (ver nota em
-// get_effective_permissions: rows de um usuário-alvo só são visíveis pra
-// quem já tem usuarios:view, então usar o client RLS-scoped do chamador
-// podia devolver "tudo falso" mesmo quando o alvo tem a permissão de
-// verdade — supabaseAdmin evita esse falso-negativo).
+// usuário. Gate explícito em código antes de qualquer leitura cross-user via
+// supabaseAdmin — diferente de roles.functions.ts, aqui não dá pra confiar só
+// na RLS pro READ cross-user (ver nota em get_effective_permissions: rows de
+// um usuário-alvo só são visíveis pra quem já tem usuarios:view, então usar
+// o client RLS-scoped do chamador podia devolver "tudo falso" mesmo quando o
+// alvo tem a permissão de verdade — supabaseAdmin evita esse falso-negativo).
+//
+// Catálogo v2: cada mutação usa a permissão que espelha a RLS real da
+// tabela que ela mexe (assignUserRole -> usuarios:edit, igual a RLS de
+// user_roles; override/restore -> permissoes:edit, igual a RLS de
+// user_permissions; leitura cross-user -> permissoes:view).
 import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 
-async function requireManagePermissions(supabase: SupabaseClient<Database>, userId: string) {
+async function requirePermission(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  module: string,
+  action: string,
+) {
   const { data: allowed, error } = await supabase.rpc("has_permission", {
     _user_id: userId,
-    _module: "papeis",
-    _action: "manage",
+    _module: module,
+    _action: action,
   });
   if (error) throw new Error(error.message);
-  if (!allowed) throw new Error("Sem permissão para gerenciar papéis e permissões.");
+  if (!allowed) throw new Error("Sem permissão para esta ação.");
 }
 
 async function audit(
@@ -58,7 +67,7 @@ export const getUserEffectivePermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => targetSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await requireManagePermissions(context.supabase, context.userId);
+    await requirePermission(context.supabase, context.userId, "permissoes", "view");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin.rpc("get_effective_permissions", {
       _user_id: data.userId,
@@ -76,7 +85,7 @@ export const assignUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => assignRoleSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await requireManagePermissions(context.supabase, context.userId);
+    await requirePermission(context.supabase, context.userId, "usuarios", "edit");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: target } = await supabaseAdmin
       .from("profiles")
@@ -107,7 +116,7 @@ export const setUserOverride = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => overrideSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await requireManagePermissions(context.supabase, context.userId);
+    await requirePermission(context.supabase, context.userId, "permissoes", "edit");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: target } = await supabaseAdmin
       .from("profiles")
@@ -139,7 +148,7 @@ export const restoreUserDefault = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => restoreSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await requireManagePermissions(context.supabase, context.userId);
+    await requirePermission(context.supabase, context.userId, "permissoes", "edit");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: target } = await supabaseAdmin
       .from("profiles")
