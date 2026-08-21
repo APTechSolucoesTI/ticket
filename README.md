@@ -195,10 +195,11 @@ funcionando**, trocando só quem emite o JWT.
    fallback dele, mandando o link do e-mail pro próprio Supabase em vez do APTicket.
 5. **`apticket.handle_new_user()` (trigger `on_auth_user_created`)**: esse Supabase Auth é
    compartilhado com outro sistema (mesma `auth.users`) — sem guard, esse trigger provisionava
-   tenant+perfil+role admin no APTicket pra QUALQUER signup de QUALQUER app que usa esse mesmo
-   Supabase. Fix em `supabase/migrations/20260819000000_guard_handle_new_user_cross_app.sql` — ainda
-   **não aplicado** no banco de produção, precisa rodar manualmente (é uma função compartilhada, não
-   passa por deploy automático de nenhum dos dois apps).
+   tenant+perfil+role admin no APTicket pra qualquer signup de qualquer app que usa esse mesmo
+   Supabase. O guard e o ajuste para papéis dinâmicos foram aplicados em produção em 21/08/2026
+   pelas migrations `20260819000000_guard_handle_new_user_cross_app.sql` e
+   `20260821141348_repair_legacy_auth_registration_role_assignment.sql`. O trigger agora ignora
+   outros apps e nunca aceita tenant ou papel informados em metadata controlada pelo usuário.
 
 ## Rodando local
 
