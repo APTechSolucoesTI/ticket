@@ -438,7 +438,7 @@ function TicketList({ tickets }: { tickets: TicketRow[] }) {
                 <SlaTimer
                   dueAt={dueFor(t)}
                   totalMinutes={SLA_DEFAULT_MIN}
-                  stoppedAt={t.resolved_at ?? t.closed_at ?? null}
+                  stoppedAt={t.sla_paused_at ?? t.resolved_at ?? t.closed_at ?? null}
                 />
               ),
             },
@@ -617,7 +617,7 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
                         dueAt={due}
                         totalMinutes={SLA_DEFAULT_MIN}
                         className="text-[10px]"
-                        stoppedAt={t.resolved_at ?? t.closed_at ?? null}
+                        stoppedAt={t.sla_paused_at ?? t.resolved_at ?? t.closed_at ?? null}
                       />
                     </div>
                   </Link>

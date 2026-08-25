@@ -89,6 +89,7 @@ export class EmailController {
       auth.userId,
       dto.ticketId,
       dto.content,
+      dto.attachments ?? [],
     );
   }
 }

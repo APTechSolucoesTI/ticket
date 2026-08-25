@@ -85,14 +85,19 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           return genericResponse();
         }
 
-        const { error: insErr } = await supabaseAdmin.from("portal_otp_codes").insert({
-          tenant_id: contact.tenant_id,
-          contact_id: contact.id,
-          email,
-          code_hash: codeHash,
-          expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
-        });
-        if (insErr) {
+        const { data: otpRow, error: insErr } = await supabaseAdmin
+          .from("portal_otp_codes")
+          .insert({
+            tenant_id: contact.tenant_id,
+            contact_id: contact.id,
+            email,
+            code_hash: codeHash,
+            expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+            delivery_status: "sending",
+          })
+          .select("id")
+          .single();
+        if (insErr || !otpRow) {
           console.error("[portal/request-otp] insert error", insErr);
           return genericResponse();
         }
@@ -105,6 +110,17 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
             text: `Seu código de verificação é ${code}. Ele expira em 10 minutos. Se você não solicitou este código, ignore este e-mail.`,
             html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#172033"><h2 style="margin-bottom:8px">Acesso ao APTicket</h2><p>Use o código abaixo para confirmar seu acesso:</p><div style="margin:24px 0;padding:18px;border-radius:10px;background:#f3f6fb;text-align:center;font-size:30px;font-weight:700;letter-spacing:6px">${code}</div><p>Ele expira em 10 minutos.</p><p style="color:#64748b;font-size:13px">Se você não solicitou este código, ignore este e-mail.</p></div>`,
           });
+          if (Array.isArray(delivery.accepted) && delivery.accepted.length === 0) {
+            throw new Error("O servidor SMTP não aceitou o destinatário");
+          }
+          await supabaseAdmin
+            .from("portal_otp_codes")
+            .update({
+              delivery_status: "sent",
+              delivery_error: null,
+              delivered_at: new Date().toISOString(),
+            })
+            .eq("id", otpRow.id);
           console.info("[portal/request-otp] mail accepted", {
             messageId: delivery.messageId,
             accepted: Array.isArray(delivery.accepted) ? delivery.accepted.length : undefined,
@@ -112,12 +128,15 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           });
         } catch (mailErr) {
           console.error("[portal/request-otp] mail send error", mailErr);
+          const deliveryError = mailErr instanceof Error ? mailErr.message : String(mailErr);
           await supabaseAdmin
             .from("portal_otp_codes")
-            .update({ consumed_at: new Date().toISOString() })
-            .eq("code_hash", codeHash)
-            .eq("contact_id", contact.id)
-            .is("consumed_at", null);
+            .update({
+              consumed_at: new Date().toISOString(),
+              delivery_status: "failed",
+              delivery_error: deliveryError.slice(0, 1000),
+            })
+            .eq("id", otpRow.id);
           // Do not leak delivery failure details to the caller (enumeration/DoS surface).
         }
 

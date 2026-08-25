@@ -1,10 +1,10 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Paperclip, Play, Printer, Send } from "lucide-react";
+import { ArrowLeft, History, Paperclip, Pause, Play, Printer, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentUserId, getToken } from "@/lib/session";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,7 @@ type Msg = {
     url?: string;
   }> | null;
   delivery_status?: string | null;
+  delivery_error?: string | null;
   authorName?: string;
 };
 
@@ -134,7 +135,38 @@ function TicketDetailPage() {
             : "Sistema",
       })) as unknown as Msg[];
     },
+    refetchInterval: ticket?.channel === "chat" || ticket?.channel === "whatsapp" ? 3_000 : false,
   });
+
+  const realtimeTicketChannel = ticket?.channel;
+  useEffect(() => {
+    if (realtimeTicketChannel !== "chat" && realtimeTicketChannel !== "whatsapp") return;
+    const token = getToken();
+    if (token) supabase.realtime.setAuth(token);
+    const channel = supabase
+      .channel(`ticket-live-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "apticket", table: "messages", filter: `ticket_id=eq.${id}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["messages", id] });
+          qc.invalidateQueries({ queryKey: ["ticket", id] });
+          qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "apticket", table: "tickets", filter: `id=eq.${id}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["ticket", id] });
+          qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id, qc, realtimeTicketChannel]);
 
   const { data: timeEntries = [] } = useQuery({
     queryKey: ["time_entries", id],
@@ -151,6 +183,55 @@ function TicketDetailPage() {
     () => timeEntries.reduce((s, t) => s + (t.minutes ?? 0), 0),
     [timeEntries],
   );
+
+  const { data: pauseReasons = [] } = useQuery({
+    queryKey: ["pause_reasons", ticket?.tenant_id],
+    enabled: Boolean(ticket?.tenant_id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pause_reasons")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: pauses = [] } = useQuery({
+    queryKey: ["ticket_pauses", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_pauses")
+        .select("*")
+        .eq("ticket_id", id)
+        .order("started_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const activePause = pauses.find((pause) => !pause.ended_at) ?? null;
+  const pauseUserIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          pauses
+            .flatMap((pause) => [pause.paused_by, pause.resumed_by])
+            .filter(Boolean) as string[],
+        ),
+      ),
+    [pauses],
+  );
+  const { data: pauseAuthors = {} } = useQuery({
+    queryKey: ["ticket_pause_authors", id, pauseUserIds],
+    enabled: pauseUserIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("id, name").in("id", pauseUserIds);
+      return Object.fromEntries(
+        (data ?? []).map((profile) => [profile.id, profile.name]),
+      ) as Record<string, string>;
+    },
+  });
 
   const { data: performedServices = [] } = useQuery({
     queryKey: ["ticket_services_performed", id],
@@ -186,6 +267,12 @@ function TicketDetailPage() {
   });
 
   const [showEntries, setShowEntries] = useState(false);
+  const [showPauses, setShowPauses] = useState(false);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  const [pauseReasonId, setPauseReasonId] = useState("");
+  const [pauseComplement, setPauseComplement] = useState("");
+  const [newPauseReason, setNewPauseReason] = useState("");
+  const [addingPauseReason, setAddingPauseReason] = useState(false);
   const entryUserIds = useMemo(
     () => Array.from(new Set(timeEntries.map((t) => t.agent_id).filter(Boolean) as string[])),
     [timeEntries],
@@ -281,7 +368,6 @@ function TicketDetailPage() {
   // reply/internal state now lives inside TicketComposer
   const [pendingTime, setPendingTime] = useState<{ msgId: string } | null>(null);
   const [askResolved, setAskResolved] = useState(false);
-  const [askCustomerReturn, setAskCustomerReturn] = useState(false);
   const [minutesInput, setMinutesInput] = useState("");
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(null);
@@ -303,7 +389,6 @@ function TicketDetailPage() {
       setTimerStartedAt(null);
       setPendingTime(null);
       setAskResolved(false);
-      setAskCustomerReturn(false);
       setFinalizeStatus(null);
       return;
     }
@@ -470,11 +555,6 @@ function TicketDetailPage() {
       .replaceAll("{{agente}}", user?.name ?? user?.email ?? "");
   };
 
-  const handleComposerPublicSent = () => {
-    if (!timerRunning) setPendingTime({ msgId: "composer" });
-    setAskCustomerReturn(true);
-  };
-
   const saveTime = useMutation({
     mutationFn: async () => {
       if (!access.edit) throw new Error("Sem permissão para editar chamados");
@@ -507,6 +587,72 @@ function TicketDetailPage() {
         setNavigateAfterSave(false);
         navigate({ to: "/tickets" });
       }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pauseTicket = useMutation({
+    mutationFn: async () => {
+      if (!ticket || !timerStartedAt || !timerRunning) {
+        throw new Error("O Time Tracking precisa estar ativo para pausar o ticket");
+      }
+      if (!pauseReasonId) throw new Error("Selecione o motivo da pausa");
+      const { error } = await supabase.rpc("pause_ticket", {
+        _ticket_id: id,
+        _reason_id: pauseReasonId,
+        _complement: pauseComplement,
+        _timer_started_at: timerStartedAt.toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setTimerRunning(false);
+      setTimerStartedAt(null);
+      setPauseDialogOpen(false);
+      setPauseReasonId("");
+      setPauseComplement("");
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
+      qc.invalidateQueries({ queryKey: ["time_entries", id] });
+      toast.success("Atendimento pausado e Time Tracking apontado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const resumeTicket = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("resume_ticket", { _ticket_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
+      toast.success("Atendimento retomado; o SLA voltou a contar");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const createPauseReason = useMutation({
+    mutationFn: async () => {
+      if (!ticket) throw new Error("Ticket não encontrado");
+      const name = newPauseReason.trim();
+      if (name.length < 2) throw new Error("Informe um nome com pelo menos 2 caracteres");
+      const { data, error } = await supabase
+        .from("pause_reasons")
+        .insert({ tenant_id: ticket.tenant_id, name })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    },
+    onSuccess: (reasonId) => {
+      setPauseReasonId(reasonId);
+      setNewPauseReason("");
+      setAddingPauseReason(false);
+      qc.invalidateQueries({ queryKey: ["pause_reasons", ticket?.tenant_id] });
+      toast.success("Motivo de pausa cadastrado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -568,25 +714,34 @@ function TicketDetailPage() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span>{new Date(m.created_at).toLocaleString("pt-BR")}</span>
-                    {m.author_type === "agent" && m.channel === "whatsapp" && m.delivery_status && (
-                      <span
-                        title={`Status: ${m.delivery_status}`}
-                        className={cn(
-                          "font-mono",
-                          m.delivery_status === "failed" && "text-red-500",
-                          m.delivery_status === "read" && "text-blue-500",
-                          m.delivery_status === "delivered" && "text-foreground/70",
-                        )}
-                      >
-                        {m.delivery_status === "failed"
-                          ? "⚠"
-                          : m.delivery_status === "read"
-                            ? "✓✓"
-                            : m.delivery_status === "delivered"
-                              ? "✓✓"
-                              : "✓"}
-                      </span>
-                    )}
+                    {m.author_type === "agent" &&
+                      (m.channel === "whatsapp" || m.channel === "email") &&
+                      m.delivery_status && (
+                        <span
+                          title={
+                            m.delivery_error
+                              ? `Falha na entrega: ${m.delivery_error}`
+                              : `Status: ${m.delivery_status}`
+                          }
+                          className={cn(
+                            "font-mono",
+                            m.delivery_status === "failed" && "text-red-500",
+                            m.delivery_status === "sending" && "animate-pulse text-amber-500",
+                            m.delivery_status === "read" && "text-blue-500",
+                            m.delivery_status === "delivered" && "text-foreground/70",
+                          )}
+                        >
+                          {m.delivery_status === "failed"
+                            ? "⚠"
+                            : m.delivery_status === "sending"
+                              ? "…"
+                              : m.delivery_status === "read"
+                                ? "✓✓"
+                                : m.delivery_status === "delivered"
+                                  ? "✓✓"
+                                  : "✓"}
+                        </span>
+                      )}
                   </div>
                 </div>
                 <p className="whitespace-pre-wrap">{m.content}</p>
@@ -637,7 +792,6 @@ function TicketDetailPage() {
                 qc.invalidateQueries({ queryKey: ["tickets"] });
                 qc.invalidateQueries({ queryKey: ["ticket", id] });
               }}
-              onPublicSent={handleComposerPublicSent}
               onSendChat={ticket.channel === "chat" ? chat.sendMessage : undefined}
               onTyping={ticket.channel === "chat" ? chat.setTyping : undefined}
             />
@@ -820,9 +974,11 @@ function TicketDetailPage() {
                 dueAt={due}
                 totalMinutes={SLA_DEFAULT_MIN}
                 className="text-2xl"
-                stoppedAt={ticket.resolved_at ?? ticket.closed_at ?? null}
+                stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at ?? null}
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">Tempo até estouro</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {ticket.sla_paused_at ? "SLA pausado" : "Tempo até estouro"}
+              </p>
             </CardContent>
           </Card>
 
@@ -893,7 +1049,7 @@ function TicketDetailPage() {
                   size="sm"
                   variant={timerRunning ? "destructive" : "default"}
                   className="h-7 flex-1 gap-1 text-xs"
-                  disabled={readOnly}
+                  disabled={readOnly || Boolean(activePause)}
                   onClick={() => {
                     if (timerRunning) {
                       const elapsedMin = timerStartedAt
@@ -920,7 +1076,7 @@ function TicketDetailPage() {
                   placeholder="min"
                   value={minutesInput}
                   onChange={(e) => setMinutesInput(e.target.value)}
-                  disabled={readOnly}
+                  disabled={readOnly || Boolean(activePause)}
                   className="h-7 w-16 rounded-md border bg-background px-2 text-xs disabled:opacity-50"
                 />
                 <Button
@@ -928,7 +1084,7 @@ function TicketDetailPage() {
                   variant="outline"
                   className="h-7 text-xs"
                   onClick={() => saveTime.mutate()}
-                  disabled={saveTime.isPending || readOnly}
+                  disabled={saveTime.isPending || readOnly || Boolean(activePause)}
                 >
                   Apontar
                 </Button>
@@ -940,6 +1096,93 @@ function TicketDetailPage() {
               >
                 Consultar apontamentos ({timeEntries.length})
               </button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={cn(
+              "mt-3",
+              activePause && "border-amber-400/60 bg-amber-50/40 dark:bg-amber-950/10",
+            )}
+          >
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="flex items-center justify-between text-xs uppercase text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Pause className="h-3.5 w-3.5" /> Pausa
+                </span>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[9px] font-semibold",
+                    activePause
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200"
+                      : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
+                  )}
+                >
+                  {activePause ? "Pausado" : "Em atendimento"}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5 p-3 pt-0 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Tempo total pausado</span>
+                <LivePausedDuration
+                  storedSeconds={ticket.total_sla_paused_seconds ?? 0}
+                  activeSince={activePause?.started_at ?? null}
+                />
+              </div>
+              {activePause && (
+                <div className="rounded-md border border-amber-200 bg-background/70 p-2 dark:border-amber-900">
+                  <div className="font-medium text-foreground">{activePause.reason_snapshot}</div>
+                  {activePause.complement && (
+                    <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">
+                      {activePause.complement}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Desde {new Date(activePause.started_at).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              )}
+              {activePause ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full gap-1.5 text-xs"
+                  disabled={resumeTicket.isPending || readOnly || ticket.assigned_to !== user?.id}
+                  onClick={() => resumeTicket.mutate()}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {resumeTicket.isPending ? "Retomando…" : "Retomar atendimento"}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full gap-1.5 text-xs"
+                  disabled={
+                    readOnly ||
+                    !timerRunning ||
+                    ticket.assigned_to !== user?.id ||
+                    pauseTicket.isPending
+                  }
+                  onClick={() => setPauseDialogOpen(true)}
+                  title={!timerRunning ? "Inicie o Time Tracking antes de pausar" : undefined}
+                >
+                  <Pause className="h-3.5 w-3.5" /> Pausar atendimento
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowPauses(true)}
+                className="flex items-center gap-1 text-[11px] text-primary underline-offset-2 hover:underline"
+              >
+                <History className="h-3 w-3" /> Consultar pausas do atendimento ({pauses.length})
+              </button>
+              {!activePause && !timerRunning && !readOnly && (
+                <p className="text-[10px] text-muted-foreground">
+                  Inicie o Time Tracking para habilitar a pausa.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -1035,6 +1278,118 @@ function TicketDetailPage() {
         </aside>
       </div>
 
+      {pauseDialogOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => !pauseTicket.isPending && setPauseDialogOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pause-dialog-title"
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-amber-100 p-2 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                <Pause className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 id="pause-dialog-title" className="text-sm font-semibold">
+                  Pausar atendimento
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  O SLA será interrompido e o período atual do Time Tracking será apontado.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <label className="text-xs font-medium" htmlFor="pause-reason">
+                Motivo da pausa
+              </label>
+              <button
+                type="button"
+                className="text-[11px] text-primary hover:underline"
+                onClick={() => setAddingPauseReason((value) => !value)}
+              >
+                {addingPauseReason ? "Cancelar cadastro" : "+ Cadastrar motivo"}
+              </button>
+            </div>
+            {addingPauseReason && (
+              <div className="mt-1.5 flex gap-2 rounded-md border bg-muted/30 p-2">
+                <input
+                  value={newPauseReason}
+                  onChange={(event) => setNewPauseReason(event.target.value)}
+                  maxLength={100}
+                  placeholder="Nome do novo motivo"
+                  className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8"
+                  disabled={createPauseReason.isPending || newPauseReason.trim().length < 2}
+                  onClick={() => createPauseReason.mutate()}
+                >
+                  Salvar
+                </Button>
+              </div>
+            )}
+            <select
+              id="pause-reason"
+              autoFocus
+              value={pauseReasonId}
+              onChange={(event) => setPauseReasonId(event.target.value)}
+              className="mt-1.5 h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="">Selecione um motivo</option>
+              {pauseReasons.map((reason) => (
+                <option key={reason.id} value={reason.id}>
+                  {reason.name}
+                </option>
+              ))}
+            </select>
+            <label className="mt-3 block text-xs font-medium" htmlFor="pause-complement">
+              Complemento
+              {pauseReasons.find((reason) => reason.id === pauseReasonId)?.name === "Outro" && (
+                <span className="text-destructive"> *</span>
+              )}
+            </label>
+            <textarea
+              id="pause-complement"
+              value={pauseComplement}
+              onChange={(event) => setPauseComplement(event.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Inclua detalhes que ajudem a equipe a entender a espera."
+              className="mt-1.5 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pauseTicket.isPending}
+                onClick={() => setPauseDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={
+                  pauseTicket.isPending ||
+                  !pauseReasonId ||
+                  (pauseReasons.find((reason) => reason.id === pauseReasonId)?.name === "Outro" &&
+                    pauseComplement.trim().length < 3)
+                }
+                onClick={() => pauseTicket.mutate()}
+              >
+                {pauseTicket.isPending ? "Pausando…" : "Confirmar pausa"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pendingTime && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[360px] rounded-lg border bg-background p-4 shadow-lg">
@@ -1070,38 +1425,6 @@ function TicketDetailPage() {
               </Button>
               <Button size="sm" onClick={() => saveTime.mutate()} disabled={saveTime.isPending}>
                 Salvar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {askCustomerReturn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold">Retorno do cliente</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              É necessário aguardar um retorno do cliente para esta resposta?
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  updateTicket.mutate({ pending_type: "tech_response" });
-                  setAskCustomerReturn(false);
-                }}
-              >
-                Não — Retorno Técnico
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  updateTicket.mutate({ pending_type: "awaiting_customer" });
-                  setAskCustomerReturn(false);
-                }}
-              >
-                Sim — Aguardar Cliente
               </Button>
             </div>
           </div>
@@ -1212,6 +1535,109 @@ function TicketDetailPage() {
         </div>
       )}
 
+      {showPauses && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowPauses(false)}
+        >
+          <div
+            className="w-full max-w-3xl overflow-hidden rounded-xl border bg-background shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pause-history-title"
+          >
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <div>
+                <h3 id="pause-history-title" className="text-sm font-semibold">
+                  Pausas do atendimento
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Histórico auditável de interrupções do SLA.
+                </p>
+              </div>
+              <LivePausedDuration
+                storedSeconds={ticket.total_sla_paused_seconds ?? 0}
+                activeSince={activePause?.started_at ?? null}
+              />
+            </div>
+            <div className="max-h-[65vh] overflow-auto p-4">
+              {pauses.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center text-xs text-muted-foreground">
+                  Este ticket ainda não teve pausas.
+                </div>
+              ) : (
+                <table className="w-full min-w-[680px] text-xs">
+                  <thead className="text-left text-muted-foreground">
+                    <tr className="border-b">
+                      <th className="py-2 pr-3">Início</th>
+                      <th className="py-2 pr-3">Término</th>
+                      <th className="py-2 pr-3">Duração</th>
+                      <th className="py-2 pr-3">Motivo</th>
+                      <th className="py-2">Responsáveis</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pauses.map((pause) => (
+                      <tr key={pause.id} className="border-b align-top last:border-0">
+                        <td className="whitespace-nowrap py-3 pr-3 font-mono">
+                          {new Date(pause.started_at).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="whitespace-nowrap py-3 pr-3 font-mono">
+                          {pause.ended_at
+                            ? new Date(pause.ended_at).toLocaleString("pt-BR")
+                            : "Em andamento"}
+                        </td>
+                        <td className="whitespace-nowrap py-3 pr-3 font-mono">
+                          {formatPausedDuration(
+                            Math.max(
+                              0,
+                              Math.floor(
+                                ((pause.ended_at
+                                  ? new Date(pause.ended_at).getTime()
+                                  : Date.now()) -
+                                  new Date(pause.started_at).getTime()) /
+                                  1000,
+                              ),
+                            ),
+                          )}
+                        </td>
+                        <td className="max-w-56 py-3 pr-3">
+                          <div className="font-medium">{pause.reason_snapshot}</div>
+                          {pause.complement && (
+                            <div className="mt-0.5 whitespace-pre-wrap text-muted-foreground">
+                              {pause.complement}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          <div>{pauseAuthors[pause.paused_by] ?? "—"}</div>
+                          {pause.ended_at && (
+                            <div className="mt-0.5 text-muted-foreground">
+                              Retomada por{" "}
+                              {pause.resume_source === "customer_interaction"
+                                ? "interação do cliente"
+                                : pause.resumed_by
+                                  ? (pauseAuthors[pause.resumed_by] ?? "—")
+                                  : "sistema"}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="flex justify-end border-t px-4 py-3">
+              <Button size="sm" variant="outline" onClick={() => setShowPauses(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {askOpen && access.edit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
@@ -1241,5 +1667,38 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-muted-foreground">{label}</span>
       {children}
     </div>
+  );
+}
+
+function formatPausedDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${minutes}min`;
+  if (hours > 0) return `${hours}h ${minutes}min`;
+  return `${minutes}min`;
+}
+
+function LivePausedDuration({
+  storedSeconds,
+  activeSince,
+}: {
+  storedSeconds: number;
+  activeSince: string | null;
+}) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!activeSince) return;
+    const interval = window.setInterval(() => setTick((value) => value + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [activeSince]);
+  const activeSeconds = activeSince
+    ? Math.max(0, Math.floor((Date.now() - new Date(activeSince).getTime()) / 1000))
+    : 0;
+  return (
+    <span className="font-mono font-medium tabular-nums">
+      {formatPausedDuration(storedSeconds + activeSeconds)}
+    </span>
   );
 }

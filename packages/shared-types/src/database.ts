@@ -752,6 +752,8 @@ export type Database = {
           channel: Database["apticket"]["Enums"]["ticket_channel"] | null;
           content: string;
           created_at: string;
+          delivery_attempts: number;
+          delivery_error: string | null;
           delivery_status: string | null;
           external_id: string | null;
           id: string;
@@ -767,6 +769,8 @@ export type Database = {
           channel?: Database["apticket"]["Enums"]["ticket_channel"] | null;
           content: string;
           created_at?: string;
+          delivery_attempts?: number;
+          delivery_error?: string | null;
           delivery_status?: string | null;
           external_id?: string | null;
           id?: string;
@@ -782,6 +786,8 @@ export type Database = {
           channel?: Database["apticket"]["Enums"]["ticket_channel"] | null;
           content?: string;
           created_at?: string;
+          delivery_attempts?: number;
+          delivery_error?: string | null;
           delivery_status?: string | null;
           external_id?: string | null;
           id?: string;
@@ -813,6 +819,38 @@ export type Database = {
           },
         ];
       };
+      pause_reasons: {
+        Row: {
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          tenant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pause_reasons_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       portal_otp_codes: {
         Row: {
           attempts: number;
@@ -820,6 +858,9 @@ export type Database = {
           consumed_at: string | null;
           contact_id: string;
           created_at: string;
+          delivered_at: string | null;
+          delivery_error: string | null;
+          delivery_status: string;
           email: string;
           expires_at: string;
           id: string;
@@ -831,6 +872,9 @@ export type Database = {
           consumed_at?: string | null;
           contact_id: string;
           created_at?: string;
+          delivered_at?: string | null;
+          delivery_error?: string | null;
+          delivery_status?: string;
           email: string;
           expires_at: string;
           id?: string;
@@ -842,6 +886,9 @@ export type Database = {
           consumed_at?: string | null;
           contact_id?: string;
           created_at?: string;
+          delivered_at?: string | null;
+          delivery_error?: string | null;
+          delivery_status?: string;
           email?: string;
           expires_at?: string;
           id?: string;
@@ -1443,6 +1490,73 @@ export type Database = {
           },
         ];
       };
+      ticket_pauses: {
+        Row: {
+          complement: string | null;
+          created_at: string;
+          ended_at: string | null;
+          id: string;
+          paused_by: string;
+          reason_id: string | null;
+          reason_snapshot: string;
+          resume_source: string | null;
+          resumed_by: string | null;
+          started_at: string;
+          tenant_id: string;
+          ticket_id: string;
+        };
+        Insert: {
+          complement?: string | null;
+          created_at?: string;
+          ended_at?: string | null;
+          id?: string;
+          paused_by: string;
+          reason_id?: string | null;
+          reason_snapshot: string;
+          resume_source?: string | null;
+          resumed_by?: string | null;
+          started_at?: string;
+          tenant_id: string;
+          ticket_id: string;
+        };
+        Update: {
+          complement?: string | null;
+          created_at?: string;
+          ended_at?: string | null;
+          id?: string;
+          paused_by?: string;
+          reason_id?: string | null;
+          reason_snapshot?: string;
+          resume_source?: string | null;
+          resumed_by?: string | null;
+          started_at?: string;
+          tenant_id?: string;
+          ticket_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ticket_pauses_reason_id_fkey";
+            columns: ["reason_id"];
+            isOneToOne: false;
+            referencedRelation: "pause_reasons";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ticket_pauses_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ticket_pauses_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tickets: {
         Row: {
           assigned_to: string | null;
@@ -1465,10 +1579,12 @@ export type Database = {
           sla_breached: boolean;
           sla_first_response_due_at: string | null;
           sla_policy_id: string | null;
+          sla_paused_at: string | null;
           sla_resolution_due_at: string | null;
           status: Database["apticket"]["Enums"]["ticket_status"];
           subject: string;
           tenant_id: string;
+          total_sla_paused_seconds: number;
           updated_at: string;
         };
         Insert: {
@@ -1492,10 +1608,12 @@ export type Database = {
           sla_breached?: boolean;
           sla_first_response_due_at?: string | null;
           sla_policy_id?: string | null;
+          sla_paused_at?: string | null;
           sla_resolution_due_at?: string | null;
           status?: Database["apticket"]["Enums"]["ticket_status"];
           subject: string;
           tenant_id: string;
+          total_sla_paused_seconds?: number;
           updated_at?: string;
         };
         Update: {
@@ -1519,10 +1637,12 @@ export type Database = {
           sla_breached?: boolean;
           sla_first_response_due_at?: string | null;
           sla_policy_id?: string | null;
+          sla_paused_at?: string | null;
           sla_resolution_due_at?: string | null;
           status?: Database["apticket"]["Enums"]["ticket_status"];
           subject?: string;
           tenant_id?: string;
+          total_sla_paused_seconds?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -1947,6 +2067,19 @@ export type Database = {
       has_permission: {
         Args: { _action: string; _module: string; _user_id: string };
         Returns: boolean;
+      };
+      pause_ticket: {
+        Args: {
+          _complement: string;
+          _reason_id: string;
+          _ticket_id: string;
+          _timer_started_at: string;
+        };
+        Returns: string;
+      };
+      resume_ticket: {
+        Args: { _ticket_id: string };
+        Returns: undefined;
       };
       submit_csat: {
         Args: { _comment: string; _rating: number; _token: string };

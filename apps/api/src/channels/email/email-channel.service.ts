@@ -26,6 +26,8 @@ export type InboundEmail = {
   from_name?: string | null;
   subject: string;
   body: string;
+  in_reply_to?: string | null;
+  references?: string[];
   tenant_id?: string;
   attachments?: InboundEmailAttachment[];
 };
@@ -190,6 +192,82 @@ export class EmailChannelService {
 
     if (existingMsg) {
       return { status: 'duplicate', ticket_id: existingMsg.ticket_id };
+    }
+
+    // Prefer RFC 5322 threading over the subject. Nodemailer stores its
+    // Message-ID in messages.external_id, and replies return that value in
+    // In-Reply-To/References. This keeps a customer's answer on the open
+    // ticket instead of creating a new one with the same subject.
+    const threadIds = Array.from(
+      new Set(
+        [data.in_reply_to, ...(data.references ?? [])].filter(
+          (value): value is string => Boolean(value),
+        ),
+      ),
+    );
+    if (threadIds.length > 0) {
+      const { data: parentMessages } = await this.supabase.client
+        .from('messages')
+        .select('ticket_id')
+        .eq('tenant_id', contact.tenant_id)
+        .eq('channel', 'email')
+        .in('external_id', threadIds)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const candidateTicketIds = Array.from(
+        new Set((parentMessages ?? []).map((message) => message.ticket_id)),
+      );
+      if (candidateTicketIds.length > 0) {
+        const { data: openTicket } = await this.supabase.client
+          .from('tickets')
+          .select('id, number')
+          .eq('tenant_id', contact.tenant_id)
+          .eq('contact_id', contact.id)
+          .eq('channel', 'email')
+          .in('id', candidateTicketIds)
+          .not('status', 'in', '(resolved,closed)')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (openTicket) {
+          const attachments = data.attachments?.length
+            ? await this.uploadAttachments(
+                `${contact.tenant_id}/${openTicket.id}`,
+                data.attachments,
+              )
+            : [];
+          const { error: replyError } = await this.supabase.client
+            .from('messages')
+            .insert({
+              tenant_id: contact.tenant_id,
+              ticket_id: openTicket.id,
+              author_contact_id: contact.id,
+              author_type: 'contact',
+              channel: 'email',
+              is_internal: false,
+              content: data.body || '(sem conteÃºdo)',
+              external_id: data.message_id,
+              attachments,
+            });
+          if (replyError) {
+            this.logger.error(
+              `threaded reply insert error: ${replyError.message}`,
+            );
+            return { status: 'error', reason: 'message_insert_failed' };
+          }
+          await this.supabase.client
+            .from('tickets')
+            .update({ status: 'in_progress', pending_type: 'awaiting_tech' })
+            .eq('id', openTicket.id);
+          return {
+            status: 'created',
+            ticket_id: openTicket.id,
+            number: openTicket.number,
+          };
+        }
+      }
     }
 
     const { data: ticket, error: ticketErr } = await this.supabase.client

@@ -6,9 +6,22 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SecretsService } from '../../crypto/secrets.service';
 import { EmailSenderService } from './email-sender.service';
+import type { EmailReplyAttachmentDto } from './dto/send-email-reply.dto';
 
 function replySubject(subject: string): string {
   return /^re:/i.test(subject.trim()) ? subject : `Re: ${subject}`;
+}
+
+function plainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .trim();
 }
 
 // Portado de sendEmailReply em apps/web/src/lib/email-channel.functions.ts.
@@ -25,6 +38,7 @@ export class EmailReplyService {
     userId: string,
     ticketId: string,
     content: string,
+    attachments: EmailReplyAttachmentDto[] = [],
   ) {
     const { data: ticket, error: tErr } = await this.supabase.client
       .from('tickets')
@@ -72,8 +86,57 @@ export class EmailReplyService {
       .limit(1)
       .maybeSingle();
 
-    let externalId: string | null = null;
+    const storedAttachments = attachments.map((attachment) => ({
+      path: attachment.path,
+      name: attachment.name,
+      size: attachment.size,
+      type: attachment.type,
+    }));
+    const { data: pendingMessage, error: pendingErr } =
+      await this.supabase.client
+        .from('messages')
+        .insert({
+          tenant_id: tenantId,
+          ticket_id: ticket.id,
+          author_id: userId,
+          author_type: 'agent',
+          channel: 'email',
+          is_internal: false,
+          content,
+          attachments: storedAttachments,
+          delivery_status: 'sending',
+          delivery_attempts: 1,
+        })
+        .select('id')
+        .single();
+    if (pendingErr) throw pendingErr;
+
     try {
+      const mailAttachments: Array<{
+        filename: string;
+        content: Buffer;
+        contentType: string;
+      }> = [];
+      for (const attachment of attachments) {
+        if (!attachment.path.startsWith(`${tenantId}/${ticket.id}/`)) {
+          throw new Error(`Caminho de anexo invÃ¡lido: ${attachment.name}`);
+        }
+        const { data: blob, error: downloadError } =
+          await this.supabase.client.storage
+            .from('ticket-attachments')
+            .download(attachment.path);
+        if (downloadError || !blob) {
+          throw new Error(
+            `NÃ£o foi possÃ­vel carregar o anexo ${attachment.name}: ${downloadError?.message ?? 'arquivo ausente'}`,
+          );
+        }
+        mailAttachments.push({
+          filename: attachment.name,
+          content: Buffer.from(await blob.arrayBuffer()),
+          contentType: attachment.type || 'application/octet-stream',
+        });
+      }
+
       const sent = await this.sender.sendTenantEmail(
         {
           host: tenant.email_smtp_host,
@@ -86,34 +149,30 @@ export class EmailReplyService {
         {
           to: contactEmail,
           subject: replySubject(ticket.subject),
-          text: content,
+          text: plainText(content),
+          html: content,
           inReplyTo: lastInbound?.external_id ?? null,
           references: lastInbound?.external_id ?? null,
+          attachments: mailAttachments,
         },
       );
-      externalId = sent.messageId;
+      const { error: updateError } = await this.supabase.client
+        .from('messages')
+        .update({
+          external_id: sent.messageId,
+          delivery_status: 'sent',
+          delivery_error: null,
+        })
+        .eq('id', pendingMessage.id);
+      if (updateError) throw updateError;
     } catch (err) {
-      throw new BadRequestException(
-        `Falha ao enviar e-mail: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const message = err instanceof Error ? err.message : String(err);
+      await this.supabase.client
+        .from('messages')
+        .update({ delivery_status: 'failed', delivery_error: message })
+        .eq('id', pendingMessage.id);
+      throw new BadRequestException(`Falha ao enviar e-mail: ${message}`);
     }
-
-    const { data: inserted, error: msgErr } = await this.supabase.client
-      .from('messages')
-      .insert({
-        tenant_id: tenantId,
-        ticket_id: ticket.id,
-        author_id: userId,
-        author_type: 'agent',
-        channel: 'email',
-        is_internal: false,
-        content,
-        external_id: externalId,
-      })
-      .select('id')
-      .single();
-    if (msgErr) throw msgErr;
-
-    return { ok: true as const, messageId: inserted.id };
+    return { ok: true as const, messageId: pendingMessage.id };
   }
 }

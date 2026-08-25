@@ -6,7 +6,10 @@ import type { AuthContext } from '../../auth/supabase-auth.guard';
 import { WhatsappInstanceService } from './whatsapp-instance.service';
 import { WhatsappReplyService } from './whatsapp-reply.service';
 import { UpsertWhatsappInstanceDto } from './dto/upsert-whatsapp-instance.dto';
-import { WhatsappSendMessageDto } from './dto/whatsapp-send-message.dto';
+import {
+  WhatsappSendMediaDto,
+  WhatsappSendMessageDto,
+} from './dto/whatsapp-send-message.dto';
 
 // `:id` do contrato original também é sempre o tenantId (ver nota no
 // EmailController) — uma instância uazapi por tenant no domínio real.
@@ -71,5 +74,17 @@ export class WhatsappController {
       dto.ticketId,
       dto.content,
     );
+  }
+
+  @Post(':id/send-media')
+  @RequirePermission('tickets', 'edit')
+  @ApiOperation({
+    summary: 'Envia imagem, documento, Ã¡udio ou vÃ­deo via uazapi',
+  })
+  sendMedia(
+    @CurrentUser() auth: AuthContext,
+    @Body() dto: WhatsappSendMediaDto,
+  ) {
+    return this.reply.replyMedia(auth.tenantId, auth.userId, dto);
   }
 }

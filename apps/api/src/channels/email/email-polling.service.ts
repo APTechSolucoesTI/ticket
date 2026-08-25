@@ -102,6 +102,12 @@ export class EmailPollingService {
               from_name: parsed.from?.value?.[0]?.name ?? null,
               subject: parsed.subject || '(sem assunto)',
               body: parsed.text || parsed.html || '',
+              in_reply_to: parsed.inReplyTo ?? null,
+              references: Array.isArray(parsed.references)
+                ? parsed.references
+                : parsed.references
+                  ? [parsed.references]
+                  : [],
               tenant_id: tenant.id,
               attachments,
             });

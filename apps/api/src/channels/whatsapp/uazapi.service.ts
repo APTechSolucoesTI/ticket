@@ -120,4 +120,25 @@ export class UazapiService {
       body: JSON.stringify({ number: normalizeNumber(number), text }),
     });
   }
+
+  async sendMedia(
+    baseUrl: string,
+    token: string,
+    payload: {
+      number: string;
+      type: 'image' | 'video' | 'document' | 'audio' | 'ptt';
+      file: string;
+      text?: string;
+      docName?: string;
+      mimetype?: string;
+    },
+  ) {
+    return this.call(baseUrl, token, '/send/media', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        number: normalizeNumber(payload.number),
+      }),
+    });
+  }
 }

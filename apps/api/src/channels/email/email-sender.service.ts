@@ -19,8 +19,14 @@ export class EmailSenderService {
       to: string;
       subject: string;
       text: string;
+      html?: string;
       inReplyTo?: string | null;
       references?: string | null;
+      attachments?: Array<{
+        filename: string;
+        content: Buffer;
+        contentType: string;
+      }>;
     },
   ): Promise<{ messageId: string | null }> {
     const transporter = nodemailer.createTransport({
@@ -37,8 +43,10 @@ export class EmailSenderService {
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
+      html: opts.html,
       inReplyTo: opts.inReplyTo ?? undefined,
       references: opts.references ?? undefined,
+      attachments: opts.attachments,
     });
 
     return { messageId: info.messageId ?? null };

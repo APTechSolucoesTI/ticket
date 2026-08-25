@@ -37,7 +37,6 @@ import { maskPhone, normalizePhone } from "@/lib/masks";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  sendWhatsAppMedia,
   sendWhatsAppContact,
   sendWhatsAppLocation,
   sendWhatsAppSticker,
@@ -60,7 +59,6 @@ type Props = {
   cannedList: CannedResponse[];
   applyTemplate: (body: string) => string;
   onSent?: () => void;
-  onPublicSent?: () => void;
   /** Canal "chat" (WebSocket, ChatGateway) — texto puro só, sem anexo. */
   onSendChat?: (content: string) => void;
   onTyping?: (isTyping: boolean) => void;
@@ -74,7 +72,6 @@ export function TicketComposer({
   cannedList,
   applyTemplate,
   onSent,
-  onPublicSent,
   onSendChat,
   onTyping,
 }: Props) {
@@ -104,7 +101,6 @@ export function TicketComposer({
   const [stickerOpen, setStickerOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
 
-  const sendWaMedia = useServerFn(sendWhatsAppMedia);
   const sendWaContact = useServerFn(sendWhatsAppContact);
   const sendWaLocation = useServerFn(sendWhatsAppLocation);
   const sendWaSticker = useServerFn(sendWhatsAppSticker);
@@ -123,6 +119,11 @@ export function TicketComposer({
   const addFiles = (list: FileList | File[]) => {
     const arr = Array.from(list);
     if (arr.length === 0) return;
+    const oversized = arr.find((file) => file.size > 10 * 1024 * 1024);
+    if (oversized) {
+      toast.error(`${oversized.name} excede o limite de 10 MB`);
+      return;
+    }
     setFiles((prev) => [...prev, ...arr].slice(0, 10));
   };
 
@@ -147,37 +148,58 @@ export function TicketComposer({
     if (!text.trim() && files.length === 0) return;
     setSending(true);
     try {
-      // 1) Files first
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
-        const isLast = i === files.length - 1;
-        const caption = isLast ? text : undefined; // put caption on last media
-        const uploaded = await uploadFile(f);
-        if (isWa && !internal) {
-          if (!uploaded.url) throw new Error("URL de mídia indisponível");
-          await sendWaMedia({
-            data: {
-              ticket_id: ticketId,
+      // E-mail is one SMTP message containing all attachments. Other channels
+      // keep one timeline message per file so delivery status stays granular.
+      if (isEmail && !internal && files.length > 0) {
+        const attachments: Array<{ path: string; name: string; size: number; type: string }> = [];
+        for (const file of files) {
+          const uploaded = await uploadFile(file);
+          attachments.push({
+            path: uploaded.path,
+            name: file.name,
+            size: file.size,
+            type: file.type || "application/octet-stream",
+          });
+        }
+        await backendClient.post("/channels/email/accounts/me/send", {
+          ticketId,
+          content:
+            text.trim() ||
+            `Anexo${files.length > 1 ? "s" : ""} enviado${files.length > 1 ? "s" : ""}.`,
+          attachments,
+        });
+      } else {
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          const isLast = i === files.length - 1;
+          const caption = isLast ? text : undefined;
+          const uploaded = await uploadFile(f);
+          if (isWa && !internal) {
+            if (!uploaded.url) throw new Error("URL de mídia indisponível");
+            await backendClient.post("/channels/whatsapp/instances/me/send-media", {
+              ticketId,
               url: uploaded.url,
+              path: uploaded.path,
               filename: f.name,
               mimetype: f.type || "application/octet-stream",
+              size: f.size,
               caption: caption || undefined,
-            },
-          });
-        } else {
-          const authorId = getCurrentUserId();
-          const { error } = await supabase.from("messages").insert({
-            tenant_id: tenantId,
-            ticket_id: ticketId,
-            content: caption ?? `[anexo] ${f.name}`,
-            author_id: authorId,
-            author_type: "agent",
-            is_internal: internal,
-            channel: (channel === "manual" ? "email" : channel) as
-              "chat" | "email" | "portal" | "whatsapp" | null,
-            attachments: [{ path: uploaded.path, name: f.name, size: f.size, type: f.type }],
-          });
-          if (error) throw error;
+            });
+          } else {
+            const authorId = getCurrentUserId();
+            const { error } = await supabase.from("messages").insert({
+              tenant_id: tenantId,
+              ticket_id: ticketId,
+              content: caption ?? `[anexo] ${f.name}`,
+              author_id: authorId,
+              author_type: "agent",
+              is_internal: internal,
+              channel: (channel === "manual" ? "email" : channel) as
+                "chat" | "email" | "portal" | "whatsapp" | null,
+              attachments: [{ path: uploaded.path, name: f.name, size: f.size, type: f.type }],
+            });
+            if (error) throw error;
+          }
         }
       }
 
@@ -211,11 +233,9 @@ export function TicketComposer({
         }
       }
 
-      const hadContent = !!text.trim() || files.length > 0;
       setReply("");
       setFiles([]);
       onSent?.();
-      if (!internal && hadContent) onPublicSent?.();
       toast.success(
         files.length > 0
           ? `Enviado (${files.length} anexo${files.length > 1 ? "s" : ""})`
@@ -244,13 +264,19 @@ export function TicketComposer({
         try {
           const up = await uploadFile(file);
           if (isWa && !internal) {
-            await sendWaMedia({
-              data: {
-                ticket_id: ticketId,
-                url: up.url,
-                filename: file.name,
-                mimetype: mime,
-              },
+            await backendClient.post("/channels/whatsapp/instances/me/send-media", {
+              ticketId,
+              url: up.url,
+              path: up.path,
+              filename: file.name,
+              mimetype: mime,
+              size: file.size,
+            });
+          } else if (isEmail && !internal) {
+            await backendClient.post("/channels/email/accounts/me/send", {
+              ticketId,
+              content: "Mensagem de voz",
+              attachments: [{ path: up.path, name: file.name, size: file.size, type: mime }],
             });
           } else {
             const authorId = getCurrentUserId();
