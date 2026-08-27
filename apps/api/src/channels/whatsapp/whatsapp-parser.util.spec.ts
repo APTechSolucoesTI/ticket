@@ -1,10 +1,13 @@
 import {
   extractExternalId,
+  extractMedia,
   extractName,
   extractPhone,
+  extractStructuredAttachments,
   extractText,
   isFromMe,
   normalizeStatus,
+  sanitizeWebhookPayload,
   samePhone,
 } from './whatsapp-parser.util';
 
@@ -53,5 +56,74 @@ describe('whatsapp-parser', () => {
     expect(normalizeStatus('DELIVERY_ACK')).toBe('delivered');
     expect(normalizeStatus('SERVER_ACK')).toBe('sent');
     expect(normalizeStatus(null)).toBeNull();
+  });
+
+  it.each([
+    ['image', 'image/jpeg', 'image'],
+    ['video', 'video/mp4', 'video'],
+    ['audio', 'audio/ogg', 'audio'],
+    ['document', 'application/pdf', 'document'],
+    ['sticker', 'image/webp', 'sticker'],
+  ])('extrai mídia UAZAPI v2: %s', (mediaType, mimetype, expectedType) => {
+    const message = {
+      type: 'media',
+      mediaType,
+      messageType: `${mediaType}Message`,
+      content: {
+        URL: 'https://mmg.whatsapp.net/media/test',
+        mimetype,
+        fileLength: '1234',
+      },
+    };
+    expect(extractMedia({ message }, message)).toMatchObject({
+      hasAttachment: true,
+      mediaUrl: 'https://mmg.whatsapp.net/media/test',
+      mimetype,
+      mediaType: expectedType,
+      size: 1234,
+    });
+  });
+
+  it('extrai localização e contato estruturados', () => {
+    const location = {
+      messageType: 'LocationMessage',
+      content: {
+        degreesLatitude: -23.55,
+        degreesLongitude: -46.63,
+        name: 'São Paulo',
+      },
+    };
+    expect(
+      extractStructuredAttachments({ message: location }, location)[0],
+    ).toMatchObject({
+      kind: 'location',
+      location: { latitude: -23.55, longitude: -46.63, name: 'São Paulo' },
+    });
+    const contact = {
+      messageType: 'ContactMessage',
+      content: {
+        fullName: 'Ana',
+        phoneNumber: '5511999998888',
+      },
+    };
+    expect(
+      extractStructuredAttachments({ message: contact }, contact)[0],
+    ).toMatchObject({
+      kind: 'contact',
+      contact: { name: 'Ana', phone: '5511999998888' },
+    });
+  });
+
+  it('remove credenciais e chaves de mídia do payload persistido', () => {
+    expect(
+      sanitizeWebhookPayload({
+        token: 'segredo',
+        message: {
+          content: { URL: 'https://media', mediaKey: 'chave', caption: 'ok' },
+        },
+      }),
+    ).toEqual({
+      message: { content: { URL: 'https://media', caption: 'ok' } },
+    });
   });
 });

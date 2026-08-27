@@ -126,7 +126,7 @@ export class UazapiService {
     token: string,
     payload: {
       number: string;
-      type: 'image' | 'video' | 'document' | 'audio' | 'ptt';
+      type: 'image' | 'video' | 'document' | 'audio' | 'ptt' | 'sticker';
       file: string;
       text?: string;
       docName?: string;
@@ -139,6 +139,60 @@ export class UazapiService {
         ...payload,
         number: normalizeNumber(payload.number),
       }),
+    });
+  }
+
+  async sendContact(
+    baseUrl: string,
+    token: string,
+    number: string,
+    contact: { name: string; phone: string },
+  ) {
+    const normalizedPhone = normalizeNumber(contact.phone);
+    return this.call(baseUrl, token, '/send/contact', {
+      method: 'POST',
+      body: JSON.stringify({
+        number: normalizeNumber(number),
+        contacts: [
+          {
+            fullName: contact.name,
+            waid: normalizedPhone,
+            phoneNumber: normalizedPhone,
+          },
+        ],
+      }),
+    });
+  }
+
+  async sendLocation(
+    baseUrl: string,
+    token: string,
+    payload: {
+      number: string;
+      latitude: number;
+      longitude: number;
+      name?: string;
+      address?: string;
+    },
+  ) {
+    return this.call(baseUrl, token, '/send/location', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        number: normalizeNumber(payload.number),
+      }),
+    });
+  }
+
+  async makeCall(
+    baseUrl: string,
+    token: string,
+    number: string,
+    duration: number,
+  ) {
+    return this.call(baseUrl, token, '/call/make', {
+      method: 'POST',
+      body: JSON.stringify({ number: normalizeNumber(number), duration }),
     });
   }
 }

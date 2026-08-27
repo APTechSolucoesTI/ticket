@@ -35,13 +35,6 @@ import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { maskPhone, normalizePhone } from "@/lib/masks";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
-import { useServerFn } from "@tanstack/react-start";
-import {
-  sendWhatsAppContact,
-  sendWhatsAppLocation,
-  sendWhatsAppSticker,
-  sendWhatsAppCall,
-} from "@/lib/whatsapp.functions";
 import { backendClient } from "@/lib/backend-client";
 import { cn } from "@/lib/utils";
 
@@ -102,11 +95,6 @@ export function TicketComposer({
   const [locationOpen, setLocationOpen] = useState(false);
   const [stickerOpen, setStickerOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
-
-  const sendWaContact = useServerFn(sendWhatsAppContact);
-  const sendWaLocation = useServerFn(sendWhatsAppLocation);
-  const sendWaSticker = useServerFn(sendWhatsAppSticker);
-  const sendWaCall = useServerFn(sendWhatsAppCall);
 
   const signaturize = useCallback(
     (text: string) => {
@@ -590,7 +578,12 @@ export function TicketComposer({
         {isWa && !internal && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-[11px]"
+                disabled={!publicReplyEnabled}
+              >
                 Mais…
               </Button>
             </DropdownMenuTrigger>
@@ -634,8 +627,10 @@ export function TicketComposer({
         onOpenChange={setContactOpen}
         onSubmit={async (name, phone) => {
           try {
-            await sendWaContact({
-              data: { ticket_id: ticketId, contact_name: name, contact_phone: phone },
+            await backendClient.post("/channels/whatsapp/instances/me/send-contact", {
+              ticketId,
+              name,
+              phone,
             });
             toast.success("Contato enviado");
             onSent?.();
@@ -651,8 +646,12 @@ export function TicketComposer({
         onOpenChange={setLocationOpen}
         onSubmit={async (lat, lng, name, address) => {
           try {
-            await sendWaLocation({
-              data: { ticket_id: ticketId, latitude: lat, longitude: lng, name, address },
+            await backendClient.post("/channels/whatsapp/instances/me/send-location", {
+              ticketId,
+              latitude: lat,
+              longitude: lng,
+              name,
+              address,
             });
             toast.success("Localização enviada");
             onSent?.();
@@ -667,9 +666,14 @@ export function TicketComposer({
         open={stickerOpen}
         onOpenChange={setStickerOpen}
         uploadFile={uploadFile}
-        onSend={async (url) => {
+        onSend={async ({ url, path, filename }) => {
           try {
-            await sendWaSticker({ data: { ticket_id: ticketId, url } });
+            await backendClient.post("/channels/whatsapp/instances/me/send-sticker", {
+              ticketId,
+              url,
+              path,
+              filename,
+            });
             toast.success("Figurinha enviada");
             onSent?.();
           } catch (e) {
@@ -684,7 +688,10 @@ export function TicketComposer({
         onOpenChange={setCallOpen}
         onSubmit={async (duration) => {
           try {
-            await sendWaCall({ data: { ticket_id: ticketId, duration } });
+            await backendClient.post("/channels/whatsapp/instances/me/call", {
+              ticketId,
+              duration,
+            });
             toast.success("Ligação disparada");
             onSent?.();
           } catch (e) {
@@ -941,7 +948,7 @@ function StickerDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   uploadFile: (file: File) => Promise<{ path: string; url: string }>;
-  onSend: (url: string) => Promise<void>;
+  onSend: (sticker: { url: string; path: string; filename: string }) => Promise<void>;
 }) {
   const [items, setItems] = useState<
     Array<{ id: string; name: string; storage_path: string; url: string }>
@@ -1013,16 +1020,16 @@ function StickerDialog({
     }
   };
 
-  const pick = async (url: string) => {
-    if (!url) return toast.error("URL indisponível");
-    await onSend(url);
+  const pick = async (item: { url: string; storage_path: string; name: string }) => {
+    if (!item.url) return toast.error("URL indisponível");
+    await onSend({ url: item.url, path: item.storage_path, filename: item.name });
     onOpenChange(false);
   };
 
   const sendOneOff = async (file: File) => {
     try {
       const up = await uploadFile(file);
-      await onSend(up.url);
+      await onSend({ url: up.url, path: up.path, filename: file.name });
       onOpenChange(false);
     } catch (e) {
       toast.error((e as Error).message);
@@ -1087,7 +1094,7 @@ function StickerDialog({
               {items.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => pick(s.url)}
+                  onClick={() => pick(s)}
                   className="group relative aspect-square overflow-hidden rounded-md border bg-background p-1 hover:border-primary"
                   title={s.name}
                 >

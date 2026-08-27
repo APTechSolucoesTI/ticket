@@ -70,9 +70,9 @@ a reescrita para NestJS + Redis foi feita como pedido, porque:
   `apps/web`: `src/lib/{email-channel,imap-poll,email-send}.server.ts`,
   `email-channel.functions.ts`, as rotas `src/routes/api/public/hooks/{email-ingest,
   email-imap-poll,uazapi/$tenantId}.ts`, e `imapflow`/`mailparser` do `apps/web/package.json` (só
-  a API precisa deles agora). `notifyTicketStatus`/`sendCsatInvite`/envio de mídia-contato-
-  localização-sticker-ligação do WhatsApp **continuam no código antigo** — não fazem parte do que
-  o WhatsappModule cobre hoje (só resposta de texto), não inventei um substituto pra eles.
+  a API precisa deles agora). Texto, arquivos, contato, localização, figurinha e ligação do
+  WhatsApp passam pelo `WhatsappModule`, inclusive com descriptografia server-side do token UAZAPI.
+  `notifyTicketStatus` e `sendCsatInvite` ainda continuam no código legado.
   `nodemailer` continua em `apps/web` (usado por `mailer.server.ts`, o envio de OTP do portal do
   cliente — feature separada, não é o canal de e-mail de ticket).
 - **Senha/token nunca voltam em claro.** A API nunca devolve a senha IMAP/token da uazapi salvos
@@ -118,7 +118,7 @@ de vocês) — Dokploy publica só o frontend pelo Traefik, backend nunca expost
 | `VITE_API_URL` | `https://apticket.aptechinfo.com.br` (mesmo domínio público — build-time, vai pro browser) |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | iguais aos que já usam hoje |
 | `SUPABASE_SERVICE_ROLE_KEY` | idem (server-only, nunca com prefixo `VITE_`) |
-| `SMTP_*`, `PORTAL_SESSION_SECRET` | iguais aos que já usam hoje (portal do cliente, feature separada do canal de e-mail) |
+| `SMTP_*`, `PORTAL_SESSION_SECRET` | iguais aos que já usam hoje (portal do cliente, feature separada do canal de e-mail). Defina `SMTP_CLIENT_NAME=apticket.aptechinfo.com.br` para o EHLO/HELO nunca usar `[127.0.0.1]`. |
 | `PUBLIC_SITE_URL` | `https://apticket.aptechinfo.com.br` — usada nos links de convite/redefinição de senha (autenticação própria, ver seção abaixo) e no `redirectTo` de qualquer link antigo do GoTrue ainda em trânsito. |
 | `JWT_SECRET` | **mesmo valor de `GOTRUE_JWT_SECRET`/`PGRST_JWT_SECRET`** do `.env` do Supabase self-hosted — não gerar um novo. Ver seção "Autenticação própria" abaixo. |
 | `PORT` | Nitro usa isso pra escolher a porta — Dokploy geralmente injeta sozinho, conferir |
@@ -133,6 +133,7 @@ de vocês) — Dokploy publica só o frontend pelo Traefik, backend nunca expost
 | `SECRETS_ENCRYPTION_KEY` | **gerar uma chave nova pra produção** — não reusar nenhuma chave de teste/dev; `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `CORS_ORIGIN` | `https://apticket.aptechinfo.com.br` |
 | `SWAGGER_ENABLED` | `false` em produção pública (expõe o contrato completo da API), ou deixar `true` só se o `/docs` também ficar atrás de basic auth no Traefik |
+| `SMTP_CLIENT_NAME` | `apticket.aptechinfo.com.br` — FQDN anunciado pelo Nodemailer no EHLO/HELO; evita o fallback `[127.0.0.1]` bloqueado pela HostGator. |
 
 ## Autenticação própria (não depende mais de `auth.users` do Supabase)
 

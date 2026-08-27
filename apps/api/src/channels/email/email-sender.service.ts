@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
+import type { Env } from '../../config/env.validation';
 
 // Portado de apps/web/src/lib/email-send.server.ts, sem mudança de lógica.
 export type TenantSmtp = {
@@ -13,6 +15,8 @@ export type TenantSmtp = {
 
 @Injectable()
 export class EmailSenderService {
+  constructor(private readonly config: ConfigService<Env, true>) {}
+
   async sendTenantEmail(
     smtp: TenantSmtp,
     opts: {
@@ -30,6 +34,7 @@ export class EmailSenderService {
     },
   ): Promise<{ messageId: string | null }> {
     const transporter = nodemailer.createTransport({
+      name: this.config.get('SMTP_CLIENT_NAME', { infer: true }),
       host: smtp.host,
       port: smtp.port,
       secure: smtp.secure,

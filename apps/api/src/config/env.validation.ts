@@ -36,6 +36,16 @@ const envSchema = z.object({
   // Origem do frontend, pra CORS quando a API for acessada direto (fora do
   // proxy same-origin do apps/web) — ex.: dev local, ou debug via /docs.
   CORS_ORIGIN: z.string().default('http://localhost:8080'),
+
+  // FQDN enviado no EHLO/HELO SMTP. Sem ele o hostname interno do container
+  // pode fazer o Nodemailer anunciar [127.0.0.1], bloqueado pela HostGator.
+  SMTP_CLIENT_NAME: z
+    .string()
+    .regex(
+      /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i,
+      'precisa ser um hostname público completo (FQDN)',
+    )
+    .default('apticket.aptechinfo.com.br'),
 });
 
 export type Env = z.infer<typeof envSchema>;

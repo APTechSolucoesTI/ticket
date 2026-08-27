@@ -90,6 +90,7 @@ export function extractPhone(payload: UnknownRec): string | null {
 function textFromRecord(record: UnknownRec | null): string | null {
   if (!record) return null;
   const nested = asRecord(record.message);
+  const content = asRecord(record.content);
   const extended =
     asRecord(nested?.extendedTextMessage) ??
     asRecord(record.extendedTextMessage);
@@ -104,6 +105,8 @@ function textFromRecord(record: UnknownRec | null): string | null {
     record.transcription,
     record.conversation,
     record.content,
+    content?.text,
+    content?.caption,
     nested?.conversation,
     extended?.text,
     image?.caption,
@@ -181,6 +184,7 @@ export function normalizeStatus(raw: unknown): string | null {
 
 export function extractMedia(payload: UnknownRec, messageObj: UnknownRec) {
   const nestedMsg = asRecord(messageObj.message);
+  const content = asRecord(messageObj.content);
   const imageMsg =
     asRecord(nestedMsg?.imageMessage) ?? asRecord(messageObj.imageMessage);
   const stickerMsg =
@@ -194,15 +198,30 @@ export function extractMedia(payload: UnknownRec, messageObj: UnknownRec) {
     asRecord(messageObj.documentMessage);
   const nestedMedia =
     imageMsg ?? stickerMsg ?? audioMsg ?? videoMsg ?? documentMsg ?? null;
+  const declaredMediaType =
+    firstString(
+      messageObj.mediaType,
+      messageObj.messageType,
+      messageObj.type,
+    )?.toLowerCase() ?? '';
+  const contentIsMedia =
+    declaredMediaType.includes('image') ||
+    declaredMediaType.includes('video') ||
+    declaredMediaType.includes('audio') ||
+    declaredMediaType.includes('document') ||
+    declaredMediaType.includes('sticker') ||
+    messageObj.type === 'media';
   const mediaObj = (messageObj.media ??
     messageObj.attachment ??
     nestedMedia ??
+    (contentIsMedia ? content : null) ??
     null) as UnknownRec | null;
   const mediaUrl =
     (messageObj.mediaUrl as string | undefined) ??
     (messageObj.fileUrl as string | undefined) ??
     (messageObj.fileURL as string | undefined) ??
     (messageObj.url as string | undefined) ??
+    (mediaObj?.URL as string | undefined) ??
     (mediaObj?.url as string | undefined) ??
     (mediaObj?.fileURL as string | undefined) ??
     (mediaObj?.directPath as string | undefined) ??
@@ -217,7 +236,18 @@ export function extractMedia(payload: UnknownRec, messageObj: UnknownRec) {
           ? 'video'
           : documentMsg
             ? 'document'
-            : ((messageObj.type as string | undefined) ?? null);
+            : ((messageObj.mediaType as string | undefined) ??
+              (declaredMediaType.includes('sticker')
+                ? 'sticker'
+                : declaredMediaType.includes('image')
+                  ? 'image'
+                  : declaredMediaType.includes('audio')
+                    ? 'audio'
+                    : declaredMediaType.includes('video')
+                      ? 'video'
+                      : declaredMediaType.includes('document')
+                        ? 'document'
+                        : null));
   const defaultMime =
     mediaType === 'sticker'
       ? 'image/webp'
@@ -235,13 +265,182 @@ export function extractMedia(payload: UnknownRec, messageObj: UnknownRec) {
     defaultMime;
   const fileName =
     (messageObj.filename as string | undefined) ??
+    (messageObj.fileName as string | undefined) ??
     (mediaObj?.filename as string | undefined) ??
+    (mediaObj?.fileName as string | undefined) ??
     (mediaObj?.name as string | undefined) ??
     (mediaType === 'sticker'
       ? `sticker-${Date.now()}.webp`
-      : `anexo-${Date.now()}`);
-  const hasAttachment = mediaUrl != null || mediaObj != null;
-  return { hasAttachment, mediaUrl, mimetype, fileName };
+      : `anexo-${Date.now()}${extensionForMime(mimetype)}`);
+  const rawSize = mediaObj?.fileLength ?? messageObj.fileLength;
+  const size =
+    typeof rawSize === 'number'
+      ? rawSize
+      : typeof rawSize === 'string'
+        ? Number(rawSize) || 0
+        : 0;
+  const hasAttachment = contentIsMedia && !!mediaUrl;
+  return { hasAttachment, mediaUrl, mimetype, fileName, size, mediaType };
+}
+
+function extensionForMime(mimetype: string): string {
+  const clean = mimetype.split(';')[0].toLowerCase();
+  const extensions: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'video/mp4': '.mp4',
+    'video/quicktime': '.mov',
+    'audio/ogg': '.ogg',
+    'audio/opus': '.opus',
+    'audio/mpeg': '.mp3',
+    'application/pdf': '.pdf',
+  };
+  return extensions[clean] ?? '';
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function firstNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    const number = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
+}
+
+export type WhatsappStructuredAttachment = {
+  path: string;
+  url?: string;
+  name: string;
+  size: number;
+  type: string;
+  kind?: 'contact' | 'location' | 'sticker';
+  contact?: { name: string; phone: string | null };
+  location?: {
+    latitude: number;
+    longitude: number;
+    name: string | null;
+    address: string | null;
+  };
+};
+
+export function extractStructuredAttachments(
+  payload: UnknownRec,
+  messageObj: UnknownRec,
+): WhatsappStructuredAttachment[] {
+  const media = extractMedia(payload, messageObj);
+  if (media.hasAttachment && media.mediaUrl) {
+    return [
+      {
+        path: '',
+        url: media.mediaUrl,
+        name: media.fileName,
+        size: media.size,
+        type: media.mimetype,
+        ...(media.mediaType === 'sticker' ? { kind: 'sticker' as const } : {}),
+      },
+    ];
+  }
+
+  const content = asRecord(messageObj.content);
+  const type =
+    firstString(messageObj.messageType, messageObj.type)?.toLowerCase() ?? '';
+  const location =
+    asRecord(messageObj.location) ??
+    asRecord(content?.location) ??
+    (type.includes('location') ? content : null);
+  if (location) {
+    const latitude = firstNumber(
+      location.degreesLatitude,
+      location.latitude,
+      location.lat,
+    );
+    const longitude = firstNumber(
+      location.degreesLongitude,
+      location.longitude,
+      location.lng,
+      location.lon,
+    );
+    if (latitude !== null && longitude !== null) {
+      const name = firstString(location.name, location.title);
+      const address = firstString(location.address, location.description);
+      return [
+        {
+          path: '',
+          name: name ?? 'Localização compartilhada',
+          size: 0,
+          type: 'application/vnd.apticket.whatsapp-location+json',
+          kind: 'location',
+          location: { latitude, longitude, name, address },
+        },
+      ];
+    }
+  }
+
+  const rawContacts =
+    (Array.isArray(messageObj.contacts) ? messageObj.contacts : null) ??
+    (Array.isArray(content?.contacts) ? content.contacts : null) ??
+    (type.includes('contact')
+      ? Array.isArray(messageObj.content)
+        ? messageObj.content
+        : content
+          ? [content]
+          : []
+      : []);
+  const contacts = rawContacts.map(asRecord).filter(Boolean) as UnknownRec[];
+  if (contacts.length > 0) {
+    return contacts.slice(0, 20).map((contact, index) => {
+      const vcard = firstString(contact.vcard, contact.vCard);
+      const vcardName = vcard?.match(/(?:^|\n)FN[^:]*:([^\r\n]+)/i)?.[1];
+      const vcardPhone = vcard?.match(/(?:^|\n)TEL[^:]*:([^\r\n]+)/i)?.[1];
+      const name =
+        firstString(
+          contact.fullName,
+          contact.displayName,
+          contact.name,
+          vcardName,
+        ) ?? `Contato ${index + 1}`;
+      const phone = firstString(
+        contact.phoneNumber,
+        contact.phone,
+        contact.waid,
+        vcardPhone,
+      );
+      return {
+        path: '',
+        name,
+        size: 0,
+        type: 'application/vnd.apticket.whatsapp-contact+json',
+        kind: 'contact' as const,
+        contact: { name, phone },
+      };
+    });
+  }
+
+  return [];
+}
+
+export function sanitizeWebhookPayload(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeWebhookPayload);
+  const record = asRecord(value);
+  if (!record) return value;
+  return Object.fromEntries(
+    Object.entries(record)
+      .filter(
+        ([key]) =>
+          !/token|secret|authorization|mediaKey|fileSHA256|fileEncSHA256|JPEGThumbnail/i.test(
+            key,
+          ),
+      )
+      .map(([key, nested]) => [key, sanitizeWebhookPayload(nested)]),
+  );
 }
 
 export function isFromMe(payload: UnknownRec): boolean {

@@ -1987,6 +1987,7 @@ export type Database = {
       };
       whatsapp_pending_messages: {
         Row: {
+          attachments: Json;
           contact_id: string | null;
           content: string;
           created_at: string;
@@ -1998,6 +1999,7 @@ export type Database = {
           tenant_id: string;
         };
         Insert: {
+          attachments?: Json;
           contact_id?: string | null;
           content: string;
           created_at?: string;
@@ -2009,6 +2011,7 @@ export type Database = {
           tenant_id: string;
         };
         Update: {
+          attachments?: Json;
           contact_id?: string | null;
           content?: string;
           created_at?: string;

@@ -7,8 +7,12 @@ import { WhatsappInstanceService } from './whatsapp-instance.service';
 import { WhatsappReplyService } from './whatsapp-reply.service';
 import { UpsertWhatsappInstanceDto } from './dto/upsert-whatsapp-instance.dto';
 import {
+  WhatsappCallDto,
+  WhatsappSendContactDto,
+  WhatsappSendLocationDto,
   WhatsappSendMediaDto,
   WhatsappSendMessageDto,
+  WhatsappSendStickerDto,
 } from './dto/whatsapp-send-message.dto';
 
 // `:id` do contrato original também é sempre o tenantId (ver nota no
@@ -86,5 +90,42 @@ export class WhatsappController {
     @Body() dto: WhatsappSendMediaDto,
   ) {
     return this.reply.replyMedia(auth.tenantId, auth.userId, dto);
+  }
+
+  @Post(':id/send-contact')
+  @RequirePermission('tickets', 'edit')
+  @ApiOperation({ summary: 'Envia um contato pelo WhatsApp' })
+  sendContact(
+    @CurrentUser() auth: AuthContext,
+    @Body() dto: WhatsappSendContactDto,
+  ) {
+    return this.reply.replyContact(auth.tenantId, auth.userId, dto);
+  }
+
+  @Post(':id/send-location')
+  @RequirePermission('tickets', 'edit')
+  @ApiOperation({ summary: 'Envia uma localização pelo WhatsApp' })
+  sendLocation(
+    @CurrentUser() auth: AuthContext,
+    @Body() dto: WhatsappSendLocationDto,
+  ) {
+    return this.reply.replyLocation(auth.tenantId, auth.userId, dto);
+  }
+
+  @Post(':id/send-sticker')
+  @RequirePermission('tickets', 'edit')
+  @ApiOperation({ summary: 'Envia uma figurinha pelo WhatsApp' })
+  sendSticker(
+    @CurrentUser() auth: AuthContext,
+    @Body() dto: WhatsappSendStickerDto,
+  ) {
+    return this.reply.replySticker(auth.tenantId, auth.userId, dto);
+  }
+
+  @Post(':id/call')
+  @RequirePermission('tickets', 'edit')
+  @ApiOperation({ summary: 'Inicia uma ligação pelo WhatsApp' })
+  call(@CurrentUser() auth: AuthContext, @Body() dto: WhatsappCallDto) {
+    return this.reply.call(auth.tenantId, auth.userId, dto);
   }
 }

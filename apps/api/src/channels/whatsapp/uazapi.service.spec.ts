@@ -42,4 +42,68 @@ describe('UazapiService', () => {
       );
     },
   );
+
+  it('envia contato no contrato UAZAPI v2', async () => {
+    const service = new UazapiService();
+    const call = jest
+      .spyOn(service, 'call')
+      .mockResolvedValue({ ok: true, status: 200, body: {} });
+    await service.sendContact(
+      'https://uazapi.example',
+      'secret',
+      '11988887777',
+      {
+        name: 'Ana Silva',
+        phone: '11999998888',
+      },
+    );
+    expect(call).toHaveBeenCalledWith(
+      'https://uazapi.example',
+      'secret',
+      '/send/contact',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          number: '5511988887777',
+          contacts: [
+            {
+              fullName: 'Ana Silva',
+              waid: '5511999998888',
+              phoneNumber: '5511999998888',
+            },
+          ],
+        }),
+      },
+    );
+  });
+
+  it('envia localização, figurinha e ligação nos endpoints corretos', async () => {
+    const service = new UazapiService();
+    const call = jest
+      .spyOn(service, 'call')
+      .mockResolvedValue({ ok: true, status: 200, body: {} });
+    await service.sendLocation('https://uazapi.example', 'secret', {
+      number: '11988887777',
+      latitude: -23.55,
+      longitude: -46.63,
+      name: 'Escritório',
+    });
+    await service.sendMedia('https://uazapi.example', 'secret', {
+      number: '11988887777',
+      type: 'sticker',
+      file: 'https://storage.example/sticker.webp',
+      mimetype: 'image/webp',
+    });
+    await service.makeCall(
+      'https://uazapi.example',
+      'secret',
+      '11988887777',
+      15,
+    );
+    expect(call.mock.calls.map((args) => args[2])).toEqual([
+      '/send/location',
+      '/send/media',
+      '/call/make',
+    ]);
+  });
 });

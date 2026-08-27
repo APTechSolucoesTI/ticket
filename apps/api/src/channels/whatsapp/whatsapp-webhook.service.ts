@@ -4,13 +4,14 @@ import { RedisService } from '../../queue/redis.service';
 import {
   asRecord,
   extractExternalId,
-  extractMedia,
   extractName,
   extractPhone,
+  extractStructuredAttachments,
   extractText,
   firstRecord,
   isFromMe,
   normalizeStatus,
+  sanitizeWebhookPayload,
   samePhone,
   type UnknownRec,
 } from './whatsapp-parser.util';
@@ -86,21 +87,9 @@ export class WhatsappWebhookService {
     const text = extractText(payload);
     const extId = extractExternalId(payload);
     const pushName = extractName(payload);
-    const { hasAttachment, mediaUrl, mimetype, fileName } = extractMedia(
-      payload,
-      messageObj,
-    );
-    const attachments = hasAttachment
-      ? [
-          {
-            path: '',
-            url: mediaUrl ?? '',
-            name: fileName,
-            size: 0,
-            type: mimetype,
-          },
-        ]
-      : [];
+    const attachments = extractStructuredAttachments(payload, messageObj);
+    const hasAttachment = attachments.length > 0;
+    const content = text || attachmentDescription(attachments);
 
     if (!phone || (!text && !hasAttachment)) {
       return { kind: 'ignored', reason: 'no_content' };
@@ -177,9 +166,10 @@ export class WhatsappWebhookService {
         tenantId,
         contact.id,
         phone,
-        text,
+        content,
         extId,
         payload,
+        attachments,
       );
       return {
         kind: 'pending',
@@ -194,9 +184,10 @@ export class WhatsappWebhookService {
         tenantId,
         contact.id,
         phone,
-        text,
+        content,
         extId,
         payload,
+        attachments,
       );
       return {
         kind: 'pending',
@@ -224,9 +215,10 @@ export class WhatsappWebhookService {
         tenantId,
         contact.id,
         phone,
-        text,
+        content,
         extId,
         payload,
+        attachments,
       );
       return {
         kind: 'pending',
@@ -248,7 +240,7 @@ export class WhatsappWebhookService {
 
     let ticketId = openTickets?.[0]?.id ?? null;
     if (!ticketId) {
-      const subject = (text || 'Mensagem via WhatsApp').slice(0, 200);
+      const subject = (content || 'Mensagem via WhatsApp').slice(0, 200);
       const { data: newT, error: tErr } = await this.supabase.client
         .from('tickets')
         .insert({
@@ -281,7 +273,7 @@ export class WhatsappWebhookService {
         author_type: 'contact',
         channel: 'whatsapp',
         is_internal: false,
-        content: text || '[anexo]',
+        content,
         external_id: extId,
         delivery_status: 'received',
         attachments,
@@ -301,6 +293,7 @@ export class WhatsappWebhookService {
     text: string,
     extId: string | null,
     payload: UnknownRec,
+    attachments: ReturnType<typeof extractStructuredAttachments>,
   ) {
     const { data: pending, error } = await this.supabase.client
       .from('whatsapp_pending_messages')
@@ -310,11 +303,28 @@ export class WhatsappWebhookService {
         phone,
         content: text || '[anexo]',
         external_id: extId,
-        payload: payload as never,
+        payload: sanitizeWebhookPayload(payload) as never,
+        attachments: attachments as never,
       })
       .select('id')
       .maybeSingle();
     if (error) this.logger.error(`pending insert failed: ${error.message}`);
     return pending?.id ?? null;
   }
+}
+
+function attachmentDescription(
+  attachments: ReturnType<typeof extractStructuredAttachments>,
+): string {
+  const first = attachments[0];
+  if (!first) return '[anexo]';
+  if (first.kind === 'contact')
+    return `Contato: ${first.contact?.name ?? first.name}`;
+  if (first.kind === 'location')
+    return `Localização: ${first.location?.name ?? first.name}`;
+  if (first.kind === 'sticker') return 'Figurinha';
+  if (first.type.startsWith('image/')) return 'Imagem recebida';
+  if (first.type.startsWith('video/')) return 'Vídeo recebido';
+  if (first.type.startsWith('audio/')) return 'Áudio recebido';
+  return `Arquivo recebido: ${first.name}`;
 }

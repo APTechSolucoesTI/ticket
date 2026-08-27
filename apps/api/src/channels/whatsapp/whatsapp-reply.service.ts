@@ -9,7 +9,14 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { SecretsService } from '../../crypto/secrets.service';
 import { RedisService } from '../../queue/redis.service';
 import { UazapiService } from './uazapi.service';
-import type { WhatsappSendMediaDto } from './dto/whatsapp-send-message.dto';
+import type { Json } from '@apticket/shared-types/database';
+import type {
+  WhatsappCallDto,
+  WhatsappSendContactDto,
+  WhatsappSendLocationDto,
+  WhatsappSendMediaDto,
+  WhatsappSendStickerDto,
+} from './dto/whatsapp-send-message.dto';
 
 // Portado de sendWhatsAppReply em apps/web/src/lib/whatsapp.functions.ts.
 // Diferença: token da uazapi agora vem criptografado do banco, e o envio
@@ -26,6 +33,111 @@ export class WhatsappReplyService {
     private readonly redis: RedisService,
     private readonly uazapi: UazapiService,
   ) {}
+
+  private async context(tenantId: string, ticketId: string) {
+    const { data: ticket, error } = await this.supabase.client
+      .from('tickets')
+      .select('id, tenant_id, channel, contacts(phone,name)')
+      .eq('id', ticketId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!ticket) throw new NotFoundException('Ticket não encontrado');
+    if (ticket.channel !== 'whatsapp')
+      throw new BadRequestException('Ticket não é de origem WhatsApp');
+    const phone = (
+      ticket as unknown as { contacts?: { phone?: string | null } | null }
+    ).contacts?.phone;
+    if (!phone) throw new BadRequestException('Contato sem número de telefone');
+    const { data: tenant, error: tenantError } = await this.supabase.client
+      .from('tenants')
+      .select(
+        'whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token',
+      )
+      .eq('id', tenantId)
+      .maybeSingle();
+    if (tenantError) throw tenantError;
+    if (
+      !tenant?.whatsapp_enabled ||
+      !tenant.whatsapp_uazapi_base_url ||
+      !tenant.whatsapp_uazapi_token
+    )
+      throw new BadRequestException(
+        'WhatsApp não configurado para este tenant',
+      );
+    const rate = await this.redis.checkRateLimit(
+      `whatsapp:send:${tenantId}`,
+      SEND_RATE_LIMIT,
+      SEND_RATE_WINDOW_SECONDS,
+    );
+    if (!rate.allowed)
+      throw new HttpException(
+        `Limite de envio atingido, tente novamente em ${rate.retryAfterSeconds}s.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    return {
+      ticket,
+      phone,
+      baseUrl: tenant.whatsapp_uazapi_base_url,
+      token: this.secrets.decrypt(tenant.whatsapp_uazapi_token),
+    };
+  }
+
+  private responseDetails(response: { ok: boolean; body: unknown }) {
+    const body = (response.body ?? {}) as Record<string, unknown>;
+    return {
+      externalId:
+        (body.messageid as string | undefined) ??
+        (body.id as string | undefined) ??
+        ((body.message as Record<string, unknown> | undefined)?.id as
+          string | undefined) ??
+        null,
+      error: response.ok
+        ? null
+        : typeof response.body === 'string'
+          ? response.body
+          : JSON.stringify(response.body),
+    };
+  }
+
+  private async persistSpecial(
+    tenantId: string,
+    userId: string,
+    ticketId: string,
+    content: string,
+    response: { ok: boolean; body: unknown },
+    attachments: Json[] = [],
+  ) {
+    const details = this.responseDetails(response);
+    const { data, error } = await this.supabase.client
+      .from('messages')
+      .insert({
+        tenant_id: tenantId,
+        ticket_id: ticketId,
+        author_id: userId,
+        author_type: 'agent',
+        channel: 'whatsapp',
+        is_internal: false,
+        content,
+        external_id: details.externalId,
+        delivery_status: response.ok ? 'sent' : 'failed',
+        delivery_attempts: 1,
+        delivery_error: details.error,
+        attachments,
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+    if (!response.ok)
+      throw new BadRequestException(
+        `Falha UAZAPI: ${details.error ?? 'erro desconhecido'}`,
+      );
+    return {
+      ok: true as const,
+      messageId: data.id,
+      externalId: details.externalId,
+    };
+  }
 
   async reply(
     tenantId: string,
@@ -257,5 +369,130 @@ export class WhatsappReplyService {
       throw new BadRequestException(`Falha ao enviar mÃ­dia: ${deliveryError}`);
     }
     return { ok: true as const, messageId: inserted.id, externalId };
+  }
+
+  async replyContact(
+    tenantId: string,
+    userId: string,
+    data: WhatsappSendContactDto,
+  ) {
+    const ctx = await this.context(tenantId, data.ticketId);
+    const response = await this.uazapi.sendContact(
+      ctx.baseUrl,
+      ctx.token,
+      ctx.phone,
+      {
+        name: data.name,
+        phone: data.phone,
+      },
+    );
+    return this.persistSpecial(
+      tenantId,
+      userId,
+      ctx.ticket.id,
+      `Contato: ${data.name}`,
+      response,
+      [
+        {
+          path: '',
+          name: data.name,
+          size: 0,
+          type: 'application/vnd.apticket.whatsapp-contact+json',
+          kind: 'contact',
+          contact: { name: data.name, phone: data.phone },
+        },
+      ],
+    );
+  }
+
+  async replyLocation(
+    tenantId: string,
+    userId: string,
+    data: WhatsappSendLocationDto,
+  ) {
+    const ctx = await this.context(tenantId, data.ticketId);
+    const response = await this.uazapi.sendLocation(ctx.baseUrl, ctx.token, {
+      number: ctx.phone,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      name: data.name,
+      address: data.address,
+    });
+    return this.persistSpecial(
+      tenantId,
+      userId,
+      ctx.ticket.id,
+      data.name ? `Localização: ${data.name}` : 'Localização compartilhada',
+      response,
+      [
+        {
+          path: '',
+          name: data.name ?? 'Localização',
+          size: 0,
+          type: 'application/vnd.apticket.whatsapp-location+json',
+          kind: 'location',
+          location: {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            name: data.name,
+            address: data.address,
+          },
+        },
+      ],
+    );
+  }
+
+  async replySticker(
+    tenantId: string,
+    userId: string,
+    data: WhatsappSendStickerDto,
+  ) {
+    const ctx = await this.context(tenantId, data.ticketId);
+    const allowed =
+      data.path.startsWith(`${tenantId}/${ctx.ticket.id}/`) ||
+      data.path.startsWith(`${tenantId}/_stickers/`);
+    if (!allowed)
+      throw new BadRequestException('Caminho de figurinha inválido');
+    const response = await this.uazapi.sendMedia(ctx.baseUrl, ctx.token, {
+      number: ctx.phone,
+      type: 'sticker',
+      file: data.url,
+      mimetype: 'image/webp',
+    });
+    return this.persistSpecial(
+      tenantId,
+      userId,
+      ctx.ticket.id,
+      'Figurinha',
+      response,
+      [
+        {
+          path: data.path,
+          url: data.url,
+          name: data.filename,
+          size: 0,
+          type: 'image/webp',
+          kind: 'sticker',
+        },
+      ],
+    );
+  }
+
+  async call(tenantId: string, userId: string, data: WhatsappCallDto) {
+    const ctx = await this.context(tenantId, data.ticketId);
+    const duration = data.duration ?? 15;
+    const response = await this.uazapi.makeCall(
+      ctx.baseUrl,
+      ctx.token,
+      ctx.phone,
+      duration,
+    );
+    return this.persistSpecial(
+      tenantId,
+      userId,
+      ctx.ticket.id,
+      `Ligação WhatsApp iniciada (${duration}s)`,
+      response,
+    );
   }
 }

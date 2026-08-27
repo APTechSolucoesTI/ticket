@@ -5,6 +5,21 @@ import nodemailer, { type SentMessageInfo, type Transporter } from "nodemailer";
 
 let _transporter: Transporter | undefined;
 
+/** Hostname público anunciado no EHLO/HELO. Em containers, o hostname do
+ * sistema normalmente não é um FQDN e o Nodemailer recua para [127.0.0.1],
+ * valor bloqueado pelo filtro SMTP da HostGator. */
+export function getSmtpClientName(): string {
+  const configured = process.env.SMTP_CLIENT_NAME?.trim().toLowerCase();
+  if (configured) return configured;
+  try {
+    const publicHostname = new URL(process.env.PUBLIC_SITE_URL ?? "").hostname.toLowerCase();
+    if (publicHostname && publicHostname !== "localhost") return publicHostname;
+  } catch {
+    // O boot/login não deve quebrar por uma URL opcional inválida.
+  }
+  return "apticket.aptechinfo.com.br";
+}
+
 function getTransporter(): Transporter {
   if (_transporter) return _transporter;
 
@@ -21,6 +36,7 @@ function getTransporter(): Transporter {
   }
 
   _transporter = nodemailer.createTransport({
+    name: getSmtpClientName(),
     host,
     port,
     secure, // true = implicit TLS (port 465), false = STARTTLS (port 587)

@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer';
+import { ConfigService } from '@nestjs/config';
 import { EmailSenderService } from './email-sender.service';
+import type { Env } from '../../config/env.validation';
 
 jest.mock('nodemailer', () => ({
   __esModule: true,
@@ -16,7 +18,10 @@ describe('EmailSenderService', () => {
   });
 
   it('envia HTML, texto, threading e anexos pelo SMTP do tenant', async () => {
-    const service = new EmailSenderService();
+    const config = {
+      get: jest.fn().mockReturnValue('apticket.aptechinfo.com.br'),
+    } as unknown as ConfigService<Env, true>;
+    const service = new EmailSenderService(config);
     const attachment = {
       filename: 'relatorio.pdf',
       content: Buffer.from('pdf'),
@@ -44,6 +49,7 @@ describe('EmailSenderService', () => {
     );
 
     expect(nodemailer.createTransport).toHaveBeenCalledWith({
+      name: 'apticket.aptechinfo.com.br',
       host: 'smtp.example.com',
       port: 587,
       secure: false,

@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { Link2, MessageCircle, Trash2 } from "lucide-react";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { AttachmentPreview, type Attachment } from "@/components/ticket/AttachmentPreview";
 
 export const Route = createFileRoute("/_authenticated/whatsapp-pending")({
   component: WhatsAppPendingPage,
@@ -32,7 +33,12 @@ type PendingRow = {
   contact_id: string | null;
   phone: string;
   name: string;
-  messages: Array<{ id: string; content: string; created_at: string }>;
+  messages: Array<{
+    id: string;
+    content: string;
+    created_at: string;
+    attachments: Attachment[];
+  }>;
   last_at: string;
 };
 
@@ -46,7 +52,9 @@ function WhatsAppPendingPage() {
     queryFn: async (): Promise<PendingRow[]> => {
       const { data: msgs, error } = await supabase
         .from("whatsapp_pending_messages")
-        .select("id, contact_id, phone, content, created_at, contacts(name, company_id)")
+        .select(
+          "id, contact_id, phone, content, attachments, created_at, contacts(name, company_id)",
+        )
         .is("resolved_at", null)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -64,7 +72,12 @@ function WhatsAppPendingPage() {
           messages: [],
           last_at: m.created_at,
         };
-        g.messages.push({ id: m.id, content: m.content, created_at: m.created_at });
+        g.messages.push({
+          id: m.id,
+          content: m.content,
+          created_at: m.created_at,
+          attachments: Array.isArray(m.attachments) ? (m.attachments as Attachment[]) : [],
+        });
         if (m.created_at > g.last_at) g.last_at = m.created_at;
         groups.set(key, g);
       }
@@ -142,11 +155,20 @@ function WhatsAppPendingPage() {
               </div>
               <div className="space-y-1 max-h-40 overflow-auto rounded-md bg-muted/40 p-2 text-xs">
                 {row.messages.slice(0, 10).map((m) => (
-                  <div key={m.id}>
-                    <span className="text-muted-foreground">
-                      {new Date(m.created_at).toLocaleString()} —{" "}
-                    </span>
-                    {m.content}
+                  <div key={m.id} className="space-y-1.5 rounded-md bg-background/70 p-2">
+                    <div>
+                      <span className="text-muted-foreground">
+                        {new Date(m.created_at).toLocaleString()} —{" "}
+                      </span>
+                      {m.content}
+                    </div>
+                    {m.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {m.attachments.map((attachment, index) => (
+                          <AttachmentPreview key={index} a={attachment} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
