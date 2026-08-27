@@ -11,6 +11,7 @@ import {
   Clock3,
   LayoutGrid,
   List,
+  Loader2,
   Mail,
   MessageCircle,
   Minus,
@@ -54,6 +55,8 @@ import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/Fina
 import { useModulePermissions } from "@/lib/permission-ui";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
   head: () => ({ meta: [{ title: "Tickets — APTicket" }] }),
@@ -83,6 +86,7 @@ type TicketRow = {
   assigned_to: string | null;
   created_at: string;
   sla_resolution_due_at: string | null;
+  sla_paused_at: string | null;
   resolved_at: string | null;
   closed_at: string | null;
   resolution_summary: string | null;
@@ -159,12 +163,16 @@ function TicketsInbox() {
     data: tickets = [],
     isLoading,
     isError: ticketsError,
+    error: ticketsErrorDetail,
+    refetch: refetchTickets,
   } = useQuery({
     queryKey: ["tickets"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tickets")
-        .select("*, companies(name), contacts(name)")
+        .select(
+          "id, tenant_id, number, subject, status, pending_type, priority, channel, company_id, contact_id, contract_id, department_id, assigned_to, created_at, sla_resolution_due_at, sla_paused_at, resolved_at, closed_at, resolution_summary, companies(name), contacts(name)",
+        )
         .order("created_at", { ascending: false });
       if (error) throw error;
       const ids = Array.from(
@@ -241,6 +249,24 @@ function TicketsInbox() {
     [tickets, status, priority, assignee, channel, department, q],
   );
 
+  const hasActiveFilters =
+    status.length > 0 ||
+    priority.length > 0 ||
+    assignee.length > 0 ||
+    channel.length > 0 ||
+    department.length > 0 ||
+    q.trim().length > 0;
+  const hasFilteredOutTickets = tickets.length > 0 && hasActiveFilters;
+
+  const resetFilters = () => {
+    setStatus([]);
+    setPriority([]);
+    setAssignee([]);
+    setChannel([]);
+    setDepartment([]);
+    setQ("");
+  };
+
   return (
     <div className="flex h-full flex-col">
       <section
@@ -257,7 +283,7 @@ function TicketsInbox() {
             </p>
           </div>
           {ticketsError && (
-            <span className="text-[11px] text-destructive">Falha ao carregar indicadores</span>
+            <span className="text-[11px] text-destructive">Dados indisponíveis</span>
           )}
         </div>
 
@@ -338,8 +364,12 @@ function TicketsInbox() {
           }}
         />
         <div className="relative">
+          <Label htmlFor="ticket-search" className="sr-only">
+            Buscar tickets
+          </Label>
           <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
+            id="ticket-search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar nº, assunto, cliente…"
@@ -376,7 +406,10 @@ function TicketsInbox() {
         <div className="ml-auto flex items-center gap-1">
           <div className="flex rounded-md border p-0.5">
             <button
+              type="button"
               onClick={() => setView("list")}
+              aria-pressed={view === "list"}
+              aria-label="Exibir tickets em lista"
               className={cn(
                 "flex h-6 items-center gap-1 rounded-sm px-2 text-xs",
                 view === "list" && "bg-accent",
@@ -385,7 +418,10 @@ function TicketsInbox() {
               <List className="h-3 w-3" /> Lista
             </button>
             <button
+              type="button"
               onClick={() => setView("kanban")}
+              aria-pressed={view === "kanban"}
+              aria-label="Exibir tickets em kanban"
               className={cn(
                 "flex h-6 items-center gap-1 rounded-sm px-2 text-xs",
                 view === "kanban" && "bg-accent",
@@ -404,15 +440,50 @@ function TicketsInbox() {
 
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">Carregando…</div>
+          <LoadingState label="Carregando tickets…" />
+        ) : ticketsError ? (
+          <ErrorState
+            title="Não foi possível carregar os tickets"
+            description={
+              ticketsErrorDetail instanceof Error
+                ? `${ticketsErrorDetail.message}. Verifique sua conexão e tente novamente.`
+                : "Verifique sua conexão e tente novamente."
+            }
+            action={{ label: "Tentar novamente", onClick: () => void refetchTickets() }}
+            className="mt-6"
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title={
+              hasFilteredOutTickets
+                ? "Nenhum ticket corresponde aos filtros"
+                : "Nenhum ticket cadastrado"
+            }
+            description={
+              hasFilteredOutTickets
+                ? "Remova filtros ou altere a busca para ampliar os resultados."
+                : "Crie o primeiro ticket para iniciar o atendimento deste tenant."
+            }
+            action={
+              hasFilteredOutTickets
+                ? { label: "Limpar filtros", onClick: resetFilters }
+                : access.create
+                  ? { label: "Criar ticket", onClick: () => setOpenNew(true) }
+                  : undefined
+            }
+            className="mt-6"
+          />
         ) : view === "list" ? (
           <TicketList tickets={filtered} />
         ) : (
           <TicketKanban tickets={filtered} />
         )}
       </div>
-      <div className="border-t bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground">
-        Atalhos:{" "}
+      <div
+        className="border-t bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground"
+        aria-live="polite"
+      >
+        {filtered.length} ticket(s) exibido(s) · Atalhos:{" "}
         {access.create && (
           <>
             <kbd className="rounded border px-1">N</kbd> novo ·{" "}
@@ -913,6 +984,11 @@ function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
               </span>
             </div>
             <div className="flex-1 space-y-2 overflow-auto p-2">
+              {items.length === 0 && (
+                <p className="rounded-md border border-dashed bg-background/60 px-3 py-6 text-center text-[11px] text-muted-foreground">
+                  Nenhum ticket nesta etapa.
+                </p>
+              )}
               {items.map((t) => {
                 const due = dueFor(t);
                 const state = slaState(due, SLA_DEFAULT_MIN);
@@ -1036,28 +1112,37 @@ function TicketDialog({
     });
   }, [open]);
 
-  const { data: companies } = useQuery({
+  const { data: companies, isLoading: companiesLoading } = useQuery({
     queryKey: ["companies", "options"],
-    queryFn: async () =>
-      (await supabase.from("companies").select("id, name").order("name")).data ?? [],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id, name").order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
   });
   const { data: contacts } = useQuery({
     queryKey: ["contacts", "options", form.company_id],
     enabled: !!form.company_id,
-    queryFn: async () =>
-      (
-        await supabase
-          .from("contacts")
-          .select("id, name")
-          .eq("company_id", form.company_id)
-          .order("name")
-      ).data ?? [],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, name")
+        .eq("company_id", form.company_id)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
   });
-  const { data: contracts } = useQuery({
+  const {
+    data: contracts,
+    isLoading: contractsLoading,
+    isError: contractsError,
+    refetch: refetchContracts,
+  } = useQuery({
     queryKey: ["contracts", "active", form.company_id],
     enabled: !!form.company_id,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("contracts")
         .select(
           "id, status, starts_at, ends_at, description, includes_remote, includes_lab, includes_onsite, contract_equipments(equipment_id), contract_types(name)",
@@ -1065,6 +1150,7 @@ function TicketDialog({
         .eq("company_id", form.company_id)
         .eq("status", "active")
         .order("starts_at", { ascending: false });
+      if (error) throw error;
       return (data ?? []).filter((c) => c.includes_remote || c.includes_lab || c.includes_onsite);
     },
   });
@@ -1204,6 +1290,7 @@ function TicketDialog({
           </DialogHeader>
           <form
             className="grid grid-cols-3 gap-3"
+            aria-busy={save.isPending}
             onSubmit={(e) => {
               e.preventDefault();
               const r = schema.safeParse({
@@ -1221,22 +1308,25 @@ function TicketDialog({
             }}
           >
             <div className="col-span-3">
-              <Label>Assunto *</Label>
+              <Label htmlFor="new-ticket-subject">Assunto *</Label>
               <Input
+                id="new-ticket-subject"
                 value={form.subject}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
               />
             </div>
             <div>
-              <Label>Cliente *</Label>
+              <Label htmlFor="new-ticket-company">Cliente *</Label>
               <Select
                 value={form.company_id}
                 onValueChange={(v) =>
                   setForm({ ...form, company_id: v, contact_id: "", contract_id: "" })
                 }
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
+                <SelectTrigger id="new-ticket-company" aria-busy={companiesLoading}>
+                  <SelectValue
+                    placeholder={companiesLoading ? "Carregando clientes…" : "Selecione…"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {companies?.map((c) => (
@@ -1248,20 +1338,22 @@ function TicketDialog({
               </Select>
             </div>
             <div className="col-span-2">
-              <Label>Contrato ativo *</Label>
+              <Label htmlFor="new-ticket-contract">Contrato ativo *</Label>
               <Select
                 value={form.contract_id}
                 onValueChange={(v) => setForm({ ...form, contract_id: v })}
-                disabled={!form.company_id}
+                disabled={!form.company_id || contractsLoading || contractsError}
               >
-                <SelectTrigger>
+                <SelectTrigger id="new-ticket-contract" aria-busy={contractsLoading}>
                   <SelectValue
                     placeholder={
                       !form.company_id
                         ? "Selecione o cliente antes"
-                        : !contracts?.length
-                          ? "Sem contrato ativo com suporte técnico"
-                          : "Selecione…"
+                        : contractsLoading
+                          ? "Consultando contratos ativos…"
+                          : !contracts?.length
+                            ? "Sem contrato ativo com suporte técnico"
+                            : "Selecione…"
                     }
                   />
                 </SelectTrigger>
@@ -1275,11 +1367,31 @@ function TicketDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {form.company_id && !contracts?.length && (
-                <p className="text-xs text-destructive mt-1">
-                  Nenhum contrato ativo com suporte técnico (Remoto/Laboratório/Visita) para este
-                  cliente.
-                </p>
+              {form.company_id && contractsError && (
+                <Alert variant="destructive" className="mt-2 py-2">
+                  <AlertTitle>Falha ao consultar contratos</AlertTitle>
+                  <AlertDescription className="flex items-center justify-between gap-3 text-xs">
+                    <span>Não foi possível validar se cliente possui contrato ativo.</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0"
+                      onClick={() => void refetchContracts()}
+                    >
+                      Tentar novamente
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {form.company_id && !contractsLoading && !contractsError && !contracts?.length && (
+                <Alert variant="destructive" className="mt-2 py-2">
+                  <AlertTitle>Abertura bloqueada pelo contrato</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Cliente não possui contrato ativo com atendimento Remoto, Laboratório ou Visita.
+                    Cadastre ou ative contrato antes de abrir ticket.
+                  </AlertDescription>
+                </Alert>
               )}
               {selectedContract?.description && (
                 <div className="mt-2 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap">
@@ -1458,8 +1570,18 @@ function TicketDialog({
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? "Salvando…" : "Salvar"}
+              <Button
+                type="submit"
+                disabled={
+                  save.isPending ||
+                  companiesLoading ||
+                  contractsLoading ||
+                  contractsError ||
+                  (!!form.company_id && !contracts?.length)
+                }
+              >
+                {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {save.isPending ? "Criando ticket…" : "Criar ticket"}
               </Button>
             </DialogFooter>
           </form>

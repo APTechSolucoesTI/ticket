@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { Link2, MessageCircle, Trash2 } from "lucide-react";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { AttachmentPreview, type Attachment } from "@/components/ticket/AttachmentPreview";
+import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
 export const Route = createFileRoute("/_authenticated/whatsapp-pending")({
   component: WhatsAppPendingPage,
@@ -47,7 +48,13 @@ function WhatsAppPendingPage() {
   const qc = useQueryClient();
   const [linking, setLinking] = useState<PendingRow | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery({
     queryKey: ["wa-pending"],
     queryFn: async (): Promise<PendingRow[]> => {
       const { data: msgs, error } = await supabase
@@ -88,18 +95,20 @@ function WhatsAppPendingPage() {
   const discard = useMutation({
     mutationFn: async (row: PendingRow) => {
       if (!access.delete) throw new Error("Sem permissão para descartar mensagens");
-      await supabase
+      const { error } = await supabase
         .from("whatsapp_pending_messages")
         .update({ resolved_at: new Date().toISOString() })
         .in(
           "id",
           row.messages.map((m) => m.id),
         );
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Mensagens descartadas");
       qc.invalidateQueries({ queryKey: ["wa-pending"] });
     },
+    onError: (error: Error) => toast.error(error.message || "Falha ao descartar mensagens"),
   });
 
   return (
@@ -113,13 +122,24 @@ function WhatsAppPendingPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
+        <LoadingState label="Carregando fila do WhatsApp…" />
+      ) : isError ? (
+        <ErrorState
+          title="Fila do WhatsApp indisponível"
+          description={
+            queryError instanceof Error
+              ? queryError.message
+              : "Não foi possível consultar mensagens pendentes."
+          }
+          action={{ label: "Tentar novamente", onClick: () => void refetch() }}
+        />
       ) : (data?.length ?? 0) === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Nenhuma mensagem pendente.
-        </div>
+        <EmptyState
+          title="Fila do WhatsApp livre"
+          description="Nenhuma mensagem de número desconhecido aguarda tratamento."
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" aria-live="polite">
           {data!.map((row) => (
             <div
               key={row.contact_id ?? row.phone}

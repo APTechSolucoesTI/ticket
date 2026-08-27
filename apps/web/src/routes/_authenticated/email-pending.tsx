@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Link2, Mail, Trash2, Ban, RefreshCw, Paperclip, Eye, Download } from "lucide-react";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
 // Supabase/Postgrest/Storage errors are plain objects ({message, details,
 // hint, code}), not real Error instances — `e instanceof Error` silently
@@ -95,7 +96,13 @@ function EmailPendingPage() {
     }
   }
 
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery({
     queryKey: ["email-pending"],
     queryFn: async (): Promise<PendingRow[]> => {
       const { data: msgs, error } = await supabase
@@ -142,18 +149,20 @@ function EmailPendingPage() {
   const discard = useMutation({
     mutationFn: async (row: PendingRow) => {
       if (!access.edit) throw new Error("Sem permissão para editar a fila");
-      await supabase
+      const { error } = await supabase
         .from("email_pending_messages")
         .update({ resolved_at: new Date().toISOString() })
         .in(
           "id",
           row.messages.map((m) => m.id),
         );
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Mensagens descartadas");
       qc.invalidateQueries({ queryKey: ["email-pending"] });
     },
+    onError: (e: Error) => toast.error(errorMessage(e, "Falha ao descartar mensagens")),
   });
 
   const block = useMutation({
@@ -164,13 +173,14 @@ function EmailPendingPage() {
         .update({ is_active: false, can_open_tickets: false })
         .eq("id", row.contact_id);
       if (upErr) throw upErr;
-      await supabase
+      const { error: resolveError } = await supabase
         .from("email_pending_messages")
         .update({ resolved_at: new Date().toISOString() })
         .in(
           "id",
           row.messages.map((m) => m.id),
         );
+      if (resolveError) throw resolveError;
     },
     onSuccess: () => {
       toast.success("E-mail bloqueado — novas mensagens desse remetente serão ignoradas.");
@@ -217,13 +227,24 @@ function EmailPendingPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
+        <LoadingState label="Carregando fila de e-mail…" />
+      ) : isError ? (
+        <ErrorState
+          title="Fila de e-mail indisponível"
+          description={
+            queryError instanceof Error
+              ? queryError.message
+              : "Não foi possível consultar mensagens pendentes."
+          }
+          action={{ label: "Tentar novamente", onClick: () => void refetch() }}
+        />
       ) : (data?.length ?? 0) === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Nenhuma mensagem pendente.
-        </div>
+        <EmptyState
+          title="Fila de e-mail livre"
+          description="Nenhuma mensagem de remetente desconhecido aguarda tratamento."
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" aria-live="polite">
           {data!.map((row) => (
             <div
               key={row.contact_id}

@@ -1,7 +1,17 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, History, Paperclip, Pause, Play, Printer, RotateCcw, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  History,
+  Loader2,
+  Paperclip,
+  Pause,
+  Play,
+  Printer,
+  RotateCcw,
+  Send,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId, getToken } from "@/lib/session";
@@ -23,6 +33,7 @@ import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/Fina
 import { useChatSocket } from "@/lib/chat-socket";
 import DOMPurify from "isomorphic-dompurify";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
 export const Route = createFileRoute("/_authenticated/tickets/$id")({
   head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} — APTicket` }] }),
@@ -82,6 +93,7 @@ function TicketDetailPage() {
     data: ticket,
     isLoading,
     error,
+    refetch: refetchTicket,
   } = useQuery({
     queryKey: ["ticket", id],
     queryFn: async () => {
@@ -105,12 +117,20 @@ function TicketDetailPage() {
     },
   });
 
-  const { data: messages = [] } = useQuery({
+  const {
+    data: messages = [],
+    isLoading: messagesLoading,
+    isError: messagesError,
+    error: messagesErrorDetail,
+    refetch: refetchMessages,
+  } = useQuery({
     queryKey: ["messages", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("messages")
-        .select("*")
+        .select(
+          "id, content, is_internal, author_type, author_id, author_contact_id, channel, created_at, attachments, delivery_status, delivery_error",
+        )
         .eq("ticket_id", id)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -604,6 +624,22 @@ function TicketDetailPage() {
         }
       }
     },
+    onMutate: async (patch) => {
+      await qc.cancelQueries({ queryKey: ["ticket", id] });
+      const previousTicket = qc.getQueryData<NonNullable<typeof ticket>>(["ticket", id]);
+      qc.setQueryData<NonNullable<typeof ticket>>(["ticket", id], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          ...(patch.status ? { status: patch.status } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, "assigned_to")
+            ? { assigned_to: patch.assigned_to ?? null }
+            : {}),
+          ...(patch.pending_type ? { pending_type: patch.pending_type } : {}),
+        };
+      });
+      return { previousTicket };
+    },
     onSuccess: () => {
       toast.success("Ticket atualizado");
       qc.invalidateQueries({ queryKey: ["ticket", id] });
@@ -616,7 +652,12 @@ function TicketDetailPage() {
         navigate({ to: "/tickets" });
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _patch, context) => {
+      if (context?.previousTicket) {
+        qc.setQueryData(["ticket", id], context.previousTicket);
+      }
+      toast.error(`${e.message}. Alteração desfeita.`);
+    },
   });
 
   // Resolver/fechar exige laudo final (resumo + diagnóstico) — a menos que o
@@ -752,9 +793,24 @@ function TicketDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
+  if (isLoading) return <LoadingState label="Abrindo ticket…" />;
   if (error || !ticket)
-    return <div className="p-6 text-sm text-destructive">Ticket não encontrado.</div>;
+    return (
+      <ErrorState
+        title="Não foi possível abrir o ticket"
+        description={
+          error instanceof Error
+            ? `${error.message}. Confirme sua conexão ou se ainda possui acesso ao ticket.`
+            : "Confirme sua conexão ou se ainda possui acesso ao ticket."
+        }
+        action={{ label: "Tentar novamente", onClick: () => void refetchTicket() }}
+        secondaryAction={{
+          label: "Voltar aos tickets",
+          onClick: () => navigate({ to: "/tickets" }),
+        }}
+        className="mt-8"
+      />
+    );
 
   const due =
     ticket.sla_resolution_due_at ??
@@ -780,11 +836,39 @@ function TicketDetailPage() {
                 Somente leitura
               </span>
             )}
-          </div>
-          <div className="flex-1 space-y-3 overflow-auto p-4">
-            {messages.length === 0 && (
-              <p className="text-xs text-muted-foreground">Nenhuma mensagem ainda.</p>
+            {updateTicket.isPending && (
+              <span
+                className="ml-auto inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+                role="status"
+              >
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                Salvando alteração…
+              </span>
             )}
+          </div>
+          <div className="flex-1 space-y-3 overflow-auto p-4" aria-live="polite">
+            {messagesLoading ? (
+              <LoadingState label="Carregando histórico…" />
+            ) : messagesError ? (
+              <ErrorState
+                title="Histórico indisponível"
+                description={
+                  messagesErrorDetail instanceof Error
+                    ? messagesErrorDetail.message
+                    : "Não foi possível carregar as mensagens deste ticket."
+                }
+                action={{ label: "Tentar novamente", onClick: () => void refetchMessages() }}
+              />
+            ) : messages.length === 0 ? (
+              <EmptyState
+                title="Nenhuma interação registrada"
+                description={
+                  readOnly
+                    ? "Este ticket ainda não possui mensagens."
+                    : "Envie uma resposta ou registre uma nota interna para iniciar o histórico."
+                }
+              />
+            ) : null}
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -1078,7 +1162,9 @@ function TicketDetailPage() {
               <Row label="Status">
                 <select
                   value={ticket.status}
-                  disabled={readOnly}
+                  disabled={readOnly || updateTicket.isPending}
+                  aria-label="Status do ticket"
+                  aria-busy={updateTicket.isPending}
                   onChange={(e) => requestStatusChange(e.target.value as TicketStatus)}
                   className="h-6 rounded-md border bg-background px-1 text-xs disabled:opacity-50"
                 >
@@ -1100,7 +1186,9 @@ function TicketDetailPage() {
               <Row label="Técnico">
                 <select
                   value={ticket.assigned_to ?? ""}
-                  disabled={readOnly}
+                  disabled={readOnly || updateTicket.isPending}
+                  aria-label="Técnico responsável"
+                  aria-busy={updateTicket.isPending}
                   onChange={(e) => updateTicket.mutate({ assigned_to: e.target.value || null })}
                   className="h-6 rounded-md border bg-background px-1 text-xs disabled:opacity-50"
                 >

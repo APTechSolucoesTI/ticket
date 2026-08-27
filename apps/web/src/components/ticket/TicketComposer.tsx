@@ -608,7 +608,10 @@ export function TicketComposer({
           <Button
             size="sm"
             onClick={sendAll}
-            disabled={sending || (!internal && !publicReplyEnabled)}
+            disabled={
+              sending || (!internal && !publicReplyEnabled) || (!reply.trim() && files.length === 0)
+            }
+            aria-busy={sending}
             className="gap-1 text-xs"
           >
             {sending ? (
@@ -616,7 +619,7 @@ export function TicketComposer({
             ) : (
               <Send className="h-3.5 w-3.5" />
             )}
-            Enviar
+            {sending ? "Enviando…" : "Enviar"}
           </Button>
         </div>
       </div>
