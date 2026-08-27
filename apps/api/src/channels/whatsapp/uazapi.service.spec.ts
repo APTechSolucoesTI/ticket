@@ -65,13 +65,8 @@ describe('UazapiService', () => {
         method: 'POST',
         body: JSON.stringify({
           number: '5511988887777',
-          contacts: [
-            {
-              fullName: 'Ana Silva',
-              waid: '5511999998888',
-              phoneNumber: '5511999998888',
-            },
-          ],
+          fullName: 'Ana Silva',
+          phoneNumber: '5511999998888',
         }),
       },
     );
@@ -100,6 +95,20 @@ describe('UazapiService', () => {
       '11988887777',
       15,
     );
+    expect(call.mock.calls[0]).toEqual([
+      'https://uazapi.example',
+      'secret',
+      '/send/location',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          number: '5511988887777',
+          latitude: -23.55,
+          longitude: -46.63,
+          name: 'Escritório',
+        }),
+      },
+    ]);
     expect(call.mock.calls.map((args) => args[2])).toEqual([
       '/send/location',
       '/send/media',

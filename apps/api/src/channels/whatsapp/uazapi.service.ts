@@ -153,13 +153,8 @@ export class UazapiService {
       method: 'POST',
       body: JSON.stringify({
         number: normalizeNumber(number),
-        contacts: [
-          {
-            fullName: contact.name,
-            waid: normalizedPhone,
-            phoneNumber: normalizedPhone,
-          },
-        ],
+        fullName: contact.name,
+        phoneNumber: normalizedPhone,
       }),
     });
   }

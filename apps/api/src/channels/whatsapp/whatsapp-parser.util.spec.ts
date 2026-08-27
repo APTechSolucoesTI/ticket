@@ -114,6 +114,59 @@ describe('whatsapp-parser', () => {
     });
   });
 
+  it('extrai telefone de vCard com item1.TEL e waid', () => {
+    const contact = {
+      messageType: 'ContactMessage',
+      content: {
+        displayName: 'Silvia',
+        vcard:
+          'BEGIN:VCARD\nVERSION:3.0\nFN:Silvia\nitem1.TEL;waid=5511987654321:+55 11 98765-4321\nEND:VCARD',
+      },
+    };
+
+    expect(
+      extractStructuredAttachments({ message: contact }, contact)[0],
+    ).toMatchObject({
+      kind: 'contact',
+      contact: { name: 'Silvia', phone: '5511987654321' },
+    });
+  });
+
+  it('extrai vCard em string e localização aninhada', () => {
+    const contact = {
+      messageType: 'ContactMessage',
+      content:
+        'BEGIN:VCARD\nVERSION:3.0\nFN:João\nTEL;TYPE=CELL:+55 11 99999-8888\nEND:VCARD',
+    };
+    expect(
+      extractStructuredAttachments({ message: contact }, contact)[0],
+    ).toMatchObject({
+      kind: 'contact',
+      contact: { name: 'João', phone: '+55 11 99999-8888' },
+    });
+
+    const location = {
+      messageType: 'LocationMessage',
+      message: {
+        locationMessage: {
+          degreesLatitude: -23.55,
+          degreesLongitude: -46.63,
+          address: 'Av. Paulista',
+        },
+      },
+    };
+    expect(
+      extractStructuredAttachments({ message: location }, location)[0],
+    ).toMatchObject({
+      kind: 'location',
+      location: {
+        latitude: -23.55,
+        longitude: -46.63,
+        address: 'Av. Paulista',
+      },
+    });
+  });
+
   it('remove credenciais e chaves de mídia do payload persistido', () => {
     expect(
       sanitizeWebhookPayload({

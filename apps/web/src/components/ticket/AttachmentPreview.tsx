@@ -80,6 +80,11 @@ function useResolvedUrl(a: Attachment): { url: string | null; loading: boolean }
 
 export function AttachmentPreview({ a }: { a: Attachment }) {
   const { url, loading } = useResolvedUrl(a);
+  const [previewFailed, setPreviewFailed] = useState(false);
+
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [url]);
 
   const openInNewTab = () => {
     if (!url) {
@@ -147,7 +152,7 @@ export function AttachmentPreview({ a }: { a: Attachment }) {
     );
   }
 
-  if (isImageMime(a) && url) {
+  if (isImageMime(a) && url && !previewFailed) {
     return (
       <button
         type="button"
@@ -159,18 +164,28 @@ export function AttachmentPreview({ a }: { a: Attachment }) {
           src={url}
           alt={a.name}
           loading="lazy"
+          onError={() => setPreviewFailed(true)}
           className="max-h-56 max-w-[240px] object-contain"
         />
       </button>
     );
   }
 
-  if (isAudioMime(a) && url) {
-    return <audio controls src={url} className="max-w-[280px]" />;
+  if (isAudioMime(a) && url && !previewFailed) {
+    return (
+      <audio controls src={url} onError={() => setPreviewFailed(true)} className="max-w-[280px]" />
+    );
   }
 
-  if (isVideoMime(a) && url) {
-    return <video controls src={url} className="max-h-56 max-w-[280px] rounded-md" />;
+  if (isVideoMime(a) && url && !previewFailed) {
+    return (
+      <video
+        controls
+        src={url}
+        onError={() => setPreviewFailed(true)}
+        className="max-h-56 max-w-[280px] rounded-md"
+      />
+    );
   }
 
   return (

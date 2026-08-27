@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { RedisService } from '../../queue/redis.service';
 import {
@@ -14,9 +15,11 @@ import {
   sanitizeWebhookPayload,
   samePhone,
   type UnknownRec,
+  type WhatsappStructuredAttachment,
 } from './whatsapp-parser.util';
 
 const DEDUP_TTL_SECONDS = 6 * 60 * 60; // 6h — cobre picos de reentrega da uazapi
+const MAX_INBOUND_MEDIA_BYTES = 25 * 1024 * 1024;
 
 export type WhatsappWebhookOutcome =
   | { kind: 'status' }
@@ -87,9 +90,20 @@ export class WhatsappWebhookService {
     const text = extractText(payload);
     const extId = extractExternalId(payload);
     const pushName = extractName(payload);
-    const attachments = extractStructuredAttachments(payload, messageObj);
-    const hasAttachment = attachments.length > 0;
-    const content = text || attachmentDescription(attachments);
+    const extractedAttachments = extractStructuredAttachments(
+      payload,
+      messageObj,
+    );
+    const hasAttachment = extractedAttachments.length > 0;
+    const hasStructuredCard = extractedAttachments.some(
+      (attachment) =>
+        attachment.kind === 'contact' ||
+        attachment.kind === 'location' ||
+        attachment.kind === 'sticker',
+    );
+    const content = hasStructuredCard
+      ? attachmentDescription(extractedAttachments)
+      : text || attachmentDescription(extractedAttachments);
 
     if (!phone || (!text && !hasAttachment)) {
       return { kind: 'ignored', reason: 'no_content' };
@@ -125,6 +139,14 @@ export class WhatsappWebhookService {
       if (existingPending?.id)
         return { kind: 'duplicate', pendingId: existingPending.id };
     }
+
+    // A UAZAPI entrega mídia por URL temporária do mmg.whatsapp.net. Copiar
+    // agora evita anexos quebrados quando o usuário abre o ticket depois.
+    const attachments = await this.persistInboundAttachments(
+      tenantId,
+      extId,
+      extractedAttachments,
+    );
 
     const { data: contactMatches } = await this.supabase.client
       .from('contacts')
@@ -284,6 +306,83 @@ export class WhatsappWebhookService {
     }
 
     return { kind: 'ticket', ticketId };
+  }
+
+  private async persistInboundAttachments(
+    tenantId: string,
+    externalId: string | null,
+    attachments: WhatsappStructuredAttachment[],
+  ): Promise<WhatsappStructuredAttachment[]> {
+    return Promise.all(
+      attachments.map(async (attachment, index) => {
+        if (
+          !attachment.url ||
+          attachment.kind === 'contact' ||
+          attachment.kind === 'location'
+        ) {
+          return attachment;
+        }
+
+        try {
+          const response = await fetch(attachment.url, {
+            redirect: 'follow',
+            signal: AbortSignal.timeout(30_000),
+          });
+          if (!response.ok) {
+            throw new Error(`download_http_${response.status}`);
+          }
+
+          const declaredSize = Number(response.headers.get('content-length'));
+          if (
+            Number.isFinite(declaredSize) &&
+            declaredSize > MAX_INBOUND_MEDIA_BYTES
+          ) {
+            throw new Error('media_exceeds_25mb');
+          }
+
+          const body = await response.arrayBuffer();
+          if (body.byteLength > MAX_INBOUND_MEDIA_BYTES) {
+            throw new Error('media_exceeds_25mb');
+          }
+
+          const safeId = (externalId ?? randomUUID()).replace(
+            /[^a-zA-Z0-9_-]/g,
+            '_',
+          );
+          const safeName = attachment.name
+            .normalize('NFKD')
+            .replace(/[^a-zA-Z0-9._-]/g, '_')
+            .slice(-120);
+          const path = `${tenantId}/whatsapp-inbound/${safeId}-${index}-${safeName || 'anexo'}`;
+          const contentType =
+            response.headers.get('content-type')?.split(';')[0] ||
+            attachment.type ||
+            'application/octet-stream';
+          const { error } = await this.supabase.client.storage
+            .from('ticket-attachments')
+            .upload(path, body, {
+              contentType,
+              upsert: false,
+            });
+          if (error) throw error;
+
+          return {
+            ...attachment,
+            path,
+            url: undefined,
+            size: body.byteLength,
+            type: contentType,
+          };
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `inbound media persistence failed tenant=${tenantId} external=${externalId ?? 'none'}: ${message}`,
+          );
+          return attachment;
+        }
+      }),
+    );
   }
 
   private async queuePending(

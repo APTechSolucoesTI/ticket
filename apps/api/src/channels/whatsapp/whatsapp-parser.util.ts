@@ -350,11 +350,17 @@ export function extractStructuredAttachments(
   }
 
   const content = asRecord(messageObj.content);
+  const contentText = firstString(messageObj.content);
   const type =
     firstString(messageObj.messageType, messageObj.type)?.toLowerCase() ?? '';
+  const nestedMessage = asRecord(messageObj.message);
   const location =
     asRecord(messageObj.location) ??
+    asRecord(messageObj.liveLocation) ??
+    asRecord(messageObj.locationMessage) ??
+    asRecord(nestedMessage?.locationMessage) ??
     asRecord(content?.location) ??
+    asRecord(content?.liveLocation) ??
     (type.includes('location') ? content : null);
   if (location) {
     const latitude = firstNumber(
@@ -392,14 +398,21 @@ export function extractStructuredAttachments(
         ? messageObj.content
         : content
           ? [content]
-          : []
+          : contentText
+            ? [{ vcard: contentText }]
+            : []
       : []);
   const contacts = rawContacts.map(asRecord).filter(Boolean) as UnknownRec[];
   if (contacts.length > 0) {
     return contacts.slice(0, 20).map((contact, index) => {
       const vcard = firstString(contact.vcard, contact.vCard);
       const vcardName = vcard?.match(/(?:^|\n)FN[^:]*:([^\r\n]+)/i)?.[1];
-      const vcardPhone = vcard?.match(/(?:^|\n)TEL[^:]*:([^\r\n]+)/i)?.[1];
+      const vcardWaid = vcard?.match(
+        /(?:^|\n)(?:item\d+\.)?TEL[^\r\n:]*;[^\r\n:]*waid=([0-9]+)/i,
+      )?.[1];
+      const vcardPhone = vcard?.match(
+        /(?:^|\n)(?:item\d+\.)?TEL[^:]*:([^\r\n]+)/i,
+      )?.[1];
       const name =
         firstString(
           contact.fullName,
@@ -411,6 +424,7 @@ export function extractStructuredAttachments(
         contact.phoneNumber,
         contact.phone,
         contact.waid,
+        vcardWaid,
         vcardPhone,
       );
       return {
