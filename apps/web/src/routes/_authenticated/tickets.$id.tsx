@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, History, Paperclip, Pause, Play, Printer, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -41,6 +41,10 @@ export const Route = createFileRoute("/_authenticated/tickets/$id")({
 });
 
 const SLA_DEFAULT_MIN = 240;
+
+function canStartAttendance(status: TicketStatus) {
+  return status === "new" || status === "pending";
+}
 
 type Msg = {
   id: string;
@@ -341,9 +345,98 @@ function TicketDetailPage() {
     [linkedEquipments],
   );
 
+  // reply/internal state now lives inside TicketComposer
+  const [pendingTime, setPendingTime] = useState<{ msgId: string } | null>(null);
+  const [askResolved, setAskResolved] = useState(false);
+  const [minutesInput, setMinutesInput] = useState("");
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(null);
+  const [attendance, setAttendance] = useState<"ask" | "active" | "readonly">("ask");
+  const [askOpen, setAskOpen] = useState(false);
+  const [startingAttendance, setStartingAttendance] = useState(false);
+  const activeAttendanceTicketRef = useRef<string | null>(null);
+  const [finalizeStatus, setFinalizeStatus] = useState<"resolved" | "closed" | null>(null);
+
+  // Novo e Pendente sempre perguntam. Em atendimento abre automaticamente para
+  // o técnico atribuído e permanece somente leitura para qualquer outro usuário.
+  useEffect(() => {
+    if (!ticket || !user) return;
+    if (!access.edit) {
+      activeAttendanceTicketRef.current = null;
+      setAttendance("readonly");
+      setAskOpen(false);
+      setTimerRunning(false);
+      setTimerStartedAt(null);
+      setPendingTime(null);
+      setAskResolved(false);
+      setFinalizeStatus(null);
+      return;
+    }
+
+    const assignedToCurrentUser = ticket.status === "in_progress" && ticket.assigned_to === user.id;
+    if (assignedToCurrentUser) {
+      if (activeAttendanceTicketRef.current !== ticket.id) {
+        activeAttendanceTicketRef.current = ticket.id;
+        setTimerStartedAt(new Date());
+        setTimerRunning(true);
+      }
+      setAttendance("active");
+      setAskOpen(false);
+      return;
+    }
+
+    activeAttendanceTicketRef.current = null;
+    setTimerRunning(false);
+    setTimerStartedAt(null);
+    setPendingTime(null);
+    setAskResolved(false);
+    setFinalizeStatus(null);
+
+    if (canStartAttendance(ticket.status as TicketStatus)) {
+      setAttendance("ask");
+      setAskOpen(true);
+    } else {
+      setAttendance("readonly");
+      setAskOpen(false);
+    }
+  }, [ticket, user, access.edit]);
+
+  const isFinalized = ticket?.status === "resolved" || ticket?.status === "closed";
+  const readOnly = !access.edit || attendance !== "active" || isFinalized;
+
+  const assertTicketEditable = async () => {
+    if (
+      readOnly ||
+      !ticket ||
+      !user ||
+      activeAttendanceTicketRef.current !== id ||
+      ticket.status !== "in_progress" ||
+      ticket.assigned_to !== user.id
+    ) {
+      throw new Error("Ticket em modo somente leitura");
+    }
+
+    // Confirma o estado atual no banco antes de qualquer gravação. Fecha a
+    // janela em que outro usuário altera o ticket após ele ser carregado.
+    const { data: editableTicket, error } = await supabase
+      .from("tickets")
+      .select("id")
+      .eq("id", id)
+      .eq("status", "in_progress")
+      .eq("assigned_to", user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!editableTicket) {
+      activeAttendanceTicketRef.current = null;
+      setAttendance("readonly");
+      await qc.invalidateQueries({ queryKey: ["ticket", id] });
+      throw new Error("O ticket não está mais disponível para edição");
+    }
+  };
+
   const toggleEquipment = useMutation({
     mutationFn: async ({ equipmentId, checked }: { equipmentId: string; checked: boolean }) => {
-      if (!access.edit) throw new Error("Sem permissão para editar chamados");
+      await assertTicketEditable();
       if (!ticket) return;
       if (checked) {
         const { error } = await supabase.from("ticket_equipments").insert({
@@ -365,63 +458,29 @@ function TicketDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // reply/internal state now lives inside TicketComposer
-  const [pendingTime, setPendingTime] = useState<{ msgId: string } | null>(null);
-  const [askResolved, setAskResolved] = useState(false);
-  const [minutesInput, setMinutesInput] = useState("");
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(null);
-  const [attendance, setAttendance] = useState<"ask" | "active" | "readonly">("ask");
-  const [askOpen, setAskOpen] = useState(false);
-  const [finalizeStatus, setFinalizeStatus] = useState<"resolved" | "closed" | null>(null);
-
-  // Ao abrir/fechar a tela do ticket, verificar se precisa perguntar "iniciar
-  // atendimento". Só pergunta se eu ainda não sou o técnico responsável —
-  // sem o `assigned_to` na dependência, qualquer invalidate de `["ticket", id]`
-  // (inclusive o que o próprio startAttendance() dispara) mudava `ticket.status`
-  // e reabria o dialog por cima da resposta que o técnico estava digitando.
-  useEffect(() => {
+  const startAttendance = async () => {
+    if (!access.edit || startingAttendance) return;
     if (!ticket || !user) return;
-    if (!access.edit) {
+    if (!canStartAttendance(ticket.status as TicketStatus)) {
       setAttendance("readonly");
       setAskOpen(false);
-      setTimerRunning(false);
-      setTimerStartedAt(null);
-      setPendingTime(null);
-      setAskResolved(false);
-      setFinalizeStatus(null);
+      toast.error("Este ticket não está disponível para iniciar atendimento");
       return;
     }
-    const finalized = ticket.status === "resolved" || ticket.status === "closed";
-    if (finalized) {
-      setAttendance("readonly");
-      setAskOpen(false);
-    } else if (ticket.assigned_to === user.id) {
-      setAttendance("active");
-      setAskOpen(false);
-    } else {
-      setAttendance("ask");
-      setAskOpen(true);
-    }
-    return () => {
-      setAskOpen(false);
-      setAttendance("ask");
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticket?.id, ticket?.status, ticket?.assigned_to, user?.id, access.edit]);
-
-  const isFinalized = ticket?.status === "resolved" || ticket?.status === "closed";
-  const readOnly = !access.edit || attendance === "readonly" || isFinalized;
-
-  const startAttendance = async () => {
-    if (!access.edit) return;
-    if (!ticket || !user) return;
+    setStartingAttendance(true);
     try {
-      const { error } = await supabase
+      const { data: claimedTicket, error } = await supabase
         .from("tickets")
         .update({ assigned_to: user.id, status: "in_progress", resolved_at: null, closed_at: null })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("status", ticket.status)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!claimedTicket) {
+        throw new Error("Ticket assumido ou alterado por outro usuário. Recarregue a página.");
+      }
+      activeAttendanceTicketRef.current = id;
       setTimerStartedAt(new Date());
       setTimerRunning(true);
       setAttendance("active");
@@ -431,16 +490,36 @@ function TicketDetailPage() {
       toast.success("Atendimento iniciado — cronômetro em execução");
     } catch (e) {
       toast.error((e as Error).message);
+      await qc.invalidateQueries({ queryKey: ["ticket", id] });
+    } finally {
+      setStartingAttendance(false);
     }
   };
 
   const declineAttendance = () => {
+    activeAttendanceTicketRef.current = null;
     setAttendance("readonly");
     setAskOpen(false);
     toast.info("Ticket aberto em modo somente leitura");
   };
 
   const [navigateAfterSave, setNavigateAfterSave] = useState(false);
+
+  // Ao entrar (ou voltar) para somente leitura, elimina qualquer fluxo de
+  // edição que tenha sido aberto enquanto o atendimento estava ativo.
+  useEffect(() => {
+    if (!readOnly) return;
+    setPauseDialogOpen(false);
+    setPauseReasonId("");
+    setPauseComplement("");
+    setNewPauseReason("");
+    setAddingPauseReason(false);
+    setPendingTime(null);
+    setAskResolved(false);
+    setFinalizeStatus(null);
+    setNavigateAfterSave(false);
+  }, [id, readOnly]);
+
   const handleBack = () => {
     if (timerRunning && timerStartedAt) {
       const elapsedMin = Math.max(1, Math.round((Date.now() - timerStartedAt.getTime()) / 60_000));
@@ -468,7 +547,7 @@ function TicketDetailPage() {
         services: Array<{ provided_service_id: string; complement: string }>;
       }>,
     ) => {
-      if (!access.edit) throw new Error("Sem permissão para editar chamados");
+      await assertTicketEditable();
       const { services, ...rest } = patch;
       const full: Partial<{
         status: TicketStatus;
@@ -485,8 +564,21 @@ function TicketDetailPage() {
         full.resolved_at = null;
         full.closed_at = null;
       }
-      const { error } = await supabase.from("tickets").update(full).eq("id", id);
+      const { data: updatedTicket, error } = await supabase
+        .from("tickets")
+        .update(full)
+        .eq("id", id)
+        .eq("status", "in_progress")
+        .eq("assigned_to", user!.id)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!updatedTicket) {
+        activeAttendanceTicketRef.current = null;
+        setAttendance("readonly");
+        await qc.invalidateQueries({ queryKey: ["ticket", id] });
+        throw new Error("O ticket não está mais disponível para edição");
+      }
 
       if (services?.length && ticket) {
         const rows = services.map((s) => ({
@@ -530,7 +622,7 @@ function TicketDetailPage() {
   // Resolver/fechar exige laudo final (resumo + diagnóstico) — a menos que o
   // ticket já tenha um (ex: indo de "resolvido" pra "fechado" sem reabrir).
   const requestStatusChange = (status: TicketStatus) => {
-    if (!access.edit) return;
+    if (readOnly) return;
     const needsReport =
       (status === "resolved" || status === "closed") && !ticket?.resolution_summary?.trim();
     if (needsReport) {
@@ -541,7 +633,7 @@ function TicketDetailPage() {
   };
 
   const submitFinalReport = (report: FinalReport) => {
-    if (!access.edit) return;
+    if (readOnly) return;
     if (!finalizeStatus) return;
     updateTicket.mutate({ status: finalizeStatus, ...report });
   };
@@ -557,7 +649,7 @@ function TicketDetailPage() {
 
   const saveTime = useMutation({
     mutationFn: async () => {
-      if (!access.edit) throw new Error("Sem permissão para editar chamados");
+      await assertTicketEditable();
       const n = parseInt(minutesInput || "0", 10);
       if (!n || !ticket) return;
       const uid = getCurrentUserId();
@@ -593,6 +685,7 @@ function TicketDetailPage() {
 
   const pauseTicket = useMutation({
     mutationFn: async () => {
+      await assertTicketEditable();
       if (!ticket || !timerStartedAt || !timerRunning) {
         throw new Error("O Time Tracking precisa estar ativo para pausar o ticket");
       }
@@ -622,6 +715,7 @@ function TicketDetailPage() {
 
   const resumeTicket = useMutation({
     mutationFn: async () => {
+      await assertTicketEditable();
       const { error } = await supabase.rpc("resume_ticket", { _ticket_id: id });
       if (error) throw error;
     },
@@ -636,6 +730,7 @@ function TicketDetailPage() {
 
   const createPauseReason = useMutation({
     mutationFn: async () => {
+      await assertTicketEditable();
       if (!ticket) throw new Error("Ticket não encontrado");
       const name = newPauseReason.trim();
       if (name.length < 2) throw new Error("Informe um nome com pelo menos 2 caracteres");
@@ -765,17 +860,9 @@ function TicketDetailPage() {
                 </>
               ) : (
                 <>
-                  Modo somente leitura — inicie o atendimento para interagir com este ticket.
-                  <div className="mt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => setAskOpen(true)}
-                    >
-                      Iniciar atendimento
-                    </Button>
-                  </div>
+                  {ticket.status === "in_progress"
+                    ? `Ticket em atendimento${ticket.assigneeName ? ` por ${ticket.assigneeName}` : " por outro técnico"} — somente leitura.`
+                    : "Ticket aberto em modo somente leitura."}
                 </>
               )}
             </div>
@@ -787,6 +874,7 @@ function TicketDetailPage() {
               agentName={user?.name ?? user?.email ?? ""}
               cannedList={cannedList}
               applyTemplate={applyTemplate}
+              publicReplyEnabled={timerRunning}
               onSent={() => {
                 qc.invalidateQueries({ queryKey: ["messages", id] });
                 qc.invalidateQueries({ queryKey: ["tickets"] });
@@ -1051,6 +1139,7 @@ function TicketDetailPage() {
                   className="h-7 flex-1 gap-1 text-xs"
                   disabled={readOnly || Boolean(activePause)}
                   onClick={() => {
+                    if (readOnly) return;
                     if (timerRunning) {
                       const elapsedMin = timerStartedAt
                         ? Math.max(1, Math.round((Date.now() - timerStartedAt.getTime()) / 60_000))
@@ -1220,7 +1309,12 @@ function TicketDetailPage() {
                       return (
                         <label
                           key={eq.id}
-                          className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-muted/50"
+                          className={cn(
+                            "flex items-center gap-2 rounded px-1 py-0.5",
+                            readOnly
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer hover:bg-muted/50",
+                          )}
                         >
                           <input
                             type="checkbox"
@@ -1238,12 +1332,14 @@ function TicketDetailPage() {
                       );
                     })}
                   </div>
-                  <Link
-                    to="/equipments"
-                    className="mt-2 inline-block text-[11px] text-primary underline"
-                  >
-                    + Cadastrar novo equipamento
-                  </Link>
+                  {!readOnly && (
+                    <Link
+                      to="/equipments"
+                      className="mt-2 inline-block text-[11px] text-primary underline"
+                    >
+                      + Cadastrar novo equipamento
+                    </Link>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -1278,7 +1374,7 @@ function TicketDetailPage() {
         </aside>
       </div>
 
-      {pauseDialogOpen && (
+      {pauseDialogOpen && !readOnly && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={() => !pauseTicket.isPending && setPauseDialogOpen(false)}
@@ -1328,7 +1424,9 @@ function TicketDetailPage() {
                   type="button"
                   size="sm"
                   className="h-8"
-                  disabled={createPauseReason.isPending || newPauseReason.trim().length < 2}
+                  disabled={
+                    readOnly || createPauseReason.isPending || newPauseReason.trim().length < 2
+                  }
                   onClick={() => createPauseReason.mutate()}
                 >
                   Salvar
@@ -1376,6 +1474,7 @@ function TicketDetailPage() {
               <Button
                 size="sm"
                 disabled={
+                  readOnly ||
                   pauseTicket.isPending ||
                   !pauseReasonId ||
                   (pauseReasons.find((reason) => reason.id === pauseReasonId)?.name === "Outro" &&
@@ -1390,7 +1489,7 @@ function TicketDetailPage() {
         </div>
       )}
 
-      {pendingTime && (
+      {pendingTime && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[360px] rounded-lg border bg-background p-4 shadow-lg">
             <h3 className="text-sm font-semibold">Apontar tempo</h3>
@@ -1423,7 +1522,11 @@ function TicketDetailPage() {
               >
                 Ignorar
               </Button>
-              <Button size="sm" onClick={() => saveTime.mutate()} disabled={saveTime.isPending}>
+              <Button
+                size="sm"
+                onClick={() => saveTime.mutate()}
+                disabled={readOnly || saveTime.isPending}
+              >
                 Salvar
               </Button>
             </div>
@@ -1431,7 +1534,7 @@ function TicketDetailPage() {
         </div>
       )}
 
-      {askResolved && (
+      {askResolved && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
             <h3 className="text-sm font-semibold">Ticket resolvido?</h3>
@@ -1442,19 +1545,17 @@ function TicketDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
+                disabled={readOnly || updateTicket.isPending}
                 onClick={() => {
                   updateTicket.mutate({ status: "pending" });
                   setAskResolved(false);
-                  if (navigateAfterSave) {
-                    setNavigateAfterSave(false);
-                    navigate({ to: "/tickets" });
-                  }
                 }}
               >
                 Não — Pendente
               </Button>
               <Button
                 size="sm"
+                disabled={readOnly || updateTicket.isPending}
                 onClick={() => {
                   setAskResolved(false);
                   requestStatusChange("resolved");
@@ -1467,7 +1568,7 @@ function TicketDetailPage() {
         </div>
       )}
 
-      {finalizeStatus && access.edit && (
+      {finalizeStatus && !readOnly && (
         <FinalizeTicketDialog
           status={finalizeStatus}
           ticketSubject={ticket.subject}
@@ -1638,7 +1739,7 @@ function TicketDetailPage() {
         </div>
       )}
 
-      {askOpen && access.edit && (
+      {askOpen && access.edit && canStartAttendance(ticket.status as TicketStatus) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
             <h3 className="text-sm font-semibold">Iniciar atendimento?</h3>
@@ -1647,11 +1748,16 @@ function TicketDetailPage() {
               cronômetro do Time Tracking será iniciado automaticamente.
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={declineAttendance}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={startingAttendance}
+                onClick={declineAttendance}
+              >
                 Não (somente leitura)
               </Button>
-              <Button size="sm" onClick={startAttendance}>
-                Sim, iniciar
+              <Button size="sm" disabled={startingAttendance} onClick={startAttendance}>
+                {startingAttendance ? "Iniciando…" : "Sim, iniciar"}
               </Button>
             </div>
           </div>

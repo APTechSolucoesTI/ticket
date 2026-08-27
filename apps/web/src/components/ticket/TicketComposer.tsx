@@ -58,6 +58,7 @@ type Props = {
   agentName: string;
   cannedList: CannedResponse[];
   applyTemplate: (body: string) => string;
+  publicReplyEnabled: boolean;
   onSent?: () => void;
   /** Canal "chat" (WebSocket, ChatGateway) — texto puro só, sem anexo. */
   onSendChat?: (content: string) => void;
@@ -71,6 +72,7 @@ export function TicketComposer({
   agentName,
   cannedList,
   applyTemplate,
+  publicReplyEnabled,
   onSent,
   onSendChat,
   onTyping,
@@ -83,7 +85,7 @@ export function TicketComposer({
   const isChat = channel === "chat";
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reply, setReply] = useState("");
-  const [internal, setInternal] = useState(false);
+  const [internal, setInternal] = useState(() => !publicReplyEnabled);
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -144,6 +146,10 @@ export function TicketComposer({
 
   const sendAll = async () => {
     if (sending) return;
+    if (!internal && !publicReplyEnabled) {
+      toast.error("Inicie o Time Tracking antes de enviar uma resposta pública");
+      return;
+    }
     const text = signaturize(reply);
     if (!text.trim() && files.length === 0) return;
     setSending(true);
@@ -330,6 +336,10 @@ export function TicketComposer({
     [],
   );
 
+  useEffect(() => {
+    if (!publicReplyEnabled) setInternal(true);
+  }, [publicReplyEnabled]);
+
   // Drag & drop
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -358,9 +368,15 @@ export function TicketComposer({
         <div className="flex rounded-md border p-0.5">
           <button
             type="button"
+            disabled={!publicReplyEnabled}
             onClick={() => setInternal(false)}
+            title={
+              publicReplyEnabled
+                ? undefined
+                : "Inicie o Time Tracking para enviar uma resposta pública"
+            }
             className={cn(
-              "h-6 rounded-sm px-2",
+              "h-6 rounded-sm px-2 disabled:cursor-not-allowed disabled:opacity-45",
               !internal && "bg-blue-500/15 text-blue-600 dark:text-blue-400",
             )}
           >
@@ -397,6 +413,11 @@ export function TicketComposer({
         {!internal && agentName && (
           <span className="text-[10px] text-muted-foreground">
             Assinando como <strong className="text-foreground">{agentName}</strong>
+          </span>
+        )}
+        {!publicReplyEnabled && (
+          <span className="text-[10px] text-muted-foreground">
+            Inicie o Time Tracking para responder ao cliente.
           </span>
         )}
       </div>
@@ -466,6 +487,7 @@ export function TicketComposer({
 
       <textarea
         value={reply}
+        disabled={!internal && !publicReplyEnabled}
         onChange={(e) => {
           setReply(e.target.value);
           if (isChat && onTyping) {
@@ -486,7 +508,7 @@ export function TicketComposer({
             : "Responda ao cliente…  (Ctrl/⌘+Enter para enviar)"
         }
         className={cn(
-          "w-full resize-none rounded-md border bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-ring",
+          "w-full resize-none rounded-md border bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60",
           internal && "bg-yellow-500/5",
         )}
         rows={3}
@@ -590,7 +612,12 @@ export function TicketComposer({
         )}
 
         <div className="ml-auto">
-          <Button size="sm" onClick={sendAll} disabled={sending} className="gap-1 text-xs">
+          <Button
+            size="sm"
+            onClick={sendAll}
+            disabled={sending || (!internal && !publicReplyEnabled)}
+            className="gap-1 text-xs"
+          >
             {sending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
