@@ -1,7 +1,24 @@
 import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  CheckCircle2,
+  ChevronDown,
+  CircleDot,
+  Clock3,
+  LayoutGrid,
+  List,
+  Mail,
+  MessageCircle,
+  Minus,
+  Plus,
+  Search,
+  Timer,
+  type LucideIcon,
+} from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
@@ -108,6 +125,8 @@ const CHANNEL_OPTIONS: { value: TicketChannel; label: string }[] = [
 
 function TicketsInbox() {
   const access = useModulePermissions("tickets");
+  const emailQueueAccess = useModulePermissions("fila_email");
+  const whatsappQueueAccess = useModulePermissions("fila_whatsapp");
   const qc = useQueryClient();
   const [view, setView] = useState<"list" | "kanban">("list");
   const [status, setStatus] = useState<TicketStatus[]>(["new", "in_progress", "pending"]);
@@ -136,7 +155,11 @@ function TicketsInbox() {
     return () => window.removeEventListener("keydown", handler);
   }, [access.create]);
 
-  const { data: tickets = [], isLoading } = useQuery({
+  const {
+    data: tickets = [],
+    isLoading,
+    isError: ticketsError,
+  } = useQuery({
     queryKey: ["tickets"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -170,6 +193,36 @@ function TicketsInbox() {
       (await supabase.from("profiles").select("id, name").order("name")).data ?? [],
   });
 
+  const { data: queueSummary, isLoading: queueSummaryLoading } = useQuery({
+    queryKey: ["ticket-queue-summary", emailQueueAccess.view, whatsappQueueAccess.view],
+    enabled: emailQueueAccess.view || whatsappQueueAccess.view,
+    queryFn: async () => {
+      const [emailResult, whatsappResult] = await Promise.all([
+        emailQueueAccess.view
+          ? supabase.from("email_pending_messages").select("id").is("resolved_at", null).limit(1)
+          : Promise.resolve({ data: [], error: null }),
+        whatsappQueueAccess.view
+          ? supabase.from("whatsapp_pending_messages").select("id").is("resolved_at", null).limit(1)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      return {
+        email: {
+          hasPending: (emailResult.data?.length ?? 0) > 0,
+          error: Boolean(emailResult.error),
+        },
+        whatsapp: {
+          hasPending: (whatsappResult.data?.length ?? 0) > 0,
+          error: Boolean(whatsappResult.error),
+        },
+      };
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: "always",
+  });
+
+  const summary = useMemo(() => calculateTicketSummary(tickets), [tickets]);
+
   const filtered = useMemo(
     () =>
       tickets.filter(
@@ -190,8 +243,100 @@ function TicketsInbox() {
 
   return (
     <div className="flex h-full flex-col">
+      <section
+        aria-labelledby="ticket-overview-title"
+        className="shrink-0 border-b bg-gradient-to-br from-background via-background to-primary/[0.04] px-3 py-3"
+      >
+        <div className="mb-2.5 flex items-end justify-between gap-3">
+          <div>
+            <h1 id="ticket-overview-title" className="text-base font-semibold tracking-tight">
+              Visão geral dos atendimentos
+            </h1>
+            <p className="text-[11px] text-muted-foreground">
+              Volume atual, tendência recente e filas que precisam de ação.
+            </p>
+          </div>
+          {ticketsError && (
+            <span className="text-[11px] text-destructive">Falha ao carregar indicadores</span>
+          )}
+        </div>
+
+        <div className="grid auto-cols-[minmax(168px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 xl:grid-flow-row xl:grid-cols-5 xl:overflow-visible xl:pb-0">
+          <MetricCard
+            label="Em atendimento"
+            value={summary.inProgress}
+            description="Tickets em execução agora"
+            icon={CircleDot}
+            tone="blue"
+            loading={isLoading}
+          />
+          <MetricCard
+            label="Pendentes"
+            value={summary.pending}
+            description="Aguardando novo retorno"
+            icon={Clock3}
+            tone="amber"
+            loading={isLoading}
+          />
+          <MetricCard
+            label="Resolvidos / Fechados"
+            value={summary.finished}
+            description="Atendimentos concluídos"
+            icon={CheckCircle2}
+            tone="green"
+            loading={isLoading}
+          />
+          <MetricCard
+            label="Últimos 7 dias"
+            value={`${formatDecimal(summary.last7DailyAverage)} / dia`}
+            description={trendDescription(summary.trendPercent, summary.last7Count)}
+            icon={trendIcon(summary.trendPercent)}
+            tone={summary.trendPercent > 0 ? "blue" : summary.trendPercent < 0 ? "rose" : "slate"}
+            loading={isLoading}
+          />
+          <MetricCard
+            label="Tempo médio para resolução"
+            value={formatResolutionTime(summary.averageResolutionMs)}
+            description={`${summary.resolutionSample} atendimento(s) concluído(s)`}
+            icon={Timer}
+            tone="violet"
+            loading={isLoading}
+          />
+        </div>
+
+        {(emailQueueAccess.view || whatsappQueueAccess.view) && (
+          <div className="mt-2 grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 md:grid-flow-row md:grid-cols-2 md:overflow-visible md:pb-0">
+            {emailQueueAccess.view && (
+              <QueueSummaryCard
+                to="/email-pending"
+                label="Fila de E-mail"
+                hasPending={queueSummary?.email.hasPending ?? false}
+                icon={Mail}
+                loading={queueSummaryLoading}
+                error={queueSummary?.email.error ?? false}
+              />
+            )}
+            {whatsappQueueAccess.view && (
+              <QueueSummaryCard
+                to="/whatsapp-pending"
+                label="Fila do WhatsApp"
+                hasPending={queueSummary?.whatsapp.hasPending ?? false}
+                icon={MessageCircle}
+                loading={queueSummaryLoading}
+                error={queueSummary?.whatsapp.error ?? false}
+              />
+            )}
+          </div>
+        )}
+      </section>
+
       <div className="flex flex-wrap items-center gap-2 border-b bg-background px-3 py-2">
-        <TicketAutoRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ["tickets"] })} />
+        <TicketAutoRefresh
+          onRefresh={() => {
+            qc.invalidateQueries({ queryKey: ["tickets"] });
+            qc.invalidateQueries({ queryKey: ["ticket-queue-summary"] });
+          }}
+        />
         <div className="relative">
           <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -279,6 +424,199 @@ function TicketsInbox() {
       {access.create && <TicketDialog open={openNew} onOpenChange={setOpenNew} />}
     </div>
   );
+}
+
+type TicketSummary = {
+  inProgress: number;
+  pending: number;
+  finished: number;
+  last7Count: number;
+  last7DailyAverage: number;
+  trendPercent: number;
+  averageResolutionMs: number | null;
+  resolutionSample: number;
+};
+
+function calculateTicketSummary(tickets: TicketRow[]): TicketSummary {
+  const now = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const currentStart = now - sevenDaysMs;
+  const previousStart = currentStart - sevenDaysMs;
+  let last7Count = 0;
+  let previous7Count = 0;
+  const resolutionDurations: number[] = [];
+
+  for (const ticket of tickets) {
+    const createdAt = new Date(ticket.created_at).getTime();
+    if (createdAt >= currentStart && createdAt <= now) last7Count += 1;
+    else if (createdAt >= previousStart && createdAt < currentStart) previous7Count += 1;
+
+    const finishedAt = ticket.resolved_at ?? ticket.closed_at;
+    if (finishedAt) {
+      const duration = new Date(finishedAt).getTime() - createdAt;
+      if (Number.isFinite(duration) && duration >= 0) resolutionDurations.push(duration);
+    }
+  }
+
+  const trendPercent =
+    previous7Count === 0
+      ? last7Count === 0
+        ? 0
+        : 100
+      : ((last7Count - previous7Count) / previous7Count) * 100;
+
+  return {
+    inProgress: tickets.filter((ticket) => ticket.status === "in_progress").length,
+    pending: tickets.filter((ticket) => ticket.status === "pending").length,
+    finished: tickets.filter((ticket) => ticket.status === "resolved" || ticket.status === "closed")
+      .length,
+    last7Count,
+    last7DailyAverage: last7Count / 7,
+    trendPercent,
+    averageResolutionMs: resolutionDurations.length
+      ? resolutionDurations.reduce((total, duration) => total + duration, 0) /
+        resolutionDurations.length
+      : null,
+    resolutionSample: resolutionDurations.length,
+  };
+}
+
+const metricTones = {
+  blue: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
+  amber: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
+  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  rose: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  slate: "bg-muted text-muted-foreground",
+} as const;
+
+function MetricCard({
+  label,
+  value,
+  description,
+  icon: Icon,
+  tone,
+  loading,
+}: {
+  label: string;
+  value: number | string;
+  description: string;
+  icon: LucideIcon;
+  tone: keyof typeof metricTones;
+  loading: boolean;
+}) {
+  return (
+    <article className="min-w-0 rounded-lg border bg-card p-3 shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          {loading ? (
+            <div className="mt-2 h-7 w-20 animate-pulse rounded bg-muted" />
+          ) : (
+            <p className="mt-1 font-mono text-xl font-semibold tracking-tight text-foreground">
+              {value}
+            </p>
+          )}
+        </div>
+        <span className={cn("rounded-md p-2", metricTones[tone])} aria-hidden="true">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-1 truncate text-[10px] text-muted-foreground">{description}</p>
+    </article>
+  );
+}
+
+function QueueSummaryCard({
+  to,
+  label,
+  hasPending,
+  icon: Icon,
+  loading,
+  error,
+}: {
+  to: "/email-pending" | "/whatsapp-pending";
+  label: string;
+  hasPending: boolean;
+  icon: LucideIcon;
+  loading: boolean;
+  error: boolean;
+}) {
+  const description = error
+    ? "Não foi possível consultar a fila"
+    : hasPending
+      ? "Há mensagens aguardando tratamento"
+      : "Nenhuma mensagem aguardando tratamento";
+
+  return (
+    <Link
+      to={to}
+      aria-label={`Abrir ${label}: ${description}`}
+      className={cn(
+        "group flex min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-2.5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        hasPending && !error ? "border-amber-500/35" : "border-border",
+      )}
+    >
+      <span
+        className={cn(
+          "rounded-md p-2",
+          hasPending && !error
+            ? "bg-amber-500/12 text-amber-700 dark:text-amber-300"
+            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        )}
+        aria-hidden="true"
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <p className="text-xs font-semibold">{label}</p>
+          {loading ? (
+            <span className="h-4 w-7 animate-pulse rounded bg-muted" />
+          ) : (
+            <span className="font-mono text-sm font-semibold">
+              {error ? "—" : hasPending ? "Pendente" : "Livre"}
+            </span>
+          )}
+        </div>
+        <p className="truncate text-[10px] text-muted-foreground">
+          {loading ? "Consultando fila…" : description}
+        </p>
+      </div>
+      <ArrowRight
+        className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+        aria-hidden="true"
+      />
+    </Link>
+  );
+}
+
+function formatDecimal(value: number) {
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function trendDescription(trendPercent: number, last7Count: number) {
+  const percentage = Math.abs(Math.round(trendPercent));
+  if (trendPercent > 0) return `Crescimento de ${percentage}% · ${last7Count} no período`;
+  if (trendPercent < 0) return `Declínio de ${percentage}% · ${last7Count} no período`;
+  return `Volume estável · ${last7Count} no período`;
+}
+
+function trendIcon(trendPercent: number): LucideIcon {
+  if (trendPercent > 0) return ArrowUpRight;
+  if (trendPercent < 0) return ArrowDownRight;
+  return Minus;
+}
+
+function formatResolutionTime(value: number | null) {
+  if (value === null) return "—";
+  const minutes = value / 60_000;
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const hours = minutes / 60;
+  if (hours < 48) return `${formatDecimal(hours)} h`;
+  return `${formatDecimal(hours / 24)} dias`;
 }
 
 function MultiFilter<T extends string>({
