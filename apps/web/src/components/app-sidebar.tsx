@@ -77,7 +77,7 @@ const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
 function Brand() {
   return (
     <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
-      <div className="grid size-8 place-items-center rounded-lg bg-brand-dark text-white shadow-sm">
+      <div className="grid size-8 place-items-center rounded-lg bg-brand-dark text-white shadow-sm dark:bg-white dark:text-slate-900">
         <Ticket className="size-4" />
       </div>
       <div className="leading-tight">
@@ -105,7 +105,7 @@ function SidebarNavigation({ closeOnNavigate = false }: { closeOnNavigate?: bool
           <section key={section.label} aria-labelledby={`nav-${section.label}`}>
             <h2
               id={`nav-${section.label}`}
-              className="mb-1 rounded-md bg-muted/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+              className="mb-1 rounded-md bg-muted/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground dark:bg-white/[0.045]"
             >
               <span className="mr-2 inline-block h-3 w-0.5 rounded-full bg-primary align-middle" />
               {section.label}

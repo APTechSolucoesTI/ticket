@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
         }
         const ticket_id = String(form.get("ticket_id") ?? "").trim();
         const content = String(form.get("content") ?? "").trim();
-        if (!ticket_id || !content) {
+        if (!ticket_id) {
           return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
         }
 
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
 
         const { data: ticket } = await supabaseAdmin
           .from("tickets")
-          .select("id, tenant_id")
+          .select("id, tenant_id, status, channel")
           .eq("id", ticket_id)
           .eq("tenant_id", session.tenant_id)
           .eq("contact_id", session.contact_id)
@@ -51,17 +51,21 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
         const files = form
           .getAll("files")
           .filter((f): f is File => f instanceof File && f.size > 0);
+        if (!content && files.length === 0) {
+          return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
+        }
         if (files.length > MAX_FILES) {
           return Response.json({ error: "too_many_files" }, { status: 400, headers: CORS });
         }
+        const oversized = files.find((file) => file.size > MAX_FILE_BYTES);
+        if (oversized) {
+          return Response.json(
+            { error: "file_too_large", name: oversized.name },
+            { status: 400, headers: CORS },
+          );
+        }
         const attachments: Array<{ path: string; name: string; size: number; type: string }> = [];
         for (const file of files) {
-          if (file.size > MAX_FILE_BYTES) {
-            return Response.json(
-              { error: "file_too_large", name: file.name },
-              { status: 400, headers: CORS },
-            );
-          }
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
           const path = `${ticket.tenant_id}/${ticket.id}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
           const buf = new Uint8Array(await file.arrayBuffer());
@@ -72,6 +76,11 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
               upsert: false,
             });
           if (upErr) {
+            if (attachments.length > 0) {
+              await supabaseAdmin.storage
+                .from("ticket-attachments")
+                .remove(attachments.map((attachment) => attachment.path));
+            }
             return Response.json(
               { error: "upload_failed", detail: upErr.message },
               { status: 500, headers: CORS },
@@ -92,26 +101,39 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
             ticket_id: ticket.id,
             author_type: "contact",
             author_contact_id: session.contact_id,
-            content,
+            content:
+              content ||
+              `${attachments.length === 1 ? "Anexo enviado" : `${attachments.length} anexos enviados`}.`,
             is_internal: false,
-            channel: "portal",
+            channel: ticket.channel === "chat" ? "chat" : "portal",
             attachments,
           })
           .select("id")
           .single();
-        if (msgErr)
+        if (msgErr) {
+          if (attachments.length > 0) {
+            await supabaseAdmin.storage
+              .from("ticket-attachments")
+              .remove(attachments.map((attachment) => attachment.path));
+          }
           return Response.json(
             { error: "message_failed", detail: msgErr.message },
             { status: 500, headers: CORS },
           );
+        }
 
+        const keepActiveAttendance = ticket.channel === "chat" && ticket.status === "in_progress";
         await supabaseAdmin
           .from("tickets")
-          .update({
-            status: "pending",
-            pending_type: "awaiting_tech",
-            updated_at: new Date().toISOString(),
-          })
+          .update(
+            keepActiveAttendance
+              ? { updated_at: new Date().toISOString() }
+              : {
+                  status: "pending",
+                  pending_type: "awaiting_tech",
+                  updated_at: new Date().toISOString(),
+                },
+          )
           .eq("id", ticket.id);
 
         return Response.json({ ok: true, message_id: msg.id }, { status: 200, headers: CORS });

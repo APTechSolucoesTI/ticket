@@ -108,40 +108,41 @@
 }
 
 .dark {
-  --background: #0d2b5e;
-  --foreground: #e8eef7;
-  --card: #102e66;
-  --card-foreground: #e8eef7;
-  --popover: #102e66;
-  --popover-foreground: #e8eef7;
-  --primary: #00c2cb;
-  --primary-foreground: #0d2b5e;
-  --secondary: #1a6b8a;
-  --secondary-foreground: #ffffff;
-  --muted: #173a7a;
-  --muted-foreground: #a8b3cc;
-  --accent: #00c2cb;
-  --accent-foreground: #0d2b5e;
+  color-scheme: dark;
+  --background: #060608;
+  --foreground: #f4f6f8;
+  --card: #0d0e11;
+  --card-foreground: #f4f6f8;
+  --popover: #121317;
+  --popover-foreground: #f4f6f8;
+  --primary: #47c4dd;
+  --primary-foreground: #041115;
+  --secondary: #17191d;
+  --secondary-foreground: #f4f6f8;
+  --muted: #191b20;
+  --muted-foreground: #9ca3af;
+  --accent: #47c4dd;
+  --accent-foreground: #041115;
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #00c2cb;
+  --border: #27292f;
+  --input: #30323a;
+  --ring: #47c4dd;
 
-  --chart-1: #00c2cb;
-  --chart-2: #1a6b8a;
+  --chart-1: #47c4dd;
+  --chart-2: #168db8;
   --chart-3: #818cf8;
   --chart-4: #a8b3cc;
   --chart-5: #f472b6;
 
-  --sidebar: #07173a;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #00c2cb;
-  --sidebar-primary-foreground: #07173a;
-  --sidebar-accent: #1a6b8a;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #00c2cb;
+  --sidebar: #18191d;
+  --sidebar-foreground: #f1f3f5;
+  --sidebar-primary: #47c4dd;
+  --sidebar-primary-foreground: #041115;
+  --sidebar-accent: #47c4dd;
+  --sidebar-accent-foreground: #041115;
+  --sidebar-border: #2a2c31;
+  --sidebar-ring: #47c4dd;
 }
 
 @keyframes float {
@@ -230,6 +231,11 @@
     box-shadow:
       0 1px 2px rgba(16, 24, 40, 0.04),
       0 1px 3px rgba(16, 24, 40, 0.06);
+  }
+  .dark .shadow-card {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.025) inset,
+      0 8px 24px rgba(0, 0, 0, 0.18);
   }
   .shadow-card-hover {
     transition:

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExternalLink, FileText, MapPin, UserRound } from "lucide-react";
@@ -10,6 +10,12 @@ export type Attachment = {
   size: number;
   type: string;
   url?: string;
+  signedUrl?: string;
+  storage_path?: string;
+  filename?: string;
+  fileName?: string;
+  mimeType?: string;
+  mimetype?: string;
   kind?: "contact" | "location" | "sticker";
   contact?: { name: string; phone: string | null };
   location?: {
@@ -19,6 +25,31 @@ export type Attachment = {
     address: string | null;
   };
 };
+
+function normalizeAttachment(raw: Attachment): Attachment {
+  const legacy = raw as Attachment & Record<string, unknown>;
+  return {
+    ...raw,
+    path: raw.path || raw.storage_path || "",
+    name:
+      raw.name ||
+      raw.filename ||
+      raw.fileName ||
+      (typeof legacy.file_name === "string" ? legacy.file_name : "") ||
+      "Anexo",
+    size: Number(raw.size || legacy.file_size || 0),
+    type:
+      raw.type ||
+      raw.mimeType ||
+      raw.mimetype ||
+      (typeof legacy.content_type === "string" ? legacy.content_type : "") ||
+      "application/octet-stream",
+    url:
+      raw.url ||
+      raw.signedUrl ||
+      (typeof legacy.signed_url === "string" ? legacy.signed_url : undefined),
+  };
+}
 
 function isHttpUrl(v: string | undefined | null): v is string {
   return !!v && /^(https?:|data:|blob:)/i.test(v);
@@ -41,21 +72,23 @@ function isVideoMime(a: Attachment): boolean {
 
 /** Resolve any attachment shape to a browser-usable URL. */
 function useResolvedUrl(a: Attachment): { url: string | null; loading: boolean } {
-  const [url, setUrl] = useState<string | null>(
-    isHttpUrl(a.url) ? a.url! : isHttpUrl(a.path) ? a.path : null,
-  );
+  const directUrl = isHttpUrl(a.url) ? a.url : isHttpUrl(a.path) ? a.path : null;
+  const [url, setUrl] = useState<string | null>(directUrl);
   const [loading, setLoading] = useState(!url);
 
   useEffect(() => {
     let cancelled = false;
-    if (url) {
+    if (directUrl) {
+      setUrl(directUrl);
       setLoading(false);
       return;
     }
     if (!a.path || isHttpUrl(a.path)) {
+      setUrl(null);
       setLoading(false);
       return;
     }
+    setUrl(null);
     setLoading(true);
     supabase.storage
       .from("ticket-attachments")
@@ -72,13 +105,13 @@ function useResolvedUrl(a: Attachment): { url: string | null; loading: boolean }
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [a.path, a.url]);
+  }, [a.path, directUrl]);
 
   return { url, loading };
 }
 
-export function AttachmentPreview({ a }: { a: Attachment }) {
+export function AttachmentPreview({ a: rawAttachment }: { a: Attachment }) {
+  const a = useMemo(() => normalizeAttachment(rawAttachment), [rawAttachment]);
   const { url, loading } = useResolvedUrl(a);
   const [previewFailed, setPreviewFailed] = useState(false);
 
@@ -154,10 +187,11 @@ export function AttachmentPreview({ a }: { a: Attachment }) {
 
   if (isImageMime(a) && url && !previewFailed) {
     return (
-      <button
-        type="button"
-        onClick={openInNewTab}
-        className="group relative block overflow-hidden rounded-md border bg-muted/30"
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative block w-fit overflow-hidden rounded-lg border bg-muted/30 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title={a.name}
       >
         <img
@@ -165,9 +199,13 @@ export function AttachmentPreview({ a }: { a: Attachment }) {
           alt={a.name}
           loading="lazy"
           onError={() => setPreviewFailed(true)}
-          className="max-h-56 max-w-[240px] object-contain"
+          className="max-h-56 max-w-[240px] object-contain transition-transform duration-200 group-hover:scale-[1.02]"
         />
-      </button>
+        <span className="absolute bottom-1.5 right-1.5 rounded bg-black/65 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="sr-only">Abrir imagem em nova aba</span>
+        </span>
+      </a>
     );
   }
 

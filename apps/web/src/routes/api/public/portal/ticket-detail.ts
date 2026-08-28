@@ -92,10 +92,11 @@ export const Route = createFileRoute("/api/public/portal/ticket-detail")({
               : [];
             const signed = await Promise.all(
               atts.map(async (a) => {
+                if (!a.path) return { ...a, url: null };
                 const { data } = await supabaseAdmin.storage
                   .from("ticket-attachments")
                   .createSignedUrl(a.path, 60 * 60);
-                return { name: a.name, size: a.size, type: a.type, url: data?.signedUrl ?? null };
+                return { ...a, url: data?.signedUrl ?? null };
               }),
             );
             return {

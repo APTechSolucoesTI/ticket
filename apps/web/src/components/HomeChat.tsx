@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X, Send, Loader2, ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MessageCircle, X, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { CustomerChatComposer } from "@/components/chat/CustomerChatComposer";
+import { AttachmentPreview, type Attachment } from "@/components/ticket/AttachmentPreview";
 import {
   getPortalToken,
   portalFetch,
@@ -44,6 +46,7 @@ type ChatMsg = {
   author_name: string;
   is_internal: boolean;
   created_at: string;
+  attachments?: Attachment[];
 };
 
 type Step = "closed" | "email" | "otp" | "start" | "chat";
@@ -79,8 +82,6 @@ export default function HomeChat() {
   const [firstMessage, setFirstMessage] = useState("");
   const [ticket, setTicket] = useState<{ id: string; number: number } | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Restore existing chat on open (only if the verified session token is still present —
@@ -98,44 +99,37 @@ export default function HomeChat() {
     }
   }, [step, ticket]);
 
-  // Poll messages
+  const fetchMessages = useCallback(async () => {
+    if (!ticket) return;
+    try {
+      const res = await portalFetch("/api/public/portal/ticket-detail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_id: ticket.id }),
+      });
+      if (res.status === 401) {
+        setPortalToken(null);
+        savePersisted(null);
+        setTicket(null);
+        setMessages([]);
+        setSession(null);
+        setStep("email");
+        return;
+      }
+      if (!res.ok) return;
+      const json = (await res.json()) as { messages?: ChatMsg[] };
+      setMessages(json.messages ?? []);
+    } catch {
+      // Polling retries transient failures on the next interval.
+    }
+  }, [ticket]);
+
   useEffect(() => {
     if (step !== "chat" || !ticket || !email) return;
-    let cancelled = false;
-    const fetchMsgs = async () => {
-      try {
-        const res = await portalFetch("/api/public/portal/ticket-detail", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ticket_id: ticket.id }),
-        });
-        if (res.status === 401) {
-          // Verified session expired — drop the persisted chat and ask to re-verify.
-          setPortalToken(null);
-          savePersisted(null);
-          if (!cancelled) {
-            setTicket(null);
-            setMessages([]);
-            setSession(null);
-            setStep("email");
-          }
-          return;
-        }
-        if (!res.ok) return;
-        const json = await res.json();
-        if (cancelled) return;
-        setMessages(json.messages ?? []);
-      } catch {
-        // Silent: this is a background poll, a transient failure just retries next tick.
-      }
-    };
-    fetchMsgs();
-    const id = setInterval(fetchMsgs, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [step, ticket, email]);
+    void fetchMessages();
+    const id = setInterval(() => void fetchMessages(), 4000);
+    return () => clearInterval(id);
+  }, [step, ticket, email, fetchMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -229,38 +223,6 @@ export default function HomeChat() {
     }
   };
 
-  const sendReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reply.trim() || !ticket) return;
-    setSending(true);
-    try {
-      const form = new FormData();
-      form.append("ticket_id", ticket.id);
-      form.append("content", reply.trim());
-      const res = await portalFetch("/api/public/portal/ticket-reply", {
-        method: "POST",
-        body: form,
-      });
-      if (res.ok) {
-        setReply("");
-        // Optimistic append
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            content: reply.trim(),
-            author_type: "contact",
-            author_name: "Você",
-            is_internal: false,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-      }
-    } finally {
-      setSending(false);
-    }
-  };
-
   const endChat = () => {
     savePersisted(null);
     setTicket(null);
@@ -289,7 +251,7 @@ export default function HomeChat() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-[60] w-[92vw] max-w-sm h-[70vh] max-h-[560px] rounded-2xl bg-white shadow-2xl border border-border flex flex-col overflow-hidden">
+    <div className="fixed bottom-5 right-5 z-[60] flex h-[70vh] max-h-[620px] w-[92vw] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
       {/* Header */}
       <div className="gradient-primary text-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
@@ -479,7 +441,7 @@ export default function HomeChat() {
                       className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                         mine
                           ? "bg-primary text-primary-foreground rounded-br-sm"
-                          : "bg-white border rounded-bl-sm"
+                          : "bg-card border rounded-bl-sm"
                       }`}
                     >
                       {!mine && (
@@ -487,7 +449,16 @@ export default function HomeChat() {
                           {m.author_name}
                         </div>
                       )}
-                      <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                      {m.content && (
+                        <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                      )}
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-1.5">
+                          {m.attachments.map((attachment, index) => (
+                            <AttachmentPreview key={`${attachment.path}-${index}`} a={attachment} />
+                          ))}
+                        </div>
+                      )}
                       <div
                         className={`text-[10px] mt-1 ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
                       >
@@ -501,33 +472,7 @@ export default function HomeChat() {
                 );
               })}
             </div>
-            <form onSubmit={sendReply} className="p-2 border-t bg-white flex items-end gap-2">
-              <textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendReply(e as unknown as React.FormEvent);
-                  }
-                }}
-                rows={1}
-                placeholder="Escreva uma mensagem…"
-                className="flex-1 resize-none rounded-md border border-input px-3 py-2 text-sm max-h-28 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <button
-                type="submit"
-                disabled={sending || !reply.trim()}
-                className="gradient-primary text-white rounded-md px-3 py-2 disabled:opacity-60"
-                aria-label="Enviar"
-              >
-                {sending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Send className="size-4" />
-                )}
-              </button>
-            </form>
+            {ticket && <CustomerChatComposer ticketId={ticket.id} onSent={fetchMessages} />}
           </>
         )}
       </div>
