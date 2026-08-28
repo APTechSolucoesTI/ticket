@@ -1,25 +1,7 @@
-import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
-  CheckCircle2,
-  ChevronDown,
-  CircleDot,
-  Clock3,
-  LayoutGrid,
-  List,
-  Loader2,
-  Mail,
-  MessageCircle,
-  Minus,
-  Plus,
-  Search,
-  Timer,
-  type LucideIcon,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
@@ -42,21 +24,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChannelIcon, type TicketChannel } from "@/components/ticket/ChannelIcon";
-import { PriorityBadge, type TicketPriority } from "@/components/ticket/PriorityBadge";
-import { TicketBadge, type TicketStatus } from "@/components/ticket/TicketBadge";
-import { PendingBadge, type PendingType } from "@/components/ticket/PendingBadge";
-import { SlaTimer, slaBorderClass, slaState } from "@/components/ticket/SlaTimer";
-import { cn } from "@/lib/utils";
+import type { TicketChannel } from "@/components/ticket/ChannelIcon";
+import type { TicketPriority } from "@/components/ticket/PriorityBadge";
+import type { TicketStatus } from "@/components/ticket/TicketBadge";
 import { toast } from "sonner";
-import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import { TicketAutoRefresh } from "@/components/ticket/TicketAutoRefresh";
-import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
 import { useModulePermissions } from "@/lib/permission-ui";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TicketOverview } from "@/components/ticket/inbox/TicketOverview";
+import { TicketFilters, type TicketFilterState } from "@/components/ticket/inbox/TicketFilters";
+import { TicketInboxList, TicketPagination } from "@/components/ticket/inbox/TicketInboxList";
+import { TicketInboxKanban } from "@/components/ticket/inbox/TicketInboxKanban";
+import { useTicketsInboxData } from "@/hooks/use-tickets-inbox";
+import { calculateTicketSummary } from "@/lib/ticket-inbox";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
   head: () => ({ meta: [{ title: "Tickets — APTicket" }] }),
@@ -70,77 +51,32 @@ function TicketsLayout() {
   return <TicketsInbox />;
 }
 
-type TicketRow = {
-  id: string;
-  tenant_id: string;
-  number: number;
-  subject: string;
-  status: TicketStatus;
-  pending_type: PendingType;
-  priority: TicketPriority;
-  channel: TicketChannel;
-  company_id: string | null;
-  contact_id: string | null;
-  contract_id: string | null;
-  department_id: string | null;
-  assigned_to: string | null;
-  created_at: string;
-  sla_resolution_due_at: string | null;
-  sla_paused_at: string | null;
-  resolved_at: string | null;
-  closed_at: string | null;
-  resolution_summary: string | null;
-  companies: { name: string } | null;
-  contacts: { name: string } | null;
-  assigneeName?: string;
-};
-
-const SLA_DEFAULT_MIN = 240;
-
-const statusColumns: { key: TicketStatus; label: string }[] = [
-  { key: "new", label: "Novo" },
-  { key: "in_progress", label: "Em Atendimento" },
-  { key: "pending", label: "Pendente" },
-  { key: "resolved", label: "Resolvido" },
-];
-
-const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
-  { value: "new", label: "Novo" },
-  { value: "in_progress", label: "Em atendimento" },
-  { value: "pending", label: "Pendente" },
-  { value: "resolved", label: "Resolvido" },
-  { value: "closed", label: "Fechado" },
-];
-
-const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
-  { value: "low", label: "Baixa" },
-  { value: "medium", label: "Média" },
-  { value: "high", label: "Alta" },
-  { value: "urgent", label: "Urgente" },
-];
-
-const CHANNEL_OPTIONS: { value: TicketChannel; label: string }[] = [
-  { value: "email", label: "E-mail" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "chat", label: "Chat" },
-  { value: "manual", label: "Manual" },
-  { value: "portal", label: "Portal" },
-];
-
 function TicketsInbox() {
   const access = useModulePermissions("tickets");
   const emailQueueAccess = useModulePermissions("fila_email");
   const whatsappQueueAccess = useModulePermissions("fila_whatsapp");
   const qc = useQueryClient();
   const [view, setView] = useState<"list" | "kanban">("list");
-  const [status, setStatus] = useState<TicketStatus[]>(["new", "in_progress", "pending"]);
-  const [priority, setPriority] = useState<TicketPriority[]>([]);
-  const [assignee, setAssignee] = useState<string[]>([]);
-  const [channel, setChannel] = useState<TicketChannel[]>([]);
-  const [department, setDepartment] = useState<string[]>([]);
-  const [q, setQ] = useState("");
+  const [filters, setFilters] = useState<TicketFilterState>({
+    status: ["new", "in_progress", "pending"],
+    priority: [],
+    assignee: [],
+    channel: [],
+    department: [],
+    search: "",
+  });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [openNew, setOpenNew] = useState(false);
   const filterRef = useRef<HTMLButtonElement>(null);
+
+  const { ticketsQuery, departmentsQuery, agentsQuery, queueSummaryQuery } = useTicketsInboxData({
+    canViewEmailQueue: emailQueueAccess.view,
+    canViewWhatsappQueue: whatsappQueueAccess.view,
+  });
+  const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
+  const departments = departmentsQuery.data ?? [];
+  const agents = agentsQuery.data ?? [];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -159,202 +95,68 @@ function TicketsInbox() {
     return () => window.removeEventListener("keydown", handler);
   }, [access.create]);
 
-  const {
-    data: tickets = [],
-    isLoading,
-    isError: ticketsError,
-    error: ticketsErrorDetail,
-    refetch: refetchTickets,
-  } = useQuery({
-    queryKey: ["tickets"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tickets")
-        .select(
-          "id, tenant_id, number, subject, status, pending_type, priority, channel, company_id, contact_id, contract_id, department_id, assigned_to, created_at, sla_resolution_due_at, sla_paused_at, resolved_at, closed_at, resolution_summary, companies(name), contacts(name)",
-        )
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const ids = Array.from(
-        new Set((data ?? []).map((t) => t.assigned_to).filter(Boolean)),
-      ) as string[];
-      let nameById: Record<string, string> = {};
-      if (ids.length) {
-        const { data: profs } = await supabase.from("profiles").select("id, name").in("id", ids);
-        nameById = Object.fromEntries((profs ?? []).map((p) => [p.id, p.name]));
-      }
-      return (data ?? []).map((t) => ({
-        ...t,
-        assigneeName: t.assigned_to ? nameById[t.assigned_to] : undefined,
-      })) as unknown as TicketRow[];
-    },
-  });
-
-  const { data: departments = [] } = useQuery({
-    queryKey: ["departments", "options"],
-    queryFn: async () =>
-      (await supabase.from("departments").select("id, name").order("name")).data ?? [],
-  });
-  const { data: agents = [] } = useQuery({
-    queryKey: ["agents", "options"],
-    queryFn: async () =>
-      (await supabase.from("profiles").select("id, name").order("name")).data ?? [],
-  });
-
-  const { data: queueSummary, isLoading: queueSummaryLoading } = useQuery({
-    queryKey: ["ticket-queue-summary", emailQueueAccess.view, whatsappQueueAccess.view],
-    enabled: emailQueueAccess.view || whatsappQueueAccess.view,
-    queryFn: async () => {
-      const [emailResult, whatsappResult] = await Promise.all([
-        emailQueueAccess.view
-          ? supabase.from("email_pending_messages").select("id").is("resolved_at", null).limit(1)
-          : Promise.resolve({ data: [], error: null }),
-        whatsappQueueAccess.view
-          ? supabase.from("whatsapp_pending_messages").select("id").is("resolved_at", null).limit(1)
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-      return {
-        email: {
-          hasPending: (emailResult.data?.length ?? 0) > 0,
-          error: Boolean(emailResult.error),
-        },
-        whatsapp: {
-          hasPending: (whatsappResult.data?.length ?? 0) > 0,
-          error: Boolean(whatsappResult.error),
-        },
-      };
-    },
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: "always",
-  });
-
   const summary = useMemo(() => calculateTicketSummary(tickets), [tickets]);
 
   const filtered = useMemo(
     () =>
       tickets.filter(
         (t) =>
-          (status.length === 0 || status.includes(t.status)) &&
-          (priority.length === 0 || priority.includes(t.priority)) &&
-          (assignee.length === 0 || (t.assigned_to !== null && assignee.includes(t.assigned_to))) &&
-          (channel.length === 0 || channel.includes(t.channel)) &&
-          (department.length === 0 ||
-            (t.department_id !== null && department.includes(t.department_id))) &&
-          (!q ||
+          (filters.status.length === 0 || filters.status.includes(t.status)) &&
+          (filters.priority.length === 0 || filters.priority.includes(t.priority)) &&
+          (filters.assignee.length === 0 ||
+            (t.assigned_to !== null && filters.assignee.includes(t.assigned_to))) &&
+          (filters.channel.length === 0 || filters.channel.includes(t.channel)) &&
+          (filters.department.length === 0 ||
+            (t.department_id !== null && filters.department.includes(t.department_id))) &&
+          (!filters.search ||
             `${t.number} ${t.subject} ${t.companies?.name ?? ""}`
               .toLowerCase()
-              .includes(q.toLowerCase())),
+              .includes(filters.search.toLowerCase())),
       ),
-    [tickets, status, priority, assignee, channel, department, q],
+    [tickets, filters],
   );
 
   const hasActiveFilters =
-    status.length > 0 ||
-    priority.length > 0 ||
-    assignee.length > 0 ||
-    channel.length > 0 ||
-    department.length > 0 ||
-    q.trim().length > 0;
+    filters.status.length > 0 ||
+    filters.priority.length > 0 ||
+    filters.assignee.length > 0 ||
+    filters.channel.length > 0 ||
+    filters.department.length > 0 ||
+    filters.search.trim().length > 0;
   const hasFilteredOutTickets = tickets.length > 0 && hasActiveFilters;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedTickets = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize],
+  );
+
+  useEffect(() => setPage(1), [filters, pageSize]);
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   const resetFilters = () => {
-    setStatus([]);
-    setPriority([]);
-    setAssignee([]);
-    setChannel([]);
-    setDepartment([]);
-    setQ("");
+    setFilters({
+      status: [],
+      priority: [],
+      assignee: [],
+      channel: [],
+      department: [],
+      search: "",
+    });
   };
 
   return (
     <div className="flex h-full flex-col">
-      <section
-        aria-labelledby="ticket-overview-title"
-        className="shrink-0 border-b bg-gradient-to-br from-background via-background to-primary/[0.04] px-3 py-3"
-      >
-        <div className="mb-2.5 flex items-end justify-between gap-3">
-          <div>
-            <h1 id="ticket-overview-title" className="text-base font-semibold tracking-tight">
-              Visão geral dos atendimentos
-            </h1>
-            <p className="text-[11px] text-muted-foreground">
-              Volume atual, tendência recente e filas que precisam de ação.
-            </p>
-          </div>
-          {ticketsError && (
-            <span className="text-[11px] text-destructive">Dados indisponíveis</span>
-          )}
-        </div>
-
-        <div className="grid auto-cols-[minmax(168px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 xl:grid-flow-row xl:grid-cols-5 xl:overflow-visible xl:pb-0">
-          <MetricCard
-            label="Em atendimento"
-            value={summary.inProgress}
-            description="Tickets em execução agora"
-            icon={CircleDot}
-            tone="blue"
-            loading={isLoading}
-          />
-          <MetricCard
-            label="Pendentes"
-            value={summary.pending}
-            description="Aguardando novo retorno"
-            icon={Clock3}
-            tone="amber"
-            loading={isLoading}
-          />
-          <MetricCard
-            label="Resolvidos / Fechados"
-            value={summary.finished}
-            description="Atendimentos concluídos"
-            icon={CheckCircle2}
-            tone="green"
-            loading={isLoading}
-          />
-          <MetricCard
-            label="Últimos 7 dias"
-            value={`${formatDecimal(summary.last7DailyAverage)} / dia`}
-            description={trendDescription(summary.trendPercent, summary.last7Count)}
-            icon={trendIcon(summary.trendPercent)}
-            tone={summary.trendPercent > 0 ? "blue" : summary.trendPercent < 0 ? "rose" : "slate"}
-            loading={isLoading}
-          />
-          <MetricCard
-            label="Tempo médio para resolução"
-            value={formatResolutionTime(summary.averageResolutionMs)}
-            description={`${summary.resolutionSample} atendimento(s) concluído(s)`}
-            icon={Timer}
-            tone="violet"
-            loading={isLoading}
-          />
-        </div>
-
-        {(emailQueueAccess.view || whatsappQueueAccess.view) && (
-          <div className="mt-2 grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 md:grid-flow-row md:grid-cols-2 md:overflow-visible md:pb-0">
-            {emailQueueAccess.view && (
-              <QueueSummaryCard
-                to="/email-pending"
-                label="Fila de E-mail"
-                hasPending={queueSummary?.email.hasPending ?? false}
-                icon={Mail}
-                loading={queueSummaryLoading}
-                error={queueSummary?.email.error ?? false}
-              />
-            )}
-            {whatsappQueueAccess.view && (
-              <QueueSummaryCard
-                to="/whatsapp-pending"
-                label="Fila do WhatsApp"
-                hasPending={queueSummary?.whatsapp.hasPending ?? false}
-                icon={MessageCircle}
-                loading={queueSummaryLoading}
-                error={queueSummary?.whatsapp.error ?? false}
-              />
-            )}
-          </div>
-        )}
-      </section>
+      <TicketOverview
+        summary={summary}
+        loading={ticketsQuery.isLoading}
+        hasError={ticketsQuery.isError}
+        queueSummary={queueSummaryQuery.data}
+        queueLoading={queueSummaryQuery.isLoading}
+        canViewEmailQueue={emailQueueAccess.view}
+        canViewWhatsappQueue={whatsappQueueAccess.view}
+      />
 
       <div className="flex flex-wrap items-center gap-2 border-b bg-background px-3 py-2">
         <TicketAutoRefresh
@@ -363,93 +165,33 @@ function TicketsInbox() {
             qc.invalidateQueries({ queryKey: ["ticket-queue-summary"] });
           }}
         />
-        <div className="relative">
-          <Label htmlFor="ticket-search" className="sr-only">
-            Buscar tickets
-          </Label>
-          <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            id="ticket-search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar nº, assunto, cliente…"
-            className="h-7 w-56 pl-7 text-xs"
+        <div className="min-w-0 flex-1">
+          <TicketFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            departments={departments}
+            agents={agents}
+            view={view}
+            onViewChange={setView}
+            canCreate={access.create}
+            onCreate={() => setOpenNew(true)}
+            triggerRef={filterRef}
           />
-        </div>
-        <MultiFilter
-          triggerRef={filterRef}
-          label="Departamento"
-          values={department}
-          onChange={setDepartment}
-          options={departments.map((d) => ({ value: d.id, label: d.name }))}
-        />
-        <MultiFilter label="Status" values={status} onChange={setStatus} options={STATUS_OPTIONS} />
-        <MultiFilter
-          label="Prioridade"
-          values={priority}
-          onChange={setPriority}
-          options={PRIORITY_OPTIONS}
-        />
-        <MultiFilter
-          label="Técnico"
-          values={assignee}
-          onChange={setAssignee}
-          options={agents.map((a) => ({ value: a.id, label: a.name }))}
-        />
-        <MultiFilter
-          label="Canal"
-          values={channel}
-          onChange={setChannel}
-          options={CHANNEL_OPTIONS}
-        />
-
-        <div className="ml-auto flex items-center gap-1">
-          <div className="flex rounded-md border p-0.5">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              aria-pressed={view === "list"}
-              aria-label="Exibir tickets em lista"
-              className={cn(
-                "flex h-6 items-center gap-1 rounded-sm px-2 text-xs",
-                view === "list" && "bg-accent",
-              )}
-            >
-              <List className="h-3 w-3" /> Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("kanban")}
-              aria-pressed={view === "kanban"}
-              aria-label="Exibir tickets em kanban"
-              className={cn(
-                "flex h-6 items-center gap-1 rounded-sm px-2 text-xs",
-                view === "kanban" && "bg-accent",
-              )}
-            >
-              <LayoutGrid className="h-3 w-3" /> Kanban
-            </button>
-          </div>
-          {access.create && (
-            <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setOpenNew(true)}>
-              <Plus className="h-3.5 w-3.5" /> Novo ticket
-            </Button>
-          )}
         </div>
       </div>
 
       <div className="flex-1 overflow-auto">
-        {isLoading ? (
+        {ticketsQuery.isLoading ? (
           <LoadingState label="Carregando tickets…" />
-        ) : ticketsError ? (
+        ) : ticketsQuery.isError ? (
           <ErrorState
             title="Não foi possível carregar os tickets"
             description={
-              ticketsErrorDetail instanceof Error
-                ? `${ticketsErrorDetail.message}. Verifique sua conexão e tente novamente.`
+              ticketsQuery.error instanceof Error
+                ? `${ticketsQuery.error.message}. Verifique sua conexão e tente novamente.`
                 : "Verifique sua conexão e tente novamente."
             }
-            action={{ label: "Tentar novamente", onClick: () => void refetchTickets() }}
+            action={{ label: "Tentar novamente", onClick: () => void ticketsQuery.refetch() }}
             className="mt-6"
           />
         ) : filtered.length === 0 ? (
@@ -474,11 +216,23 @@ function TicketsInbox() {
             className="mt-6"
           />
         ) : view === "list" ? (
-          <TicketList tickets={filtered} />
+          <TicketInboxList tickets={paginatedTickets} />
         ) : (
-          <TicketKanban tickets={filtered} />
+          <TicketInboxKanban tickets={filtered} />
         )}
       </div>
+      {view === "list" &&
+        !ticketsQuery.isLoading &&
+        !ticketsQuery.isError &&
+        filtered.length > 0 && (
+          <TicketPagination
+            page={page}
+            pageSize={pageSize}
+            total={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
       <div
         className="border-t bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground"
         aria-live="polite"
@@ -493,565 +247,6 @@ function TicketsInbox() {
       </div>
 
       {access.create && <TicketDialog open={openNew} onOpenChange={setOpenNew} />}
-    </div>
-  );
-}
-
-type TicketSummary = {
-  inProgress: number;
-  pending: number;
-  finished: number;
-  last7Count: number;
-  last7DailyAverage: number;
-  trendPercent: number;
-  averageResolutionMs: number | null;
-  resolutionSample: number;
-};
-
-function calculateTicketSummary(tickets: TicketRow[]): TicketSummary {
-  const now = Date.now();
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-  const currentStart = now - sevenDaysMs;
-  const previousStart = currentStart - sevenDaysMs;
-  let last7Count = 0;
-  let previous7Count = 0;
-  const resolutionDurations: number[] = [];
-
-  for (const ticket of tickets) {
-    const createdAt = new Date(ticket.created_at).getTime();
-    if (createdAt >= currentStart && createdAt <= now) last7Count += 1;
-    else if (createdAt >= previousStart && createdAt < currentStart) previous7Count += 1;
-
-    const finishedAt = ticket.resolved_at ?? ticket.closed_at;
-    if (finishedAt) {
-      const duration = new Date(finishedAt).getTime() - createdAt;
-      if (Number.isFinite(duration) && duration >= 0) resolutionDurations.push(duration);
-    }
-  }
-
-  const trendPercent =
-    previous7Count === 0
-      ? last7Count === 0
-        ? 0
-        : 100
-      : ((last7Count - previous7Count) / previous7Count) * 100;
-
-  return {
-    inProgress: tickets.filter((ticket) => ticket.status === "in_progress").length,
-    pending: tickets.filter((ticket) => ticket.status === "pending").length,
-    finished: tickets.filter((ticket) => ticket.status === "resolved" || ticket.status === "closed")
-      .length,
-    last7Count,
-    last7DailyAverage: last7Count / 7,
-    trendPercent,
-    averageResolutionMs: resolutionDurations.length
-      ? resolutionDurations.reduce((total, duration) => total + duration, 0) /
-        resolutionDurations.length
-      : null,
-    resolutionSample: resolutionDurations.length,
-  };
-}
-
-const metricTones = {
-  blue: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
-  amber: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
-  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  rose: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  slate: "bg-muted text-muted-foreground",
-} as const;
-
-function MetricCard({
-  label,
-  value,
-  description,
-  icon: Icon,
-  tone,
-  loading,
-}: {
-  label: string;
-  value: number | string;
-  description: string;
-  icon: LucideIcon;
-  tone: keyof typeof metricTones;
-  loading: boolean;
-}) {
-  return (
-    <article className="min-w-0 rounded-lg border bg-card p-3 shadow-card">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {label}
-          </p>
-          {loading ? (
-            <div className="mt-2 h-7 w-20 animate-pulse rounded bg-muted" />
-          ) : (
-            <p className="mt-1 font-mono text-xl font-semibold tracking-tight text-foreground">
-              {value}
-            </p>
-          )}
-        </div>
-        <span className={cn("rounded-md p-2", metricTones[tone])} aria-hidden="true">
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      <p className="mt-1 truncate text-[10px] text-muted-foreground">{description}</p>
-    </article>
-  );
-}
-
-function QueueSummaryCard({
-  to,
-  label,
-  hasPending,
-  icon: Icon,
-  loading,
-  error,
-}: {
-  to: "/email-pending" | "/whatsapp-pending";
-  label: string;
-  hasPending: boolean;
-  icon: LucideIcon;
-  loading: boolean;
-  error: boolean;
-}) {
-  const description = error
-    ? "Não foi possível consultar a fila"
-    : hasPending
-      ? "Há mensagens aguardando tratamento"
-      : "Nenhuma mensagem aguardando tratamento";
-
-  return (
-    <Link
-      to={to}
-      aria-label={`Abrir ${label}: ${description}`}
-      className={cn(
-        "group flex min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-2.5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        hasPending && !error ? "border-amber-500/35" : "border-border",
-      )}
-    >
-      <span
-        className={cn(
-          "rounded-md p-2",
-          hasPending && !error
-            ? "bg-amber-500/12 text-amber-700 dark:text-amber-300"
-            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-        )}
-        aria-hidden="true"
-      >
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <p className="text-xs font-semibold">{label}</p>
-          {loading ? (
-            <span className="h-4 w-7 animate-pulse rounded bg-muted" />
-          ) : (
-            <span className="font-mono text-sm font-semibold">
-              {error ? "—" : hasPending ? "Pendente" : "Livre"}
-            </span>
-          )}
-        </div>
-        <p className="truncate text-[10px] text-muted-foreground">
-          {loading ? "Consultando fila…" : description}
-        </p>
-      </div>
-      <ArrowRight
-        className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-        aria-hidden="true"
-      />
-    </Link>
-  );
-}
-
-function formatDecimal(value: number) {
-  return value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-}
-
-function trendDescription(trendPercent: number, last7Count: number) {
-  const percentage = Math.abs(Math.round(trendPercent));
-  if (trendPercent > 0) return `Crescimento de ${percentage}% · ${last7Count} no período`;
-  if (trendPercent < 0) return `Declínio de ${percentage}% · ${last7Count} no período`;
-  return `Volume estável · ${last7Count} no período`;
-}
-
-function trendIcon(trendPercent: number): LucideIcon {
-  if (trendPercent > 0) return ArrowUpRight;
-  if (trendPercent < 0) return ArrowDownRight;
-  return Minus;
-}
-
-function formatResolutionTime(value: number | null) {
-  if (value === null) return "—";
-  const minutes = value / 60_000;
-  if (minutes < 60) return `${Math.round(minutes)} min`;
-  const hours = minutes / 60;
-  if (hours < 48) return `${formatDecimal(hours)} h`;
-  return `${formatDecimal(hours / 24)} dias`;
-}
-
-function MultiFilter<T extends string>({
-  label,
-  values,
-  onChange,
-  options,
-  triggerRef,
-}: {
-  label: string;
-  values: T[];
-  onChange: (values: T[]) => void;
-  options: { value: T; label: string }[];
-  triggerRef?: React.RefObject<HTMLButtonElement | null>;
-}) {
-  const toggle = (value: T) => {
-    onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
-  };
-  const summary = values.length === 0 ? `${label}: todos` : `${label}: ${values.length}`;
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          ref={triggerRef}
-          type="button"
-          variant="outline"
-          className="h-7 min-w-[140px] justify-between gap-2 px-2 text-xs font-normal"
-        >
-          <span className="truncate">{summary}</span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56 p-1" align="start">
-        <div className="flex items-center justify-between border-b px-2 py-1.5 text-xs">
-          <span className="text-muted-foreground">
-            {values.length === 0 ? "Todos" : `${values.length} selecionado(s)`}
-          </span>
-          {values.length > 0 ? (
-            <button
-              type="button"
-              className="text-primary hover:underline"
-              onClick={() => onChange([])}
-            >
-              Limpar
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="text-primary hover:underline"
-              onClick={() => onChange(options.map((option) => option.value))}
-            >
-              Todos
-            </button>
-          )}
-        </div>
-        <div className="max-h-64 overflow-y-auto py-1">
-          {options.map((option) => (
-            <label
-              key={option.value}
-              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
-            >
-              <Checkbox
-                checked={values.includes(option.value)}
-                onCheckedChange={() => toggle(option.value)}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function dueFor(t: TicketRow) {
-  return (
-    t.sla_resolution_due_at ??
-    new Date(new Date(t.created_at).getTime() + SLA_DEFAULT_MIN * 60_000).toISOString()
-  );
-}
-
-function TicketList({ tickets }: { tickets: TicketRow[] }) {
-  if (!tickets.length)
-    return (
-      <div className="p-12 text-center text-sm text-muted-foreground">
-        Nenhum ticket encontrado.
-      </div>
-    );
-  return (
-    <div className="p-2">
-      <ConfigurableTable<TicketRow>
-        listKey="tickets"
-        rows={tickets}
-        rowKey={(t) => t.id}
-        rowClassName={(t) => cn("border-l-4", slaBorderClass(slaState(dueFor(t), SLA_DEFAULT_MIN)))}
-        defaultColumns={[
-          "number",
-          "subject",
-          "customer",
-          "assignee",
-          "priority",
-          "sla",
-          "status",
-          "channel",
-        ]}
-        columns={
-          [
-            {
-              key: "number",
-              label: "#",
-              className: "font-mono text-muted-foreground w-16",
-              cell: (t) => `#${t.number}`,
-            },
-            {
-              key: "subject",
-              label: "Assunto",
-              cell: (t) => (
-                <Link
-                  to="/tickets/$id"
-                  params={{ id: t.id }}
-                  className="font-medium hover:underline"
-                >
-                  {t.subject}
-                </Link>
-              ),
-            },
-            {
-              key: "customer",
-              label: "Cliente",
-              cell: (t) => (
-                <div className="flex flex-col">
-                  <span>{t.contacts?.name ?? "—"}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {t.companies?.name ?? "—"}
-                  </span>
-                </div>
-              ),
-            },
-            { key: "company", label: "Empresa", cell: (t) => t.companies?.name ?? "—" },
-            { key: "contact", label: "Contato", cell: (t) => t.contacts?.name ?? "—" },
-            {
-              key: "assignee",
-              label: "Técnico",
-              className: "text-muted-foreground",
-              cell: (t) => t.assigneeName ?? "—",
-            },
-            {
-              key: "priority",
-              label: "Prioridade",
-              cell: (t) => <PriorityBadge priority={t.priority} />,
-            },
-            {
-              key: "sla",
-              label: "SLA",
-              cell: (t) => (
-                <SlaTimer
-                  dueAt={dueFor(t)}
-                  totalMinutes={SLA_DEFAULT_MIN}
-                  stoppedAt={t.sla_paused_at ?? t.resolved_at ?? t.closed_at ?? null}
-                />
-              ),
-            },
-            {
-              key: "status",
-              label: "Status",
-              cell: (t) => (
-                <div className="flex flex-col items-start gap-1">
-                  <TicketBadge status={t.status} />
-                  <PendingBadge pending={t.pending_type} />
-                </div>
-              ),
-            },
-            {
-              key: "channel",
-              label: "Canal",
-              className: "w-10",
-              cell: (t) => <ChannelIcon channel={t.channel} />,
-            },
-            {
-              key: "created_at",
-              label: "Criado em",
-              className: "text-xs text-muted-foreground",
-              cell: (t) => new Date(t.created_at).toLocaleString("pt-BR"),
-            },
-          ] as ListColumn<TicketRow>[]
-        }
-      />
-    </div>
-  );
-}
-
-function TicketKanban({ tickets }: { tickets: TicketRow[] }) {
-  const access = useModulePermissions("tickets");
-  const qc = useQueryClient();
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overCol, setOverCol] = useState<TicketStatus | null>(null);
-  const [finalizeTarget, setFinalizeTarget] = useState<{
-    id: string;
-    status: "resolved" | "closed";
-  } | null>(null);
-
-  const move = useMutation({
-    mutationFn: async ({
-      id,
-      status,
-      services,
-      ...report
-    }: { id: string; status: TicketStatus } & Partial<FinalReport>) => {
-      if (!access.edit) throw new Error("Sem permissão para editar chamados");
-      const { error } = await supabase
-        .from("tickets")
-        .update({ status, ...report })
-        .eq("id", id);
-      if (error) throw error;
-
-      if (services?.length) {
-        const t = tickets.find((x) => x.id === id);
-        if (!t) return;
-        const authorId = getCurrentUserId();
-        const rows = services.map((s) => ({
-          tenant_id: t.tenant_id,
-          ticket_id: id,
-          provided_service_id: s.provided_service_id,
-          complement: s.complement || null,
-          created_by: authorId,
-        }));
-        const { error: svcErr } = await supabase.from("ticket_services_performed").insert(rows);
-        if (svcErr) throw svcErr;
-      }
-    },
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: ["tickets"] });
-      const prev = qc.getQueryData<TicketRow[]>(["tickets"]);
-      qc.setQueryData<TicketRow[]>(["tickets"], (old) =>
-        (old ?? []).map((t) => (t.id === id ? { ...t, status } : t)),
-      );
-      return { prev };
-    },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["tickets"], ctx.prev);
-      toast.error("Não foi possível mover o ticket");
-    },
-    onSuccess: () => {
-      toast.success("Status atualizado");
-      setFinalizeTarget(null);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["tickets"] }),
-  });
-
-  // Resolver exige laudo final — a menos que o ticket já tenha um.
-  const requestMove = (id: string, status: TicketStatus) => {
-    if (!access.edit) return;
-    const t = tickets.find((x) => x.id === id);
-    if (!t || t.status === status) return;
-    if (status === "resolved" && !t.resolution_summary?.trim()) {
-      setFinalizeTarget({ id, status });
-    } else {
-      move.mutate({ id, status });
-    }
-  };
-
-  return (
-    <div className="grid h-full grid-cols-1 gap-3 p-3 md:grid-cols-4">
-      {statusColumns.map((col) => {
-        const items = tickets.filter((t) => t.status === col.key);
-        const isOver = overCol === col.key;
-        return (
-          <div
-            key={col.key}
-            onDragOver={(e) => {
-              if (!access.edit) return;
-              e.preventDefault();
-              setOverCol(col.key);
-            }}
-            onDragLeave={() => setOverCol((c) => (c === col.key ? null : c))}
-            onDrop={(e) => {
-              if (!access.edit) return;
-              e.preventDefault();
-              const id = e.dataTransfer.getData("text/ticket-id") || dragId;
-              setOverCol(null);
-              setDragId(null);
-              if (id) requestMove(id, col.key);
-            }}
-            className={cn(
-              "flex flex-col rounded-md border bg-muted/30 transition-colors",
-              isOver && "border-primary bg-primary/5",
-            )}
-          >
-            <div className="flex items-center justify-between border-b px-3 py-2 text-xs font-medium">
-              <span>{col.label}</span>
-              <span className="rounded bg-background px-1.5 text-[10px] text-muted-foreground">
-                {items.length}
-              </span>
-            </div>
-            <div className="flex-1 space-y-2 overflow-auto p-2">
-              {items.length === 0 && (
-                <p className="rounded-md border border-dashed bg-background/60 px-3 py-6 text-center text-[11px] text-muted-foreground">
-                  Nenhum ticket nesta etapa.
-                </p>
-              )}
-              {items.map((t) => {
-                const due = dueFor(t);
-                const state = slaState(due, SLA_DEFAULT_MIN);
-                return (
-                  <Link
-                    key={t.id}
-                    to="/tickets/$id"
-                    params={{ id: t.id }}
-                    draggable={access.edit}
-                    onDragStart={(e) => {
-                      if (!access.edit) return;
-                      setDragId(t.id);
-                      e.dataTransfer.setData("text/ticket-id", t.id);
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragEnd={() => {
-                      setDragId(null);
-                      setOverCol(null);
-                    }}
-                    className={cn(
-                      "block rounded-md border border-l-4 bg-background p-2 text-xs hover:bg-accent",
-                      access.edit && "cursor-grab active:cursor-grabbing",
-                      slaBorderClass(state),
-                      dragId === t.id && "opacity-50",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        #{t.number}
-                      </span>
-                      <ChannelIcon channel={t.channel} />
-                    </div>
-                    <div className="mt-1 line-clamp-2 font-medium">{t.subject}</div>
-                    <div className="mt-1 text-[10px] text-muted-foreground">
-                      {t.companies?.name ?? "—"}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <PriorityBadge priority={t.priority} />
-                      <SlaTimer
-                        dueAt={due}
-                        totalMinutes={SLA_DEFAULT_MIN}
-                        className="text-[10px]"
-                        stoppedAt={t.sla_paused_at ?? t.resolved_at ?? t.closed_at ?? null}
-                      />
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-      {finalizeTarget && access.edit && (
-        <FinalizeTicketDialog
-          status={finalizeTarget.status}
-          ticketSubject={tickets.find((t) => t.id === finalizeTarget.id)?.subject ?? ""}
-          submitting={move.isPending}
-          onCancel={() => setFinalizeTarget(null)}
-          onConfirm={(report) =>
-            move.mutate({ id: finalizeTarget.id, status: finalizeTarget.status, ...report })
-          }
-        />
-      )}
     </div>
   );
 }
