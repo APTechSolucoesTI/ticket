@@ -84,9 +84,11 @@ a reescrita para NestJS + Redis foi feita como pedido, porque:
   uazapi.
 - **Chat no frontend.** `apps/web/src/lib/chat-socket.ts` (hook `useChatSocket`) conecta no
   `ChatGateway` com o JWT da sessão, entra na room do ticket (`ticket:join`), recebe
-  `message:receive` (invalida a query de mensagens) e `typing`. `TicketComposer` manda pelo socket
-  (`message:send`) em vez de INSERT direto quando `channel === "chat"` — o `ChatGateway` já
-  persiste e distribui, então não duplica. Indicador "Digitando…" na tela do ticket. Envio de
+  `message:receive` (invalida a query de mensagens) e `typing`. O envio do agente usa o endpoint
+  autenticado `POST /channels/chat/messages`: o frontend só limpa o campo após a API confirmar a
+  persistência, e o `ChatGateway` distribui a mensagem gravada em tempo real. O evento legado
+  `message:send` continua suportado pelo gateway com a mesma validação centralizada. Indicador
+  "Digitando…" na tela do ticket. Envio de
   anexo pelo chat não foi coberto (o gateway só trata texto) — cai no caminho antigo de anexo
   genérico, mesma limitação que WhatsApp/e-mail já tinham pra outros tipos de mídia não migrados.
 

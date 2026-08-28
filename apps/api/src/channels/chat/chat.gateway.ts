@@ -16,10 +16,13 @@ import { RedisService } from '../../queue/redis.service';
 import { verifySessionToken } from '../../auth/jwt.util';
 import type { Env } from '../../config/env.validation';
 import type {
-  ChatMessageEventDto,
   ChatPresenceEventDto,
   ChatTypingEventDto,
 } from '@apticket/shared-types';
+import {
+  ChatMessageService,
+  type PersistedChatMessage,
+} from './chat-message.service';
 
 const PRESENCE_TTL_SECONDS = 60; // expira sozinho se o socket cair sem "disconnect" limpo
 const TYPING_TTL_SECONDS = 10;
@@ -61,6 +64,7 @@ export class ChatGateway
   constructor(
     private readonly supabase: SupabaseService,
     private readonly redis: RedisService,
+    private readonly messages: ChatMessageService,
     config: ConfigService<Env, true>,
   ) {
     this.jwtSecret = config.get('JWT_SECRET', { infer: true });
@@ -206,56 +210,21 @@ export class ChatGateway
       return;
     }
     if (!auth.permissions.has('tickets:edit')) return;
-    if (!body.content?.trim()) {
-      this.logger.warn('message:send sem content');
-      return;
-    }
-
-    const { data: ticket, error: ticketError } = await this.supabase.client
-      .from('tickets')
-      .select('id, tenant_id')
-      .eq('id', body.ticketId)
-      .eq('tenant_id', auth.tenantId)
-      .maybeSingle();
-    if (ticketError) {
-      this.logger.error(`ticket lookup failed: ${ticketError.message}`);
-      return;
-    }
-    if (!ticket) {
-      this.logger.warn(
-        `ticket ${body.ticketId} nao encontrado pro tenant ${auth.tenantId}`,
+    try {
+      const message = await this.messages.sendAgentMessage(
+        auth.tenantId,
+        auth.userId,
+        body.ticketId,
+        body.content,
       );
-      return;
+      this.logger.log(`message:send ok, id=${message.id}`);
+      this.publishMessage(message);
+      return { ok: true, messageId: message.id };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.error(`message:send failed: ${detail}`);
+      return { ok: false, error: detail };
     }
-
-    const { data: inserted, error } = await this.supabase.client
-      .from('messages')
-      .insert({
-        tenant_id: auth.tenantId,
-        ticket_id: ticket.id,
-        author_id: auth.userId,
-        author_type: 'agent',
-        channel: 'chat',
-        is_internal: false,
-        content: body.content,
-      })
-      .select('id, created_at')
-      .single();
-    if (error) {
-      this.logger.error(`message insert failed: ${error.message}`);
-      return;
-    }
-    this.logger.log(`message:send ok, id=${inserted.id}`);
-
-    const event: ChatMessageEventDto & { id: string; createdAt: string } = {
-      ticketId: ticket.id,
-      content: body.content,
-      authorId: auth.userId,
-      authorType: 'agent',
-      id: inserted.id,
-      createdAt: inserted.created_at,
-    };
-    this.server.to(`ticket:${ticket.id}`).emit('message:receive', event);
   }
 
   @SubscribeMessage('typing')
@@ -292,5 +261,11 @@ export class ChatGateway
     this.server
       .to(`tenant:${tenantId}`)
       .emit('ticket:assigned', { ticketId, assigneeId });
+  }
+
+  publishMessage(message: PersistedChatMessage) {
+    this.server
+      .to(`ticket:${message.ticketId}`)
+      .emit('message:receive', message);
   }
 }

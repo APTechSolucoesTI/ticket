@@ -73,13 +73,9 @@ export function useChatSocket(
     };
   }, [ticketId]);
 
-  function sendMessage(content: string) {
-    socketRef.current?.emit("message:send", { ticketId, content });
-  }
-
   function setTyping(isTyping: boolean) {
     socketRef.current?.emit("typing", { ticketId, isTyping });
   }
 
-  return { connected, typingUsers, sendMessage, setTyping };
+  return { connected, typingUsers, setTyping };
 }

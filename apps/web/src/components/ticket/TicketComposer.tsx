@@ -53,8 +53,8 @@ type Props = {
   applyTemplate: (body: string) => string;
   publicReplyEnabled: boolean;
   onSent?: () => void;
-  /** Canal "chat" (WebSocket, ChatGateway) — texto puro só, sem anexo. */
-  onSendChat?: (content: string) => void;
+  /** Canal "chat" — resolve somente depois que backend confirmar persistência. */
+  onSendChat?: (content: string) => Promise<void>;
   onTyping?: (isTyping: boolean) => void;
 };
 
@@ -207,9 +207,7 @@ export function TicketComposer({
         } else if (isEmail && !internal) {
           await backendClient.post("/channels/email/accounts/me/send", { ticketId, content: text });
         } else if (isChat && !internal && onSendChat) {
-          // ChatGateway já persiste a mensagem (messages, channel='chat') e
-          // distribui via WebSocket — não insere aqui de novo.
-          onSendChat(text);
+          await onSendChat(text);
           onTyping?.(false);
         } else {
           const authorId = getCurrentUserId();

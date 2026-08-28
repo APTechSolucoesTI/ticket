@@ -35,6 +35,7 @@ import { useMessageAutoScroll } from "@/hooks/use-message-auto-scroll";
 import DOMPurify from "isomorphic-dompurify";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { backendClient } from "@/lib/backend-client";
 
 export const Route = createFileRoute("/_authenticated/tickets/$id")({
   head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} — APTicket` }] }),
@@ -979,7 +980,16 @@ function TicketDetailPage() {
                 qc.invalidateQueries({ queryKey: ["tickets"] });
                 qc.invalidateQueries({ queryKey: ["ticket", id] });
               }}
-              onSendChat={ticket.channel === "chat" ? chat.sendMessage : undefined}
+              onSendChat={
+                ticket.channel === "chat"
+                  ? async (content) => {
+                      await backendClient.post("/channels/chat/messages", {
+                        ticketId: id,
+                        content,
+                      });
+                    }
+                  : undefined
+              }
               onTyping={ticket.channel === "chat" ? chat.setTyping : undefined}
             />
           )}
