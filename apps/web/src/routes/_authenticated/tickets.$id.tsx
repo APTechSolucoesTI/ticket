@@ -31,6 +31,7 @@ import { TicketComposer } from "@/components/ticket/TicketComposer";
 import { AttachmentPreview } from "@/components/ticket/AttachmentPreview";
 import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
 import { useChatSocket } from "@/lib/chat-socket";
+import { useMessageAutoScroll } from "@/hooks/use-message-auto-scroll";
 import DOMPurify from "isomorphic-dompurify";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -163,6 +164,13 @@ function TicketDetailPage() {
   });
 
   const realtimeTicketChannel = ticket?.channel;
+  const lastMessageId = messages.at(-1)?.id ?? null;
+  const { scrollContainerRef, contentRef, scrollInteractionProps } = useMessageAutoScroll({
+    threadKey: id,
+    lastMessageId,
+    loading: messagesLoading,
+  });
+
   useEffect(() => {
     if (realtimeTicketChannel !== "chat" && realtimeTicketChannel !== "whatsapp") return;
     const token = getToken();
@@ -846,93 +854,100 @@ function TicketDetailPage() {
               </span>
             )}
           </div>
-          <div className="flex-1 space-y-3 overflow-auto p-4" aria-live="polite">
-            {messagesLoading ? (
-              <LoadingState label="Carregando histórico…" />
-            ) : messagesError ? (
-              <ErrorState
-                title="Histórico indisponível"
-                description={
-                  messagesErrorDetail instanceof Error
-                    ? messagesErrorDetail.message
-                    : "Não foi possível carregar as mensagens deste ticket."
-                }
-                action={{ label: "Tentar novamente", onClick: () => void refetchMessages() }}
-              />
-            ) : messages.length === 0 ? (
-              <EmptyState
-                title="Nenhuma interação registrada"
-                description={
-                  readOnly
-                    ? "Este ticket ainda não possui mensagens."
-                    : "Envie uma resposta ou registre uma nota interna para iniciar o histórico."
-                }
-              />
-            ) : null}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={cn(
-                  "rounded-md border p-3 text-xs",
-                  m.is_internal
-                    ? "border-yellow-500/40 bg-yellow-500/10"
-                    : m.author_type === "agent"
-                      ? "border-blue-500/30 bg-blue-500/5"
-                      : "bg-muted/40",
-                )}
-              >
-                <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    {m.channel && <ChannelIcon channel={m.channel} />}
-                    <span className="font-medium text-foreground">{m.authorName ?? "—"}</span>
-                    {m.is_internal && (
-                      <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] text-yellow-800 dark:text-yellow-300">
-                        Nota interna
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span>{new Date(m.created_at).toLocaleString("pt-BR")}</span>
-                    {m.author_type === "agent" &&
-                      (m.channel === "whatsapp" || m.channel === "email") &&
-                      m.delivery_status && (
-                        <span
-                          title={
-                            m.delivery_error
-                              ? `Falha na entrega: ${m.delivery_error}`
-                              : `Status: ${m.delivery_status}`
-                          }
-                          className={cn(
-                            "font-mono",
-                            m.delivery_status === "failed" && "text-red-500",
-                            m.delivery_status === "sending" && "animate-pulse text-amber-500",
-                            m.delivery_status === "read" && "text-blue-500",
-                            m.delivery_status === "delivered" && "text-foreground/70",
-                          )}
-                        >
-                          {m.delivery_status === "failed"
-                            ? "⚠"
-                            : m.delivery_status === "sending"
-                              ? "…"
-                              : m.delivery_status === "read"
-                                ? "✓✓"
-                                : m.delivery_status === "delivered"
-                                  ? "✓✓"
-                                  : "✓"}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-auto p-4"
+            aria-live="polite"
+            {...scrollInteractionProps}
+          >
+            <div ref={contentRef} className="space-y-3">
+              {messagesLoading ? (
+                <LoadingState label="Carregando histórico…" />
+              ) : messagesError ? (
+                <ErrorState
+                  title="Histórico indisponível"
+                  description={
+                    messagesErrorDetail instanceof Error
+                      ? messagesErrorDetail.message
+                      : "Não foi possível carregar as mensagens deste ticket."
+                  }
+                  action={{ label: "Tentar novamente", onClick: () => void refetchMessages() }}
+                />
+              ) : messages.length === 0 ? (
+                <EmptyState
+                  title="Nenhuma interação registrada"
+                  description={
+                    readOnly
+                      ? "Este ticket ainda não possui mensagens."
+                      : "Envie uma resposta ou registre uma nota interna para iniciar o histórico."
+                  }
+                />
+              ) : null}
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "rounded-md border p-3 text-xs",
+                    m.is_internal
+                      ? "border-yellow-500/40 bg-yellow-500/10"
+                      : m.author_type === "agent"
+                        ? "border-blue-500/30 bg-blue-500/5"
+                        : "bg-muted/40",
+                  )}
+                >
+                  <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      {m.channel && <ChannelIcon channel={m.channel} />}
+                      <span className="font-medium text-foreground">{m.authorName ?? "—"}</span>
+                      {m.is_internal && (
+                        <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] text-yellow-800 dark:text-yellow-300">
+                          Nota interna
                         </span>
                       )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span>{new Date(m.created_at).toLocaleString("pt-BR")}</span>
+                      {m.author_type === "agent" &&
+                        (m.channel === "whatsapp" || m.channel === "email") &&
+                        m.delivery_status && (
+                          <span
+                            title={
+                              m.delivery_error
+                                ? `Falha na entrega: ${m.delivery_error}`
+                                : `Status: ${m.delivery_status}`
+                            }
+                            className={cn(
+                              "font-mono",
+                              m.delivery_status === "failed" && "text-red-500",
+                              m.delivery_status === "sending" && "animate-pulse text-amber-500",
+                              m.delivery_status === "read" && "text-blue-500",
+                              m.delivery_status === "delivered" && "text-foreground/70",
+                            )}
+                          >
+                            {m.delivery_status === "failed"
+                              ? "⚠"
+                              : m.delivery_status === "sending"
+                                ? "…"
+                                : m.delivery_status === "read"
+                                  ? "✓✓"
+                                  : m.delivery_status === "delivered"
+                                    ? "✓✓"
+                                    : "✓"}
+                          </span>
+                        )}
+                    </div>
                   </div>
+                  <p className="whitespace-pre-wrap">{m.content}</p>
+                  {Array.isArray(m.attachments) && m.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {m.attachments.map((a, i) => (
+                        <AttachmentPreview key={i} a={a} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="whitespace-pre-wrap">{m.content}</p>
-                {Array.isArray(m.attachments) && m.attachments.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {m.attachments.map((a, i) => (
-                      <AttachmentPreview key={i} a={a} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
           {readOnly ? (
             <div className="border-t bg-muted/30 p-3 text-center text-xs text-muted-foreground">
