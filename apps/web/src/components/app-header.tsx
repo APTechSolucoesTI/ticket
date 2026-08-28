@@ -19,6 +19,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { usePermissions } from "@/lib/use-permissions";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MobileSidebar } from "@/components/app-sidebar";
 
 type Result =
   | { kind: "ticket"; id: string; number: number; subject: string }
@@ -41,6 +43,7 @@ export function AppHeader({ title }: { title?: string }) {
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 200);
@@ -53,6 +56,19 @@ export function AppHeader({ title }: { title?: string }) {
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        setOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   const search = useQuery({
@@ -137,17 +153,25 @@ export function AppHeader({ title }: { title?: string }) {
       grouped.contacts.length +
       grouped.kb.length >
     0;
+  const initials = (user?.name ?? user?.email ?? "U")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-4">
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-3 sm:px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <MobileSidebar />
         {title && <h1 className="text-sm font-semibold truncate">{title}</h1>}
       </div>
       {canSearch && (
-        <div className="flex-1 max-w-md" ref={boxRef}>
+        <div className="min-w-0 flex-1 sm:max-w-md" ref={boxRef}>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               value={q}
               onChange={(e) => {
                 setQ(e.target.value);
@@ -155,8 +179,11 @@ export function AppHeader({ title }: { title?: string }) {
               }}
               onFocus={() => q && setOpen(true)}
               placeholder="Buscar tickets, clientes, contatos, base de conhecimento…"
-              className="h-9 pl-8 text-sm"
+              className="h-9 rounded-lg border-border bg-background pl-8 pr-14 text-sm shadow-none"
             />
+            <kbd className="pointer-events-none absolute right-2.5 top-2 hidden rounded border bg-card px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground sm:block">
+              Ctrl K
+            </kbd>
             {open && debounced.length >= 2 && (
               <div className="absolute left-0 right-0 top-11 z-50 rounded-md border border-border bg-popover shadow-lg max-h-[70vh] overflow-auto">
                 {search.isFetching && (
@@ -238,8 +265,18 @@ export function AppHeader({ title }: { title?: string }) {
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Alternar tema">
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
-        <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate max-w-[160px]">{user?.email}</span>
+        <div className="hidden items-center gap-2 md:flex">
+          <div className="max-w-[160px] text-right leading-tight">
+            <p className="truncate text-xs font-medium text-foreground">
+              {user?.name ?? "Usuário"}
+            </p>
+            <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
+          </div>
+          <Avatar className="size-8 border">
+            <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
         </div>
         <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sair">
           <LogOut className="h-4 w-4" />
