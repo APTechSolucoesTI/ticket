@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/kb/$slug")({
-  head: () => ({ meta: [{ title: "Artigo — Base de Conhecimento" }] }),
+  head: () => ({ meta: [{ title: "Artigo - Base de Conhecimento" }] }),
   component: KbArticlePublicPage,
 });
 

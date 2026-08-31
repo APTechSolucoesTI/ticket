@@ -24,7 +24,6 @@ import { PriorityBadge } from "@/components/ticket/PriorityBadge";
 import { PendingBadge, type PendingType } from "@/components/ticket/PendingBadge";
 import { toast } from "sonner";
 import {
-  Ticket,
   LogOut,
   Plus,
   RefreshCw,
@@ -33,6 +32,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   getPortalToken,
   portalFetch,
@@ -44,7 +44,7 @@ import {
 export const Route = createFileRoute("/portal")({
   head: () => ({
     meta: [
-      { title: "Portal do Cliente — APTicket" },
+      { title: "Portal do Cliente - APTicket" },
       { name: "description", content: "Acompanhe seus chamados e abra novas solicitações." },
     ],
   }),
@@ -171,7 +171,7 @@ function PortalPage() {
       <header className="border-b">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Ticket className="h-5 w-5 text-primary" />
+            <BrandLogo className="size-8 drop-shadow-sm" />
             <h1 className="text-base font-semibold">Portal do Cliente</h1>
           </div>
           {session && (
@@ -498,7 +498,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
                 <li key={eq.id} className="rounded-md border p-2.5 text-xs">
                   <div className="font-medium text-sm">{eq.name}</div>
                   <div className="text-muted-foreground mt-0.5">
-                    {[eq.brand, eq.model].filter(Boolean).join(" ") || "—"}
+                    {[eq.brand, eq.model].filter(Boolean).join(" ") || "-"}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap gap-x-3">
                     {eq.asset_tag && (
@@ -828,7 +828,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
                     </div>
                   )}
                   <div className="text-[11px] text-muted-foreground mt-1">
-                    {c.starts_at ?? "—"} → {c.ends_at ?? "—"}
+                    {c.starts_at ?? "-"} → {c.ends_at ?? "-"}
                     {c.equipment_ids.length > 0 &&
                       ` · ${c.equipment_ids.length} equipamento(s) vinculado(s)`}
                   </div>

@@ -1,14 +1,14 @@
--- Catálogo de permissões v2 — pedido explícito do usuário: matriz exata por
+-- Catálogo de permissões v2 - pedido explícito do usuário: matriz exata por
 -- módulo (Tickets/Fila WhatsApp/Fila E-mail/Clientes/Contatos/Equipamentos/
 -- Contratos/Base de Conhecimento com CRUD completo; Relatórios só view;
 -- Configurações vira item PAI (view/edit) com 12 sub-itens cada um com sua
--- própria granularidade — Empresa e Canais só view/edit, resto CRUD
+-- própria granularidade - Empresa e Canais só view/edit, resto CRUD
 -- completo). Regra de cascata (view desmarcado bloqueia o resto E o menu; em
--- Configurações também esconde os sub-itens) fica no frontend — aqui só o
+-- Configurações também esconde os sub-itens) fica no frontend - aqui só o
 -- catálogo/RLS/seed.
 --
 -- Troca destrutiva do catálogo (delete-all + reinsert): seguro agora porque
--- só existem os 3 papéis default seedados (sem papel custom sobrevivendo —
+-- só existem os 3 papéis default seedados (sem papel custom sobrevivendo -
 -- o de teste já foi removido) e user_permissions já foi zerado (overrides
 -- de teste limpos). ON DELETE CASCADE em role_permissions/user_permissions
 -- cuida do resto.
@@ -67,7 +67,7 @@ insert into apticket.role_permissions (role_id, permission_id)
     );
 
 -- corrige o dado que ficou faltando: tenant Gabriel APTECH só tinha 2 papéis
--- (Admin/Agente) — completa com Solicitante, igual o outro tenant, mesma
+-- (Admin/Agente) - completa com Solicitante, igual o outro tenant, mesma
 -- paridade do Agente.
 insert into apticket.roles (tenant_id, name, description, is_system)
 select t.id, 'Solicitante', 'Abre e acompanha os próprios tickets', false
@@ -138,11 +138,11 @@ $$;
 -- ============================================================
 -- RLS: remapeia as tabelas cujo módulo mudou de nome/granularidade
 -- (tickets/companies/contacts/equipments/contracts + tabelas-filha e
--- profiles/user_roles ficam iguais — módulo não mudou)
+-- profiles/user_roles ficam iguais - módulo não mudou)
 -- ============================================================
 
 -- kb_articles/kb_categories: base_conhecimento vira CRUD completo (era só
--- view/write) — só a policy de escrita muda, splitta em 3.
+-- view/write) - só a policy de escrita muda, splitta em 3.
 drop policy "kb_articles admin write" on apticket.kb_articles;
 create policy "kb_articles insert" on apticket.kb_articles for insert to authenticated
   with check (tenant_id = apticket.current_tenant_id() and apticket.has_permission(auth.uid(),'base_conhecimento','create'));

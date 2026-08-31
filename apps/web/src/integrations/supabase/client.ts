@@ -27,7 +27,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
     headers.set("apikey", supabaseKey);
 
-    // Sessão própria (session.ts) — nunca via supabase.auth.setSession()/
+    // Sessão própria (session.ts) - nunca via supabase.auth.setSession()/
     // getSession() (isso faria uma chamada de rede pro GoTrue, que rejeita
     // qualquer sub que não exista em auth.users). Anexa o Bearer manualmente
     // em toda chamada REST; RLS/auth.uid() no Postgres continuam
@@ -66,7 +66,7 @@ function createSupabaseClient() {
     },
     auth: {
       // Sessão real vive em session.ts (localStorage próprio), nunca no
-      // subsistema .auth do supabase-js — setSession()/getSession() fazem
+      // subsistema .auth do supabase-js - setSession()/getSession() fazem
       // (ou dependem de) chamada de rede pro GoTrue, que rejeita qualquer
       // sub que não exista em auth.users mesmo com assinatura válida.
       // Sessão dura 7 dias (expiresIn no signSessionToken); depois disso o

@@ -57,7 +57,7 @@ async function callUazapi(
 }
 
 /* ============================================================
- * Test connection — reads tenant credentials via RLS and pings UAZAPI
+ * Test connection - reads tenant credentials via RLS and pings UAZAPI
  * ============================================================ */
 export const testUazapiConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -123,7 +123,7 @@ export const testUazapiConnection = createServerFn({ method: "POST" })
   });
 
 /* ============================================================
- * Connect instance — returns QR code (base64) to pair the phone
+ * Connect instance - returns QR code (base64) to pair the phone
  * ============================================================ */
 async function loadTenantCreds(
   supabase: import("@supabase/supabase-js").SupabaseClient<
@@ -574,7 +574,7 @@ export const sendWhatsAppContact = createServerFn({ method: "POST" })
     await supabase.from("messages").insert({
       tenant_id: ticket.tenant_id,
       ticket_id: ticket.id,
-      content: `📇 Contato: ${data.contact_name} — ${data.contact_phone}`,
+      content: `📇 Contato: ${data.contact_name} - ${data.contact_phone}`,
       author_id: userId,
       author_type: "agent",
       is_internal: false,

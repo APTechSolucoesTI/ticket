@@ -21,7 +21,7 @@ import type {
 // Portado de sendWhatsAppReply em apps/web/src/lib/whatsapp.functions.ts.
 // Diferença: token da uazapi agora vem criptografado do banco, e o envio
 // passa por um rate limit no Redis antes de chamar a uazapi (evita bloqueio
-// do número por excesso de chamadas — pedido explícito do prompt).
+// do número por excesso de chamadas - pedido explícito do prompt).
 const SEND_RATE_LIMIT = 20; // mensagens por minuto por tenant
 const SEND_RATE_WINDOW_SECONDS = 60;
 

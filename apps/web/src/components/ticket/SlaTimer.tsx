@@ -51,7 +51,7 @@ export function SlaTimer({
     return () => clearInterval(i);
   }, [stoppedAt]);
 
-  if (!dueAt) return <span className={cn("font-mono text-xs text-muted-foreground", className)}>—</span>;
+  if (!dueAt) return <span className={cn("font-mono text-xs text-muted-foreground", className)}>-</span>;
   const ref = stoppedAt ? new Date(stoppedAt).getTime() : Date.now();
   const remaining = new Date(dueAt).getTime() - ref;
   const remainingMin = remaining / 60_000;

@@ -226,7 +226,7 @@ function QueueSummaryCard({
             <span className="h-4 w-7 animate-pulse rounded bg-muted" />
           ) : (
             <span className="font-mono text-sm font-semibold">
-              {error ? "—" : hasPending ? "Pendente" : "Livre"}
+              {error ? "-" : hasPending ? "Pendente" : "Livre"}
             </span>
           )}
         </div>

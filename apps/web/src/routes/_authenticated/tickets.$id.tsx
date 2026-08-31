@@ -38,7 +38,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { backendClient } from "@/lib/backend-client";
 
 export const Route = createFileRoute("/_authenticated/tickets/$id")({
-  head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} — APTicket` }] }),
+  head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} - APTicket` }] }),
   component: TicketDetailPage,
   errorComponent: ({ error }) => (
     <div className="p-6 text-sm text-destructive">Erro: {error.message}</div>
@@ -283,7 +283,7 @@ function TicketDetailPage() {
     },
   });
   // Relatório é gerado (via trigger no banco) tanto ao resolver quanto ao
-  // fechar o ticket — o botão de imprimir precisa funcionar já em "resolved".
+  // fechar o ticket - o botão de imprimir precisa funcionar já em "resolved".
   const isResolvedOrClosed = ticket?.status === "resolved" || ticket?.status === "closed";
   const { data: closingReport } = useQuery({
     queryKey: ["ticket_closing_report", id],
@@ -516,7 +516,7 @@ function TicketDetailPage() {
       setAskOpen(false);
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
-      toast.success("Atendimento iniciado — cronômetro em execução");
+      toast.success("Atendimento iniciado - cronômetro em execução");
     } catch (e) {
       toast.error((e as Error).message);
       await qc.invalidateQueries({ queryKey: ["ticket", id] });
@@ -669,7 +669,7 @@ function TicketDetailPage() {
     },
   });
 
-  // Resolver/fechar exige laudo final (resumo + diagnóstico) — a menos que o
+  // Resolver/fechar exige laudo final (resumo + diagnóstico) - a menos que o
   // ticket já tenha um (ex: indo de "resolvido" pra "fechado" sem reabrir).
   const requestStatusChange = (status: TicketStatus) => {
     if (readOnly) return;
@@ -899,7 +899,7 @@ function TicketDetailPage() {
                   <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
                     <div className="flex items-center gap-2">
                       {m.channel && <ChannelIcon channel={m.channel} />}
-                      <span className="font-medium text-foreground">{m.authorName ?? "—"}</span>
+                      <span className="font-medium text-foreground">{m.authorName ?? "-"}</span>
                       {m.is_internal && (
                         <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] text-yellow-800 dark:text-yellow-300">
                           Nota interna
@@ -953,15 +953,15 @@ function TicketDetailPage() {
           {readOnly ? (
             <div className="border-t bg-muted/30 p-3 text-center text-xs text-muted-foreground">
               {!access.edit ? (
-                <>Modo somente leitura — você não tem permissão para editar chamados.</>
+                <>Modo somente leitura - você não tem permissão para editar chamados.</>
               ) : isFinalized ? (
                 <>
-                  Ticket {ticket?.status === "closed" ? "fechado" : "resolvido"} — somente leitura.
+                  Ticket {ticket?.status === "closed" ? "fechado" : "resolvido"} - somente leitura.
                 </>
               ) : (
                 <>
                   {ticket.status === "in_progress"
-                    ? `Ticket em atendimento${ticket.assigneeName ? ` por ${ticket.assigneeName}` : " por outro técnico"} — somente leitura.`
+                    ? `Ticket em atendimento${ticket.assigneeName ? ` por ${ticket.assigneeName}` : " por outro técnico"} - somente leitura.`
                     : "Ticket aberto em modo somente leitura."}
                 </>
               )}
@@ -1005,8 +1005,8 @@ function TicketDetailPage() {
               <CardTitle className="text-xs uppercase text-muted-foreground">Cliente</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 p-3 pt-0 text-sm">
-              <div className="font-medium">{ticket.contacts?.name ?? "—"}</div>
-              <div className="text-xs text-muted-foreground">{ticket.companies?.name ?? "—"}</div>
+              <div className="font-medium">{ticket.contacts?.name ?? "-"}</div>
+              <div className="text-xs text-muted-foreground">{ticket.companies?.name ?? "-"}</div>
               {ticket.contacts?.email && (
                 <div className="mt-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1">
                   <div className="text-[9px] font-semibold uppercase tracking-wide text-primary/80">
@@ -1081,7 +1081,7 @@ function TicketDetailPage() {
                       {performedServices.map((s) => (
                         <li key={s.id} className="rounded-md border bg-muted/30 p-1.5">
                           <div className="font-medium text-foreground">
-                            {s.provided_services?.description ?? "—"}
+                            {s.provided_services?.description ?? "-"}
                           </div>
                           {s.complement && (
                             <div className="mt-0.5 whitespace-pre-wrap text-muted-foreground">
@@ -1664,7 +1664,7 @@ function TicketDetailPage() {
                   setAskResolved(false);
                 }}
               >
-                Não — Pendente
+                Não - Pendente
               </Button>
               <Button
                 size="sm"
@@ -1674,7 +1674,7 @@ function TicketDetailPage() {
                   requestStatusChange("resolved");
                 }}
               >
-                Sim — Resolvido
+                Sim - Resolvido
               </Button>
             </div>
           </div>
@@ -1724,14 +1724,14 @@ function TicketDetailPage() {
                     {timeEntries.map((t) => (
                       <tr key={t.id} className="border-b last:border-0">
                         <td className="py-2 pr-2 font-mono">
-                          {t.started_at ? new Date(t.started_at).toLocaleString("pt-BR") : "—"}
+                          {t.started_at ? new Date(t.started_at).toLocaleString("pt-BR") : "-"}
                         </td>
                         <td className="py-2 pr-2 font-mono">
                           {new Date(t.created_at).toLocaleString("pt-BR")}
                         </td>
                         <td className="py-2 pr-2 text-right font-mono">{t.minutes}</td>
                         <td className="py-2 pr-2">
-                          {t.agent_id ? (entryAuthors[t.agent_id] ?? "—") : "—"}
+                          {t.agent_id ? (entryAuthors[t.agent_id] ?? "-") : "-"}
                         </td>
                         <td className="py-2">{t.description ?? ""}</td>
                       </tr>
@@ -1825,14 +1825,14 @@ function TicketDetailPage() {
                           )}
                         </td>
                         <td className="py-3">
-                          <div>{pauseAuthors[pause.paused_by] ?? "—"}</div>
+                          <div>{pauseAuthors[pause.paused_by] ?? "-"}</div>
                           {pause.ended_at && (
                             <div className="mt-0.5 text-muted-foreground">
                               Retomada por{" "}
                               {pause.resume_source === "customer_interaction"
                                 ? "interação do cliente"
                                 : pause.resumed_by
-                                  ? (pauseAuthors[pause.resumed_by] ?? "—")
+                                  ? (pauseAuthors[pause.resumed_by] ?? "-")
                                   : "sistema"}
                             </div>
                           )}

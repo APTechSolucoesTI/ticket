@@ -45,10 +45,10 @@ async function assertRoleDelegable(
   }
 }
 
-/** Gera um novo token de convite pro profile e manda o e-mail — usado tanto
+/** Gera um novo token de convite pro profile e manda o e-mail - usado tanto
  * no convite inicial quanto no reenvio. Convites antigos não aceitos do
  * mesmo profile são invalidados antes (accepted_at = agora, mesmo truque que
- * acceptInvite usa pra marcar "consumido" — service_role só tem grant de
+ * acceptInvite usa pra marcar "consumido" - service_role só tem grant de
  * INSERT/SELECT/UPDATE em invites, sem DELETE, então é update, não delete):
  * sem isso, um link velho continuaria funcionando em paralelo ao novo (2
  * tokens válidos pro mesmo convite). */
@@ -116,7 +116,7 @@ export const inviteUser = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await assertRoleDelegable(supabase, supabaseAdmin, userId, tenantId, data.roleId);
 
-    // Checa "já existe" só em apticket.profiles — nunca mais em auth.users
+    // Checa "já existe" só em apticket.profiles - nunca mais em auth.users
     // (Supabase Auth global, compartilhado com outro sistema no mesmo host).
     // Era essa dependência que fazia convidar um e-mail que já existia em
     // auth.users de OUTRO sistema falhar com "usuário já cadastrado".

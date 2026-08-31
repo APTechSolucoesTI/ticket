@@ -33,7 +33,7 @@ function AuthenticatedLayout() {
   }
 
   // Verificação de permissão vigente a cada navegação (não só sidebar
-  // escondida — bloqueia acesso direto por URL também). Reavalia sempre que
+  // escondida - bloqueia acesso direto por URL também). Reavalia sempre que
   // a rota muda, então pega alteração de permissão feita em outra sessão
   // assim que o usuário navegar de novo (troca de aba/menu já revalida).
   if (perms.loading) {

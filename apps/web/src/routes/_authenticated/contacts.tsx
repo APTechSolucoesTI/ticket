@@ -43,7 +43,7 @@ import { maskPhone, normalizePhone, unmask } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
-  head: () => ({ meta: [{ title: "Contatos — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Contatos - APTicket" }] }),
   component: ContactsPage,
 });
 
@@ -171,20 +171,20 @@ function ContactsPage() {
                   key: "company",
                   label: "Cliente",
                   className: "text-sm",
-                  cell: (c) => c.companies?.name || "—",
+                  cell: (c) => c.companies?.name || "-",
                 },
                 { key: "email", label: "E-mail", className: "text-sm", cell: (c) => c.email },
                 {
                   key: "phone",
                   label: "Telefone",
                   className: "text-sm",
-                  cell: (c) => (c.phone ? maskPhone(c.phone) : "—"),
+                  cell: (c) => (c.phone ? maskPhone(c.phone) : "-"),
                 },
                 {
                   key: "job_title",
                   label: "Cargo",
                   className: "text-sm",
-                  cell: (c) => c.job_title || "—",
+                  cell: (c) => c.job_title || "-",
                 },
                 {
                   key: "flags",

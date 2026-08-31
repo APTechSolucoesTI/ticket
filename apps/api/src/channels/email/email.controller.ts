@@ -12,7 +12,7 @@ import { SendEmailReplyDto } from './dto/send-email-reply.dto';
 // Rotas seguem o contrato original do prompt (`/channels/email/accounts`),
 // mas como o domínio real do APTicket tem uma conta de e-mail por tenant
 // (colunas em apticket.tenants, não uma tabela separada de múltiplas
-// contas), `:id` é sempre o próprio tenantId do usuário autenticado — o
+// contas), `:id` é sempre o próprio tenantId do usuário autenticado - o
 // path fica compatível com o contrato pedido sem inventar um conceito que
 // não existe no schema.
 @ApiTags('email')

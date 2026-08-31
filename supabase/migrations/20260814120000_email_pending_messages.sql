@@ -1,4 +1,4 @@
--- "Fila de E-mail" — mirrors public.whatsapp_pending_messages, same pattern:
+-- "Fila de E-mail" - mirrors public.whatsapp_pending_messages, same pattern:
 -- unknown/blocked/no-contract senders get queued here with an auto-created
 -- pending contact (company_id null, can_open_tickets false) so an agent can
 -- review, link to a client + contract, block, or delete.

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/csat/$token")({
-  head: () => ({ meta: [{ title: "Avaliar atendimento — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Avaliar atendimento - APTicket" }] }),
   component: CsatPage,
   errorComponent: ({ error }) => (
     <div className="p-8 text-center text-sm text-destructive">Erro: {error.message}</div>

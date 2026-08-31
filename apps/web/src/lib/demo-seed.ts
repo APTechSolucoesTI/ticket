@@ -1,4 +1,4 @@
-// Mock data para o modo demonstração — nada é persistido no Supabase.
+// Mock data para o modo demonstração - nada é persistido no Supabase.
 import { addDays, format, subDays } from "date-fns";
 
 const now = new Date();
@@ -68,7 +68,7 @@ export const demoTickets = subjects.map((subject, i) => {
   };
 });
 
-// Últimos 14 dias — volume de tickets criados x resolvidos
+// Últimos 14 dias - volume de tickets criados x resolvidos
 export const demoVolume14d = Array.from({ length: 14 }).map((_, i) => {
   const day = subDays(now, 13 - i);
   const criados = 3 + ((i * 7) % 9);

@@ -32,9 +32,9 @@ export type FinalReport = {
 type RemoteService = { id: string; code: string; description: string };
 
 /**
- * Laudo final — required before a ticket can move to "resolved" or "closed"
+ * Laudo final - required before a ticket can move to "resolved" or "closed"
  * (also enforced server-side by a CHECK constraint on tickets, and the
- * remote-only rule on ticket_services_performed by a trigger — this dialog
+ * remote-only rule on ticket_services_performed by a trigger - this dialog
  * isn't the only gate, just the friendly one).
  */
 export function FinalizeTicketDialog({
@@ -56,7 +56,7 @@ export function FinalizeTicketDialog({
   const [pickService, setPickService] = useState("");
   const [pickComplement, setPickComplement] = useState("");
 
-  // Only "Suporte Remoto" services are offered here — this laudo is the
+  // Only "Suporte Remoto" services are offered here - this laudo is the
   // remote-support one. Backend (trigger) re-checks this on save either way.
   const { data: remoteServices = [] } = useQuery({
     queryKey: ["provided_services", "remote_active"],
@@ -93,7 +93,7 @@ export function FinalizeTicketDialog({
       <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Laudo final — {status === "closed" ? "fechar" : "resolver"} ticket
+            Laudo final - {status === "closed" ? "fechar" : "resolver"} ticket
           </DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground -mt-2">
@@ -106,7 +106,7 @@ export function FinalizeTicketDialog({
               autoFocus
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Vem preenchido com o assunto do ticket — ajuste se precisar"
+              placeholder="Vem preenchido com o assunto do ticket - ajuste se precisar"
             />
           </div>
 

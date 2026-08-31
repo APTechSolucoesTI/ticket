@@ -18,13 +18,13 @@ import {
   PanelLeftOpen,
   Settings,
   ShieldCheck,
-  Ticket,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/use-permissions";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sheet,
@@ -123,9 +123,7 @@ function Brand({ collapsed, onToggle }: { collapsed?: boolean; onToggle?: () => 
       )}
     >
       {!collapsed && (
-        <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-dark text-white shadow-sm dark:bg-white dark:text-slate-900">
-          <Ticket className="size-4" />
-        </div>
+        <BrandLogo className="size-9 drop-shadow-sm" />
       )}
       {!collapsed && (
         <div className="min-w-0 flex-1 leading-tight">

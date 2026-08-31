@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 
 // Conta de e-mail é 1:1 com o tenant (colunas email_imap_*/email_smtp_* em
-// apticket.tenants) — não existe hoje uma tabela separada de "múltiplas
+// apticket.tenants) - não existe hoje uma tabela separada de "múltiplas
 // contas por tenant" no domínio real do APTicket, então o CRUD do contrato
 // original (`/channels/email/accounts`) opera sobre essa linha única,
 // endereçada pelo próprio tenantId do usuário autenticado.
@@ -21,9 +21,9 @@ export class UpsertEmailAccountDto {
   @ApiProperty({ default: 993 }) @IsInt() @Min(1) @Max(65535) imapPort!: number;
   @ApiProperty() @IsString() @MinLength(1) imapUser!: string;
 
-  // Texto puro só chega até aqui — o service criptografa (AES-256-GCM) antes
+  // Texto puro só chega até aqui - o service criptografa (AES-256-GCM) antes
   // de gravar. Nunca é lido de volta em claro pela API de listagem, então a
-  // tela não tem como reexibir a senha salva — omitir mantém a atual.
+  // tela não tem como reexibir a senha salva - omitir mantém a atual.
   @ApiPropertyOptional({ description: 'Omitir mantém a senha já salva' })
   @IsOptional()
   @IsString()

@@ -28,7 +28,7 @@ import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
 // Supabase/Postgrest/Storage errors are plain objects ({message, details,
-// hint, code}), not real Error instances — `e instanceof Error` silently
+// hint, code}), not real Error instances - `e instanceof Error` silently
 // misses them and hides the actual reason. Check for `.message` instead.
 function errorMessage(e: unknown, fallback: string): string {
   if (e && typeof e === "object" && "message" in e && typeof e.message === "string" && e.message) {
@@ -82,7 +82,7 @@ function EmailPendingPage() {
       if (r.duplicates) parts.push(`${r.duplicates} duplicada(s)`);
       if (r.skipped) parts.push(`${r.skipped} na fila`);
       if (r.errors.length) {
-        toast.warning(`${parts.join(", ")} — ${r.errors.length} erro(s), veja o console.`);
+        toast.warning(`${parts.join(", ")} - ${r.errors.length} erro(s), veja o console.`);
         console.error("[email sync] errors", r.errors);
       } else {
         toast.success(parts.join(", ") || "Nenhuma mensagem nova.");
@@ -183,7 +183,7 @@ function EmailPendingPage() {
       if (resolveError) throw resolveError;
     },
     onSuccess: () => {
-      toast.success("E-mail bloqueado — novas mensagens desse remetente serão ignoradas.");
+      toast.success("E-mail bloqueado - novas mensagens desse remetente serão ignoradas.");
       qc.invalidateQueries({ queryKey: ["email-pending"] });
     },
     onError: (e: Error) => {
@@ -310,7 +310,7 @@ function EmailPendingPage() {
                     ) : (
                       <span className="text-muted-foreground italic">(sem assunto)</span>
                     )}
-                    {" — "}
+                    {" - "}
                     <span className="text-muted-foreground">
                       {row.messages[0]?.content.slice(0, 80)}
                       {(row.messages[0]?.content.length ?? 0) > 80 ? "…" : ""}
@@ -414,7 +414,7 @@ function MessagesDialog({ row, onClose }: { row: PendingRow; onClose: () => void
       <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {row.name} <span className="text-muted-foreground font-normal">— {row.email}</span>
+            {row.name} <span className="text-muted-foreground font-normal">- {row.email}</span>
           </DialogTitle>
         </DialogHeader>
         <Tabs value={active} onValueChange={setActive} className="flex-1 min-h-0 flex flex-col">
@@ -543,7 +543,7 @@ function LinkDialog({
   const canSave = useMemo(() => !!companyId && !!name.trim(), [companyId, name]);
 
   // Safety valve for contacts that piled up a huge backlog (e.g. a mailbox
-  // that's itself the target of automated reports) — cap how many messages
+  // that's itself the target of automated reports) - cap how many messages
   // get merged into the auto-created ticket, and insert in batches so one
   // oversized request can't fail the whole "vincular" action.
   const MAX_MESSAGES_PER_TICKET = 200;
@@ -574,7 +574,7 @@ function LinkDialog({
         if (!tenantId) throw new Error("Tenant não encontrado");
 
         // Todas as mensagens pendentes desse contato viram UM ticket só,
-        // em ordem cronológica — mesma conversa, não uma por e-mail.
+        // em ordem cronológica - mesma conversa, não uma por e-mail.
         let ordered = [...row.messages].sort((a, b) =>
           a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0,
         );
@@ -640,7 +640,7 @@ function LinkDialog({
         toast.success(`Contato vinculado. Ticket #${ticketNumber} criado.`);
       } else if (contracts && contracts.length === 0) {
         toast.warning(
-          "Contato vinculado, mas a empresa não tem contrato ativo elegível — nenhum ticket foi criado.",
+          "Contato vinculado, mas a empresa não tem contrato ativo elegível - nenhum ticket foi criado.",
         );
       } else {
         toast.success("Contato vinculado.");

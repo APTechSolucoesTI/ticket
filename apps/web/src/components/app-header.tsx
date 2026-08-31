@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { usePermissions } from "@/lib/use-permissions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MobileSidebar } from "@/components/app-sidebar";
+import { BrandLogo } from "@/components/brand-logo";
 
 type Result =
   | { kind: "ticket"; id: string; number: number; subject: string }
@@ -164,6 +165,13 @@ export function AppHeader({ title }: { title?: string }) {
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-2">
         <MobileSidebar />
+        <Link
+          to="/dashboard"
+          className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Ir para o dashboard"
+        >
+          <BrandLogo className="size-8 drop-shadow-sm" alt="" />
+        </Link>
         {title && <h1 className="text-sm font-semibold truncate">{title}</h1>}
       </div>
       {canSearch && (

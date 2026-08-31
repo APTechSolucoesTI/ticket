@@ -6,7 +6,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, 
 import { demoKPIs, demoVolume14d, demoStatusBreakdown, demoTickets } from "@/lib/demo-seed";
 
 export const Route = createFileRoute("/demo/Dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Demo APTicket" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Dashboard - Demo APTicket" }, { name: "robots", content: "noindex" }] }),
   component: DemoDashboard,
 });
 

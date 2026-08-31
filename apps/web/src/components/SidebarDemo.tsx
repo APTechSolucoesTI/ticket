@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Inbox, Building2, FileText, Ticket } from "lucide-react";
+import { LayoutDashboard, Inbox, Building2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 
 const items = [
   { to: "/demo/Dashboard", label: "Dashboard",  icon: LayoutDashboard },
@@ -14,9 +15,7 @@ export function SidebarDemo() {
   return (
     <aside className="hidden lg:flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center gap-2 px-4 border-b border-sidebar-border">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Ticket className="h-4 w-4" />
-        </div>
+        <BrandLogo className="size-9 drop-shadow-sm" />
         <div className="leading-tight">
           <div className="text-sm font-semibold">APTicket</div>
           <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Modo demonstração</div>

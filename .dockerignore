@@ -1,12 +1,12 @@
 # Contexto de build dos Dockerfiles (apps/api, apps/web) é a RAIZ do
-# monorepo — sem isso, `docker build` copia node_modules/.git inteiros pro
+# monorepo - sem isso, `docker build` copia node_modules/.git inteiros pro
 # contexto (lento, e node_modules local pode ter binário de plataforma
 # errada pro Linux do container; o Dockerfile reinstala do zero mesmo).
 node_modules
 **/node_modules
 .git
 
-# Builds locais — o Dockerfile gera os dele de dentro do container
+# Builds locais - o Dockerfile gera os dele de dentro do container
 apps/api/dist
 apps/web/dist
 apps/web/dist-ssr
@@ -15,7 +15,7 @@ apps/web/.vinxi
 apps/web/.nitro
 **/.turbo
 
-# Nunca vai pra imagem — segredo fica só em env var do Dokploy
+# Nunca vai pra imagem - segredo fica só em env var do Dokploy
 .env
 .env.*
 !.env.example

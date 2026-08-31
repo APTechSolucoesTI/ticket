@@ -27,7 +27,7 @@ export class RedisService implements OnModuleDestroy {
   }
 
   /**
-   * Rate limit de janela fixa (INCR + EXPIRE) — substitui o contador em
+   * Rate limit de janela fixa (INCR + EXPIRE) - substitui o contador em
    * memória de apps/web/src/lib/rate-limit.ts por um que funciona certo com
    * várias réplicas da API atrás de um load balancer.
    */

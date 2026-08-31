@@ -2,11 +2,12 @@ import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarDemo } from "@/components/SidebarDemo";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/demo")({
   head: () => ({
     meta: [
-      { title: "Demonstração — APTicket" },
+      { title: "Demonstração - APTicket" },
       { name: "description", content: "Explore o APTicket com dados fictícios: dashboard, tickets, clientes e contratos." },
       { name: "robots", content: "noindex" },
     ],
@@ -32,7 +33,8 @@ function DemoLayout() {
           <Link to="/" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-3.5" /> Voltar ao site
           </Link>
-          <div className="ml-2 text-sm font-semibold">
+          <BrandLogo className="ml-2 size-8 drop-shadow-sm" alt="" />
+          <div className="text-sm font-semibold">
             APTicket <span className="text-muted-foreground font-normal">(demo)</span>
           </div>
         </header>

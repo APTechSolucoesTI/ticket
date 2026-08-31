@@ -5,7 +5,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 // Portado 1:1 de apps/web/src/lib/email-channel.server.ts (mesma regra de
 // negócio: só vira ticket se o remetente for um contato com contrato ATIVO;
 // senão vai pra fila de e-mail pendente). O frontend não faz mais essa
-// gravação direta — só a API, com a service_role key.
+// gravação direta - só a API, com a service_role key.
 
 export type InboundEmailAttachment = {
   filename: string;
@@ -131,7 +131,7 @@ export class EmailChannelService {
             is_active: true,
             can_open_tickets: false,
             notes:
-              'Contato criado automaticamente via e-mail — aguardando vínculo com cliente.',
+              'Contato criado automaticamente via e-mail - aguardando vínculo com cliente.',
           })
           .select('id')
           .single();

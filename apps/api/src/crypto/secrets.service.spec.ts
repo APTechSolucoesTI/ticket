@@ -24,7 +24,7 @@ describe('SecretsService', () => {
   });
 
   it('trata valor legado (texto puro, salvo antes da criptografia existir) como está', () => {
-    // Tenant com senha IMAP salva antes dessa feature — não é
+    // Tenant com senha IMAP salva antes dessa feature - não é
     // "<iv>:<authTag>:<ciphertext>" em hex, então decrypt() não tenta
     // decifrar, só devolve como veio (ver comentário em decrypt()).
     const legacyPlaintext = 'senha-antiga-em-texto-puro';

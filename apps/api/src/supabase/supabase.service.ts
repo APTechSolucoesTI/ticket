@@ -5,10 +5,10 @@ import type { Database } from '@apticket/shared-types/database';
 import type { Env } from '../config/env.validation';
 
 /**
- * Único client Supabase da API, sempre com a service_role key — mesmo
+ * Único client Supabase da API, sempre com a service_role key - mesmo
  * projeto/schema (`apticket`) que o frontend usa, mas aqui sem RLS pela
  * frente (a API é quem passa a decidir o que cada usuário pode ver/fazer,
- * validando o tenant_id do JWT em cada query — ver AuthModule).
+ * validando o tenant_id do JWT em cada query - ver AuthModule).
  */
 @Injectable()
 export class SupabaseService {

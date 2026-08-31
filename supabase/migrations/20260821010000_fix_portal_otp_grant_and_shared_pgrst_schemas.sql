@@ -1,15 +1,15 @@
 -- Incidente pós-Bloco 2: "Portal do Cliente" e "Chat" (código de acesso por
 -- e-mail) pararam de funcionar. Duas causas distintas, nenhuma das duas
--- introduzida pelo schema do Bloco 2 — eram bugs latentes expostos ao testar
+-- introduzida pelo schema do Bloco 2 - eram bugs latentes expostos ao testar
 -- tudo de novo depois do deploy:
 --
 -- 1. `apticket.portal_otp_codes` (migration 20260813220000) nunca teve GRANT
---    explícito pra `service_role` — foi criada como `public.portal_otp_codes`
+--    explícito pra `service_role` - foi criada como `public.portal_otp_codes`
 --    na época em que existia um script externo de rewrite `public.`->`apticket.`
 --    que também aplicava grants; esse script foi descontinuado depois do
 --    Bloco 1 e o grant nunca foi migrado pra um arquivo versionado. Portal e
 --    Chat (que reusam a mesma rota /api/public/portal/request-otp) sempre
---    dependeram dessa tabela — sem o grant, todo INSERT/UPDATE via
+--    dependeram dessa tabela - sem o grant, todo INSERT/UPDATE via
 --    supabaseAdmin (service_role) falhava com "permission denied for table
 --    portal_otp_codes", silenciosamente (a rota sempre responde 200 pra não
 --    virar oráculo de enumeração de e-mail, então o erro só aparecia no log
@@ -20,13 +20,13 @@
 --    `ALTER ROLE authenticator SET pgrst.db_schemas = 'public,storage,graphql_public,apfiscal'`
 --    que sobrescrevia a env var do container `supabase-rest`
 --    (PGRST_DB_SCHEMAS=public,aperp,apticket,graphql_public) e escondia o
---    schema apticket inteiro do PostgREST — provavelmente aplicado por outro
+--    schema apticket inteiro do PostgREST - provavelmente aplicado por outro
 --    sistema que compartilha esse Postgres. Corrigido diretamente via
 --    SSH/psql (não é uma migration de schema do apticket, é infra
 --    compartilhada) trocando pra união de todos os schemas em uso:
 --    `public,aperp,apticket,graphql_public,storage,apfiscal`, seguido de
 --    `NOTIFY pgrst, 'reload config'` + `NOTIFY pgrst, 'reload schema'`.
---    Documentado aqui só pra registro — não repetir via migration porque
+--    Documentado aqui só pra registro - não repetir via migration porque
 --    `authenticator` não é uma role gerenciada pelo schema `apticket`.
 
 GRANT SELECT, INSERT, UPDATE ON apticket.portal_otp_codes TO service_role;

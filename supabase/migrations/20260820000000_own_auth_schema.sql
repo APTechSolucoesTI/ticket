@@ -1,16 +1,16 @@
--- Autenticação própria do APTicket (Bloco 1) — ver plano em
+-- Autenticação própria do APTicket (Bloco 1) - ver plano em
 -- C:\Users\luiz.esposito\.claude\plans\vectorized-painting-puppy.md
 --
--- Esse Supabase é compartilhado com outro sistema (mesma auth.users global) —
+-- Esse Supabase é compartilhado com outro sistema (mesma auth.users global) -
 -- convidar um e-mail que já existe em auth.users de OUTRO sistema bloqueava o
 -- convite no APTicket com "usuário já cadastrado". Fix: parar de depender de
 -- auth.users pra qualquer coisa (login, convite, checagem de duplicidade).
 --
 -- RLS continua funcionando (37 policies, todas via current_tenant_id() ->
--- auth.uid()) — decisão foi manter isso assinando JWT compatível com o
+-- auth.uid()) - decisão foi manter isso assinando JWT compatível com o
 -- PostgREST (mesmo JWT_SECRET que o GoTrue já usa), não desativar RLS. Migration
 -- só precisa parar de EXIGIR que profiles.id (e as 6 FKs que dependiam dela)
--- tenham uma linha correspondente em auth.users — profiles.id vira uma uuid
+-- tenham uma linha correspondente em auth.users - profiles.id vira uma uuid
 -- livre, RLS/auth.uid() nem sabem a diferença (continuam lendo o claim `sub`
 -- do JWT, venha ele do GoTrue ou de código nosso).
 
@@ -60,7 +60,7 @@ create index if not exists invites_profile_idx on apticket.invites(profile_id);
 grant select, insert, update on apticket.invites to service_role;
 alter table apticket.invites enable row level security;
 -- Sem policy pra authenticated de propósito: só service_role (server-side,
--- apps/web) toca essa tabela — nunca é lida/escrita do browser.
+-- apps/web) toca essa tabela - nunca é lida/escrita do browser.
 
 create table if not exists apticket.password_resets (
   id uuid primary key default gen_random_uuid(),

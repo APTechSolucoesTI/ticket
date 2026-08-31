@@ -1,8 +1,8 @@
 // Tipos compartilhados entre apps/web e apps/api. Espelham os enums reais
-// do schema `apticket` no Postgres (supabase/migrations) — não são fonte da
+// do schema `apticket` no Postgres (supabase/migrations) - não são fonte da
 // verdade, são o contrato de transporte entre frontend e backend novo.
 //
-// Só os tipos de RESPOSTA ficam aqui — o payload de requisição de cada rota
+// Só os tipos de RESPOSTA ficam aqui - o payload de requisição de cada rota
 // é validado pelos DTOs do próprio Nest (class-validator, em
 // apps/api/src/channels/*/dto/), que são a fonte real do contrato de
 // entrada. Um tipo de request duplicado aqui sem uso real só apodrece.

@@ -46,7 +46,7 @@ function setAuth(socket: Socket, auth: SocketAuth): void {
   (socket.data as SocketData).auth = auth;
 }
 
-// Namespace /chat, Socket.IO (não WS cru — reconexão automática, rooms e
+// Namespace /chat, Socket.IO (não WS cru - reconexão automática, rooms e
 // fallback de transporte de graça). O adapter Redis (RedisIoAdapter,
 // plugado no main.ts) é quem faz `server.to(room).emit(...)` alcançar
 // sockets conectados em OUTRA réplica da API, não só na atual.
@@ -72,7 +72,7 @@ export class ChatGateway
 
   // Middleware de namespace: roda ANTES do handshake completar, ou seja,
   // antes do client receber o evento "connect". Sem isso, autenticar dentro
-  // de handleConnection (que é async — 2 chamadas de rede) cria uma corrida:
+  // de handleConnection (que é async - 2 chamadas de rede) cria uma corrida:
   // o client já recebe "connect" e dispara "ticket:join" antes do servidor
   // terminar de resolver token → tenant, e o join é silenciosamente negado
   // (socket.data.auth ainda undefined). Autenticando aqui, o handshake só
@@ -140,7 +140,7 @@ export class ChatGateway
 
   async handleConnection(socket: Socket) {
     // Se chegou até aqui, o middleware de `afterInit` já autenticou e
-    // rejeitou quem não tinha token/tenant válido — isso aqui é só o que
+    // rejeitou quem não tinha token/tenant válido - isso aqui é só o que
     // precisa da conexão já aceita (rooms, presença).
     const auth = getAuth(socket);
     if (!auth) return;
@@ -178,7 +178,7 @@ export class ChatGateway
     }
     if (!auth.permissions.has('tickets:view')) return;
     // Confia no RLS/tenant scoping do resto da API pra decidir quem pode ver
-    // qual ticket — aqui só confere que o ticket é do mesmo tenant do socket.
+    // qual ticket - aqui só confere que o ticket é do mesmo tenant do socket.
     const { data: ticket, error } = await this.supabase.client
       .from('tickets')
       .select('id')
@@ -191,7 +191,7 @@ export class ChatGateway
     }
     if (!ticket) {
       this.logger.warn(
-        `ticket:join negado — ticket ${body.ticketId} nao pertence ao tenant ${auth.tenantId}`,
+        `ticket:join negado - ticket ${body.ticketId} nao pertence ao tenant ${auth.tenantId}`,
       );
       return;
     }
@@ -252,7 +252,7 @@ export class ChatGateway
     socket.to(`ticket:${body.ticketId}`).emit('typing', event);
   }
 
-  /** Chamado por outros módulos (ex.: ao reatribuir um ticket) — não gatilho ainda. */
+  /** Chamado por outros módulos (ex.: ao reatribuir um ticket) - não gatilho ainda. */
   notifyTicketAssigned(
     tenantId: string,
     ticketId: string,

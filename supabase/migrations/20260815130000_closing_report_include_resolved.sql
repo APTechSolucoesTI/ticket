@@ -1,7 +1,7 @@
 -- Relatório do atendimento agora também é gerado quando o ticket vira
--- "resolved" (antes só disparava em "closed") — o botão de imprimir na tela
+-- "resolved" (antes só disparava em "closed") - o botão de imprimir na tela
 -- do ticket precisa funcionar assim que o ticket é resolvido, não só depois
--- de fechado. Mesma tabela/token/rota — reaberto/fechado depois mantém o
+-- de fechado. Mesma tabela/token/rota - reaberto/fechado depois mantém o
 -- mesmo link (ON CONFLICT já cobre isso).
 
 create or replace function public.generate_ticket_closing_report()

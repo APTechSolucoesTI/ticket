@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { EmptyStub, PageHeader } from "@/components/empty-stub";
 
 export const Route = createFileRoute("/_authenticated/reports")({
-  head: () => ({ meta: [{ title: "Relatórios — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Relatórios - APTicket" }] }),
   component: () => (
     <div className="p-6 space-y-4">
       <PageHeader title="Relatórios" subtitle="Volume, horas apontadas, consumo de franquia e CSAT." />

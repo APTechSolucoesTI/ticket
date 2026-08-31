@@ -10,7 +10,7 @@ interface EmailPollJobData {
 
 /**
  * Um job repetível do BullMQ por tenant, no intervalo próprio de cada um
- * (tenants.email_poll_interval_minutes) — troca o pg_cron fixo de 1 minuto
+ * (tenants.email_poll_interval_minutes) - troca o pg_cron fixo de 1 minuto
  * que existia antes. `jobId = tenantId` garante que reconfigurar o
  * intervalo substitui o agendamento em vez de duplicar.
  */
@@ -46,7 +46,7 @@ export class EmailSchedulerService implements OnModuleInit {
 
   async schedule(tenantId: string, intervalMinutes: number) {
     // upsertJobScheduler substitui o antigo `repeat` de queue.add() no BullMQ
-    // v6 — o próprio jobSchedulerId (= tenantId) já reagenda em vez de
+    // v6 - o próprio jobSchedulerId (= tenantId) já reagenda em vez de
     // duplicar, então não precisa remover antes.
     await this.queue.upsertJobScheduler(
       tenantId,

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/public/portal/session")({
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
         // Identity comes from a token proven by OTP (see request-otp/verify-otp),
-        // never from a client-supplied email — that was the account-takeover bug.
+        // never from a client-supplied email - that was the account-takeover bug.
         const session = verifyPortalRequest(request);
         if (!session) {
           return Response.json({ error: "unauthorized" }, { status: 401, headers: CORS });

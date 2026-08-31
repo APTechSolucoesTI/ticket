@@ -1,10 +1,10 @@
-// Valida JWT compatível com o PostgREST do Supabase self-hosted — mesmo
+// Valida JWT compatível com o PostgREST do Supabase self-hosted - mesmo
 // JWT_SECRET que GOTRUE_JWT_SECRET/PGRST_JWT_SECRET já usam. Duplicado
-// (pequeno) da versão em apps/web/src/lib/jwt.server.ts — packages/shared-types
+// (pequeno) da versão em apps/web/src/lib/jwt.server.ts - packages/shared-types
 // só funciona como tipo puro (apagado no build), não dá pra compartilhar
 // valor de runtime de lá sem arriscar quebrar o Node puro do apps/api.
 //
-// apps/api só PRECISA verificar (nunca assina — quem emite token é sempre o
+// apps/api só PRECISA verificar (nunca assina - quem emite token é sempre o
 // apps/web, no login/convite/reset).
 import jwt from 'jsonwebtoken';
 

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/kb/")({
   head: () => ({
     meta: [
-      { title: "Base de Conhecimento — APTicket" },
+      { title: "Base de Conhecimento - APTicket" },
       { name: "description", content: "Artigos, tutoriais e procedimentos públicos." },
     ],
   }),

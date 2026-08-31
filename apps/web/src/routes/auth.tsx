@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Ticket } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { BrandLogo } from "@/components/brand-logo";
 import { setToken } from "@/lib/session";
 import {
   login,
@@ -20,17 +20,17 @@ import {
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar — APTicket" },
-      { name: "description", content: "Acesse sua conta APTicket — Help Desk e PSA para MSPs." },
+      { title: "Entrar - APTicket" },
+      { name: "description", content: "Acesse sua conta APTicket - Help Desk e PSA para MSPs." },
     ],
   }),
   component: AuthPage,
 });
 
 // Token da autenticação própria do APTicket, vem como query string
-// (?invite=<token>/?reset=<token>) — o próprio server (auth.functions.ts/
+// (?invite=<token>/?reset=<token>) - o próprio server (auth.functions.ts/
 // users.functions.ts) que montou o link. Fase 2 concluída (todo usuário
-// legado migrado) — fallback de hash antigo do GoTrue (#type=invite/
+// legado migrado) - fallback de hash antigo do GoTrue (#type=invite/
 // recovery) removido, não tem mais nenhum link desses em circulação.
 type AuthAction = "own-invite" | "own-reset" | null;
 
@@ -47,7 +47,7 @@ function AuthPage() {
   const [forgotSending, setForgotSending] = useState(false);
 
   // Query string (?invite=/?reset=) nunca chega no servidor durante o SSR
-  // inicial nesse sentido de decisão de UI — não dá pra ler num
+  // inicial nesse sentido de decisão de UI - não dá pra ler num
   // inicializador de useState sem arriscar mismatch de hidratação, então
   // fica em useEffect (roda só depois de montar, server e client renderizam
   // igual no primeiro paint). `checkedHash` evita a corrida: o efeito de
@@ -161,9 +161,7 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground mb-3">
-            <Ticket className="h-6 w-6" />
-          </div>
+          <BrandLogo className="mb-3 size-16 drop-shadow-md" />
           <h1 className="text-xl font-semibold">APTicket</h1>
           <p className="text-xs text-muted-foreground">Help Desk & PSA para MSPs</p>
         </div>
@@ -212,7 +210,7 @@ function AuthPage() {
               <div>
                 <h2 className="text-sm font-semibold">Esqueci minha senha</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Informe seu e-mail — se existir uma conta, enviamos um link de redefinição.
+                  Informe seu e-mail - se existir uma conta, enviamos um link de redefinição.
                 </p>
               </div>
               <div className="space-y-1.5">

@@ -4,7 +4,7 @@
 --   - equipamento com mesmo patrimônio (asset_tag, sem diferenciar maiúsc./espaço)
 -- Índices únicos parciais: linhas com o campo vazio/nulo não entram na
 -- restrição (nem todo cadastro tem CNPJ/telefone/patrimônio preenchido).
--- Isto é o backstop real — a tela também checa antes de salvar, mas o
+-- Isto é o backstop real - a tela também checa antes de salvar, mas o
 -- índice é quem garante de verdade (concorrência, import em massa, etc).
 
 create unique index companies_tenant_cnpj_uidx

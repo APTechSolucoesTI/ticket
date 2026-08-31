@@ -1,4 +1,4 @@
-// Metadados do catálogo de permissões v2 — só rótulo/ordem/hierarquia
+// Metadados do catálogo de permissões v2 - só rótulo/ordem/hierarquia
 // (dados de verdade vêm do banco via listPermissionsCatalog). Usado nas
 // telas de Papéis/Permissões (matriz) e pra gate de menu/rota em toda a
 // aplicação (sidebar, abas de Configurações).
@@ -97,7 +97,7 @@ export const ACTION_LABELS: Record<string, string> = {
 };
 
 /** Prefixo de rota -> módulo que precisa de `view` pra acessar. Usado no
- * guard de rota (route.tsx) — checagem real, não só esconder link da
+ * guard de rota (route.tsx) - checagem real, não só esconder link da
  * sidebar. Ordem importa: primeiro match (mais específico) vence. */
 export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/tickets", module: "tickets" },
@@ -132,7 +132,7 @@ export function childModules(parentKey: string): ModuleMeta[] {
   return MODULE_ORDER.filter((m) => m.parent === parentKey);
 }
 
-/** true se módulo (ou o pai dele) está sem `view` — trava/esconde tudo dentro. */
+/** true se módulo (ou o pai dele) está sem `view` - trava/esconde tudo dentro. */
 export function isModuleLocked(key: string, hasView: (module: string) => boolean): boolean {
   const meta = moduleMeta(key);
   if (!meta) return false;

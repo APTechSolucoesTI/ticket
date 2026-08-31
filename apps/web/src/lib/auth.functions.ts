@@ -1,10 +1,10 @@
-// Autenticação própria do APTicket — substitui supabase.auth.signInWithPassword/
+// Autenticação própria do APTicket - substitui supabase.auth.signInWithPassword/
 // signUp/admin.inviteUserByEmail pra não depender mais de auth.users (Supabase
 // Auth), que é global ao projeto Supabase e compartilhado com outro sistema no
 // mesmo host. Ver plano em C:\Users\luiz.esposito\.claude\plans\vectorized-painting-puppy.md
 //
 // RLS continua funcionando: o JWT emitido aqui (jwt.server.ts) é compatível
-// com o PostgREST (mesmo JWT_SECRET que o GoTrue já usa) — nenhuma das
+// com o PostgREST (mesmo JWT_SECRET que o GoTrue já usa) - nenhuma das
 // chamadas supabase.from(...) existentes no app precisa mudar.
 import { createServerFn } from "@tanstack/react-start";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
@@ -46,7 +46,7 @@ export const login = createServerFn({ method: "POST" })
       .eq("email", data.email.toLowerCase())
       .maybeSingle();
 
-    // Mensagem sempre genérica — não vaza se o e-mail existe ou não.
+    // Mensagem sempre genérica - não vaza se o e-mail existe ou não.
     if (!profile || !profile.is_active || !profile.password_hash) {
       throw new Error(GENERIC_LOGIN_ERROR);
     }
@@ -121,7 +121,7 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
       .eq("email", data.email.toLowerCase())
       .maybeSingle();
 
-    // Sempre responde sucesso — não vaza se o e-mail existe. Só manda de
+    // Sempre responde sucesso - não vaza se o e-mail existe. Só manda de
     // verdade se achar um profile ativo.
     if (profile?.is_active) {
       const token = newToken();
@@ -134,7 +134,7 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
         const url = `${siteUrl()}/auth?reset=${token}`;
         await sendMail({
           to: profile.email,
-          subject: "Redefinição de senha — APTicket",
+          subject: "Redefinição de senha - APTicket",
           html: resetEmailHtml(url),
           text: resetEmailText(url),
         }).catch((e: unknown) => {
@@ -198,7 +198,7 @@ const signUpSchema = z.object({
 /**
  * Cadastro público de empresa nova (aba "Criar conta"). Antes disso vivia
  * inteiro no trigger apticket.handle_new_user(), disparado por INSERT em
- * auth.users — sem auth.users pra cadastro novo, a lógica de "cria tenant +
+ * auth.users - sem auth.users pra cadastro novo, a lógica de "cria tenant +
  * profile admin" precisa virar código de aplicação mesmo. O trigger continua
  * existindo (não precisa remover), só fica sem uso pra contas novas.
  */
@@ -244,7 +244,7 @@ export const signUpTenant = createServerFn({ method: "POST" })
       .single();
     if (profErr) throw new Error(profErr.message);
 
-    // O papel "Admin" já existe aqui — o trigger tenants_seed_default_roles
+    // O papel "Admin" já existe aqui - o trigger tenants_seed_default_roles
     // (Bloco 2, migration 20260821000000) roda síncrono na própria inserção
     // do tenant acima, antes deste ponto do código.
     const { data: adminRole, error: adminRoleErr } = await supabaseAdmin

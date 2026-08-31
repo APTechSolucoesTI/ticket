@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { demoContracts } from "@/lib/demo-seed";
 
 export const Route = createFileRoute("/demo/Contratos")({
-  head: () => ({ meta: [{ title: "Contratos — Demo APTicket" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Contratos - Demo APTicket" }, { name: "robots", content: "noindex" }] }),
   component: DemoContratos,
 });
 

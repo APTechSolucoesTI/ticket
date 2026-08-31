@@ -1,12 +1,12 @@
-// Sessão própria do APTicket — client-side. NÃO usa supabase.auth.setSession()/
+// Sessão própria do APTicket - client-side. NÃO usa supabase.auth.setSession()/
 // getSession()/onAuthStateChange() pra sessão real: setSession() faz uma
 // chamada de rede pro GoTrue (auth/v1/user) pra "hidratar" o usuário, e o
 // GoTrue rejeita qualquer sub que não exista em auth.users com "User from
-// sub claim in JWT does not exist" — mesmo a assinatura sendo válida. Isso
+// sub claim in JWT does not exist" - mesmo a assinatura sendo válida. Isso
 // quebra completamente pra usuário 100% novo (nunca existiu no GoTrue).
 //
 // Solução: gerenciar a sessão manualmente (localStorage + pub-sub próprio).
-// O token (JWT compatível com o PostgREST — ver jwt.server.ts) é anexado nas
+// O token (JWT compatível com o PostgREST - ver jwt.server.ts) é anexado nas
 // chamadas supabase.from(...) via um fetch customizado (client.ts), sem
 // nunca passar pelo subsistema .auth do supabase-js.
 const STORAGE_KEY = "apticket_session_token";
@@ -44,14 +44,14 @@ export interface SessionUser {
 }
 
 /** Atalho pra quem só precisa do id do usuário logado (author_id, created_by
- * etc. em inserts) — substitui `(await supabase.auth.getUser()).data.user?.id`,
+ * etc. em inserts) - substitui `(await supabase.auth.getUser()).data.user?.id`,
  * que dependia da sessão interna do supabase-js (não existe mais aqui). */
 export function getCurrentUserId(): string | null {
   const token = getToken();
   return token ? (decodeSessionUser(token)?.id ?? null) : null;
 }
 
-/** Decodifica o payload do JWT sem verificar assinatura — client confia no
+/** Decodifica o payload do JWT sem verificar assinatura - client confia no
  * próprio token que ele mesmo guardou (a validação de verdade é sempre no
  * servidor: PostgREST via RLS, apps/api via jwt.util.ts). */
 export function decodeSessionUser(token: string): SessionUser | null {

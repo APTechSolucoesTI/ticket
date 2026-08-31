@@ -100,7 +100,7 @@ import {
 } from "@/lib/user-permissions.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Configurações — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Configurações - APTicket" }] }),
   component: SettingsPage,
 });
 
@@ -631,7 +631,7 @@ function RolesTab() {
     return id ? checked.has(id) : false;
   };
 
-  // Visualiza desmarcado trava/desmarca o resto do módulo — e, sendo
+  // Visualiza desmarcado trava/desmarca o resto do módulo - e, sendo
   // Configurações, desmarca os sub-itens inteiros junto (pedido do usuário:
   // sem ver Configurações não faz sentido ver nada debaixo dela).
   const toggle = (module: string, action: string, permId: string) => {
@@ -733,7 +733,7 @@ function RolesTab() {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Permissões — {selectedRole?.name}</h3>
+              <h3 className="text-sm font-semibold">Permissões - {selectedRole?.name}</h3>
               {!selectedRole?.is_system && access.edit && (
                 <Button
                   size="sm"
@@ -746,7 +746,7 @@ function RolesTab() {
             </div>
             {selectedRole?.is_system && (
               <p className="text-xs text-muted-foreground">
-                Papel de sistema — tem acesso total, não pode ser restringido.
+                Papel de sistema - tem acesso total, não pode ser restringido.
               </p>
             )}
             <div className="space-y-3">
@@ -1237,7 +1237,7 @@ function DepartmentsTab() {
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">{d.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {d.description || "—"}
+                    {d.description || "-"}
                   </TableCell>
                   <TableCell>
                     <RowActions
@@ -1453,7 +1453,7 @@ function ServiceFamiliesTab() {
         body={
           <>
             Família <b>{toDelete?.description}</b> será removida. Serviços prestados vinculados a
-            ela impedem a exclusão — inative em vez de excluir, se necessário.
+            ela impedem a exclusão - inative em vez de excluir, se necessário.
           </>
         }
       />
@@ -1691,9 +1691,9 @@ function ProvidedServicesTab() {
                     <TableCell className="font-mono text-xs">{s.code}</TableCell>
                     <TableCell className="font-medium">{s.description}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {s.service_families?.description ?? "—"}
+                      {s.service_families?.description ?? "-"}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{modes || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{modes || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={s.is_active ? "default" : "outline"}>
                         {s.is_active ? "Ativo" : "Inativo"}
@@ -2004,7 +2004,7 @@ function ContractTypesTab() {
                     t.includes_onsite && "Visita",
                   ]
                     .filter(Boolean)
-                    .join(" · ") || "—";
+                    .join(" · ") || "-";
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
@@ -2577,7 +2577,7 @@ function SlasTab() {
                     {s.priority ? (
                       <Badge variant="outline">{PRIORITY_LABEL[s.priority]}</Badge>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </TableCell>
                   <TableCell>{formatMinutes(s.first_response_minutes)}</TableCell>
@@ -2701,7 +2701,7 @@ function SlaDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Qualquer —</SelectItem>
+                <SelectItem value="none">- Qualquer -</SelectItem>
                 <SelectItem value="low">Baixa</SelectItem>
                 <SelectItem value="medium">Média</SelectItem>
                 <SelectItem value="high">Alta</SelectItem>
@@ -3309,7 +3309,7 @@ function ChannelConfigDialog({
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
           <ReadOnlyNotice show={readOnly} />
           <DialogHeader>
-            <DialogTitle>Configurar canal — {channelLabel}</DialogTitle>
+            <DialogTitle>Configurar canal - {channelLabel}</DialogTitle>
           </DialogHeader>
           {channelKey === "email" ? (
             <EmailImapConfig onSaved={onClose} readOnly={readOnly} />
@@ -3391,9 +3391,9 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
   const [webhookTenantId, setWebhookTenantId] = useState<string | null>(null);
   const qcWa = useQueryClient();
 
-  // Webhook expõe a API por trás do proxy same-origin do próprio app — não
+  // Webhook expõe a API por trás do proxy same-origin do próprio app - não
   // depende mais de domínio de preview/publicado de nenhuma plataforma de
-  // hospedagem específica. O :tenantId aqui precisa ser o UUID real — essa
+  // hospedagem específica. O :tenantId aqui precisa ser o UUID real - essa
   // rota é pública (sem JWT), então o backend não tem como resolver "me".
   const webhookUrl =
     typeof window !== "undefined" && webhookSecret && webhookTenantId
@@ -3480,12 +3480,12 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
         number: string | null;
       }>("/channels/whatsapp/instances/me/status");
       if (r.connected) {
-        toast.success(`Instância conectada${r.number ? ` — ${r.number}` : ""}`);
+        toast.success(`Instância conectada${r.number ? ` - ${r.number}` : ""}`);
       } else if (r.ok) {
         toast.warning("Credenciais válidas, mas a instância não está conectada. Escaneie o QR.");
       } else {
         // `ok: false` aqui é a uazapi inalcançável (URL errada, instância fora do
-        // ar, timeout) — não confundir com "credenciais válidas" sem checar `ok`.
+        // ar, timeout) - não confundir com "credenciais válidas" sem checar `ok`.
         toast.error("Não foi possível conectar à uazapi. Confira a URL base.");
       }
     } catch (e) {
@@ -3507,7 +3507,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
       else if (r.qrcode) {
         setQrCode(r.qrcode);
         toast.info("Escaneie o QR code no WhatsApp do celular");
-      } else toast.warning("Sem QR retornado — verifique a uazapi");
+      } else toast.warning("Sem QR retornado - verifique a uazapi");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao conectar");
     } finally {
@@ -3623,7 +3623,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
       <div className="space-y-2 rounded-md border p-3">
         <div className="text-sm font-semibold">Webhook (UAZAPI → APTicket)</div>
         <p className="text-xs text-muted-foreground">
-          Segredo gerado automaticamente no primeiro salvamento — já embutido na URL abaixo, nenhuma
+          Segredo gerado automaticamente no primeiro salvamento - já embutido na URL abaixo, nenhuma
           configuração extra.
         </p>
         {webhookUrl ? (
@@ -3695,7 +3695,7 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
       return account ?? null;
     },
   });
-  // Senha nunca volta em claro da API (fica criptografada no banco) — o
+  // Senha nunca volta em claro da API (fica criptografada no banco) - o
   // campo sempre carrega vazio; salvar sem digitar mantém a que já tá lá
   // (ver UpsertEmailAccountDto.imapPassword no backend).
   const hasSavedPassword = !!data?.imapHost;
@@ -3724,7 +3724,7 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
       const port = Number(form.email_imap_port);
       const interval = Number(form.email_poll_interval_minutes);
       const smtpPort = Number(form.email_smtp_port);
-      // POST na coleção (sem /:id) — o controller faz upsert, não existe
+      // POST na coleção (sem /:id) - o controller faz upsert, não existe
       // rota POST /accounts/:id (só PATCH/test-connection/sync/send usam
       // :id, aí sim como "me").
       await backendClient.post("/channels/email/accounts", {
@@ -3888,7 +3888,7 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
 
       <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3">
         Um chamado só é aberto se o remetente já existir como contato e a empresa dele tiver
-        contrato ativo — a mensagem é ignorada silenciosamente caso contrário.
+        contrato ativo - a mensagem é ignorada silenciosamente caso contrário.
       </p>
 
       <div className="space-y-3 rounded-md border p-3">
@@ -3896,7 +3896,7 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
           <div className="text-sm font-semibold">Envio (SMTP)</div>
           <p className="text-xs text-muted-foreground">
             Usado para enviar as respostas do agente aos tickets desse canal. Usa o mesmo
-            usuário/senha do IMAP acima — normalmente a mesma caixa de e-mail.
+            usuário/senha do IMAP acima - normalmente a mesma caixa de e-mail.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">

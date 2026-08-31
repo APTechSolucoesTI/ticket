@@ -240,7 +240,7 @@ export function EquipmentImportDialog({ open, onOpenChange }: { open: boolean; o
                   <Select value={mapping[h] ?? NONE} onValueChange={(v) => setMapping((m) => ({ ...m, [h]: v }))}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NONE}>— Ignorar —</SelectItem>
+                      <SelectItem value={NONE}>- Ignorar -</SelectItem>
                       {FIELD_OPTIONS.map((f) => (
                         <SelectItem key={f.value} value={f.value}
                           disabled={targetsUsed.has(f.value) && mapping[h] !== f.value}>

@@ -26,12 +26,12 @@ interface WhatsappInboundJobData {
   payload: UnknownRec;
 }
 
-// Público (sem JWT de usuário) — a uazapi autentica com um segredo próprio
+// Público (sem JWT de usuário) - a uazapi autentica com um segredo próprio
 // por tenant (tenants.whatsapp_webhook_secret), igual antes em
 // apps/web/src/routes/api/public/hooks/uazapi/$tenantId.ts. Só valida e
 // enfileira; o processamento de verdade roda no WhatsappInboundProcessor,
 // então um pico de eventos ou uma falha transitória no Postgres não perde
-// mensagem — o BullMQ tenta de novo.
+// mensagem - o BullMQ tenta de novo.
 @ApiExcludeController()
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {

@@ -1,9 +1,9 @@
 # Build a partir da RAIZ do monorepo (contexto = .. a partir daqui), porque
-# o web depende de packages/shared-types via pnpm workspace — precisa do
+# o web depende de packages/shared-types via pnpm workspace - precisa do
 # pnpm-workspace.yaml e do lockfile único na raiz pra instalar corretamente.
 #
 # NITRO_PRESET=node-server é o que faz esse build virar um servidor Node de
-# verdade em vez do preset default do nitro/vite aqui (cloudflare-module) —
+# verdade em vez do preset default do nitro/vite aqui (cloudflare-module) -
 # sem isso o `vite build` produz saída pra Cloudflare Workers, que rodando
 # como container simples vira só os assets estáticos, sem servidor real
 # atrás (era essa a causa raiz do bloqueio de produção antigo).

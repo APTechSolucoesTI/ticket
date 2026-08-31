@@ -80,26 +80,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "APTicket — Help Desk & PSA para MSPs" },
+      { title: "APTicket - Help Desk & PSA para MSPs" },
       {
         name: "description",
         content:
           "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
       },
-      { property: "og:title", content: "APTicket — Help Desk & PSA para MSPs" },
+      { property: "og:title", content: "APTicket - Help Desk & PSA para MSPs" },
       {
         property: "og:description",
         content: "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "APTicket — Help Desk & PSA para MSPs" },
+      { name: "twitter:title", content: "APTicket - Help Desk & PSA para MSPs" },
       { name: "twitter:description", content: "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d2eaf795-2a64-4357-beac-8ff656f82229/id-preview-43b095b9--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app-1784051344873.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d2eaf795-2a64-4357-beac-8ff656f82229/id-preview-43b095b9--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app-1784051344873.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "/apticket-icon-light.png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "/apticket-icon-dark.png",
+        media: "(prefers-color-scheme: dark)",
+      },
+      { rel: "apple-touch-icon", href: "/apticket-icon-light.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

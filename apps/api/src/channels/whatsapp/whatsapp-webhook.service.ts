@@ -18,7 +18,7 @@ import {
   type WhatsappStructuredAttachment,
 } from './whatsapp-parser.util';
 
-const DEDUP_TTL_SECONDS = 6 * 60 * 60; // 6h — cobre picos de reentrega da uazapi
+const DEDUP_TTL_SECONDS = 6 * 60 * 60; // 6h - cobre picos de reentrega da uazapi
 const MAX_INBOUND_MEDIA_BYTES = 25 * 1024 * 1024;
 
 export type WhatsappWebhookOutcome =
@@ -35,7 +35,7 @@ export type WhatsappWebhookOutcome =
   | { kind: 'ticket'; ticketId: string };
 
 // Portado do handler POST em
-// apps/web/src/routes/api/public/hooks/uazapi/$tenantId.ts — a diferença é
+// apps/web/src/routes/api/public/hooks/uazapi/$tenantId.ts - a diferença é
 // que aqui roda dentro do processor da fila `whatsapp-inbound`
 // (WhatsappInboundProcessor), não direto no request HTTP, então falha
 // transitória tem retry automático do BullMQ em vez de perder o evento.
@@ -109,7 +109,7 @@ export class WhatsappWebhookService {
       return { kind: 'ignored', reason: 'no_content' };
     }
 
-    // Dedup rápido via Redis (idempotência de reentrega de webhook) — a
+    // Dedup rápido via Redis (idempotência de reentrega de webhook) - a
     // checagem definitiva por external_id no Postgres continua abaixo,
     // esse SETNX só evita processar duas vezes em paralelo/picos.
     if (extId) {
@@ -170,7 +170,7 @@ export class WhatsappWebhookService {
           is_active: true,
           can_open_tickets: false,
           notes:
-            'Contato criado automaticamente via WhatsApp — aguardando vínculo com cliente.',
+            'Contato criado automaticamente via WhatsApp - aguardando vínculo com cliente.',
         })
         .select(
           'id, tenant_id, company_id, name, phone, can_open_tickets, is_active',

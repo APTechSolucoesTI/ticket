@@ -10,7 +10,7 @@ type SocketIoAdapterFn = ReturnType<typeof createAdapter>;
 
 // Sem isso, duas instâncias da API atrás de um load balancer não conseguem
 // entregar mensagem de uma sessão conectada na instância A pra uma sessão
-// conectada na instância B — o Redis Pub/Sub é quem faz essa ponte. Exigido
+// conectada na instância B - o Redis Pub/Sub é quem faz essa ponte. Exigido
 // explicitamente pelo prompt como validação de que o WhatsApp/chat
 // escalam horizontalmente de verdade.
 export class RedisIoAdapter extends IoAdapter {

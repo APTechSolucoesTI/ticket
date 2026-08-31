@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
- * APTicket — Worker IMAP externo.
+ * APTicket - Worker IMAP externo.
  *
  * Conecta na caixa IMAP configurada, lê e-mails não-lidos do INBOX, envia
  * cada um para o endpoint público /api/public/hooks/email-ingest do APTicket

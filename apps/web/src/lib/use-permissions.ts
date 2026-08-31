@@ -1,4 +1,4 @@
-// Bloco 2 — hook genérico pra gate de UI por permissão (módulo×ação),
+// Bloco 2 - hook genérico pra gate de UI por permissão (módulo×ação),
 // substitui o antigo `isAdmin` local de settings.tsx. Cacheado via
 // react-query (mesmo padrão de outras queries do app).
 import { useMemo } from "react";

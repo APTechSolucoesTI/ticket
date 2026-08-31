@@ -1,5 +1,5 @@
 // Templates de e-mail (convite/redefinição de senha) da autenticação própria
-// do APTicket — mesmo estilo visual do template já feito pro GoTrue em
+// do APTicket - mesmo estilo visual do template já feito pro GoTrue em
 // apps/api/src/app.controller.ts (mailer-templates/invite, /recovery), só que
 // aqui é HTML final (não template do GoTrue com {{ .ConfirmationURL }}), já
 // que quem manda o e-mail agora é o próprio APTicket via sendMail().

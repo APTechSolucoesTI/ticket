@@ -46,7 +46,7 @@ export function maskWhatsappPhone(value: string) {
   if (d.startsWith("55") && (d.length === 12 || d.length === 13)) {
     return `+${maskPhone(d)}`;
   }
-  return d ? `+${d}` : "—";
+  return d ? `+${d}` : "-";
 }
 
 export function isValidCNPJ(value: string) {

@@ -53,7 +53,7 @@ type Props = {
   applyTemplate: (body: string) => string;
   publicReplyEnabled: boolean;
   onSent?: () => void;
-  /** Canal "chat" — resolve somente depois que backend confirmar persistência. */
+  /** Canal "chat" - resolve somente depois que backend confirmar persistência. */
   onSendChat?: (content: string) => Promise<void>;
   onTyping?: (isTyping: boolean) => void;
 };
@@ -71,7 +71,7 @@ export function TicketComposer({
   onTyping,
 }: Props) {
   const isWa = channel === "whatsapp";
-  // Strictly the email channel — "manual" tickets keep their pre-existing
+  // Strictly the email channel - "manual" tickets keep their pre-existing
   // behavior of just logging a message tagged channel="email" for display,
   // with no real dispatch (no guarantee they even have a contact email).
   const isEmail = channel === "email";
@@ -1137,7 +1137,7 @@ function CallDialog({
         <div className="space-y-3 text-xs">
           <p className="text-muted-foreground">
             Dispara uma chamada de voz para o contato do ticket. A ligação toca no aparelho por
-            alguns segundos — útil para chamar a atenção do cliente antes de enviar a próxima
+            alguns segundos - útil para chamar a atenção do cliente antes de enviar a próxima
             mensagem.
           </p>
           <label className="flex items-center gap-2">

@@ -8,7 +8,7 @@ interface EmailPollJobData {
   tenantId: string;
 }
 
-/** Consome o job repetível — um por tenant, agendado por EmailSchedulerService. */
+/** Consome o job repetível - um por tenant, agendado por EmailSchedulerService. */
 @Processor(QUEUE_EMAIL_POLLING)
 export class EmailPollingProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailPollingProcessor.name);

@@ -43,7 +43,7 @@ import { ConfigurableTable, type ListColumn } from "@/components/configurable-ta
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/equipments")({
-  head: () => ({ meta: [{ title: "Equipamentos — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Equipamentos - APTicket" }] }),
   component: EquipmentsPage,
 });
 
@@ -110,7 +110,7 @@ const COLUMNS: ListColumn<Equipment>[] = [
         <div>
           <div>{e.name}</div>
           <div className="text-xs text-muted-foreground">
-            {[e.type, e.brand, e.model].filter(Boolean).join(" · ") || "—"}
+            {[e.type, e.brand, e.model].filter(Boolean).join(" · ") || "-"}
           </div>
         </div>
       </div>
@@ -121,14 +121,14 @@ const COLUMNS: ListColumn<Equipment>[] = [
     label: "Cliente",
     className: "text-sm",
     accessor: (e) => e.companies?.name ?? "",
-    cell: (e) => e.companies?.name || "—",
+    cell: (e) => e.companies?.name || "-",
   },
   {
     key: "contact",
     label: "Contato",
     className: "text-sm",
     accessor: (e) => e.contacts?.name ?? "",
-    cell: (e) => e.contacts?.name || "—",
+    cell: (e) => e.contacts?.name || "-",
   },
   {
     key: "serial",
@@ -137,7 +137,7 @@ const COLUMNS: ListColumn<Equipment>[] = [
     accessor: (e) => `${e.serial_number ?? ""} ${e.asset_tag ?? ""}`,
     cell: (e) => (
       <>
-        {e.serial_number || "—"}
+        {e.serial_number || "-"}
         {e.asset_tag && <div className="text-xs text-muted-foreground">#{e.asset_tag}</div>}
       </>
     ),
@@ -147,77 +147,77 @@ const COLUMNS: ListColumn<Equipment>[] = [
     label: "Patrimônio",
     className: "text-sm",
     accessor: (e) => e.asset_tag ?? "",
-    cell: (e) => e.asset_tag || "—",
+    cell: (e) => e.asset_tag || "-",
   },
   {
     key: "type",
     label: "Tipo",
     className: "text-sm",
     accessor: (e) => e.type ?? "",
-    cell: (e) => e.type || "—",
+    cell: (e) => e.type || "-",
   },
   {
     key: "brand",
     label: "Marca",
     className: "text-sm",
     accessor: (e) => e.brand ?? "",
-    cell: (e) => e.brand || "—",
+    cell: (e) => e.brand || "-",
   },
   {
     key: "model",
     label: "Modelo",
     className: "text-sm",
     accessor: (e) => e.model ?? "",
-    cell: (e) => e.model || "—",
+    cell: (e) => e.model || "-",
   },
   {
     key: "operating_system",
     label: "Sistema operacional",
     className: "text-sm",
     accessor: (e) => e.operating_system ?? "",
-    cell: (e) => e.operating_system || "—",
+    cell: (e) => e.operating_system || "-",
   },
   {
     key: "processor",
     label: "Processador",
     className: "text-sm",
     accessor: (e) => e.processor ?? "",
-    cell: (e) => e.processor || "—",
+    cell: (e) => e.processor || "-",
   },
   {
     key: "memory",
     label: "Memória",
     className: "text-sm",
     accessor: (e) => e.memory ?? "",
-    cell: (e) => e.memory || "—",
+    cell: (e) => e.memory || "-",
   },
   {
     key: "storage",
     label: "Armazenamento",
     className: "text-sm",
     accessor: (e) => e.storage ?? "",
-    cell: (e) => e.storage || "—",
+    cell: (e) => e.storage || "-",
   },
   {
     key: "location",
     label: "Localização",
     className: "text-sm",
     accessor: (e) => e.location ?? "",
-    cell: (e) => e.location || "—",
+    cell: (e) => e.location || "-",
   },
   {
     key: "purchase_date",
     label: "Aquisição",
     className: "text-sm",
     accessor: (e) => e.purchase_date ?? "",
-    cell: (e) => e.purchase_date || "—",
+    cell: (e) => e.purchase_date || "-",
   },
   {
     key: "warranty_until",
     label: "Garantia",
     className: "text-sm",
     accessor: (e) => e.warranty_until ?? "",
-    cell: (e) => e.warranty_until || "—",
+    cell: (e) => e.warranty_until || "-",
   },
   {
     key: "status",

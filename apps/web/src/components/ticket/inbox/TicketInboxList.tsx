@@ -38,18 +38,18 @@ const columns: ListColumn<TicketRow>[] = [
     label: "Cliente",
     cell: (ticket) => (
       <div className="flex flex-col">
-        <span>{ticket.contacts?.name ?? "—"}</span>
-        <span className="text-[10px] text-muted-foreground">{ticket.companies?.name ?? "—"}</span>
+        <span>{ticket.contacts?.name ?? "-"}</span>
+        <span className="text-[10px] text-muted-foreground">{ticket.companies?.name ?? "-"}</span>
       </div>
     ),
   },
-  { key: "company", label: "Empresa", cell: (ticket) => ticket.companies?.name ?? "—" },
-  { key: "contact", label: "Contato", cell: (ticket) => ticket.contacts?.name ?? "—" },
+  { key: "company", label: "Empresa", cell: (ticket) => ticket.companies?.name ?? "-" },
+  { key: "contact", label: "Contato", cell: (ticket) => ticket.contacts?.name ?? "-" },
   {
     key: "assignee",
     label: "Técnico",
     className: "text-muted-foreground",
-    cell: (ticket) => ticket.assigneeName ?? "—",
+    cell: (ticket) => ticket.assigneeName ?? "-",
   },
   {
     key: "priority",

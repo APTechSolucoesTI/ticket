@@ -1,4 +1,4 @@
-// Portado 1:1 de apps/web/src/routes/api/public/hooks/uazapi/$tenantId.ts —
+// Portado 1:1 de apps/web/src/routes/api/public/hooks/uazapi/$tenantId.ts -
 // o payload da uazapi varia de formato entre eventos (mensagem de texto,
 // mídia, status, grupo), então essas funções tentam várias formas
 // conhecidas do payload antes de desistir.

@@ -7,7 +7,7 @@ import {
   type SessionUser,
 } from "@/lib/session";
 
-// Sessão própria do APTicket — não usa supabase.auth.* (ver session.ts pro
+// Sessão própria do APTicket - não usa supabase.auth.* (ver session.ts pro
 // motivo: setSession()/getSession() fariam chamada de rede pro GoTrue, que
 // rejeita qualquer usuário que não exista em auth.users). `user`/`session`
 // aqui são derivados só do JWT decodificado localmente.

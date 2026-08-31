@@ -1,4 +1,4 @@
--- Bloco 2: papéis e permissões dinâmicos — ver plano em
+-- Bloco 2: papéis e permissões dinâmicos - ver plano em
 -- C:\Users\luiz.esposito\.claude\plans\vectorized-painting-puppy.md
 --
 -- Hoje apticket.app_role é um enum fixo (admin/agent/requester), só 10 pontos
@@ -11,10 +11,10 @@
 --      (role_permissions) + overrides por usuário (user_permissions) +
 --      log de auditoria mínimo (permission_audit_log);
 --   2. reescreve as 37 RLS policies existentes (26 tabelas) pra usar
---      has_permission() em vez do enum antigo — as 27 que hoje só checavam
+--      has_permission() em vez do enum antigo - as 27 que hoje só checavam
 --      tenant_id passam a checar também módulo×ação;
 --   3. migra o enum antigo pro novo modelo preservando EXATAMENTE o
---      comportamento atual pra agent/requester (paridade — só canais:manage
+--      comportamento atual pra agent/requester (paridade - só canais:manage
 --      nasce mais restrito que hoje, decisão explícita do usuário).
 --
 -- Convenção: apticket. direto (as 2 migrations mais recentes do Bloco 1 já
@@ -93,7 +93,7 @@ create table apticket.permission_audit_log (
 create index permission_audit_log_tenant_idx on apticket.permission_audit_log(tenant_id, created_at desc);
 alter table apticket.permission_audit_log enable row level security;
 -- sem policy pra authenticated de propósito (mesmo padrão de apticket.invites)
--- — só server-side (*.functions.ts com supabaseAdmin) escreve/lê aqui.
+-- - só server-side (*.functions.ts com supabaseAdmin) escreve/lê aqui.
 grant select, insert on apticket.permission_audit_log to service_role;
 
 -- ============================================================
@@ -213,7 +213,7 @@ where r.tenant_id = ur.tenant_id
     else 'Solicitante'
   end;
 
--- se sobrou algum sem role_id (não deveria — todo tenant foi seedado acima),
+-- se sobrou algum sem role_id (não deveria - todo tenant foi seedado acima),
 -- aborta a migration em vez de silenciosamente deixar usuário sem papel.
 do $$
 declare v_missing int;
@@ -266,7 +266,7 @@ create trigger role_permissions_protect_system
   for each row execute function apticket.protect_system_role_permissions();
 
 -- ============================================================
--- 6. Resolução de permissão efetiva — única fonte de verdade
+-- 6. Resolução de permissão efetiva - única fonte de verdade
 -- ============================================================
 
 create or replace function apticket.get_effective_permissions(_user_id uuid)
@@ -408,7 +408,7 @@ create policy "contracts update" on apticket.contracts for update to authenticat
 create policy "contracts delete" on apticket.contracts for delete to authenticated
   using (tenant_id = apticket.current_tenant_id() and apticket.has_permission(auth.uid(),'contratos','delete'));
 
--- ---- Grupo C: tabelas filhas — view herda do pai, toda escrita = edit do pai ----
+-- ---- Grupo C: tabelas filhas - view herda do pai, toda escrita = edit do pai ----
 
 drop policy "messages tenant access" on apticket.messages;
 create policy "messages select" on apticket.messages for select to authenticated
@@ -487,7 +487,7 @@ create policy "contract_equipments update" on apticket.contract_equipments for u
 create policy "contract_equipments delete" on apticket.contract_equipments for delete to authenticated
   using (tenant_id = apticket.current_tenant_id() and apticket.has_permission(auth.uid(),'contratos','edit'));
 
--- ---- Grupo D: módulos de 2 ações (view/write) — select vs insert/update/delete ----
+-- ---- Grupo D: módulos de 2 ações (view/write) - select vs insert/update/delete ----
 
 drop policy "tenant_isolation_stickers" on apticket.stickers;
 create policy "stickers select" on apticket.stickers for select to authenticated
@@ -544,7 +544,7 @@ create policy "canned_responses update" on apticket.canned_responses for update 
 create policy "canned_responses delete" on apticket.canned_responses for delete to authenticated
   using (tenant_id = apticket.current_tenant_id() and apticket.has_permission(auth.uid(),'respostas_prontas','write'));
 
--- ---- Grupo E: já eram split read/admin-write — só troca a função ----
+-- ---- Grupo E: já eram split read/admin-write - só troca a função ----
 
 drop policy "contract_types admin write" on apticket.contract_types;
 create policy "contract_types admin write" on apticket.contract_types for all to authenticated
@@ -594,7 +594,7 @@ drop policy "read own roles or admin reads tenant roles" on apticket.user_roles;
 create policy "read own roles or admin reads tenant roles" on apticket.user_roles for select to authenticated
   using (user_id = auth.uid() or (tenant_id = apticket.current_tenant_id() and apticket.has_permission(auth.uid(),'usuarios','view')));
 
--- ---- Grupo F: filas operacionais de canal — 1 policy ALL usando canais:send ----
+-- ---- Grupo F: filas operacionais de canal - 1 policy ALL usando canais:send ----
 
 drop policy "tenant members manage pending email" on apticket.email_pending_messages;
 create policy "email_pending_messages manage" on apticket.email_pending_messages for all to authenticated
@@ -610,7 +610,7 @@ create policy "whatsapp_pending_messages manage" on apticket.whatsapp_pending_me
 -- 9. prevent_profile_tenant_change: troca has_role por has_permission
 -- ============================================================
 
--- mantém SECURITY DEFINER do original (migration 20260714181315) — já é
+-- mantém SECURITY DEFINER do original (migration 20260714181315) - já é
 -- REVOKE ALL de public/anon/authenticated lá, CREATE OR REPLACE preserva
 -- essa ACL porque a assinatura não muda.
 create or replace function apticket.prevent_profile_tenant_change()

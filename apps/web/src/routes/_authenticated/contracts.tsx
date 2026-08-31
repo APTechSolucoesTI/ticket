@@ -43,7 +43,7 @@ import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/contracts")({
-  head: () => ({ meta: [{ title: "Contratos — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Contratos - APTicket" }] }),
   component: ContractsPage,
 });
 
@@ -211,7 +211,7 @@ function ContractsPage() {
                   cell: (c) => (
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      {c.companies?.name || "—"}
+                      {c.companies?.name || "-"}
                     </div>
                   ),
                 },
@@ -219,7 +219,7 @@ function ContractsPage() {
                   key: "type",
                   label: "Tipo",
                   className: "text-sm",
-                  cell: (c) => c.contract_types?.name || "—",
+                  cell: (c) => c.contract_types?.name || "-",
                 },
                 {
                   key: "billing",
@@ -231,7 +231,7 @@ function ContractsPage() {
                   key: "sla",
                   label: "SLA",
                   className: "text-sm",
-                  cell: (c) => c.sla_policies?.name || "—",
+                  cell: (c) => c.sla_policies?.name || "-",
                 },
                 {
                   key: "period",
@@ -251,7 +251,7 @@ function ContractsPage() {
                   label: "Horas/mês",
                   className: "text-sm",
                   cell: (c) =>
-                    c.billing_model === "hours_package" ? `${c.hours_monthly_quota}h` : "—",
+                    c.billing_model === "hours_package" ? `${c.hours_monthly_quota}h` : "-",
                 },
                 {
                   key: "extra",
@@ -268,7 +268,7 @@ function ContractsPage() {
                       return `R$ ${Number(c.monthly_value).toFixed(2)}`;
                     if (c.billing_model === "per_service")
                       return `R$ ${Number(c.monthly_value).toFixed(2)}`;
-                    if (!c.equipment_tiers?.length) return "—";
+                    if (!c.equipment_tiers?.length) return "-";
 
                     return (
                       <div className="space-y-0.5">
@@ -1031,7 +1031,7 @@ function ContractDialog({
                             <div className="text-[10px] text-muted-foreground">
                               {[eq.type, eq.brand, eq.model, eq.serial_number]
                                 .filter(Boolean)
-                                .join(" · ") || "—"}
+                                .join(" · ") || "-"}
                             </div>
                           </div>
                         </label>

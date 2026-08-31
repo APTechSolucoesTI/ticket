@@ -1,8 +1,8 @@
 // Client do canal de chat em tempo real (ChatGateway, apps/api). Não passa
-// pelo proxy same-origin (src/routes/backend/$.ts) — upgrade de WebSocket
+// pelo proxy same-origin (src/routes/backend/$.ts) - upgrade de WebSocket
 // não dá pra fazer num handler de request comum. Conecta em VITE_API_URL,
 // que em produção é o MESMO domínio público do frontend (o Traefik roteia
-// /socket.io/ direto pro serviço da API, sem passar pelo proxy — ver
+// /socket.io/ direto pro serviço da API, sem passar pelo proxy - ver
 // README, seção "WebSocket").
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
@@ -23,7 +23,7 @@ type PresenceEvent = { userId: string; online: boolean };
 
 /**
  * Conecta uma vez por sessão de ticket aberto. `onMessage` roda a cada
- * `message:receive` — quem chama decide o que fazer (ex.: invalidar a
+ * `message:receive` - quem chama decide o que fazer (ex.: invalidar a
  * query de mensagens do ticket).
  */
 export function useChatSocket(
@@ -62,7 +62,7 @@ export function useChatSocket(
       });
     });
     // presence:update existe no gateway mas essa tela só precisa de
-    // typing/mensagem por enquanto — sem consumidor de presença ainda.
+    // typing/mensagem por enquanto - sem consumidor de presença ainda.
     socket.on("presence:update", (_ev: PresenceEvent) => {});
 
     return () => {

@@ -6,7 +6,7 @@ export const getRouter = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // Dados ficam frescos por 1 min — evita refetch ao trocar de aba/rota.
+        // Dados ficam frescos por 1 min - evita refetch ao trocar de aba/rota.
         staleTime: 60_000,
         // Mantém cache por 5 min após o último observer desmontar.
         gcTime: 5 * 60_000,

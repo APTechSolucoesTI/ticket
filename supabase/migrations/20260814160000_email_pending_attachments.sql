@@ -6,7 +6,7 @@ ALTER TABLE public.email_pending_messages
 
 -- The ticket-attachments / kb-attachments buckets were referenced by RLS
 -- policies (earlier migrations) but the bucket rows themselves were never
--- created — uploads to either were silently failing. Backfilling them here.
+-- created - uploads to either were silently failing. Backfilling them here.
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES
   ('ticket-attachments', 'ticket-attachments', false, 10485760),

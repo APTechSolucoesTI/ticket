@@ -38,7 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TicketBadge, type TicketStatus } from "@/components/ticket/TicketBadge";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Dashboard - APTicket" }] }),
   component: DashboardPage,
 });
 
@@ -511,10 +511,10 @@ function DashboardPage() {
                           </Link>
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">
-                          {ticket.company_id ? (companyMap[ticket.company_id] ?? "—") : "—"}
+                          {ticket.company_id ? (companyMap[ticket.company_id] ?? "-") : "-"}
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">
-                          {ticket.assigned_to ? (profileMap[ticket.assigned_to] ?? "—") : "—"}
+                          {ticket.assigned_to ? (profileMap[ticket.assigned_to] ?? "-") : "-"}
                         </td>
                         <td className="px-4 py-2">
                           <TicketBadge status={ticket.status as TicketStatus} />

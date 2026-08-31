@@ -12,7 +12,7 @@ export const QUEUE_NOTIFICATION_FANOUT = 'notification-fanout';
 
 /**
  * Conexão Redis central pro BullMQ. Cada módulo de canal registra as
- * próprias filas com `BullModule.registerQueue({ name: QUEUE_X })` — a
+ * próprias filas com `BullModule.registerQueue({ name: QUEUE_X })` - a
  * conexão só é definida uma vez aqui (`forRootAsync`), evitando um
  * import circular entre email/whatsapp/chat só pra compartilhar isso.
  */

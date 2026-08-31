@@ -89,7 +89,7 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     });
 
     // Verificação local (assinatura HS256 com JWT_SECRET), não uma chamada de
-    // rede pro GoTrue (getClaims/getUser) — token pode ter sido assinado pelo
+    // rede pro GoTrue (getClaims/getUser) - token pode ter sido assinado pelo
     // próprio APTicket (login/convite/reset próprio, ver jwt.server.ts), não
     // necessariamente pelo GoTrue, então perguntar pro GoTrue "quem é esse
     // usuário" falhava pra usuário migrado (sem linha em auth.users).

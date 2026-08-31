@@ -163,7 +163,7 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
                     </div>
                     <div className="mt-1 line-clamp-2 font-medium">{ticket.subject}</div>
                     <div className="mt-1 text-[10px] text-muted-foreground">
-                      {ticket.companies?.name ?? "—"}
+                      {ticket.companies?.name ?? "-"}
                     </div>
                     <div className="mt-2 flex items-center justify-between">
                       <PriorityBadge priority={ticket.priority} />

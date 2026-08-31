@@ -1,6 +1,6 @@
 -- Laudo final: required before a ticket can be marked resolved/closed.
 -- Enforced with a CHECK constraint (not just app-side validation) so no
--- code path — Kanban drag, status dropdown, a future API — can skip it.
+-- code path - Kanban drag, status dropdown, a future API - can skip it.
 
 ALTER TABLE public.tickets
   ADD COLUMN IF NOT EXISTS resolution_summary text,
@@ -11,8 +11,8 @@ ALTER TABLE public.tickets
 -- this feature.
 UPDATE public.tickets
 SET
-  resolution_summary = COALESCE(NULLIF(btrim(resolution_summary), ''), '(sem laudo — ticket finalizado antes deste recurso existir)'),
-  resolution_diagnosis = COALESCE(NULLIF(btrim(resolution_diagnosis), ''), '(sem laudo — ticket finalizado antes deste recurso existir)')
+  resolution_summary = COALESCE(NULLIF(btrim(resolution_summary), ''), '(sem laudo - ticket finalizado antes deste recurso existir)'),
+  resolution_diagnosis = COALESCE(NULLIF(btrim(resolution_diagnosis), ''), '(sem laudo - ticket finalizado antes deste recurso existir)')
 WHERE status IN ('resolved', 'closed');
 
 ALTER TABLE public.tickets

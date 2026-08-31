@@ -1,12 +1,12 @@
 -- Esse projeto Supabase é compartilhado com outro sistema (mesma auth.users
--- global) — o trigger apticket.handle_new_user() (on_auth_user_created)
+-- global) - o trigger apticket.handle_new_user() (on_auth_user_created)
 -- disparava em TODO signup de QUALQUER app que usa esse mesmo Supabase Auth,
 -- provisionando tenant+perfil+role admin no APTicket pra gente que nunca
 -- teve nada a ver com o sistema. Confirmado ao vivo: existe um segundo
 -- trigger (on_auth_user_created_appintura -> public.handle_new_auth_user())
 -- na mesma tabela auth.users, prova de que auth.users é mesmo compartilhado.
 --
--- Fix: só provisiona se raw_user_meta_data->>'app' = 'apticket' — marcador
+-- Fix: só provisiona se raw_user_meta_data->>'app' = 'apticket' - marcador
 -- setado pelo client em apps/web/src/routes/auth.tsx (self-signup) e
 -- apps/web/src/lib/users.functions.ts (convite via admin.inviteUserByEmail).
 -- Sem o marcador, a função não faz nada (mesmo padrão de guard que o
@@ -14,7 +14,7 @@
 --
 -- De brinde: convite agora insere o profile direto no tenant de quem
 -- convidou (via invited_tenant_id nos metadados) em vez de criar um tenant
--- órfão pra depois apps/web/src/lib/users.functions.ts limpar — o código JS
+-- órfão pra depois apps/web/src/lib/users.functions.ts limpar - o código JS
 -- continua fazendo esse cleanup por segurança/idempotência, mas vira no-op
 -- no caminho feliz.
 

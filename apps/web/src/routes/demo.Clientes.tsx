@@ -5,7 +5,7 @@ import { Building2, MapPin } from "lucide-react";
 import { demoCompanies } from "@/lib/demo-seed";
 
 export const Route = createFileRoute("/demo/Clientes")({
-  head: () => ({ meta: [{ title: "Clientes — Demo APTicket" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Clientes - Demo APTicket" }, { name: "robots", content: "noindex" }] }),
   component: DemoClientes,
 });
 

@@ -1,4 +1,4 @@
--- Relatório de Fechamento — gerado automaticamente quando um ticket é fechado.
+-- Relatório de Fechamento - gerado automaticamente quando um ticket é fechado.
 -- Espelha o padrão já usado por csat_responses/get_csat_by_token: token opaco
 -- gerado no banco, consulta pública via função SECURITY DEFINER (a tabela em
 -- si não é exposta a anon).
@@ -53,7 +53,7 @@ create trigger tickets_generate_closing_report
 
 revoke all on function public.generate_ticket_closing_report() from public, anon, authenticated;
 
--- Conteúdo sempre lido ao vivo das tabelas de origem (não é snapshot) —
+-- Conteúdo sempre lido ao vivo das tabelas de origem (não é snapshot) -
 -- reabrir/editar o ticket depois de fechado nunca deixa o relatório
 -- desatualizado. Retorna null se token inválido/não encontrado.
 create or replace function public.get_closing_report_by_token(_token text)

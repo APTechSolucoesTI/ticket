@@ -1,6 +1,6 @@
-// Bloco 2 — resolução de permissões efetivas do usuário logado, pro
+// Bloco 2 - resolução de permissões efetivas do usuário logado, pro
 // frontend decidir o que mostrar/esconder. Usa a mesma função SQL
-// (apticket.get_effective_permissions) que apps/api usa no guard — única
+// (apticket.get_effective_permissions) que apps/api usa no guard - única
 // fonte de verdade (ver migration 20260821000000_dynamic_roles_permissions).
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

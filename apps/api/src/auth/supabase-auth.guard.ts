@@ -24,7 +24,7 @@ export interface AuthContext {
   tenantId: string;
   name: string;
   roles: string[];
-  /** Bloco 2 — permissões efetivas (módulo×ação) já resolvidas pro usuário. */
+  /** Bloco 2 - permissões efetivas (módulo×ação) já resolvidas pro usuário. */
   permissions: { module: string; action: string }[];
 }
 
@@ -35,15 +35,15 @@ export interface AuthenticatedRequest extends Request {
 /**
  * Guard global (registrado em AppModule via APP_GUARD). Valida o JWT de
  * sessão do APTicket (assinado pelo apps/web no login/convite/reset, mesmo
- * JWT_SECRET que o PostgREST do Supabase já usa pra RLS — ver
+ * JWT_SECRET que o PostgREST do Supabase já usa pra RLS - ver
  * apps/web/src/lib/jwt.server.ts) e resolve o tenant_id/roles a partir de
- * `apticket.profiles`/`apticket.user_roles` — mesma coisa que o RLS faz hoje
+ * `apticket.profiles`/`apticket.user_roles` - mesma coisa que o RLS faz hoje
  * via `current_tenant_id()`, só que aqui é a API quem aplica o filtro de
  * tenant manualmente em cada query, já que o client usa a service_role key
  * (sem RLS pela frente).
  *
  * Verificação é local (assinatura HS256), não uma chamada de rede pro
- * GoTrue — funciona pra JWT que o GoTrue nunca viu (usuário migrado pra
+ * GoTrue - funciona pra JWT que o GoTrue nunca viu (usuário migrado pra
  * autenticação própria), e é mais rápido (sem round-trip externo).
  */
 @Injectable()
@@ -87,7 +87,7 @@ export class SupabaseAuthGuard implements CanActivate {
     if (error) {
       // Mensagem pro client fica genérica de propósito (não vaza detalhe de
       // schema/infra), mas o erro real do Postgrest/Supabase (ex.: schema
-      // "apticket" não exposto na Data API) só aparece aqui no log — sem
+      // "apticket" não exposto na Data API) só aparece aqui no log - sem
       // isso, um erro de config de infra parecia idêntico a "usuário sem
       // perfil" e era impossível diferenciar só pela resposta HTTP.
       this.logger.error(

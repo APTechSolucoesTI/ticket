@@ -16,7 +16,7 @@ import {
 } from './dto/whatsapp-send-message.dto';
 
 // `:id` do contrato original também é sempre o tenantId (ver nota no
-// EmailController) — uma instância uazapi por tenant no domínio real.
+// EmailController) - uma instância uazapi por tenant no domínio real.
 @ApiTags('whatsapp')
 @ApiBearerAuth()
 @Controller('channels/whatsapp/instances')

@@ -57,7 +57,7 @@ import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/kb/admin")({
-  head: () => ({ meta: [{ title: "Base de Conhecimento — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Base de Conhecimento - APTicket" }] }),
   component: KbAdminPage,
 });
 
@@ -197,7 +197,7 @@ function CategoriesTab() {
                   key: "parent",
                   label: "Pai",
                   className: "text-sm",
-                  cell: (c) => data.find((p) => p.id === c.parent_id)?.name || "—",
+                  cell: (c) => data.find((p) => p.id === c.parent_id)?.name || "-",
                 },
               ] as ListColumn<Category>[]
             }
@@ -354,7 +354,7 @@ function CategoryDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— Nenhuma —</SelectItem>
+                  <SelectItem value="none">- Nenhuma -</SelectItem>
                   {categories
                     .filter((c) => c.id !== editing?.id)
                     .map((c) => (
@@ -488,7 +488,7 @@ function ArticlesTab() {
                   key: "category",
                   label: "Categoria",
                   className: "text-sm",
-                  cell: (a) => categories?.find((c) => c.id === a.category_id)?.name || "—",
+                  cell: (a) => categories?.find((c) => c.id === a.category_id)?.name || "-",
                 },
                 {
                   key: "visibility",
@@ -750,7 +750,7 @@ function ArticleDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">— Sem categoria —</SelectItem>
+                    <SelectItem value="none">- Sem categoria -</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}

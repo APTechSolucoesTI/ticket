@@ -178,7 +178,7 @@ function WhatsAppPendingPage() {
                   <div key={m.id} className="space-y-1.5 rounded-md bg-background/70 p-2">
                     <div>
                       <span className="text-muted-foreground">
-                        {new Date(m.created_at).toLocaleString()} —{" "}
+                        {new Date(m.created_at).toLocaleString()} -{" "}
                       </span>
                       {m.content}
                     </div>

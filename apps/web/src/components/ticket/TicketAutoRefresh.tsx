@@ -21,7 +21,7 @@ type Prefs = {
 /**
  * Countdown badge shown at the top-left of the ticket list. Refetches the
  * tickets query when it hits zero. Enabled/interval is a per-user setting
- * persisted on profiles (tickets_auto_refresh_*) — changing it here only
+ * persisted on profiles (tickets_auto_refresh_*) - changing it here only
  * affects the logged-in user, on every device, not the whole tenant.
  */
 export function TicketAutoRefresh({ onRefresh }: { onRefresh: () => void }) {

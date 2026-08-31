@@ -5,7 +5,7 @@
  *
  * Without this, characters that are part of PostgREST's filter grammar
  * (`,` `.` `(` `)` `:`) let a user-controlled search term inject extra
- * conditions or operators into the query — e.g. a search for
+ * conditions or operators into the query - e.g. a search for
  * `x,id.neq.00000000-0000-0000-0000-000000000000` widens the `.or()`
  * beyond the intended column/operator pair.
  *

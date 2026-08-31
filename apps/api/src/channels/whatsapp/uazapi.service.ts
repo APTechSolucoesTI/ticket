@@ -34,7 +34,7 @@ export class UazapiService {
   ): Promise<UazapiResponse> {
     const url = `${normalizeBaseUrl(baseUrl)}${path.startsWith('/') ? path : `/${path}`}`;
     // fetch() lança (não retorna resposta com status de erro) quando a rede
-    // falha antes de qualquer resposta HTTP existir — DNS não resolve,
+    // falha antes de qualquer resposta HTTP existir - DNS não resolve,
     // conexão recusada, timeout. Sem isso virar um UazapiResponse igual ao
     // de erro HTTP normal, esse throw sobe cru até o controller e vira 500
     // genérico em vez de avisar "não deu pra falar com a uazapi".

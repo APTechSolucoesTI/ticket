@@ -15,7 +15,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/demo/Tickets/$id")({
   head: ({ params }) => ({
     meta: [
-      { title: `Ticket #${params.id} — Demo APTicket` },
+      { title: `Ticket #${params.id} - Demo APTicket` },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -51,7 +51,7 @@ function buildTimeline(subject: string, company: string, agent: string): DemoMsg
     { id: "m1", author: "Sistema",           authorType: "system",  content: `Ticket criado a partir do canal padrão.`, isInternal: false, createdAt: at(180) },
     { id: "m2", author: `Contato · ${company}`, authorType: "contact", content: `Olá, ${subject.toLowerCase()}. Podem verificar com urgência?`, isInternal: false, createdAt: at(170) },
     { id: "m3", author: agent,               authorType: "agent",   content: `Recebi o chamado. Iniciando o diagnóstico agora.`, isInternal: false, createdAt: at(90) },
-    { id: "m4", author: agent,               authorType: "agent",   content: `Nota interna: cliente já teve incidente similar semana passada — verificar histórico do equipamento.`, isInternal: true, createdAt: at(60) },
+    { id: "m4", author: agent,               authorType: "agent",   content: `Nota interna: cliente já teve incidente similar semana passada - verificar histórico do equipamento.`, isInternal: true, createdAt: at(60) },
     { id: "m5", author: `Contato · ${company}`, authorType: "contact", content: `Obrigado, no aguardo.`, isInternal: false, createdAt: at(30) },
   ];
 }

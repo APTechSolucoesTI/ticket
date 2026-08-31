@@ -84,7 +84,7 @@ export default function HomeChat() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Restore existing chat on open (only if the verified session token is still present —
+  // Restore existing chat on open (only if the verified session token is still present -
   // otherwise the poll effect would immediately 401 and bounce back anyway).
   useEffect(() => {
     if (step === "closed") return;
@@ -380,7 +380,7 @@ export default function HomeChat() {
         {step === "start" && session && (
           <form onSubmit={startChat} className="p-4 flex flex-col gap-3 h-full">
             <div className="text-xs text-muted-foreground">
-              Olá <span className="font-medium text-foreground">{session.contact.name}</span> —
+              Olá <span className="font-medium text-foreground">{session.contact.name}</span> -
               pronto pra abrir um novo chat.
             </div>
             {session.contracts.length > 1 && (

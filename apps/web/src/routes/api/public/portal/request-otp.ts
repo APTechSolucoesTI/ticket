@@ -49,7 +49,7 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           .eq("can_open_tickets", true)
           .limit(2);
 
-        // Always respond identically whether or not the contact exists —
+        // Always respond identically whether or not the contact exists -
         // otherwise this endpoint becomes an email-enumeration oracle.
         const genericResponse = () => Response.json({ ok: true }, { status: 200, headers: CORS });
 

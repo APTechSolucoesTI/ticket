@@ -6,9 +6,10 @@ import DOMPurify from "isomorphic-dompurify";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/report/$token")({
-  head: () => ({ meta: [{ title: "Relatório do atendimento — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Relatório do atendimento - APTicket" }] }),
   component: ClosingReportPage,
   errorComponent: ({ error }) => (
     <div className="p-8 text-center text-sm text-destructive">Erro: {error.message}</div>
@@ -105,12 +106,15 @@ function ClosingReportPage() {
         {/* Header */}
         <div className="relative bg-[#0D2B5E] px-8 py-6 text-white">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-2xl font-bold tracking-tight">APTicket</div>
-              <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">
-                Relatório do Atendimento
+            <div className="flex items-start gap-3">
+              <BrandLogo variant="dark" className="size-12 drop-shadow-md" alt="" />
+              <div>
+                <div className="text-2xl font-bold tracking-tight">APTicket</div>
+                <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">
+                  Relatório do Atendimento
+                </div>
+                <div className="mt-1 text-lg font-bold text-[#00C2CB]">{data.report_number}</div>
               </div>
-              <div className="mt-1 text-lg font-bold text-[#00C2CB]">{data.report_number}</div>
             </div>
             {publicUrl && (
               <div className="shrink-0 rounded-md bg-white p-1.5">
@@ -123,8 +127,8 @@ function ClosingReportPage() {
 
         {/* Meta */}
         <div className="grid grid-cols-2 gap-4 border-b border-[#E2E8F0] bg-[#F8FAFC] px-8 py-4 sm:grid-cols-3">
-          <MetaItem label="Cliente" value={data.client_name ?? "—"} />
-          <MetaItem label="Contato" value={data.contact_name ?? "—"} />
+          <MetaItem label="Cliente" value={data.client_name ?? "-"} />
+          <MetaItem label="Contato" value={data.contact_name ?? "-"} />
           <MetaItem label="Ticket" value={`#${data.ticket_number}`} />
           <MetaItem
             label="Data e hora de abertura"
@@ -132,10 +136,10 @@ function ClosingReportPage() {
           />
           <MetaItem
             label={dateLabel}
-            value={dateValue ? new Date(dateValue).toLocaleString("pt-BR") : "—"}
+            value={dateValue ? new Date(dateValue).toLocaleString("pt-BR") : "-"}
           />
-          <MetaItem label="Contrato" value={data.contract_name ?? "—"} />
-          <MetaItem label="Atendente responsável" value={data.agent_name ?? "—"} />
+          <MetaItem label="Contrato" value={data.contract_name ?? "-"} />
+          <MetaItem label="Atendente responsável" value={data.agent_name ?? "-"} />
         </div>
 
         <div className="space-y-6 px-8 py-6">
@@ -193,7 +197,7 @@ function ClosingReportPage() {
                           {String(i + 1).padStart(2, "0")}
                         </td>
                         <td className="px-3 py-2 font-medium">{s.description}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{s.complement ?? "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{s.complement ?? "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -220,11 +224,11 @@ function ClosingReportPage() {
                     {data.time_entries.map((t, i) => (
                       <tr key={i} className="border-t border-[#E2E8F0]">
                         <td className="px-3 py-2 text-muted-foreground">
-                          {t.started_at ? new Date(t.started_at).toLocaleString("pt-BR") : "—"}
+                          {t.started_at ? new Date(t.started_at).toLocaleString("pt-BR") : "-"}
                         </td>
                         <td className="px-3 py-2 font-mono">{t.minutes} min</td>
-                        <td className="px-3 py-2">{t.agent_name ?? "—"}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{t.description ?? "—"}</td>
+                        <td className="px-3 py-2">{t.agent_name ?? "-"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{t.description ?? "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -242,7 +246,7 @@ function ClosingReportPage() {
           </Section>
 
           <Section title="Equipamento vinculado">
-            <p className="text-sm text-[#1A1A2E]">{data.equipment_name ?? "—"}</p>
+            <p className="text-sm text-[#1A1A2E]">{data.equipment_name ?? "-"}</p>
           </Section>
 
           <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] p-4">
@@ -265,7 +269,7 @@ function ClosingReportPage() {
 
         <div className="border-t border-[#E2E8F0] px-8 py-3 text-[10px] text-muted-foreground">
           Documento gerado pelo APTicket em {new Date(data.generated_at).toLocaleString("pt-BR")}
-          {data.tenant_name ? ` — ${data.tenant_name}` : ""}.
+          {data.tenant_name ? ` - ${data.tenant_name}` : ""}.
         </div>
       </div>
     </div>

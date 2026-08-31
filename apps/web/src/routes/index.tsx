@@ -3,23 +3,24 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Ticket, Inbox, Clock, Users, FileText, Brain, Shield,
+  Inbox, Clock, Users, FileText, Brain, Shield,
   CheckCircle2, Sparkles, Star, ArrowRight, ChevronRight,
   MessageCircle, Timer, BarChart3, Menu, Mail, MapPin,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import HomeChat from "@/components/HomeChat";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "APTicket — Help Desk & PSA para MSPs" },
+      { title: "APTicket - Help Desk & PSA para MSPs" },
       {
         name: "description",
         content:
           "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
       },
-      { property: "og:title", content: "APTicket — Help Desk & PSA para MSPs" },
+      { property: "og:title", content: "APTicket - Help Desk & PSA para MSPs" },
       {
         property: "og:description",
         content: "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
@@ -54,9 +55,10 @@ function Navbar() {
     >
       <nav aria-label="Menu principal" className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center shadow-premium">
-            <Ticket className="size-5 text-white" />
-          </div>
+          <BrandLogo
+            variant={scrolled ? "light" : "dark"}
+            className="size-10 drop-shadow-md"
+          />
           <span className={`font-bold text-xl ${scrolled ? "text-primary" : "text-white"}`}>
             AP<span className={scrolled ? "text-gradient-primary" : "text-[#00C2CB]"}>Ticket</span>
           </span>
@@ -144,13 +146,11 @@ function SiteFooter() {
       >
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-              <Ticket className="size-5 text-primary" />
-            </div>
+            <BrandLogo variant="dark" className="size-11 drop-shadow-md" />
             <span className="font-bold text-xl">APTicket</span>
           </div>
           <p className="mt-4 text-sm text-white/70 leading-relaxed">
-            APTicket é a plataforma de Help Desk e PSA para MSPs — tickets unificados, SLA rigoroso e franquia de horas por contrato.
+            APTicket é a plataforma de Help Desk e PSA para MSPs - tickets unificados, SLA rigoroso e franquia de horas por contrato.
           </p>
         </div>
         <FooterCol title="Produto" links={[
@@ -172,10 +172,10 @@ function SiteFooter() {
         className="max-w-7xl mx-auto mt-10 sm:mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-white/60"
         style={{ paddingInline: "clamp(1rem, 4vw, 1.5rem)" }}
       >
-        <p>© {new Date().getFullYear()} APTech Soluções em TI — Americana/SP. Todos os direitos reservados.</p>
+        <p>© {new Date().getFullYear()} APTech Soluções em TI - Americana/SP. Todos os direitos reservados.</p>
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Brasil</span>
-          <span className="flex items-center gap-1.5 break-all"><Mail className="h-3.5 w-3.5 shrink-0" />contato@apticket.com.br</span>
+                <span className="flex items-center gap-1.5 break-all"><Mail className="h-3.5 w-3.5 shrink-0" />comercial@aptechinfo.com.br</span>
         </p>
       </div>
     </footer>
@@ -291,7 +291,7 @@ function Landing() {
             <span className="bg-gradient-to-r from-[#00C2CB] to-white bg-clip-text text-transparent">Todo minuto contado.</span>
           </h1>
           <p className="text-lg md:text-xl text-white/85 mt-6 max-w-2xl mx-auto">
-            Centralize tickets de e-mail e WhatsApp, controle SLAs por contrato e registre cada hora trabalhada — do primeiro chamado ao faturamento.
+            Centralize tickets de e-mail e WhatsApp, controle SLAs por contrato e registre cada hora trabalhada - do primeiro chamado ao faturamento.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-9">
             <Button asChild size="lg" className="bg-[#00C2CB] text-[#0D2B5E] hover:brightness-110 h-12 px-6 text-base font-semibold shadow-lg shadow-black/20">
@@ -405,7 +405,7 @@ function Landing() {
             </div>
             <h2 className="text-3xl md:text-4xl font-bold leading-tight">Do <span className="text-gradient-primary">chamado</span> ao <span className="text-gradient-primary">faturamento</span>, sem planilha</h2>
             <p className="text-muted-foreground mt-4 leading-relaxed">
-              Cada ticket sabe a qual contrato pertence. Cada minuto do cronômetro debita da franquia. No fim do mês, o relatório de horas está pronto — com técnico, data e ticket.
+              Cada ticket sabe a qual contrato pertence. Cada minuto do cronômetro debita da franquia. No fim do mês, o relatório de horas está pronto - com técnico, data e ticket.
             </p>
             <Button asChild size="lg" className="gradient-primary text-white shadow-premium mt-6">
               <Link to="/auth">Testar agora <ArrowRight className="size-4 ml-1" /></Link>
@@ -509,7 +509,7 @@ function Landing() {
       {/* CTA FINAL */}
       <section className="bg-slate-900 text-white py-20">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <Ticket className="size-12 mx-auto mb-5 text-accent" />
+          <BrandLogo variant="dark" className="mx-auto mb-5 size-16 drop-shadow-lg" />
           <h2 className="text-3xl md:text-5xl font-extrabold">Pronto pra tirar seu MSP da bagunça?</h2>
           <p className="text-white/70 mt-4 text-lg">Comece grátis hoje. Configure em minutos. Tenha SLA e horas sob controle desde o primeiro ticket.</p>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-8">

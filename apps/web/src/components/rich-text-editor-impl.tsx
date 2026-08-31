@@ -195,7 +195,7 @@ export function RichTextEditor({ value, onChange, className, readOnly = false }:
     // Cria o editor dentro de um efeito, não durante o render. Sem isso, o
     // StrictMode do React (dev) dispara um segundo render antes do efeito
     // de montagem rodar, e o Tiptap acaba chamando getHTML() num editor já
-    // destruído — o schema interno vira null e o ProseMirror quebra com
+    // destruído - o schema interno vira null e o ProseMirror quebra com
     // "Cannot read properties of null (reading 'cached')" ao serializar.
     immediatelyRender: false,
     extensions: [

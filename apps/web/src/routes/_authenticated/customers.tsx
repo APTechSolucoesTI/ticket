@@ -39,7 +39,7 @@ import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ, isValidWebsite, normalizePho
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/customers")({
-  head: () => ({ meta: [{ title: "Clientes — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Clientes - APTicket" }] }),
   component: CustomersPage,
 });
 
@@ -194,7 +194,7 @@ function CustomersPage() {
                   key: "cnpj",
                   label: "CNPJ",
                   className: "text-sm",
-                  cell: (c) => (c.cnpj ? maskCNPJ(c.cnpj) : "—"),
+                  cell: (c) => (c.cnpj ? maskCNPJ(c.cnpj) : "-"),
                 },
                 {
                   key: "segment",
@@ -206,32 +206,32 @@ function CustomersPage() {
                         {c.segment}
                       </span>
                     ) : (
-                      "—"
+                      "-"
                     ),
                 },
                 {
                   key: "phone",
                   label: "Telefone",
                   className: "text-sm",
-                  cell: (c) => (c.phone ? maskPhone(c.phone) : "—"),
+                  cell: (c) => (c.phone ? maskPhone(c.phone) : "-"),
                 },
                 {
                   key: "website",
                   label: "Website",
                   className: "text-sm",
-                  cell: (c) => c.website || "—",
+                  cell: (c) => c.website || "-",
                 },
                 {
                   key: "city",
                   label: "Cidade",
                   className: "text-sm",
-                  cell: (c) => c.address_city || "—",
+                  cell: (c) => c.address_city || "-",
                 },
                 {
                   key: "state",
                   label: "UF",
                   className: "text-sm",
-                  cell: (c) => c.address_state || "—",
+                  cell: (c) => c.address_state || "-",
                 },
                 {
                   key: "vip",

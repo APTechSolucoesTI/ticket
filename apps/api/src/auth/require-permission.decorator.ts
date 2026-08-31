@@ -9,7 +9,7 @@ export interface RequiredPermission {
 
 /**
  * Marca uma rota como exigindo uma permissão específica (módulo×ação, Bloco
- * 2 — papéis e permissões dinâmicos). Checado no mesmo `SupabaseAuthGuard`
+ * 2 - papéis e permissões dinâmicos). Checado no mesmo `SupabaseAuthGuard`
  * global que já valida o JWT de sessão, contra `req.auth.permissions`
  * (resolvido via `apticket.get_effective_permissions`, uma chamada só por
  * request).

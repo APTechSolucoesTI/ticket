@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { demoTickets } from "@/lib/demo-seed";
 
 export const Route = createFileRoute("/demo/Tickets")({
-  head: () => ({ meta: [{ title: "Tickets — Demo APTicket" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Tickets - Demo APTicket" }, { name: "robots", content: "noindex" }] }),
   component: DemoTicketsLayout,
 });
 

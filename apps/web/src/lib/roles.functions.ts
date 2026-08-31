@@ -1,6 +1,6 @@
-// Bloco 2 — CRUD de papéis + matriz de permissões por papel. Toda mutação
+// Bloco 2 - CRUD de papéis + matriz de permissões por papel. Toda mutação
 // passa pelo client RLS-scoped do usuário (`context.supabase`, via
-// requireSupabaseAuth) — a própria migration 20260821000000 já gate
+// requireSupabaseAuth) - a própria migration 20260821000000 já gate
 // insert/update/delete em apticket.roles/role_permissions por
 // has_permission(auth.uid(),'papeis','create'/'edit'/'delete'), então o Postgres barra quem
 // não tem a permissão mesmo que este código tivesse um bug. O log de
@@ -137,7 +137,7 @@ export const deleteRole = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("role_id", data.roleId);
     if (count && count > 0) {
-      throw new Error("Este papel está em uso — reatribua os usuários antes de excluir.");
+      throw new Error("Este papel está em uso - reatribua os usuários antes de excluir.");
     }
     const { error } = await supabase.from("roles").delete().eq("id", data.roleId);
     if (error) throw new Error(error.message); // trigger barra papel de sistema aqui também

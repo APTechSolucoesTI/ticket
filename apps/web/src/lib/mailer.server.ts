@@ -1,5 +1,5 @@
 // Server-only. Sends transactional email for the customer portal (OTP codes).
-// Separate from GoTrue's own mailer — this is used for portal_otp_codes delivery,
+// Separate from GoTrue's own mailer - this is used for portal_otp_codes delivery,
 // which is app-level (contacts are not Supabase Auth users).
 import nodemailer, { type SentMessageInfo, type Transporter } from "nodemailer";
 

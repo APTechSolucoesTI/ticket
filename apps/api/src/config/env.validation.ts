@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Validado uma vez no boot (ConfigModule.forRoot({ validate })) — falha rápido
+// Validado uma vez no boot (ConfigModule.forRoot({ validate })) - falha rápido
 // e com mensagem clara em vez de um `undefined` silencioso estourando três
 // camadas depois dentro de um service.
 const envSchema = z.object({
@@ -9,12 +9,12 @@ const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
 
-  // Mesmo projeto Supabase do frontend — a API usa a service_role key (nunca
+  // Mesmo projeto Supabase do frontend - a API usa a service_role key (nunca
   // exposta ao browser) pra tudo que hoje o front fazia direto com segredo.
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
 
-  // Mesmo valor de GOTRUE_JWT_SECRET/PGRST_JWT_SECRET do Supabase self-hosted —
+  // Mesmo valor de GOTRUE_JWT_SECRET/PGRST_JWT_SECRET do Supabase self-hosted -
   // autenticação própria do APTicket (apps/web assina, apps/api só valida
   // localmente, sem chamar o GoTrue) usa esse segredo pra continuar
   // compatível com RLS/auth.uid(). Ver supabase-auth.guard.ts.
@@ -34,7 +34,7 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
 
   // Origem do frontend, pra CORS quando a API for acessada direto (fora do
-  // proxy same-origin do apps/web) — ex.: dev local, ou debug via /docs.
+  // proxy same-origin do apps/web) - ex.: dev local, ou debug via /docs.
   CORS_ORIGIN: z.string().default('http://localhost:8080'),
 
   // FQDN enviado no EHLO/HELO SMTP. Sem ele o hostname interno do container

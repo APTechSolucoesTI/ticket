@@ -26,7 +26,7 @@ async function bootstrap() {
       new DocumentBuilder()
         .setTitle('APTicket API')
         .setDescription(
-          'Backend dos canais de e-mail, WhatsApp e chat do APTicket — tudo que precisa de ' +
+          'Backend dos canais de e-mail, WhatsApp e chat do APTicket - tudo que precisa de ' +
             'segredos, processos contínuos ou WebSocket, fora do alcance do frontend.',
         )
         .setVersion('0.1.0')

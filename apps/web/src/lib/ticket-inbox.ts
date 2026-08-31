@@ -135,7 +135,7 @@ export function trendIcon(trendPercent: number): LucideIcon {
 }
 
 export function formatResolutionTime(value: number | null) {
-  if (value === null) return "—";
+  if (value === null) return "-";
   const minutes = value / 60_000;
   if (minutes < 60) return `${Math.round(minutes)} min`;
   const hours = minutes / 60;

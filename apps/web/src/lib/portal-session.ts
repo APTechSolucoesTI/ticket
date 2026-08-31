@@ -1,6 +1,6 @@
 // Server-only. Short-lived, HMAC-signed session token issued after a portal
 // contact proves ownership of their email via OTP (see routes/api/public/portal
-// /request-otp.ts and verify-otp.ts). This token — not a client-supplied email —
+// /request-otp.ts and verify-otp.ts). This token - not a client-supplied email -
 // is what the rest of the portal endpoints trust to identify the caller.
 import { createHmac, timingSafeEqual } from "node:crypto";
 

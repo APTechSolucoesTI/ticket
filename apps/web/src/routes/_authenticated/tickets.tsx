@@ -40,7 +40,7 @@ import { useTicketsInboxData } from "@/hooks/use-tickets-inbox";
 import { calculateTicketSummary } from "@/lib/ticket-inbox";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
-  head: () => ({ meta: [{ title: "Tickets — APTicket" }] }),
+  head: () => ({ meta: [{ title: "Tickets - APTicket" }] }),
   component: TicketsLayout,
 });
 
@@ -262,7 +262,7 @@ const schema = z.object({
   channel: z.enum(["email", "whatsapp", "chat", "manual", "portal"]),
   company_id: z.string().uuid("Selecione o cliente"),
   contact_id: z.string().uuid().nullable(),
-  contract_id: z.string().uuid("Cliente sem contrato ativo — cadastre um contrato antes."),
+  contract_id: z.string().uuid("Cliente sem contrato ativo - cadastre um contrato antes."),
   department_id: z.string().uuid().nullable(),
   assigned_to: z.string().uuid().nullable(),
   equipment_ids: z.array(z.string().uuid()).default([]),
@@ -556,7 +556,7 @@ function TicketDialog({
                   {contracts?.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {(c.contract_types as { name: string } | null)?.name ?? "Contrato"}
-                      {c.description ? ` — ${c.description.slice(0, 60)}` : ""} ({c.starts_at} →{" "}
+                      {c.description ? ` - ${c.description.slice(0, 60)}` : ""} ({c.starts_at} →{" "}
                       {c.ends_at})
                     </SelectItem>
                   ))}
@@ -668,7 +668,7 @@ function TicketDialog({
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground mt-1">
-                Resolvido/Fechado exigem laudo final — finalize pelo ticket depois de criado.
+                Resolvido/Fechado exigem laudo final - finalize pelo ticket depois de criado.
               </p>
             </div>
             <div>

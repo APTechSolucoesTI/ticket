@@ -1,4 +1,4 @@
--- Outbound SMTP for the email channel — "Responder ao cliente" on an
+-- Outbound SMTP for the email channel - "Responder ao cliente" on an
 -- email-origin ticket actually dispatches an email, instead of only saving a
 -- message row. Reuses email_imap_user/email_imap_password as SMTP auth
 -- (the common case: same mailbox account for receiving and sending).

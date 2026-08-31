@@ -5,10 +5,10 @@ import { Public } from './auth/public.decorator';
 // Templates de e-mail do GoTrue (Supabase Auth self-hosted) em pt-BR. Esse
 // Supabase é compartilhado com outro sistema, então GOTRUE_SITE_URL não
 // pode apontar pro domínio do APTicket (quebraria o fallback do outro app)
-// — os templates default do GoTrue mostram literalmente "{{ .SiteURL }}" no
+// - os templates default do GoTrue mostram literalmente "{{ .SiteURL }}" no
 // corpo do e-mail ("...to create a user on <SiteURL>"), por isso saía o
 // domínio errado mesmo com o link de confirmação certo. Esses templates
-// aqui não referenciam SiteURL nenhuma vez — só {{ .ConfirmationURL }} e
+// aqui não referenciam SiteURL nenhuma vez - só {{ .ConfirmationURL }} e
 // texto fixo "APTicket". Apontar GOTRUE_MAILER_TEMPLATES_INVITE/RECOVERY
 // pra essas URLs (ver README).
 const BRAND_HEADER = `
@@ -29,7 +29,7 @@ const BUTTON = (url: string, label: string) => `
   </a>
 `;
 
-/** Usado pelo healthcheck do docker-compose — sem JWT, sem ficar no Swagger. */
+/** Usado pelo healthcheck do docker-compose - sem JWT, sem ficar no Swagger. */
 @ApiExcludeController()
 @Controller()
 export class AppController {

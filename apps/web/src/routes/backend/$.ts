@@ -1,20 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Proxy reverso same-origin pra apps/api — mesmo padrão do rewrites() do
+// Proxy reverso same-origin pra apps/api - mesmo padrão do rewrites() do
 // Next.js usado no Integrador Bling (outro projeto de vocês), só que
 // implementado como rota do próprio TanStack Start (Nitro/Vite não tem um
 // "rewrites" nativo). O browser só fala com o domínio do frontend
 // (apticket.aptechinfo.com.br); ele que repassa pra API por trás, então o
 // backend nunca fica exposto direto.
 //
-// /backend/tickets no browser vira /tickets no Nest — por isso a API NÃO
+// /backend/tickets no browser vira /tickets no Nest - por isso a API NÃO
 // tem app.setGlobalPrefix('backend'): o prefixo existe só aqui, na borda,
 // e é removido antes de repassar.
 //
-// SÓ funciona pra REST — não dá pra fazer upgrade de WebSocket (Socket.IO,
+// SÓ funciona pra REST - não dá pra fazer upgrade de WebSocket (Socket.IO,
 // canal de chat) através de um handler de request comum. Isso é resolvido
 // direto no Traefik, roteando /socket.io/ pro serviço da API sem passar por
-// aqui — ver infra/docker-compose.yml e o README.
+// aqui - ver infra/docker-compose.yml e o README.
 //
 // INTERNAL_BACKEND_URL: hostname interno do serviço Docker da API (nunca
 // aponta pra fora, só tráfego container-a-container dentro do Dokploy/Swarm).

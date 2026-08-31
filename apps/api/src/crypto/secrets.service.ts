@@ -8,7 +8,7 @@ const IV_LENGTH = 12; // padrão recomendado pro GCM
 
 /**
  * Criptografa senha IMAP/SMTP e token da uazapi antes de gravar no Postgres
- * — só a API tem `SECRETS_ENCRYPTION_KEY`, nunca chega no frontend nem fica
+ * - só a API tem `SECRETS_ENCRYPTION_KEY`, nunca chega no frontend nem fica
  * em texto puro no banco. Formato armazenado: "<iv>:<authTag>:<ciphertext>"
  * em hex, tudo numa string só (cabe direto numa coluna text existente).
  */
@@ -51,7 +51,7 @@ export class SecretsService {
       !/^[0-9a-f]+$/i.test(ciphertextHex)
     ) {
       // Valor pré-existente, salvo em texto puro antes dessa criptografia
-      // entrar (dado de antes da migração) — trata como legado e devolve
+      // entrar (dado de antes da migração) - trata como legado e devolve
       // como está. Assim que o tenant salvar de novo pela tela nova, vira
       // formato criptografado. Sem isso, decrypt() quebra dado antigo.
       return stored;
