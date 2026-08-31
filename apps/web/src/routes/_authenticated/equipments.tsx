@@ -502,7 +502,7 @@ function EquipmentDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-w-5xl w-[98vw] max-h-[95vh] overflow-y-auto p-4 text-xs [&_label]:text-xs [&_input]:h-8 [&_input]:text-xs [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 text-xs sm:max-w-5xl [&_label]:text-xs [&_input]:h-8 [&_input]:text-xs [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs">
           <DialogHeader className="pb-1">
             <DialogTitle className="text-sm">
               {readOnly
@@ -514,7 +514,7 @@ function EquipmentDialog({
           </DialogHeader>
           <ReadOnlyNotice show={readOnly} />
           <form
-            className="grid grid-cols-4 gap-2"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4"
             onSubmit={(e) => {
               e.preventDefault();
               if (readOnly) return;
@@ -526,7 +526,7 @@ function EquipmentDialog({
               save.mutate(r.data);
             }}
           >
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Cliente *</Label>
               <Select
                 value={form.company_id}
@@ -544,7 +544,7 @@ function EquipmentDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Contato responsável</Label>
               <Select
                 value={form.contact_id || NONE}
@@ -634,7 +634,7 @@ function EquipmentDialog({
               />
             </div>
             {/* Linha 4 */}
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Processador</Label>
               <Input
                 value={form.processor}
@@ -659,7 +659,7 @@ function EquipmentDialog({
               />
             </div>
             {/* Linha 5 */}
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Sistema operacional</Label>
               <Input
                 value={form.operating_system}
@@ -683,21 +683,21 @@ function EquipmentDialog({
               />
             </div>
             {/* Linha 6 */}
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Chave do Sistema Operacional</Label>
               <Input
                 value={form.os_key}
                 onChange={(e) => setForm({ ...form, os_key: e.target.value })}
               />
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Chave do Office</Label>
               <Input
                 value={form.office_key}
                 onChange={(e) => setForm({ ...form, office_key: e.target.value })}
               />
             </div>
-            <div className="col-span-4">
+            <div className="sm:col-span-2 lg:col-span-4">
               <Label>Observações</Label>
               <div className="[&_.ProseMirror]:min-h-[80px] [&_.ProseMirror]:max-h-[120px] [&_.ProseMirror]:overflow-y-auto">
                 <RichTextEditor
@@ -706,7 +706,7 @@ function EquipmentDialog({
                 />
               </div>
             </div>
-            <DialogFooter className="col-span-4 pt-1">
+            <DialogFooter className="pt-1 sm:col-span-2 lg:col-span-4">
               <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 {readOnly ? "Fechar" : "Cancelar"}
               </Button>

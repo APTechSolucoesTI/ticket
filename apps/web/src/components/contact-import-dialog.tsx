@@ -6,9 +6,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/masks";
 
@@ -30,7 +51,9 @@ type Row = Record<string, unknown>;
 type SkippedRow = { row: Row; reason: string; lineNumber: number };
 
 function norm(s: unknown) {
-  return String(s ?? "").trim().toLowerCase();
+  return String(s ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function parseBool(v: string, fallback: boolean): boolean {
@@ -43,20 +66,41 @@ function parseBool(v: string, fallback: boolean): boolean {
 function guessField(header: string): string {
   const h = norm(header);
   const map: Record<string, string> = {
-    nome: "name", contato: "name",
-    cliente: "company_name", empresa: "company_name",
-    email: "email", "e-mail": "email", mail: "email",
-    telefone: "phone", fone: "phone", celular: "phone", phone: "phone",
-    cargo: "job_title", funcao: "job_title", "função": "job_title", "job title": "job_title",
-    observacoes: "notes", "observações": "notes", notas: "notes",
-    "pode abrir tickets": "can_open_tickets", "abre tickets": "can_open_tickets",
-    csat: "receives_csat", "recebe csat": "receives_csat",
-    ativo: "is_active", status: "is_active",
+    nome: "name",
+    contato: "name",
+    cliente: "company_name",
+    empresa: "company_name",
+    email: "email",
+    "e-mail": "email",
+    mail: "email",
+    telefone: "phone",
+    fone: "phone",
+    celular: "phone",
+    phone: "phone",
+    cargo: "job_title",
+    funcao: "job_title",
+    função: "job_title",
+    "job title": "job_title",
+    observacoes: "notes",
+    observações: "notes",
+    notas: "notes",
+    "pode abrir tickets": "can_open_tickets",
+    "abre tickets": "can_open_tickets",
+    csat: "receives_csat",
+    "recebe csat": "receives_csat",
+    ativo: "is_active",
+    status: "is_active",
   };
   return map[h] ?? NONE;
 }
 
-export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function ContactImportDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -64,15 +108,40 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [fileName, setFileName] = useState("");
   const [skipped, setSkipped] = useState<SkippedRow[]>([]);
+  const hasSpreadsheet = headers.length > 0 && rows.length > 0;
 
   function reset() {
-    setHeaders([]); setRows([]); setMapping({}); setFileName(""); setSkipped([]);
+    setHeaders([]);
+    setRows([]);
+    setMapping({});
+    setFileName("");
+    setSkipped([]);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function downloadTemplate() {
-    const headersRow = ["Nome", "Cliente", "E-mail", "Telefone", "Cargo", "Observações", "Pode abrir tickets", "Recebe CSAT", "Ativo"];
-    const sample = ["João Silva", "ACME LTDA", "joao@acme.com", "55 11 98888-7777", "Gerente de TI", "Contato principal", "sim", "sim", "sim"];
+    const headersRow = [
+      "Nome",
+      "Cliente",
+      "E-mail",
+      "Telefone",
+      "Cargo",
+      "Observações",
+      "Pode abrir tickets",
+      "Recebe CSAT",
+      "Ativo",
+    ];
+    const sample = [
+      "João Silva",
+      "ACME LTDA",
+      "joao@acme.com",
+      "55 11 98888-7777",
+      "Gerente de TI",
+      "Contato principal",
+      "sim",
+      "sim",
+      "sim",
+    ];
     const ws = XLSX.utils.aoa_to_sheet([headersRow, sample]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contatos");
@@ -100,17 +169,25 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
     const wb = XLSX.read(buf, { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: "", raw: false });
-    if (!data.length) { toast.error("Planilha vazia"); return; }
+    if (!data.length) {
+      toast.error("Planilha vazia");
+      return;
+    }
     const hs = Object.keys(data[0]).filter((h) => data.some((r) => norm(r[h]) !== ""));
     setHeaders(hs);
     setRows(data);
     setFileName(file.name);
     const initial: Record<string, string> = {};
-    hs.forEach((h) => { initial[h] = guessField(h); });
+    hs.forEach((h) => {
+      initial[h] = guessField(h);
+    });
     setMapping(initial);
   }
 
-  const targetsUsed = useMemo(() => new Set(Object.values(mapping).filter((v) => v !== NONE)), [mapping]);
+  const targetsUsed = useMemo(
+    () => new Set(Object.values(mapping).filter((v) => v !== NONE)),
+    [mapping],
+  );
 
   const importMut = useMutation({
     mutationFn: async () => {
@@ -118,7 +195,11 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
       if (!_tid) throw new Error("Tenant não encontrado");
       const prof = { tenant_id: _tid };
       if (!prof?.tenant_id) throw new Error("Tenant não encontrado");
-      if (!targetsUsed.has("name") || !targetsUsed.has("company_name") || !targetsUsed.has("email")) {
+      if (
+        !targetsUsed.has("name") ||
+        !targetsUsed.has("company_name") ||
+        !targetsUsed.has("email")
+      ) {
         throw new Error("Mapeie ao menos 'Nome', 'Cliente' e 'E-mail'");
       }
       const { data: companies } = await supabase.from("companies").select("id, name");
@@ -130,7 +211,9 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
         const lineNumber = idx + 2;
         const rec: Record<string, unknown> = {
           tenant_id: prof.tenant_id,
-          can_open_tickets: true, receives_csat: true, is_active: true,
+          can_open_tickets: true,
+          receives_csat: true,
+          is_active: true,
         };
         let companyName = "";
         for (const [col, field] of Object.entries(mapping)) {
@@ -146,43 +229,67 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
           else rec[field] = val;
         }
         const companyId = companyByName.get(norm(companyName));
-        if (!companyId) { skippedRows.push({ row, lineNumber, reason: `Cliente "${companyName}" não encontrado` }); return; }
+        if (!companyId) {
+          skippedRows.push({ row, lineNumber, reason: `Cliente "${companyName}" não encontrado` });
+          return;
+        }
         rec.company_id = companyId;
-        if (!rec.name) { skippedRows.push({ row, lineNumber, reason: "Nome vazio" }); return; }
+        if (!rec.name) {
+          skippedRows.push({ row, lineNumber, reason: "Nome vazio" });
+          return;
+        }
         if (!rec.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(rec.email))) {
-          skippedRows.push({ row, lineNumber, reason: "E-mail inválido ou vazio" }); return;
+          skippedRows.push({ row, lineNumber, reason: "E-mail inválido ou vazio" });
+          return;
         }
         payloads.push(rec);
       });
 
       if (!payloads.length) {
         setSkipped(skippedRows);
-        throw new Error(`Nenhuma linha válida (${skippedRows.length} ignorada(s)). Use "Baixar ignorados" para revisar.`);
+        throw new Error(
+          `Nenhuma linha válida (${skippedRows.length} ignorada(s)). Use "Baixar ignorados" para revisar.`,
+        );
       }
       const { error } = await supabase.from("contacts").insert(payloads as never);
       if (error) throw error;
       return { inserted: payloads.length, skippedRows };
     },
     onSuccess: (r) => {
-      toast.success(`${r.inserted} contato(s) importado(s)${r.skippedRows.length ? ` · ${r.skippedRows.length} ignorado(s)` : ""}`);
+      toast.success(
+        `${r.inserted} contato(s) importado(s)${r.skippedRows.length ? ` · ${r.skippedRows.length} ignorado(s)` : ""}`,
+      );
       qc.invalidateQueries({ queryKey: ["contacts"] });
       if (r.skippedRows.length) {
         setSkipped(r.skippedRows);
         setRows([]);
       } else {
-        reset(); onOpenChange(false);
+        reset();
+        onOpenChange(false);
       }
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto">
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o);
+        if (!o) reset();
+      }}
+    >
+      <DialogContent
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-xl",
+          hasSpreadsheet && "sm:max-w-5xl",
+        )}
+      >
         <DialogHeader>
           <DialogTitle>Importar contatos</DialogTitle>
           <DialogDescription>
-            Envie um arquivo .xlsx. Em seguida, associe cada coluna da planilha ao campo correspondente.
+            Envie um arquivo .xlsx. Em seguida, associe cada coluna da planilha ao campo
+            correspondente.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,36 +298,58 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
             <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Selecione uma planilha (.xlsx)</p>
             <input
-              ref={inputRef} type="file" accept=".xlsx" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
+              ref={inputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+              }}
             />
             <div className="flex gap-2 justify-center">
               <Button variant="outline" size="sm" onClick={downloadTemplate}>
                 <Download className="h-4 w-4 mr-1" /> Baixar modelo
               </Button>
-              <Button size="sm" onClick={() => inputRef.current?.click()}>Selecionar arquivo</Button>
+              <Button size="sm" onClick={() => inputRef.current?.click()}>
+                Selecionar arquivo
+              </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
               O cliente é vinculado pelo <b>nome</b> exato já cadastrado.
             </p>
           </div>
-        ) : headers.length > 0 && rows.length > 0 ? (
-          <div className="space-y-3">
+        ) : hasSpreadsheet ? (
+          <div className="min-w-0 space-y-3">
             <div className="text-xs text-muted-foreground">
               <b>{fileName}</b> · {rows.length} linha(s) detectada(s). Associe as colunas:
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-2">
               {headers.map((h) => (
-                <div key={h} className="grid grid-cols-2 gap-2 items-center">
-                  <Label className="text-xs truncate" title={h}>{h}</Label>
-                  <Select value={mapping[h] ?? NONE} onValueChange={(v) => setMapping((m) => ({ ...m, [h]: v }))}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <div
+                  key={h}
+                  className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-center gap-2"
+                >
+                  <Label className="min-w-0 truncate text-xs" title={h}>
+                    {h}
+                  </Label>
+                  <Select
+                    value={mapping[h] ?? NONE}
+                    onValueChange={(v) => setMapping((m) => ({ ...m, [h]: v }))}
+                  >
+                    <SelectTrigger className="h-8 min-w-0 w-full text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={NONE}>- Ignorar -</SelectItem>
                       {FIELD_OPTIONS.map((f) => (
-                        <SelectItem key={f.value} value={f.value}
-                          disabled={targetsUsed.has(f.value) && mapping[h] !== f.value}>
-                          {f.label}{f.required ? " *" : ""}
+                        <SelectItem
+                          key={f.value}
+                          value={f.value}
+                          disabled={targetsUsed.has(f.value) && mapping[h] !== f.value}
+                        >
+                          {f.label}
+                          {f.required ? " *" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -230,9 +359,11 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
             </div>
             <p className="text-[11px] text-muted-foreground">* Obrigatórios.</p>
 
-            <div className="space-y-1">
-              <div className="text-xs font-medium">Pré-visualização ({Math.min(rows.length, 10)} de {rows.length})</div>
-              <div className="border rounded-md max-h-64 overflow-auto">
+            <div className="min-w-0 space-y-1">
+              <div className="text-xs font-medium">
+                Pré-visualização ({Math.min(rows.length, 10)} de {rows.length})
+              </div>
+              <div className="max-h-64 w-full max-w-full overflow-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -253,7 +384,11 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
                     {rows.slice(0, 10).map((r, i) => (
                       <TableRow key={i}>
                         {headers.map((h) => (
-                          <TableCell key={h} className="text-[11px] whitespace-nowrap max-w-[200px] truncate" title={String(r[h] ?? "")}>
+                          <TableCell
+                            key={h}
+                            className="text-[11px] whitespace-nowrap max-w-[200px] truncate"
+                            title={String(r[h] ?? "")}
+                          >
                             {String(r[h] ?? "")}
                           </TableCell>
                         ))}
@@ -296,12 +431,21 @@ export function ContactImportDialog({ open, onOpenChange }: { open: boolean; onO
         )}
 
         <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={() => { reset(); onOpenChange(false); }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              reset();
+              onOpenChange(false);
+            }}
+          >
             {skipped.length > 0 && !rows.length ? "Fechar" : "Cancelar"}
           </Button>
           {headers.length > 0 && rows.length > 0 && (
             <>
-              <Button variant="outline" size="sm" onClick={reset}>Trocar arquivo</Button>
+              <Button variant="outline" size="sm" onClick={reset}>
+                Trocar arquivo
+              </Button>
               <Button size="sm" disabled={importMut.isPending} onClick={() => importMut.mutate()}>
                 {importMut.isPending ? "Importando…" : `Importar ${rows.length} linha(s)`}
               </Button>

@@ -2246,12 +2246,15 @@ function ContractTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <CrudDialogContent editing={!!editing} className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <CrudDialogContent
+        editing={!!editing}
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl"
+      >
         <DialogHeader>
           <DialogTitle>{editing ? "Editar" : "Novo"} tipo de contrato</DialogTitle>
         </DialogHeader>
         <form
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
             const r = ctSchema.safeParse(form);
@@ -2259,11 +2262,11 @@ function ContractTypeDialog({
             save.mutate(r.data);
           }}
         >
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label>Nome *</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label>Descrição</Label>
             <Textarea
               rows={2}
@@ -2272,7 +2275,7 @@ function ContractTypeDialog({
             />
           </div>
 
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label>Modelo de cobrança *</Label>
             <Select
               value={form.billing_model}
@@ -2312,7 +2315,7 @@ function ContractTypeDialog({
               </div>
             </>
           ) : isService ? (
-            <div className="col-span-2 space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold">Serviços</Label>
                 <Button
@@ -2325,8 +2328,8 @@ function ContractTypeDialog({
                   <Plus className="h-3 w-3 mr-1" /> Adicionar serviços
                 </Button>
               </div>
-              <div className="space-y-2 rounded-md border p-3">
-                <div className="grid grid-cols-[1fr_1.8fr_0.8fr_1.2fr_auto] gap-2 text-xs text-muted-foreground">
+              <div className="space-y-2 overflow-x-auto rounded-md border p-3">
+                <div className="grid min-w-[640px] grid-cols-[1fr_1.8fr_0.8fr_1.2fr_auto] gap-2 text-xs text-muted-foreground">
                   <span>Referência</span>
                   <span>Descrição</span>
                   <span>Quantidade</span>
@@ -2339,7 +2342,7 @@ function ContractTypeDialog({
                 {form.service_items.map((s, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-[1fr_1.8fr_0.8fr_1.2fr_auto] gap-2 items-center"
+                    className="grid min-w-[640px] grid-cols-[1fr_1.8fr_0.8fr_1.2fr_auto] items-center gap-2"
                   >
                     <Input
                       value={s.reference}
@@ -2383,7 +2386,7 @@ function ContractTypeDialog({
               </div>
             </div>
           ) : (
-            <div className="col-span-2 space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-semibold">Faixas de valor por equipamento</Label>
                 <Button
@@ -2396,15 +2399,18 @@ function ContractTypeDialog({
                   <Plus className="h-3 w-3 mr-1" /> Adicionar faixa
                 </Button>
               </div>
-              <div className="space-y-2 rounded-md border p-3">
-                <div className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 text-xs text-muted-foreground">
+              <div className="space-y-2 overflow-x-auto rounded-md border p-3">
+                <div className="grid min-w-[480px] grid-cols-[1fr_1fr_1.4fr_auto] gap-2 text-xs text-muted-foreground">
                   <span>De</span>
                   <span>Até</span>
                   <span>Valor unitário (R$)</span>
                   <span></span>
                 </div>
                 {form.equipment_tiers.map((t, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 items-center">
+                  <div
+                    key={i}
+                    className="grid min-w-[480px] grid-cols-[1fr_1fr_1.4fr_auto] items-center gap-2"
+                  >
                     <Input
                       type="number"
                       min={0}
@@ -2439,7 +2445,7 @@ function ContractTypeDialog({
             </div>
           )}
 
-          <div className="col-span-2 pt-2">
+          <div className="pt-2 sm:col-span-2">
             <Label className="text-sm font-semibold">Inclui</Label>
             <div className="mt-2 space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between text-sm">
@@ -2466,7 +2472,7 @@ function ContractTypeDialog({
             </div>
           </div>
 
-          <DialogFooter className="col-span-2">
+          <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -2674,7 +2680,7 @@ function SlaDialog({
           <DialogTitle>{editing ? "Editar" : "Nova"} política de SLA</DialogTitle>
         </DialogHeader>
         <form
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
             const r = slaSchema.safeParse({
@@ -2687,11 +2693,11 @@ function SlaDialog({
             save.mutate(r.data);
           }}
         >
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label>Nome *</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label>Prioridade alvo</Label>
             <Select
               value={form.priority || "none"}
@@ -2727,7 +2733,7 @@ function SlaDialog({
               onChange={(e) => setForm({ ...form, resolution_minutes: e.target.value })}
             />
           </div>
-          <DialogFooter className="col-span-2">
+          <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -3236,7 +3242,7 @@ function ChannelConfigDialog({
 
   const generalSection = (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Prioridade padrão</Label>
           <Select
@@ -3306,7 +3312,7 @@ function ChannelConfigDialog({
       }}
     >
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
           <ReadOnlyNotice show={readOnly} />
           <DialogHeader>
             <DialogTitle>Configurar canal - {channelLabel}</DialogTitle>
@@ -3832,8 +3838,8 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
             placeholder="suporte@suaempresa.com"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2 space-y-1.5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
             <Label>Servidor IMAP *</Label>
             <Input
               value={form.email_imap_host}
@@ -3899,8 +3905,8 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
             usuário/senha do IMAP acima - normalmente a mesma caixa de e-mail.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2 space-y-1.5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
             <Label>Servidor SMTP</Label>
             <Input
               value={form.email_smtp_host}

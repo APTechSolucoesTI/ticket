@@ -411,7 +411,7 @@ function MessagesDialog({ row, onClose }: { row: PendingRow; onClose: () => void
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {row.name} <span className="text-muted-foreground font-normal">- {row.email}</span>

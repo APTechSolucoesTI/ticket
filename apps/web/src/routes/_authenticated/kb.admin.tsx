@@ -701,7 +701,7 @@ function ArticleDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-w-6xl w-[95vw] max-h-[95vh] p-0 flex flex-col gap-0">
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
           <ReadOnlyNotice show={readOnly} />
           <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
             <DialogTitle>{editing ? "Editar artigo" : "Novo artigo"}</DialogTitle>
@@ -726,8 +726,8 @@ function ArticleDialog({
               if (!readOnly) save.mutate(r.data);
             }}
           >
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 grid grid-cols-4 gap-3">
-              <div className="col-span-2">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+              <div className="sm:col-span-2">
                 <Label>Título *</Label>
                 <Input
                   value={form.title}
@@ -774,14 +774,14 @@ function ArticleDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <Label>Slug</Label>
                 <Input
                   value={form.slug}
                   onChange={(e) => setForm({ ...form, slug: slugify(e.target.value) })}
                 />
               </div>
-              <div className="col-span-2 flex items-center justify-between rounded-md border px-3 py-1.5">
+              <div className="flex items-center justify-between rounded-md border px-3 py-1.5 sm:col-span-2">
                 <div>
                   <div className="text-sm font-medium">Artigo público</div>
                   <div className="text-xs text-muted-foreground">
@@ -793,14 +793,14 @@ function ArticleDialog({
                   onCheckedChange={(v) => setForm({ ...form, is_public: v })}
                 />
               </div>
-              <div className="col-span-4">
+              <div className="sm:col-span-2 lg:col-span-4">
                 <Label>Conteúdo *</Label>
                 <RichTextEditor
                   value={form.body}
                   onChange={(html) => setForm({ ...form, body: html })}
                 />
               </div>
-              <div className="col-span-4 space-y-2">
+              <div className="space-y-2 sm:col-span-2 lg:col-span-4">
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2">
                     <Paperclip className="h-4 w-4" /> Anexos

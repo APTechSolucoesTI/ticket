@@ -90,7 +90,7 @@ export function FinalizeTicketDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onCancel()}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             Laudo final - {status === "closed" ? "fechar" : "resolver"} ticket

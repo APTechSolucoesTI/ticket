@@ -885,7 +885,7 @@ function LocationDialog({
           <DialogTitle>Enviar localização</DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               className="h-9 w-full rounded-md border bg-background px-2 text-sm"
               placeholder="Latitude"
@@ -1039,7 +1039,7 @@ function StickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw]">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Figurinhas</DialogTitle>
         </DialogHeader>

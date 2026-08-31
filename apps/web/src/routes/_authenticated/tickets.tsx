@@ -505,12 +505,12 @@ function TicketDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Novo ticket</DialogTitle>
           </DialogHeader>
           <form
-            className="grid grid-cols-3 gap-3"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-3"
             aria-busy={save.isPending}
             onSubmit={(e) => {
               e.preventDefault();
@@ -537,7 +537,7 @@ function TicketDialog({
               save.mutate(r.data);
             }}
           >
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <Label htmlFor="new-ticket-subject">Assunto *</Label>
               <Input
                 id="new-ticket-subject"
@@ -567,7 +567,7 @@ function TicketDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label htmlFor="new-ticket-contract">Contrato vigente</Label>
               <Select
                 value={form.contract_id}
@@ -735,7 +735,7 @@ function TicketDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <Label>Equipamentos</Label>
               {!form.company_id ? (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -778,7 +778,7 @@ function TicketDialog({
                 </p>
               )}
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <Label>Descrição inicial</Label>
               <Textarea
                 rows={4}
@@ -788,7 +788,7 @@ function TicketDialog({
               />
             </div>
             {isAvulso && (
-              <Alert className="col-span-3 border-amber-500/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
+              <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-950 sm:col-span-3 dark:text-amber-100">
                 <CircleDollarSign className="size-4" />
                 <AlertTitle>Atendimento avulso</AlertTitle>
                 <AlertDescription className="space-y-3">
@@ -808,7 +808,7 @@ function TicketDialog({
                 </AlertDescription>
               </Alert>
             )}
-            <DialogFooter className="col-span-3">
+            <DialogFooter className="sm:col-span-3">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>

@@ -353,7 +353,7 @@ function ContactDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
               {readOnly ? "Visualizar contato" : editing ? "Editar contato" : "Novo contato"}
@@ -361,7 +361,7 @@ function ContactDialog({
           </DialogHeader>
           <ReadOnlyNotice show={readOnly} />
           <form
-            className="grid grid-cols-2 gap-3"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
               if (readOnly) return;
@@ -373,7 +373,7 @@ function ContactDialog({
               save.mutate(r.data);
             }}
           >
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>Cliente *</Label>
               <Select
                 value={form.company_id}
@@ -421,28 +421,28 @@ function ContactDialog({
                 placeholder="55 11 99999-9999"
               />
             </div>
-            <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
               <div className="text-sm">Pode abrir tickets</div>
               <Switch
                 checked={form.can_open_tickets}
                 onCheckedChange={(v) => setForm({ ...form, can_open_tickets: v })}
               />
             </div>
-            <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
               <div className="text-sm">Recebe pesquisa CSAT</div>
               <Switch
                 checked={form.receives_csat}
                 onCheckedChange={(v) => setForm({ ...form, receives_csat: v })}
               />
             </div>
-            <div className="col-span-2 flex items-center justify-between rounded-md border p-3">
+            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
               <div className="text-sm">Ativo</div>
               <Switch
                 checked={form.is_active}
                 onCheckedChange={(v) => setForm({ ...form, is_active: v })}
               />
             </div>
-            <DialogFooter className="col-span-2">
+            <DialogFooter className="sm:col-span-2">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 {readOnly ? "Fechar" : "Cancelar"}
               </Button>
