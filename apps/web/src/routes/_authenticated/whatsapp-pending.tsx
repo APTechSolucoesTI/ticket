@@ -309,8 +309,7 @@ function LinkDialog({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
-              O cliente precisa ter um contrato ativo com suporte para que novos tickets sejam
-              abertos.
+              Sem contrato vigente, as novas mensagens abrirão tickets avulsos sujeitos à cobrança.
             </p>
           </div>
         </div>

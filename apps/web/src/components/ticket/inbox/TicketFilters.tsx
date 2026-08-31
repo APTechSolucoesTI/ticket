@@ -12,6 +12,7 @@ import { CHANNEL_OPTIONS, PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/ticket-
 import { cn } from "@/lib/utils";
 
 export type TicketFilterState = {
+  attendanceType: Array<"contratual" | "avulso">;
   status: TicketStatus[];
   priority: TicketPriority[];
   assignee: string[];
@@ -68,6 +69,15 @@ export function TicketFilters({
           value: department.id,
           label: department.name,
         }))}
+      />
+      <MultiFilter
+        label="Atendimento"
+        values={filters.attendanceType}
+        onChange={(value) => set("attendanceType", value)}
+        options={[
+          { value: "contratual", label: "Contratual" },
+          { value: "avulso", label: "Avulso" },
+        ]}
       />
       <MultiFilter
         label="Status"

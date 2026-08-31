@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronDown,
   FileText,
+  CircleDollarSign,
   Headset,
   Inbox,
   LayoutDashboard,
@@ -91,6 +92,7 @@ const NAV_SECTIONS: NavSection[] = [
         module: "base_conhecimento",
       },
       { to: "/reports", label: "Relatórios", icon: BarChart3, module: "relatorios" },
+      { to: "/finance", label: "Financeiro", icon: CircleDollarSign, module: "financeiro" },
     ],
   },
   {
@@ -122,9 +124,7 @@ function Brand({ collapsed, onToggle }: { collapsed?: boolean; onToggle?: () => 
         collapsed ? "justify-center gap-1 px-1.5" : "gap-2.5 px-4",
       )}
     >
-      {!collapsed && (
-        <BrandLogo className="size-9 drop-shadow-sm" />
-      )}
+      {!collapsed && <BrandLogo className="size-9 drop-shadow-sm" />}
       {!collapsed && (
         <div className="min-w-0 flex-1 leading-tight">
           <div className="text-sm font-bold text-foreground">APTicket</div>

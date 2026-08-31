@@ -75,10 +75,6 @@ export const Route = createFileRoute("/api/public/portal/chat-start")({
           ? eligible.find((c) => c.id === data.contract_id)
           : eligible[0];
 
-        if (!contract) {
-          return Response.json({ error: "no_active_contract" }, { status: 403, headers: CORS });
-        }
-
         const subject =
           data.subject?.trim() || `Chat: ${data.message.slice(0, 80).replace(/\s+/g, " ").trim()}`;
 
@@ -92,8 +88,8 @@ export const Route = createFileRoute("/api/public/portal/chat-start")({
             channel: "chat",
             contact_id: contact.id,
             company_id: contact.company_id,
-            contract_id: contract.id,
-            sla_policy_id: contract.sla_policy_id ?? null,
+            contract_id: contract?.id ?? null,
+            sla_policy_id: contract?.sla_policy_id ?? null,
             pending_type: "awaiting_tech",
           })
           .select("id, number")

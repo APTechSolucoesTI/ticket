@@ -15,7 +15,7 @@ export function useTicketsInboxData({
       const { data, error } = await supabase
         .from("tickets")
         .select(
-          "id, tenant_id, number, subject, status, pending_type, priority, channel, company_id, contact_id, contract_id, department_id, assigned_to, created_at, sla_resolution_due_at, sla_paused_at, resolved_at, closed_at, resolution_summary, companies(name), contacts(name)",
+          "id, tenant_id, number, subject, status, pending_type, priority, channel, company_id, contact_id, contract_id, tipo_atendimento, motivo_avulso, department_id, assigned_to, created_at, sla_resolution_due_at, sla_paused_at, resolved_at, closed_at, resolution_summary, companies(name), contacts(name)",
         )
         .order("created_at", { ascending: false });
       if (error) throw error;

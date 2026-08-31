@@ -569,7 +569,7 @@ function LinkDialog({
       let ticketNumber: number | null = null;
       let truncated = false;
 
-      if (contract) {
+      {
         const tenantId = await getMyTenantId();
         if (!tenantId) throw new Error("Tenant não encontrado");
 
@@ -594,8 +594,8 @@ function LinkDialog({
             channel: "email",
             contact_id: row.contact_id,
             company_id: companyId,
-            contract_id: contract.id,
-            sla_policy_id: contract.sla_policy_id,
+            contract_id: contract?.id ?? null,
+            sla_policy_id: contract?.sla_policy_id ?? null,
             pending_type: "awaiting_tech",
           })
           .select("id, number")
@@ -638,10 +638,6 @@ function LinkDialog({
         );
       } else if (ticketNumber != null) {
         toast.success(`Contato vinculado. Ticket #${ticketNumber} criado.`);
-      } else if (contracts && contracts.length === 0) {
-        toast.warning(
-          "Contato vinculado, mas a empresa não tem contrato ativo elegível - nenhum ticket foi criado.",
-        );
       } else {
         toast.success("Contato vinculado.");
       }
@@ -690,7 +686,7 @@ function LinkDialog({
           </div>
           {companyId && (
             <div className="rounded-md border p-2.5 text-xs">
-              <div className="font-medium mb-1">Contrato ativo elegível</div>
+              <div className="font-medium mb-1">Modalidade do atendimento</div>
               {loadingContracts ? (
                 <span className="text-muted-foreground">Verificando…</span>
               ) : contracts && contracts.length > 0 ? (
@@ -703,7 +699,7 @@ function LinkDialog({
                     ))}
                   </ul>
                   <p className="mt-1.5 text-muted-foreground">
-                    Ao vincular, um ticket será aberto automaticamente com{" "}
+                    Atendimento coberto. Ao vincular, um ticket será aberto automaticamente com{" "}
                     {row.messages.length === 1
                       ? "a mensagem já recebida"
                       : `as ${row.messages.length} mensagens já recebidas`}
@@ -712,8 +708,8 @@ function LinkDialog({
                 </>
               ) : (
                 <span className="text-yellow-600 dark:text-yellow-400">
-                  ⚠ Nenhum contrato ativo elegível (remoto/laboratório/presencial). Nenhum ticket
-                  será aberto até a empresa ter um contrato ativo.
+                  Sem contrato vigente. Ao vincular, as mensagens recebidas formarão um ticket
+                  avulso sujeito à cobrança direta.
                 </span>
               )}
             </div>

@@ -17,6 +17,8 @@ export type TicketRow = {
   company_id: string | null;
   contact_id: string | null;
   contract_id: string | null;
+  tipo_atendimento: "contratual" | "avulso";
+  motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato" | null;
   department_id: string | null;
   assigned_to: string | null;
   created_at: string;

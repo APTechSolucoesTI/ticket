@@ -5,6 +5,7 @@ import { PendingBadge } from "@/components/ticket/PendingBadge";
 import { PriorityBadge } from "@/components/ticket/PriorityBadge";
 import { SlaTimer, slaBorderClass, slaState } from "@/components/ticket/SlaTimer";
 import { TicketBadge } from "@/components/ticket/TicketBadge";
+import { AttendanceBadge } from "@/components/ticket/AttendanceBadge";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +29,12 @@ const columns: ListColumn<TicketRow>[] = [
     key: "subject",
     label: "Assunto",
     cell: (ticket) => (
-      <Link to="/tickets/$id" params={{ id: ticket.id }} className="font-medium hover:underline">
-        {ticket.subject}
-      </Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link to="/tickets/$id" params={{ id: ticket.id }} className="font-medium hover:underline">
+          {ticket.subject}
+        </Link>
+        <AttendanceBadge type={ticket.tipo_atendimento} />
+      </div>
     ),
   },
   {
@@ -59,13 +63,16 @@ const columns: ListColumn<TicketRow>[] = [
   {
     key: "sla",
     label: "SLA",
-    cell: (ticket) => (
-      <SlaTimer
-        dueAt={dueFor(ticket)}
-        totalMinutes={SLA_DEFAULT_MIN}
-        stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at ?? null}
-      />
-    ),
+    cell: (ticket) =>
+      ticket.tipo_atendimento === "avulso" ? (
+        <span className="text-xs text-muted-foreground">Sem SLA contratual</span>
+      ) : (
+        <SlaTimer
+          dueAt={dueFor(ticket)}
+          totalMinutes={SLA_DEFAULT_MIN}
+          stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at ?? null}
+        />
+      ),
   },
   {
     key: "status",
@@ -103,7 +110,12 @@ export const TicketInboxList = memo(function TicketInboxList({
         rows={tickets}
         rowKey={(ticket) => ticket.id}
         rowClassName={(ticket) =>
-          cn("border-l-4", slaBorderClass(slaState(dueFor(ticket), SLA_DEFAULT_MIN)))
+          cn(
+            "border-l-4",
+            ticket.tipo_atendimento === "avulso"
+              ? "border-l-amber-500"
+              : slaBorderClass(slaState(dueFor(ticket), SLA_DEFAULT_MIN)),
+          )
         }
         defaultColumns={[
           "number",

@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { CircleDollarSign, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
@@ -32,6 +32,7 @@ import { TicketAutoRefresh } from "@/components/ticket/TicketAutoRefresh";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TicketOverview } from "@/components/ticket/inbox/TicketOverview";
 import { TicketFilters, type TicketFilterState } from "@/components/ticket/inbox/TicketFilters";
 import { TicketInboxList, TicketPagination } from "@/components/ticket/inbox/TicketInboxList";
@@ -58,6 +59,7 @@ function TicketsInbox() {
   const qc = useQueryClient();
   const [view, setView] = useState<"list" | "kanban">("list");
   const [filters, setFilters] = useState<TicketFilterState>({
+    attendanceType: [],
     status: ["new", "in_progress", "pending"],
     priority: [],
     assignee: [],
@@ -102,6 +104,8 @@ function TicketsInbox() {
       tickets.filter(
         (t) =>
           (filters.status.length === 0 || filters.status.includes(t.status)) &&
+          (filters.attendanceType.length === 0 ||
+            filters.attendanceType.includes(t.tipo_atendimento)) &&
           (filters.priority.length === 0 || filters.priority.includes(t.priority)) &&
           (filters.assignee.length === 0 ||
             (t.assigned_to !== null && filters.assignee.includes(t.assigned_to))) &&
@@ -118,6 +122,7 @@ function TicketsInbox() {
 
   const hasActiveFilters =
     filters.status.length > 0 ||
+    filters.attendanceType.length > 0 ||
     filters.priority.length > 0 ||
     filters.assignee.length > 0 ||
     filters.channel.length > 0 ||
@@ -137,6 +142,7 @@ function TicketsInbox() {
 
   const resetFilters = () => {
     setFilters({
+      attendanceType: [],
       status: [],
       priority: [],
       assignee: [],
@@ -262,7 +268,7 @@ const schema = z.object({
   channel: z.enum(["email", "whatsapp", "chat", "manual", "portal"]),
   company_id: z.string().uuid("Selecione o cliente"),
   contact_id: z.string().uuid().nullable(),
-  contract_id: z.string().uuid("Cliente sem contrato ativo - cadastre um contrato antes."),
+  contract_id: z.string().uuid().nullable(),
   department_id: z.string().uuid().nullable(),
   assigned_to: z.string().uuid().nullable(),
   equipment_ids: z.array(z.string().uuid()).default([]),
@@ -276,6 +282,7 @@ function TicketDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const qc = useQueryClient();
+  const [avulsoConfirmed, setAvulsoConfirmed] = useState(false);
   const [form, setForm] = useState({
     subject: "",
     description: "",
@@ -305,6 +312,7 @@ function TicketDialog({
       assigned_to: "",
       equipment_ids: [],
     });
+    setAvulsoConfirmed(false);
   }, [open]);
 
   const { data: companies, isLoading: companiesLoading } = useQuery({
@@ -344,16 +352,15 @@ function TicketDialog({
         )
         .eq("company_id", form.company_id)
         .eq("status", "active")
+        .lte("starts_at", new Date().toISOString().slice(0, 10))
+        .gte("ends_at", new Date().toISOString().slice(0, 10))
         .order("starts_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []).filter((c) => c.includes_remote || c.includes_lab || c.includes_onsite);
+      return data ?? [];
     },
   });
   const selectedContract = contracts?.find((c) => c.id === form.contract_id) as
     { description?: string | null; contract_equipments?: { equipment_id: string }[] } | undefined;
-  const allowedEquipmentIds =
-    selectedContract?.contract_equipments?.map((e) => e.equipment_id) ?? [];
-  const contractRestrictsEquipments = allowedEquipmentIds.length > 0;
   const { data: departments } = useQuery({
     queryKey: ["departments", "options"],
     queryFn: async () =>
@@ -376,9 +383,38 @@ function TicketDialog({
           .order("name")
       ).data ?? [],
   });
-  const equipments = contractRestrictsEquipments
-    ? (equipmentsRaw ?? []).filter((e) => allowedEquipmentIds.includes(e.id))
-    : equipmentsRaw;
+  const equipments = equipmentsRaw;
+
+  const attendancePreview = useQuery({
+    queryKey: ["ticket-attendance-preview", form.company_id, form.equipment_ids],
+    enabled: Boolean(form.company_id),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("prever_atendimento_avulso", {
+        _company_id: form.company_id,
+        _equipment_ids: form.equipment_ids,
+      });
+      if (error) throw error;
+      return data as {
+        tipo_atendimento: "contratual" | "avulso";
+        motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato" | null;
+        contract_id: string | null;
+      };
+    },
+  });
+  const isAvulso = attendancePreview.data?.tipo_atendimento === "avulso";
+
+  useEffect(() => {
+    setAvulsoConfirmed(false);
+  }, [form.company_id, form.equipment_ids]);
+
+  useEffect(() => {
+    const contractId = attendancePreview.data?.contract_id;
+    if (contractId && contractId !== form.contract_id) {
+      setForm((current) => ({ ...current, contract_id: contractId }));
+    } else if (attendancePreview.data?.tipo_atendimento === "avulso" && form.contract_id) {
+      setForm((current) => ({ ...current, contract_id: "" }));
+    }
+  }, [attendancePreview.data, form.contract_id]);
 
   // Ao trocar o contato, se houver equipamentos vinculados a ele, perguntar/selecionar
   const promptedContactRef = useRef<string>("");
@@ -414,16 +450,6 @@ function TicketDialog({
     });
   }, [form.contact_id, form.contract_id, equipments]);
 
-  // Ao trocar o contrato, remover equipamentos selecionados que não pertencem ao contrato
-  useEffect(() => {
-    if (!contractRestrictsEquipments) return;
-    setForm((f) => {
-      const filtered = f.equipment_ids.filter((id) => allowedEquipmentIds.includes(id));
-      return filtered.length === f.equipment_ids.length ? f : { ...f, equipment_ids: filtered };
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.contract_id]);
-
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
       const _tid = await getMyTenantId();
@@ -437,7 +463,7 @@ function TicketDialog({
         channel: payload.channel,
         company_id: payload.company_id,
         contact_id: payload.contact_id,
-        contract_id: payload.contract_id,
+        contract_id: payload.contract_id || null,
         department_id: payload.department_id,
         assigned_to: payload.assigned_to,
         equipment_id: payload.equipment_ids[0] ?? null,
@@ -491,12 +517,21 @@ function TicketDialog({
               const r = schema.safeParse({
                 ...form,
                 contact_id: form.contact_id || null,
+                contract_id: form.contract_id || null,
                 department_id: form.department_id || null,
                 assigned_to: form.assigned_to || null,
                 equipment_ids: form.equipment_ids,
               });
               if (!r.success) {
                 toast.error(r.error.issues[0].message);
+                return;
+              }
+              if (attendancePreview.isLoading || attendancePreview.isError) {
+                toast.error("Aguarde a validação da cobertura contratual");
+                return;
+              }
+              if (isAvulso && !avulsoConfirmed) {
+                toast.error("Confirme que o atendimento avulso será cobrado à parte");
                 return;
               }
               save.mutate(r.data);
@@ -533,11 +568,11 @@ function TicketDialog({
               </Select>
             </div>
             <div className="col-span-2">
-              <Label htmlFor="new-ticket-contract">Contrato ativo *</Label>
+              <Label htmlFor="new-ticket-contract">Contrato vigente</Label>
               <Select
                 value={form.contract_id}
                 onValueChange={(v) => setForm({ ...form, contract_id: v })}
-                disabled={!form.company_id || contractsLoading || contractsError}
+                disabled={!form.company_id || contractsLoading || contractsError || isAvulso}
               >
                 <SelectTrigger id="new-ticket-contract" aria-busy={contractsLoading}>
                   <SelectValue
@@ -547,8 +582,8 @@ function TicketDialog({
                         : contractsLoading
                           ? "Consultando contratos ativos…"
                           : !contracts?.length
-                            ? "Sem contrato ativo com suporte técnico"
-                            : "Selecione…"
+                            ? "Sem contrato vigente"
+                            : "Definido automaticamente"
                     }
                   />
                 </SelectTrigger>
@@ -576,15 +611,6 @@ function TicketDialog({
                     >
                       Tentar novamente
                     </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {form.company_id && !contractsLoading && !contractsError && !contracts?.length && (
-                <Alert variant="destructive" className="mt-2 py-2">
-                  <AlertTitle>Abertura bloqueada pelo contrato</AlertTitle>
-                  <AlertDescription className="text-xs">
-                    Cliente não possui contrato ativo com atendimento Remoto, Laboratório ou Visita.
-                    Cadastre ou ative contrato antes de abrir ticket.
                   </AlertDescription>
                 </Alert>
               )}
@@ -761,6 +787,27 @@ function TicketDialog({
                 placeholder="Descreva o problema ou solicitação…"
               />
             </div>
+            {isAvulso && (
+              <Alert className="col-span-3 border-amber-500/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
+                <CircleDollarSign className="size-4" />
+                <AlertTitle>Atendimento avulso</AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    {attendancePreview.data?.motivo_avulso === "equipamento_sem_contrato"
+                      ? "Um ou mais equipamentos selecionados não estão vinculados a contrato vigente."
+                      : "Este cliente não possui contrato vigente."}{" "}
+                    O atendimento será cobrado à parte.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-2 font-medium">
+                    <Checkbox
+                      checked={avulsoConfirmed}
+                      onCheckedChange={(checked) => setAvulsoConfirmed(checked === true)}
+                    />
+                    <span>Confirmo que o cliente foi informado sobre a cobrança avulsa.</span>
+                  </label>
+                </AlertDescription>
+              </Alert>
+            )}
             <DialogFooter className="col-span-3">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
@@ -772,7 +819,9 @@ function TicketDialog({
                   companiesLoading ||
                   contractsLoading ||
                   contractsError ||
-                  (!!form.company_id && !contracts?.length)
+                  attendancePreview.isLoading ||
+                  attendancePreview.isError ||
+                  (isAvulso && !avulsoConfirmed)
                 }
               >
                 {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

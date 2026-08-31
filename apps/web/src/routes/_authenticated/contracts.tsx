@@ -184,7 +184,7 @@ function ContractsPage() {
       ) : !data?.length ? (
         <EmptyStub
           title="Nenhum contrato registrado"
-          message="Sem contrato ativo, o sistema bloqueia a abertura de tickets para o cliente."
+          message="Clientes sem contrato vigente podem abrir tickets avulsos, sujeitos à cobrança direta."
         />
       ) : (
         <Card className="p-3">

@@ -21,6 +21,7 @@ import { Route as AuthenticatedCustomersRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEmailPendingRouteImport } from './routes/_authenticated/email-pending'
 import { Route as AuthenticatedEquipmentsRouteImport } from './routes/_authenticated/equipments'
+import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTicketsRouteImport } from './routes/_authenticated/tickets'
@@ -104,6 +105,11 @@ const AuthenticatedEmailPendingRoute =
 const AuthenticatedEquipmentsRoute = AuthenticatedEquipmentsRouteImport.update({
   id: '/equipments',
   path: '/equipments',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/email-pending': typeof AuthenticatedEmailPendingRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/email-pending': typeof AuthenticatedEmailPendingRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/email-pending': typeof AuthenticatedEmailPendingRoute
   '/_authenticated/equipments': typeof AuthenticatedEquipmentsRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/email-pending'
     | '/equipments'
+    | '/finance'
     | '/reports'
     | '/settings'
     | '/tickets'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/email-pending'
     | '/equipments'
+    | '/finance'
     | '/reports'
     | '/settings'
     | '/tickets'
@@ -431,6 +442,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/email-pending'
     | '/_authenticated/equipments'
+    | '/_authenticated/finance'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/tickets'
@@ -560,6 +572,13 @@ declare module '@tanstack/react-router' {
       path: '/equipments'
       fullPath: '/equipments'
       preLoaderRoute: typeof AuthenticatedEquipmentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/finance': {
+      id: '/_authenticated/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AuthenticatedFinanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reports': {
@@ -751,6 +770,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmailPendingRoute: typeof AuthenticatedEmailPendingRoute
   AuthenticatedEquipmentsRoute: typeof AuthenticatedEquipmentsRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTicketsRoute: typeof AuthenticatedTicketsRouteWithChildren
@@ -765,6 +785,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmailPendingRoute: AuthenticatedEmailPendingRoute,
   AuthenticatedEquipmentsRoute: AuthenticatedEquipmentsRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTicketsRoute: AuthenticatedTicketsRouteWithChildren,

@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 
 // Portado 1:1 de apps/web/src/lib/email-channel.server.ts (mesma regra de
-// negócio: só vira ticket se o remetente for um contato com contrato ATIVO;
-// senão vai pra fila de e-mail pendente). O frontend não faz mais essa
+// negócio: remetentes autorizados viram tickets; sem contrato vigente, o
+// banco classifica o atendimento como avulso. O frontend não faz mais essa
 // gravação direta - só a API, com a service_role key.
 
 export type InboundEmailAttachment = {
@@ -37,7 +37,7 @@ export type InboundEmailResult =
   | { status: 'duplicate'; ticket_id: string | null }
   | {
       status: 'skipped';
-      reason: 'unknown_contact' | 'contact_not_allowed' | 'no_active_contract';
+      reason: 'unknown_contact' | 'contact_not_allowed';
     }
   | { status: 'error'; reason: string };
 
@@ -171,15 +171,6 @@ export class EmailChannelService {
       .limit(1)
       .maybeSingle();
 
-    if (!contractRow) {
-      await this.queuePendingEmail({
-        tenantId: contact.tenant_id,
-        contactId: contact.id,
-        data,
-      });
-      return { status: 'skipped', reason: 'no_active_contract' };
-    }
-
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: existingMsg } = await this.supabase.client
       .from('messages')
@@ -280,8 +271,8 @@ export class EmailChannelService {
         channel: 'email',
         contact_id: contact.id,
         company_id: contact.company_id,
-        contract_id: contractRow.id,
-        sla_policy_id: contractRow.sla_policy_id ?? null,
+        contract_id: contractRow?.id ?? null,
+        sla_policy_id: contractRow?.sla_policy_id ?? null,
         pending_type: 'awaiting_tech',
       })
       .select('id, number')

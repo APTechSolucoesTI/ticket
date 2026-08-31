@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ChannelIcon } from "@/components/ticket/ChannelIcon";
 import { FinalizeTicketDialog, type FinalReport } from "@/components/ticket/FinalizeTicketDialog";
 import { PriorityBadge } from "@/components/ticket/PriorityBadge";
+import { AttendanceBadge } from "@/components/ticket/AttendanceBadge";
 import { SlaTimer, slaBorderClass, slaState } from "@/components/ticket/SlaTimer";
 import type { TicketStatus } from "@/components/ticket/TicketBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,7 +152,9 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
                     className={cn(
                       "block rounded-md border border-l-4 bg-background p-2 text-xs hover:bg-accent",
                       access.edit && "cursor-grab active:cursor-grabbing",
-                      slaBorderClass(slaState(due, SLA_DEFAULT_MIN)),
+                      ticket.tipo_atendimento === "avulso"
+                        ? "border-l-amber-500"
+                        : slaBorderClass(slaState(due, SLA_DEFAULT_MIN)),
                       dragId === ticket.id && "opacity-50",
                     )}
                   >
@@ -162,17 +165,24 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
                       <ChannelIcon channel={ticket.channel} />
                     </div>
                     <div className="mt-1 line-clamp-2 font-medium">{ticket.subject}</div>
+                    <div className="mt-1">
+                      <AttendanceBadge type={ticket.tipo_atendimento} />
+                    </div>
                     <div className="mt-1 text-[10px] text-muted-foreground">
                       {ticket.companies?.name ?? "-"}
                     </div>
                     <div className="mt-2 flex items-center justify-between">
                       <PriorityBadge priority={ticket.priority} />
-                      <SlaTimer
-                        dueAt={due}
-                        totalMinutes={SLA_DEFAULT_MIN}
-                        className="text-[10px]"
-                        stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at}
-                      />
+                      {ticket.tipo_atendimento === "avulso" ? (
+                        <span className="text-[10px] text-muted-foreground">Sem SLA</span>
+                      ) : (
+                        <SlaTimer
+                          dueAt={due}
+                          totalMinutes={SLA_DEFAULT_MIN}
+                          className="text-[10px]"
+                          stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at}
+                        />
+                      )}
                     </div>
                   </Link>
                 );

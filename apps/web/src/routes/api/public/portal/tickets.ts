@@ -115,16 +115,6 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
           ? eligible.find((c) => c.id === data.contract_id)
           : eligible[0];
 
-        if (!contract) {
-          return Response.json({ error: "no_active_contract" }, { status: 403, headers: CORS });
-        }
-
-        const contractEquipmentIds: string[] = (
-          (contract as { contract_equipments?: { equipment_id: string }[] }).contract_equipments ??
-          []
-        ).map((e) => e.equipment_id);
-        const restrictsEquipments = contractEquipmentIds.length > 0;
-
         const { data: ticket, error: tErr } = await supabaseAdmin
           .from("tickets")
           .insert({
@@ -135,8 +125,8 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
             channel: "portal",
             contact_id: contact.id,
             company_id: contact.company_id,
-            contract_id: contract.id,
-            sla_policy_id: contract.sla_policy_id ?? null,
+            contract_id: contract?.id ?? null,
+            sla_policy_id: contract?.sla_policy_id ?? null,
             pending_type: "awaiting_tech",
           })
           .select("id, number")
@@ -185,15 +175,12 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
         });
 
         if (data.equipment_ids && data.equipment_ids.length > 0) {
-          let eqQuery = supabaseAdmin
+          const eqQuery = supabaseAdmin
             .from("equipments")
             .select("id")
             .eq("tenant_id", contact.tenant_id)
             .eq("company_id", contact.company_id)
             .in("id", data.equipment_ids);
-          if (restrictsEquipments) {
-            eqQuery = eqQuery.in("id", contractEquipmentIds);
-          }
           const { data: validEq } = await eqQuery;
           const ids = (validEq ?? []).map((e) => e.id);
           if (ids.length > 0) {

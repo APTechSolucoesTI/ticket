@@ -1438,6 +1438,167 @@ export type Database = {
           },
         ];
       };
+      tabela_precos_avulso: {
+        Row: {
+          ativa: boolean;
+          created_at: string;
+          criado_por: string | null;
+          deleted_at: string | null;
+          id: string;
+          limite_valor_fixo_minutos: number;
+          nome: string;
+          tenant_id: string;
+          updated_at: string;
+          valor_fixo: number;
+          valor_hora_tecnica: number;
+          vigente_ate: string | null;
+          vigente_desde: string;
+        };
+        Insert: {
+          ativa?: boolean;
+          created_at?: string;
+          criado_por?: string | null;
+          deleted_at?: string | null;
+          id?: string;
+          limite_valor_fixo_minutos?: number;
+          nome?: string;
+          tenant_id: string;
+          updated_at?: string;
+          valor_fixo?: number;
+          valor_hora_tecnica?: number;
+          vigente_ate?: string | null;
+          vigente_desde?: string;
+        };
+        Update: {
+          ativa?: boolean;
+          created_at?: string;
+          criado_por?: string | null;
+          deleted_at?: string | null;
+          id?: string;
+          limite_valor_fixo_minutos?: number;
+          nome?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          valor_fixo?: number;
+          valor_hora_tecnica?: number;
+          vigente_ate?: string | null;
+          vigente_desde?: string;
+        };
+        Relationships: [];
+      };
+      tickets_cobranca_avulsa: {
+        Row: {
+          atualizado_por: string | null;
+          created_at: string;
+          criado_por: string | null;
+          deleted_at: string | null;
+          id: string;
+          justificativa_ajuste: string | null;
+          limite_valor_fixo_minutos: number;
+          minutos_apurados: number;
+          observacoes: string | null;
+          revisado_em: string | null;
+          revisado_por: string | null;
+          status_cobranca: Database["apticket"]["Enums"]["status_cobranca_avulsa"];
+          tabela_preco_id: string | null;
+          tenant_id: string;
+          ticket_id: string;
+          updated_at: string;
+          valor_ajustado_manualmente: boolean;
+          valor_base: number;
+          valor_final: number;
+          valor_fixo_snapshot: number;
+          valor_hora_snapshot: number;
+          vencimento_em: string | null;
+        };
+        Insert: {
+          atualizado_por?: string | null;
+          created_at?: string;
+          criado_por?: string | null;
+          deleted_at?: string | null;
+          id?: string;
+          justificativa_ajuste?: string | null;
+          limite_valor_fixo_minutos?: number;
+          minutos_apurados?: number;
+          observacoes?: string | null;
+          revisado_em?: string | null;
+          revisado_por?: string | null;
+          status_cobranca?: Database["apticket"]["Enums"]["status_cobranca_avulsa"];
+          tabela_preco_id?: string | null;
+          tenant_id: string;
+          ticket_id: string;
+          updated_at?: string;
+          valor_ajustado_manualmente?: boolean;
+          valor_base?: number;
+          valor_final?: number;
+          valor_fixo_snapshot?: number;
+          valor_hora_snapshot?: number;
+          vencimento_em?: string | null;
+        };
+        Update: {
+          atualizado_por?: string | null;
+          created_at?: string;
+          criado_por?: string | null;
+          deleted_at?: string | null;
+          id?: string;
+          justificativa_ajuste?: string | null;
+          limite_valor_fixo_minutos?: number;
+          minutos_apurados?: number;
+          observacoes?: string | null;
+          revisado_em?: string | null;
+          revisado_por?: string | null;
+          status_cobranca?: Database["apticket"]["Enums"]["status_cobranca_avulsa"];
+          tabela_preco_id?: string | null;
+          tenant_id?: string;
+          ticket_id?: string;
+          updated_at?: string;
+          valor_ajustado_manualmente?: boolean;
+          valor_base?: number;
+          valor_final?: number;
+          valor_fixo_snapshot?: number;
+          valor_hora_snapshot?: number;
+          vencimento_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tickets_cobranca_avulsa_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: true;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tickets_cobranca_avulsa_audit: {
+        Row: {
+          actor_id: string | null;
+          cobranca_id: string;
+          created_at: string;
+          id: string;
+          tenant_id: string;
+          valores_anteriores: Json;
+          valores_novos: Json;
+        };
+        Insert: {
+          actor_id?: string | null;
+          cobranca_id: string;
+          created_at?: string;
+          id?: string;
+          tenant_id: string;
+          valores_anteriores: Json;
+          valores_novos: Json;
+        };
+        Update: {
+          actor_id?: string | null;
+          cobranca_id?: string;
+          created_at?: string;
+          id?: string;
+          tenant_id?: string;
+          valores_anteriores?: Json;
+          valores_novos?: Json;
+        };
+        Relationships: [];
+      };
       ticket_services_performed: {
         Row: {
           complement: string | null;
@@ -1570,6 +1731,7 @@ export type Database = {
           equipment_id: string | null;
           first_responded_at: string | null;
           id: string;
+          motivo_avulso: Database["apticket"]["Enums"]["motivo_avulso"] | null;
           number: number;
           pending_type: string | null;
           priority: Database["apticket"]["Enums"]["ticket_priority"];
@@ -1584,6 +1746,7 @@ export type Database = {
           status: Database["apticket"]["Enums"]["ticket_status"];
           subject: string;
           tenant_id: string;
+          tipo_atendimento: Database["apticket"]["Enums"]["tipo_atendimento"];
           total_sla_paused_seconds: number;
           updated_at: string;
         };
@@ -1599,6 +1762,7 @@ export type Database = {
           equipment_id?: string | null;
           first_responded_at?: string | null;
           id?: string;
+          motivo_avulso?: Database["apticket"]["Enums"]["motivo_avulso"] | null;
           number?: number;
           pending_type?: string | null;
           priority?: Database["apticket"]["Enums"]["ticket_priority"];
@@ -1613,6 +1777,7 @@ export type Database = {
           status?: Database["apticket"]["Enums"]["ticket_status"];
           subject: string;
           tenant_id: string;
+          tipo_atendimento?: Database["apticket"]["Enums"]["tipo_atendimento"];
           total_sla_paused_seconds?: number;
           updated_at?: string;
         };
@@ -1628,6 +1793,7 @@ export type Database = {
           equipment_id?: string | null;
           first_responded_at?: string | null;
           id?: string;
+          motivo_avulso?: Database["apticket"]["Enums"]["motivo_avulso"] | null;
           number?: number;
           pending_type?: string | null;
           priority?: Database["apticket"]["Enums"]["ticket_priority"];
@@ -1642,6 +1808,7 @@ export type Database = {
           status?: Database["apticket"]["Enums"]["ticket_status"];
           subject?: string;
           tenant_id?: string;
+          tipo_atendimento?: Database["apticket"]["Enums"]["tipo_atendimento"];
           total_sla_paused_seconds?: number;
           updated_at?: string;
         };
@@ -2044,6 +2211,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      atualizar_cobrancas_vencidas: { Args: never; Returns: number };
       current_tenant_id: { Args: never; Returns: string };
       get_closing_report_by_token: {
         Args: { _token: string };
@@ -2071,6 +2239,10 @@ export type Database = {
         Args: { _action: string; _module: string; _user_id: string };
         Returns: boolean;
       };
+      prever_atendimento_avulso: {
+        Args: { _company_id: string; _equipment_ids?: string[] };
+        Returns: Json;
+      };
       pause_ticket: {
         Args: {
           _complement: string;
@@ -2093,9 +2265,12 @@ export type Database = {
       contract_status: "active" | "suspended" | "cancelled" | "expired";
       kb_status: "draft" | "published";
       message_author_type: "agent" | "contact" | "system";
+      motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato";
+      status_cobranca_avulsa: "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
       ticket_channel: "email" | "whatsapp" | "chat" | "manual" | "portal";
       ticket_priority: "low" | "medium" | "high" | "urgent";
       ticket_status: "new" | "in_progress" | "pending" | "resolved" | "closed";
+      tipo_atendimento: "contratual" | "avulso";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2220,9 +2395,12 @@ export const Constants = {
       contract_status: ["active", "suspended", "cancelled", "expired"],
       kb_status: ["draft", "published"],
       message_author_type: ["agent", "contact", "system"],
+      motivo_avulso: ["cliente_sem_contrato", "equipamento_sem_contrato"],
+      status_cobranca_avulsa: ["a_faturar", "faturado", "vencido", "recebido", "cancelado"],
       ticket_channel: ["email", "whatsapp", "chat", "manual", "portal"],
       ticket_priority: ["low", "medium", "high", "urgent"],
       ticket_status: ["new", "in_progress", "pending", "resolved", "closed"],
+      tipo_atendimento: ["contratual", "avulso"],
     },
   },
 } as const;

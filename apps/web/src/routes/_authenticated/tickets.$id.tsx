@@ -36,6 +36,8 @@ import DOMPurify from "isomorphic-dompurify";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { backendClient } from "@/lib/backend-client";
+import { AttendanceBadge } from "@/components/ticket/AttendanceBadge";
+import { AvulsoBillingCard } from "@/components/ticket/AvulsoBillingCard";
 
 export const Route = createFileRoute("/_authenticated/tickets/$id")({
   head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} - APTicket` }] }),
@@ -840,6 +842,7 @@ function TicketDetailPage() {
             </button>
             <span className="font-mono text-xs text-muted-foreground">#{ticket.number}</span>
             <h1 className="text-sm font-semibold">{ticket.subject}</h1>
+            <AttendanceBadge type={ticket.tipo_atendimento} />
             {readOnly && (
               <span className="ml-2 rounded bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                 Somente leitura
@@ -1030,6 +1033,8 @@ function TicketDetailPage() {
             </CardContent>
           </Card>
 
+          {ticket.tipo_atendimento === "avulso" && <AvulsoBillingCard ticketId={ticket.id} />}
+
           {ticket.resolution_summary?.trim() && (
             <Card className="mt-3">
               <CardHeader className="p-3 pb-2">
@@ -1162,22 +1167,24 @@ function TicketDetailPage() {
             </Card>
           )}
 
-          <Card className="mt-3">
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-xs uppercase text-muted-foreground">SLA</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <SlaTimer
-                dueAt={due}
-                totalMinutes={SLA_DEFAULT_MIN}
-                className="text-2xl"
-                stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at ?? null}
-              />
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {ticket.sla_paused_at ? "SLA pausado" : "Tempo até estouro"}
-              </p>
-            </CardContent>
-          </Card>
+          {ticket.tipo_atendimento === "contratual" && (
+            <Card className="mt-3">
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-xs uppercase text-muted-foreground">SLA</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <SlaTimer
+                  dueAt={due}
+                  totalMinutes={SLA_DEFAULT_MIN}
+                  className="text-2xl"
+                  stoppedAt={ticket.sla_paused_at ?? ticket.resolved_at ?? ticket.closed_at ?? null}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {ticket.sla_paused_at ? "SLA pausado" : "Tempo até estouro"}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="mt-3">
             <CardHeader className="p-3 pb-2">

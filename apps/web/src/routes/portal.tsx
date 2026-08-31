@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -31,6 +33,7 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
+  CircleDollarSign,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import {
@@ -318,6 +321,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
   const [submitting, setSubmitting] = useState(false);
   const [equipmentIds, setEquipmentIds] = useState<string[]>([]);
   const [contractId, setContractId] = useState<string>("");
+  const [avulsoConfirmed, setAvulsoConfirmed] = useState(false);
   const [contractPicker, setContractPicker] = useState<{ open: boolean; selected: string }>({
     open: false,
     selected: "",
@@ -337,15 +341,19 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
     setEquipmentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const selectedContract = session.contracts.find((c) => c.id === contractId) ?? null;
-  const allowedEqIds = selectedContract?.equipment_ids ?? [];
-  const availableEquipments =
-    allowedEqIds.length > 0
-      ? session.equipments.filter((e) => allowedEqIds.includes(e.id))
-      : session.equipments;
+  const availableEquipments = session.equipments;
+  const coveredEquipmentIds = new Set(
+    session.contracts.flatMap((contract) => contract.equipment_ids),
+  );
+  const isAvulso =
+    !session.has_active_contract || equipmentIds.some((id) => !coveredEquipmentIds.has(id));
+
+  useEffect(() => setAvulsoConfirmed(false), [equipmentIds, contractId]);
 
   const startTicketFlow = (cid: string) => {
     setContractId(cid);
     setEquipmentIds([]);
+    setAvulsoConfirmed(false);
     setShowForm(true);
     // Sugestão de equipamentos: interseção entre equipamentos do contrato e do contato
     const contract = session.contracts.find((c) => c.id === cid);
@@ -402,7 +410,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
     }
   };
 
-  const canOpen = session.contact.can_open_tickets && session.has_active_contract;
+  const canOpen = session.contact.can_open_tickets;
 
   const openTicket = async (ticketId: string) => {
     setLoadingDetail(ticketId);
@@ -427,6 +435,10 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAvulso && !avulsoConfirmed) {
+      toast.error("Confirme que está ciente da cobrança avulsa");
+      return;
+    }
     setSubmitting(true);
     try {
       const fd = new FormData();
@@ -440,15 +452,13 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
       const data = await res.json();
       if (!res.ok) {
         const msg =
-          data?.error === "no_active_contract"
-            ? "Sua empresa não possui contrato ativo."
-            : data?.error === "contact_not_allowed"
-              ? "Seu usuário não está autorizado a abrir chamados."
-              : data?.error === "file_too_large"
-                ? "Arquivo acima de 10MB."
-                : data?.error === "too_many_files"
-                  ? "Máximo de 5 arquivos."
-                  : "Falha ao criar chamado.";
+          data?.error === "contact_not_allowed"
+            ? "Seu usuário não está autorizado a abrir chamados."
+            : data?.error === "file_too_large"
+              ? "Arquivo acima de 10MB."
+              : data?.error === "too_many_files"
+                ? "Máximo de 5 arquivos."
+                : "Falha ao criar chamado.";
         toast.error(msg);
         return;
       }
@@ -458,6 +468,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
       setPriority("medium");
       setEquipmentIds([]);
       setContractId("");
+      setAvulsoConfirmed(false);
       setNewFiles([]);
       setShowForm(false);
       reload();
@@ -636,11 +647,14 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
                   setShowForm(false);
                   return;
                 }
-                // Fluxo atualizado: sempre solicitar o contrato ativo antes de continuar
-                setContractPicker({
-                  open: true,
-                  selected: session.contracts.length === 1 ? session.contracts[0].id : "",
-                });
+                if (session.contracts.length === 0) {
+                  startTicketFlow("");
+                } else {
+                  setContractPicker({
+                    open: true,
+                    selected: session.contracts.length === 1 ? session.contracts[0].id : "",
+                  });
+                }
               }}
             >
               <Plus className="h-3.5 w-3.5 mr-1" /> Novo chamado
@@ -653,9 +667,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
 
       {!canOpen && (
         <Card className="p-4 border-yellow-500/40 bg-yellow-500/5 text-xs">
-          {!session.has_active_contract
-            ? "Abertura de chamados indisponível: sua empresa não possui contrato ativo. Entre em contato com o suporte."
-            : "Seu usuário não está autorizado a abrir chamados. Solicite ao administrador."}
+          Seu usuário não está autorizado a abrir chamados. Solicite ao administrador.
         </Card>
       )}
 
@@ -702,7 +714,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
               <Label>Equipamentos relacionados</Label>
               {availableEquipments.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Nenhum equipamento disponível para este contrato.
+                  Nenhum equipamento cadastrado para sua empresa.
                 </p>
               ) : (
                 <div className="mt-1 max-h-40 overflow-y-auto rounded-md border p-2 space-y-1">
@@ -744,11 +756,31 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
                 arquivos, 10MB cada.
               </p>
             </div>
+            {isAvulso && (
+              <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
+                <CircleDollarSign className="size-4" />
+                <AlertTitle>Este atendimento será cobrado à parte</AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    {!session.has_active_contract
+                      ? "Sua empresa não possui contrato vigente."
+                      : "Um ou mais equipamentos selecionados estão fora da cobertura contratual."}
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-2 font-medium">
+                    <Checkbox
+                      checked={avulsoConfirmed}
+                      onCheckedChange={(checked) => setAvulsoConfirmed(checked === true)}
+                    />
+                    <span>Estou ciente da cobrança avulsa deste atendimento.</span>
+                  </label>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="flex gap-2 justify-end">
               <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting || (isAvulso && !avulsoConfirmed)}>
                 {submitting ? "Enviando..." : "Abrir chamado"}
               </Button>
             </div>

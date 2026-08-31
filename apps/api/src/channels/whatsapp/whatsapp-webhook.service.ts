@@ -232,24 +232,6 @@ export class WhatsappWebhookService {
     const contract = (contracts ?? []).find(
       (c) => c.includes_remote || c.includes_lab || c.includes_onsite,
     );
-    if (!contract) {
-      const pendingId = await this.queuePending(
-        tenantId,
-        contact.id,
-        phone,
-        content,
-        extId,
-        payload,
-        attachments,
-      );
-      return {
-        kind: 'pending',
-        reason: 'no_active_contract',
-        contactId: contact.id,
-        pendingId,
-      };
-    }
-
     const { data: openTickets } = await this.supabase.client
       .from('tickets')
       .select('id, status')
@@ -273,8 +255,8 @@ export class WhatsappWebhookService {
           channel: 'whatsapp',
           contact_id: contact.id,
           company_id: contact.company_id,
-          contract_id: contract.id,
-          sla_policy_id: contract.sla_policy_id ?? null,
+          contract_id: contract?.id ?? null,
+          sla_policy_id: contract?.sla_policy_id ?? null,
           pending_type: 'awaiting_tech',
         })
         .select('id')

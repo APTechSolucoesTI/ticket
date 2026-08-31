@@ -24,6 +24,7 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
     actions: ["view", "create", "edit", "delete"],
   },
   { key: "relatorios", label: "Relatórios", actions: ["view"] },
+  { key: "financeiro", label: "Financeiro", actions: ["view", "edit"] },
   { key: "configuracoes", label: "Configurações", actions: ["view", "edit"] },
   { key: "empresa", label: "Empresa", actions: ["view", "edit"], parent: "configuracoes" },
   {
@@ -109,6 +110,7 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/contracts", module: "contratos" },
   { prefix: "/kb", module: "base_conhecimento" },
   { prefix: "/reports", module: "relatorios" },
+  { prefix: "/finance", module: "financeiro" },
   { prefix: "/settings", module: "configuracoes" },
 ];
 
