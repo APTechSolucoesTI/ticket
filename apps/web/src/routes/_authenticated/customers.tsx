@@ -72,7 +72,12 @@ const schema = z.object({
     .optional()
     .or(z.literal(""))
     .refine((v) => !v || isValidCNPJ(v), "CNPJ inválido"),
-  segment: z.string().trim().max(80).optional().or(z.literal("")),
+  segment: z
+    .string()
+    .trim()
+    .max(500, "Segmento deve ter no máximo 500 caracteres")
+    .optional()
+    .or(z.literal("")),
   phone: z
     .string()
     .trim()
@@ -195,7 +200,14 @@ function CustomersPage() {
                   key: "segment",
                   label: "Segmento",
                   className: "text-sm",
-                  cell: (c) => c.segment || "—",
+                  cell: (c) =>
+                    c.segment ? (
+                      <span className="block max-w-80 truncate" title={c.segment}>
+                        {c.segment}
+                      </span>
+                    ) : (
+                      "—"
+                    ),
                 },
                 {
                   key: "phone",
@@ -491,12 +503,27 @@ function CompanyDialog({
                     </Button>
                   </div>
                 </div>
-                <div>
-                  <Label>Segmento</Label>
-                  <Input
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="company-segment">Segmento</Label>
+                    <span
+                      id="company-segment-count"
+                      className="text-[11px] tabular-nums text-muted-foreground"
+                    >
+                      {form.segment.length}/500
+                    </span>
+                  </div>
+                  <Textarea
+                    id="company-segment"
+                    rows={3}
+                    maxLength={500}
                     value={form.segment}
                     onChange={(e) => setForm({ ...form, segment: e.target.value })}
+                    aria-describedby="company-segment-hint company-segment-count"
                   />
+                  <p id="company-segment-hint" className="mt-1 text-[11px] text-muted-foreground">
+                    Descreva a área de atuação ou os principais segmentos atendidos pelo cliente.
+                  </p>
                 </div>
                 <div>
                   <Label>Telefone</Label>
