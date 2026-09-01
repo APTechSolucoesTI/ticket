@@ -2509,8 +2509,13 @@ type Sla = {
   first_response_minutes: number;
   resolution_minutes: number;
 };
+const SLA_NAME_MAX_LENGTH = 500;
 const slaSchema = z.object({
-  name: z.string().trim().min(1, "Nome obrigatório").max(100),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Nome obrigatório")
+    .max(SLA_NAME_MAX_LENGTH, `Nome deve ter no máximo ${SLA_NAME_MAX_LENGTH} caracteres`),
   priority: z.enum(["low", "medium", "high", "urgent"]).nullable(),
   first_response_minutes: z.coerce.number().int().min(1).max(100000),
   resolution_minutes: z.coerce.number().int().min(1).max(1000000),
@@ -2710,8 +2715,18 @@ function SlaDialog({
           }}
         >
           <div className="sm:col-span-2">
-            <Label>Nome *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="sla-name">Nome *</Label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {form.name.length}/{SLA_NAME_MAX_LENGTH}
+              </span>
+            </div>
+            <Input
+              id="sla-name"
+              maxLength={SLA_NAME_MAX_LENGTH}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </div>
           <div className="sm:col-span-2">
             <Label>Prioridade alvo</Label>
