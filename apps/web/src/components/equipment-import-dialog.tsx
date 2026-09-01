@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 const NONE = "__none__";
 
@@ -310,7 +311,8 @@ export function EquipmentImportDialog({
         onOpenChange(false);
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível importar os equipamentos.")),
   });
 
   return (

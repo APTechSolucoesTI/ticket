@@ -45,6 +45,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -434,7 +435,8 @@ function ChargeDialog({
       toast.success("Cobrança atualizada");
       onSaved();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) =>
+      toast.error(getUserFacingError(error, "Não foi possível salvar os dados financeiros.")),
   });
   return (
     <Dialog
@@ -580,7 +582,8 @@ function PriceDialog({
       toast.success("Tabela de preços atualizada");
       onSaved();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) =>
+      toast.error(getUserFacingError(error, "Não foi possível atualizar o faturamento.")),
   });
   return (
     <Dialog

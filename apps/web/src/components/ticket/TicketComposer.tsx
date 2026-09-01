@@ -37,6 +37,7 @@ import { maskPhone, normalizePhone } from "@/lib/masks";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { backendClient } from "@/lib/backend-client";
 import { cn } from "@/lib/utils";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 // Lazy emoji picker to avoid inflating initial bundle
 import { lazy, Suspense } from "react";
@@ -234,7 +235,7 @@ export function TicketComposer({
           : "Mensagem enviada",
       );
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível enviar a mensagem."));
     } finally {
       setSending(false);
     }
@@ -287,7 +288,7 @@ export function TicketComposer({
           onSent?.();
           toast.success("Áudio enviado");
         } catch (e) {
-          toast.error((e as Error).message);
+          toast.error(getUserFacingError(e, "Não foi possível enviar o áudio."));
         }
       };
       rec.start();
@@ -296,7 +297,7 @@ export function TicketComposer({
       setRecSeconds(0);
       recTimerRef.current = setInterval(() => setRecSeconds((s) => s + 1), 1000);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível iniciar a gravação."));
     }
   };
 
@@ -636,7 +637,7 @@ export function TicketComposer({
             toast.success("Contato enviado");
             onSent?.();
           } catch (e) {
-            toast.error((e as Error).message);
+            toast.error(getUserFacingError(e, "Não foi possível enviar o contato."));
           }
         }}
       />
@@ -657,7 +658,7 @@ export function TicketComposer({
             toast.success("Localização enviada");
             onSent?.();
           } catch (e) {
-            toast.error((e as Error).message);
+            toast.error(getUserFacingError(e, "Não foi possível enviar a localização."));
           }
         }}
       />
@@ -678,7 +679,7 @@ export function TicketComposer({
             toast.success("Figurinha enviada");
             onSent?.();
           } catch (e) {
-            toast.error((e as Error).message);
+            toast.error(getUserFacingError(e, "Não foi possível enviar a figurinha."));
           }
         }}
       />
@@ -696,7 +697,7 @@ export function TicketComposer({
             toast.success("Ligação disparada");
             onSent?.();
           } catch (e) {
-            toast.error((e as Error).message);
+            toast.error(getUserFacingError(e, "Não foi possível iniciar a ligação."));
           }
         }}
       />
@@ -1015,7 +1016,7 @@ function StickerDialog({
       toast.success("Adicionado à galeria");
       await load();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível enviar o arquivo."));
     } finally {
       setUploading(false);
     }
@@ -1033,7 +1034,7 @@ function StickerDialog({
       await onSend({ url: up.url, path: up.path, filename: file.name });
       onOpenChange(false);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível enviar a figurinha."));
     }
   };
 

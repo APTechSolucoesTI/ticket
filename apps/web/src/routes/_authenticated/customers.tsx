@@ -45,6 +45,7 @@ import {
   unmask,
 } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/customers")({
   head: () => ({ meta: [{ title: "Clientes - APTicket" }] }),
@@ -143,7 +144,8 @@ function CustomersPage() {
       qc.invalidateQueries({ queryKey: ["companies"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o cliente.")),
   });
 
   return (
@@ -408,7 +410,7 @@ function CompanyDialog({
       toast.error(
         e.message.includes("companies_tenant_cnpj_uidx")
           ? "Já existe um cliente cadastrado com este CNPJ."
-          : e.message,
+          : getUserFacingError(e, "Não foi possível salvar o cliente."),
       ),
   });
 
@@ -429,7 +431,7 @@ function CompanyDialog({
               if (readOnly) return;
               const r = schema.safeParse(form);
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               save.mutate(r.data);

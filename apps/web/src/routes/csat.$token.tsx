@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/csat/$token")({
   head: () => ({ meta: [{ title: "Avaliar atendimento - APTicket" }] }),
@@ -50,10 +51,12 @@ function CsatPage() {
       setDone(true);
       toast.success("Obrigado pelo feedback!");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível enviar a avaliação.")),
   });
 
-  if (isLoading) return <div className="p-8 text-center text-sm text-muted-foreground">Carregando…</div>;
+  if (isLoading)
+    return <div className="p-8 text-center text-sm text-muted-foreground">Carregando…</div>;
 
   if (done || data?.responded_at) {
     return (
@@ -81,7 +84,9 @@ function CsatPage() {
             <Star
               className={cn(
                 "h-10 w-10",
-                (hover || rating) >= n ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground",
+                (hover || rating) >= n
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "text-muted-foreground",
               )}
             />
           </button>
@@ -94,7 +99,11 @@ function CsatPage() {
         className="mb-4 w-full resize-none rounded-md border bg-background p-3 text-sm outline-none focus:ring-1 focus:ring-ring"
         rows={4}
       />
-      <Button onClick={() => submit.mutate()} disabled={submit.isPending || !rating} className="w-full">
+      <Button
+        onClick={() => submit.mutate()}
+        disabled={submit.isPending || !rating}
+        className="w-full"
+      >
         Enviar avaliação
       </Button>
     </div>

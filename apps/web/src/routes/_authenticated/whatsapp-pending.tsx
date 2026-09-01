@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { Link2, MessageCircle, Trash2 } from "lucide-react";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError } from "@/lib/user-facing-error";
 import { AttachmentPreview, type Attachment } from "@/components/ticket/AttachmentPreview";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
@@ -108,7 +109,8 @@ function WhatsAppPendingPage() {
       toast.success("Mensagens descartadas");
       qc.invalidateQueries({ queryKey: ["wa-pending"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Falha ao descartar mensagens"),
+    onError: (error: Error) =>
+      toast.error(getUserFacingError(error, "Não foi possível descartar as mensagens.")),
   });
 
   return (
@@ -265,7 +267,7 @@ function LinkDialog({
       toast.success("Contato vinculado. Novas mensagens abrirão tickets automaticamente.");
       onDone();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao vincular");
+      toast.error(getUserFacingError(e, "Não foi possível vincular as mensagens."));
     } finally {
       setSaving(false);
     }

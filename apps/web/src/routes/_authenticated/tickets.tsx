@@ -30,6 +30,7 @@ import type { TicketStatus } from "@/components/ticket/TicketBadge";
 import { toast } from "sonner";
 import { TicketAutoRefresh } from "@/components/ticket/TicketAutoRefresh";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -499,7 +500,7 @@ function TicketDialog({
       qc.invalidateQueries({ queryKey: ["tickets"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getUserFacingError(e, "Não foi possível criar o ticket.")),
   });
 
   return (
@@ -523,7 +524,7 @@ function TicketDialog({
                 equipment_ids: form.equipment_ids,
               });
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               if (attendancePreview.isLoading || attendancePreview.isError) {

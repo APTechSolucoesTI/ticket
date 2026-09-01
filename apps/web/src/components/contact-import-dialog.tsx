@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/masks";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 const NONE = "__none__";
 
@@ -268,7 +269,8 @@ export function ContactImportDialog({
         onOpenChange(false);
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível importar os contatos.")),
   });
 
   return (

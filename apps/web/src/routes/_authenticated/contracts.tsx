@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/contracts")({
   head: () => ({ meta: [{ title: "Contratos - APTicket" }] }),
@@ -156,7 +157,8 @@ function ContractsPage() {
       qc.invalidateQueries({ queryKey: ["contracts"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o contrato.")),
   });
 
   return (
@@ -566,7 +568,8 @@ function ContractDialog({
       qc.invalidateQueries({ queryKey: ["contract_equipments"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar o contrato.")),
   });
 
   useEffect(() => {
@@ -691,7 +694,7 @@ function ContractDialog({
                 sla_policy_id: form.sla_policy_id || null,
               });
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               if (r.data.billing_model === "per_equipment" && r.data.equipment_tiers.length === 0) {

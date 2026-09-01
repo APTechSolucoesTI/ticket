@@ -64,6 +64,7 @@ import { toast } from "sonner";
 import { CompanyTab } from "@/components/settings/CompanyTab";
 import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
 import { inviteUser, resendInvite } from "@/lib/users.functions";
 import { usePermissions } from "@/lib/use-permissions";
@@ -285,7 +286,8 @@ function UsersTab() {
       setForm({ name: "", email: "", roleId: "" });
       qc.invalidateQueries({ queryKey: ["settings_users"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível convidar o usuário.")),
   });
 
   const setRole = useMutation({
@@ -297,7 +299,8 @@ function UsersTab() {
       toast.success("Papel atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível atualizar o papel.")),
   });
 
   const toggleActive = useMutation({
@@ -309,13 +312,15 @@ function UsersTab() {
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: ["settings_users"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível atualizar o usuário.")),
   });
 
   const resendInviteMutation = useMutation({
     mutationFn: (userId: string) => resend({ data: { userId } }),
     onSuccess: (res) => toast.success(`Convite reenviado para ${res.email}`),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível reenviar o convite.")),
   });
 
   const inviteDialog = (
@@ -591,7 +596,7 @@ function RolesTab() {
       setForm({ name: "", description: "" });
       qc.invalidateQueries({ queryKey: ["roles_list"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getUserFacingError(e, "Não foi possível salvar o papel.")),
   });
 
   const removeRole = useMutation({
@@ -606,7 +611,7 @@ function RolesTab() {
       qc.invalidateQueries({ queryKey: ["roles_list"] });
     },
     onError: (e: Error) => {
-      toast.error(e.message);
+      toast.error(getUserFacingError(e, "Não foi possível remover o papel."));
       setDeleteTarget(null);
     },
   });
@@ -620,7 +625,8 @@ function RolesTab() {
       toast.success("Matriz de permissões salva");
       qc.invalidateQueries({ queryKey: ["role_permissions", selected] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar as permissões.")),
   });
 
   const permsByModule = useMemo(() => indexByModule(catalog ?? []), [catalog]);
@@ -973,7 +979,8 @@ function UserPermissionsTab() {
       qc.invalidateQueries({ queryKey: ["perm_users"] });
       refetchEffective();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível atualizar o papel.")),
   });
 
   const override = useMutation({
@@ -982,7 +989,8 @@ function UserPermissionsTab() {
       return setOverride({ data: { userId: selectedUser!, ...vars } });
     },
     onSuccess: () => refetchEffective(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível alterar a permissão.")),
   });
 
   const restore = useMutation({
@@ -991,7 +999,8 @@ function UserPermissionsTab() {
       return restoreDefault({ data: { userId: selectedUser!, permissionId } });
     },
     onSuccess: () => refetchEffective(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível restaurar a permissão.")),
   });
 
   const effectiveByPermission = new Map<string, EffectiveRow>(
@@ -1203,7 +1212,8 @@ function DepartmentsTab() {
       qc.invalidateQueries({ queryKey: ["departments"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o departamento.")),
   });
 
   return (
@@ -1306,7 +1316,8 @@ function DepartmentDialog({
       qc.invalidateQueries({ queryKey: ["departments"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar o departamento.")),
   });
 
   return (
@@ -1320,7 +1331,7 @@ function DepartmentDialog({
           onSubmit={(e) => {
             e.preventDefault();
             const r = deptSchema.safeParse(form);
-            if (!r.success) return toast.error(r.error.issues[0].message);
+            if (!r.success) return toast.error(getValidationErrorMessage(r.error));
             save.mutate(r.data);
           }}
         >
@@ -1387,7 +1398,8 @@ function ServiceFamiliesTab() {
       qc.invalidateQueries({ queryKey: ["service_families"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover a família de serviço.")),
   });
 
   return (
@@ -1503,7 +1515,7 @@ function ServiceFamilyDialog({
       onOpenChange(false);
     },
     onError: (e: Error) =>
-      toast.error(e.message.includes("duplicate") ? "Código já cadastrado" : e.message),
+      toast.error(getUserFacingError(e, "Não foi possível salvar a família de serviço.")),
   });
 
   return (
@@ -1517,7 +1529,7 @@ function ServiceFamilyDialog({
           onSubmit={(e) => {
             e.preventDefault();
             const r = familySchema.safeParse(form);
-            if (!r.success) return toast.error(r.error.issues[0].message);
+            if (!r.success) return toast.error(getValidationErrorMessage(r.error));
             save.mutate(r.data);
           }}
         >
@@ -1623,7 +1635,8 @@ function ProvidedServicesTab() {
       qc.invalidateQueries({ queryKey: ["provided_services"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o serviço.")),
   });
 
   return (
@@ -1794,8 +1807,7 @@ function ProvidedServiceDialog({
       qc.invalidateQueries({ queryKey: ["provided_services"] });
       onOpenChange(false);
     },
-    onError: (e: Error) =>
-      toast.error(e.message.includes("duplicate") ? "Código já cadastrado" : e.message),
+    onError: (e: Error) => toast.error(getUserFacingError(e, "Não foi possível salvar o serviço.")),
   });
 
   return (
@@ -1809,7 +1821,7 @@ function ProvidedServiceDialog({
           onSubmit={(e) => {
             e.preventDefault();
             const r = providedServiceSchema.safeParse(form);
-            if (!r.success) return toast.error(r.error.issues[0].message);
+            if (!r.success) return toast.error(getValidationErrorMessage(r.error));
             save.mutate(r.data);
           }}
         >
@@ -1963,7 +1975,8 @@ function ContractTypesTab() {
       qc.invalidateQueries({ queryKey: ["contract_types"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o tipo de contrato.")),
   });
 
   return (
@@ -2166,7 +2179,8 @@ function ContractTypeDialog({
       qc.invalidateQueries({ queryKey: ["contract_types"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar o tipo de contrato.")),
   });
 
   const isHours = form.billing_model === "hours_package";
@@ -2258,7 +2272,7 @@ function ContractTypeDialog({
           onSubmit={(e) => {
             e.preventDefault();
             const r = ctSchema.safeParse(form);
-            if (!r.success) return toast.error(r.error.issues[0].message);
+            if (!r.success) return toast.error(getValidationErrorMessage(r.error));
             save.mutate(r.data);
           }}
         >
@@ -2544,7 +2558,8 @@ function SlasTab() {
       qc.invalidateQueries({ queryKey: ["sla_policies"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover a política de SLA.")),
   });
 
   return (
@@ -2670,7 +2685,8 @@ function SlaDialog({
       qc.invalidateQueries({ queryKey: ["sla_policies"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar a política de SLA.")),
   });
 
   return (
@@ -2689,7 +2705,7 @@ function SlaDialog({
               first_response_minutes: form.first_response_minutes,
               resolution_minutes: form.resolution_minutes,
             });
-            if (!r.success) return toast.error(r.error.issues[0].message);
+            if (!r.success) return toast.error(getValidationErrorMessage(r.error));
             save.mutate(r.data);
           }}
         >
@@ -2780,7 +2796,8 @@ function CannedTab() {
       qc.invalidateQueries({ queryKey: ["canned_responses"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover a resposta pronta.")),
   });
 
   return (
@@ -2889,7 +2906,8 @@ function CannedDialog({
       qc.invalidateQueries({ queryKey: ["canned_responses"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar a resposta pronta.")),
   });
 
   return (
@@ -2906,7 +2924,7 @@ function CannedDialog({
           onSubmit={(e) => {
             e.preventDefault();
             const r = cannedSchema.safeParse(form);
-            if (!r.success) return toast.error(r.error.issues[0].message);
+            if (!r.success) return toast.error(getValidationErrorMessage(r.error));
             save.mutate(r.data);
           }}
         >
@@ -3002,7 +3020,7 @@ function StickersTab() {
       toast.success("Figurinhas adicionadas");
       qc.invalidateQueries({ queryKey: ["stickers"] });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível enviar a figurinha."));
     } finally {
       setUploading(false);
     }
@@ -3020,7 +3038,8 @@ function StickersTab() {
       qc.invalidateQueries({ queryKey: ["stickers"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover a figurinha.")),
   });
 
   return (
@@ -3473,7 +3492,8 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
       qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
       onSaved();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar a configuração do WhatsApp.")),
   });
 
   async function test() {
@@ -3495,7 +3515,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
         toast.error("Não foi possível conectar à uazapi. Confira a URL base.");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao testar");
+      toast.error(getUserFacingError(e, "Não foi possível testar a conexão do WhatsApp."));
     } finally {
       setTesting(false);
     }
@@ -3515,7 +3535,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
         toast.info("Escaneie o QR code no WhatsApp do celular");
       } else toast.warning("Sem QR retornado - verifique a uazapi");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao conectar");
+      toast.error(getUserFacingError(e, "Não foi possível conectar o WhatsApp."));
     } finally {
       setConnecting(false);
     }
@@ -3529,7 +3549,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
       toast.success("Instância desconectada");
       qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao desconectar");
+      toast.error(getUserFacingError(e, "Não foi possível desconectar o WhatsApp."));
     }
   }
 
@@ -3753,7 +3773,8 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
       qc.invalidateQueries({ queryKey: ["tenant-email-imap"] });
       onSaved();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar a configuração de e-mail.")),
   });
 
   async function test() {
@@ -3781,7 +3802,7 @@ function EmailImapConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly:
       if (r.imapOk) toast.success("Conectado com sucesso.");
       else toast.error(r.error ?? "Falha ao conectar.");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao testar");
+      toast.error(getUserFacingError(e, "Não foi possível testar a conexão de e-mail."));
     } finally {
       setTesting(false);
     }

@@ -36,6 +36,7 @@ import DOMPurify from "isomorphic-dompurify";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { backendClient } from "@/lib/backend-client";
+import { getUserFacingError } from "@/lib/user-facing-error";
 import { AttendanceBadge } from "@/components/ticket/AttendanceBadge";
 import { AvulsoBillingCard } from "@/components/ticket/AvulsoBillingCard";
 
@@ -486,7 +487,8 @@ function TicketDetailPage() {
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket_equipments", id] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível vincular o equipamento.")),
   });
 
   const startAttendance = async () => {
@@ -520,7 +522,7 @@ function TicketDetailPage() {
       qc.invalidateQueries({ queryKey: ["tickets"] });
       toast.success("Atendimento iniciado - cronômetro em execução");
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível iniciar o atendimento."));
       await qc.invalidateQueries({ queryKey: ["ticket", id] });
     } finally {
       setStartingAttendance(false);
@@ -732,7 +734,8 @@ function TicketDetailPage() {
         navigate({ to: "/tickets" });
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível finalizar o ticket.")),
   });
 
   const pauseTicket = useMutation({
@@ -762,7 +765,8 @@ function TicketDetailPage() {
       qc.invalidateQueries({ queryKey: ["time_entries", id] });
       toast.success("Atendimento pausado e Time Tracking apontado");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível pausar o atendimento.")),
   });
 
   const resumeTicket = useMutation({
@@ -777,7 +781,8 @@ function TicketDetailPage() {
       qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
       toast.success("Atendimento retomado; o SLA voltou a contar");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível retomar o atendimento.")),
   });
 
   const createPauseReason = useMutation({
@@ -801,7 +806,8 @@ function TicketDetailPage() {
       qc.invalidateQueries({ queryKey: ["pause_reasons", ticket?.tenant_id] });
       toast.success("Motivo de pausa cadastrado");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível cadastrar o motivo da pausa.")),
   });
 
   if (isLoading) return <LoadingState label="Abrindo ticket…" />;

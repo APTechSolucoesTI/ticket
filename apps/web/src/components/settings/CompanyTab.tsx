@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 type TenantRow = {
   id: string;
@@ -170,7 +171,8 @@ export function CompanyTab() {
       toast.success("Configurações salvas.");
       qc.invalidateQueries({ queryKey: ["tenant-config"] });
     },
-    onError: (e: Error) => toast.error(e.message ?? "Falha ao salvar."),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar os dados da empresa.")),
   });
 
   const lookupCnpj = async () => {
@@ -201,7 +203,7 @@ export function CompanyTab() {
       }));
       toast.success("Dados do CNPJ carregados.");
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível consultar o CNPJ."));
     } finally {
       setLookingUpCnpj(false);
     }
@@ -227,7 +229,7 @@ export function CompanyTab() {
       }));
       toast.success("Endereço carregado.");
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(getUserFacingError(e, "Não foi possível consultar o CEP."));
     } finally {
       setLookingUpCep(false);
     }

@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { EquipmentImportDialog } from "@/components/equipment-import-dialog";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/equipments")({
   head: () => ({ meta: [{ title: "Equipamentos - APTicket" }] }),
@@ -261,7 +262,8 @@ function EquipmentsPage() {
       qc.invalidateQueries({ queryKey: ["equipments"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o equipamento.")),
   });
 
   return (
@@ -495,7 +497,7 @@ function EquipmentDialog({
       toast.error(
         e.message.includes("equipments_tenant_asset_tag_uidx")
           ? "Já existe um equipamento cadastrado com este patrimônio."
-          : e.message,
+          : getUserFacingError(e, "Não foi possível salvar o equipamento."),
       ),
   });
 
@@ -520,7 +522,7 @@ function EquipmentDialog({
               if (readOnly) return;
               const r = schema.safeParse({ ...form, contact_id: form.contact_id || null });
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               save.mutate(r.data);

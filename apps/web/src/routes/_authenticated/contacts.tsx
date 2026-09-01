@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import { maskPhone, normalizePhone, unmask } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
   head: () => ({ meta: [{ title: "Contatos - APTicket" }] }),
@@ -107,7 +108,8 @@ function ContactsPage() {
       qc.invalidateQueries({ queryKey: ["contacts"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover o contato.")),
   });
 
   return (
@@ -332,7 +334,7 @@ function ContactDialog({
       toast.error(
         e.message.includes("contacts_tenant_phone_uidx")
           ? "Já existe um contato cadastrado com este telefone."
-          : e.message,
+          : getUserFacingError(e, "Não foi possível salvar o contato."),
       ),
   });
 
@@ -367,7 +369,7 @@ function ContactDialog({
               if (readOnly) return;
               const r = schema.safeParse(form);
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               save.mutate(r.data);

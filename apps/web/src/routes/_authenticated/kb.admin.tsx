@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
+import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/kb/admin")({
   head: () => ({ meta: [{ title: "Base de Conhecimento - APTicket" }] }),
@@ -152,7 +153,8 @@ function CategoriesTab() {
       qc.invalidateQueries({ queryKey: ["kb_categories"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível remover a categoria.")),
   });
 
   return (
@@ -297,7 +299,8 @@ function CategoryDialog({
       qc.invalidateQueries({ queryKey: ["kb_categories"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(getUserFacingError(e, "Não foi possível salvar a categoria.")),
   });
 
   return (
@@ -318,7 +321,7 @@ function CategoryDialog({
                 parent_id: form.parent_id || null,
               });
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               if (!readOnly) save.mutate(r.data);
@@ -439,7 +442,7 @@ function ArticlesTab() {
       qc.invalidateQueries({ queryKey: ["kb_articles"] });
       setToDelete(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getUserFacingError(e, "Não foi possível remover o artigo.")),
   });
 
   return (
@@ -619,7 +622,7 @@ function ArticleDialog({
           .from("kb-attachments")
           .upload(path, file, { upsert: false });
         if (error) {
-          toast.error(error.message);
+          toast.error(getUserFacingError(error, "Não foi possível enviar o anexo."));
           continue;
         }
         added.push({ path, name: file.name, size: file.size, type: file.type });
@@ -695,7 +698,7 @@ function ArticleDialog({
       qc.invalidateQueries({ queryKey: ["kb_articles"] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getUserFacingError(e, "Não foi possível salvar o artigo.")),
   });
 
   return (
@@ -720,7 +723,7 @@ function ArticleDialog({
                 attachments: form.attachments,
               });
               if (!r.success) {
-                toast.error(r.error.issues[0].message);
+                toast.error(getValidationErrorMessage(r.error));
                 return;
               }
               if (!readOnly) save.mutate(r.data);
