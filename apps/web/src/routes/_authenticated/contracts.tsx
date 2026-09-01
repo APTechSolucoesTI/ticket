@@ -124,6 +124,32 @@ const billingLabel: Record<BillingModel, string> = {
   per_service: "Por serviço",
 };
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function formatContractDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
+function isContractEndingSoon(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return false;
+
+  const [todayYear = 0, todayMonth = 0, todayDay = 0] = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(new Date())
+    .split("-")
+    .map(Number);
+  const today = Date.UTC(todayYear, todayMonth - 1, todayDay);
+  const contractEnd = Date.UTC(year, month - 1, day);
+
+  return (contractEnd - today) / DAY_IN_MS <= 30;
+}
+
 function ContractsPage() {
   const access = useModulePermissions("contratos");
   const qc = useQueryClient();
@@ -237,9 +263,18 @@ function ContractsPage() {
                 },
                 {
                   key: "period",
-                  label: "Vigência",
+                  label: "Data Fim do Contrato",
                   className: "text-sm",
-                  cell: (c) => `${c.starts_at} → ${c.ends_at}`,
+                  accessor: (c) => c.ends_at,
+                  cell: (c) => (
+                    <span
+                      className={
+                        isContractEndingSoon(c.ends_at) ? "font-bold text-destructive" : undefined
+                      }
+                    >
+                      {formatContractDate(c.ends_at)}
+                    </span>
+                  ),
                 },
                 {
                   key: "starts_at",
@@ -247,7 +282,6 @@ function ContractsPage() {
                   className: "text-sm",
                   cell: (c) => c.starts_at,
                 },
-                { key: "ends_at", label: "Fim", className: "text-sm", cell: (c) => c.ends_at },
                 {
                   key: "hours",
                   label: "Horas/mês",
