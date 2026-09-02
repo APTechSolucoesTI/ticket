@@ -35,6 +35,7 @@ import { Route as DemoDashboardRouteImport } from './routes/demo.Dashboard'
 import { Route as DemoTicketsRouteImport } from './routes/demo.Tickets'
 import { Route as KbIndexRouteImport } from './routes/kb.index'
 import { Route as KbSlugRouteImport } from './routes/kb.$slug'
+import { Route as MeasurementReportTokenRouteImport } from './routes/measurement-report.$token'
 import { Route as ReportTokenRouteImport } from './routes/report.$token'
 import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticated/kb.admin'
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
@@ -178,6 +179,11 @@ const KbSlugRoute = KbSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => KbRoute,
 } as any)
+const MeasurementReportTokenRoute = MeasurementReportTokenRouteImport.update({
+  id: '/measurement-report/$token',
+  path: '/measurement-report/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportTokenRoute = ReportTokenRouteImport.update({
   id: '/report/$token',
   path: '/report/$token',
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/demo/Dashboard': typeof DemoDashboardRoute
   '/demo/Tickets': typeof DemoTicketsRouteWithChildren
   '/kb/$slug': typeof KbSlugRoute
+  '/measurement-report/$token': typeof MeasurementReportTokenRoute
   '/report/$token': typeof ReportTokenRoute
   '/demo/': typeof DemoIndexRoute
   '/kb/': typeof KbIndexRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/demo/Dashboard': typeof DemoDashboardRoute
   '/demo/Tickets': typeof DemoTicketsRouteWithChildren
   '/kb/$slug': typeof KbSlugRoute
+  '/measurement-report/$token': typeof MeasurementReportTokenRoute
   '/report/$token': typeof ReportTokenRoute
   '/demo': typeof DemoIndexRoute
   '/kb': typeof KbIndexRoute
@@ -339,6 +347,7 @@ export interface FileRoutesById {
   '/demo/Dashboard': typeof DemoDashboardRoute
   '/demo/Tickets': typeof DemoTicketsRouteWithChildren
   '/kb/$slug': typeof KbSlugRoute
+  '/measurement-report/$token': typeof MeasurementReportTokenRoute
   '/report/$token': typeof ReportTokenRoute
   '/demo/': typeof DemoIndexRoute
   '/kb/': typeof KbIndexRoute
@@ -379,6 +388,7 @@ export interface FileRouteTypes {
     | '/demo/Dashboard'
     | '/demo/Tickets'
     | '/kb/$slug'
+    | '/measurement-report/$token'
     | '/report/$token'
     | '/demo/'
     | '/kb/'
@@ -415,6 +425,7 @@ export interface FileRouteTypes {
     | '/demo/Dashboard'
     | '/demo/Tickets'
     | '/kb/$slug'
+    | '/measurement-report/$token'
     | '/report/$token'
     | '/demo'
     | '/kb'
@@ -454,6 +465,7 @@ export interface FileRouteTypes {
     | '/demo/Dashboard'
     | '/demo/Tickets'
     | '/kb/$slug'
+    | '/measurement-report/$token'
     | '/report/$token'
     | '/demo/'
     | '/kb/'
@@ -478,6 +490,7 @@ export interface RootRouteChildren {
   PortalRoute: typeof PortalRoute
   BackendSplatRoute: typeof BackendSplatRoute
   CsatTokenRoute: typeof CsatTokenRoute
+  MeasurementReportTokenRoute: typeof MeasurementReportTokenRoute
   ReportTokenRoute: typeof ReportTokenRoute
   ApiPublicPortalChatStartRoute: typeof ApiPublicPortalChatStartRoute
   ApiPublicPortalRequestOtpRoute: typeof ApiPublicPortalRequestOtpRoute
@@ -672,6 +685,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KbSlugRouteImport
       parentRoute: typeof KbRoute
     }
+    '/measurement-report/$token': {
+      id: '/measurement-report/$token'
+      path: '/measurement-report/$token'
+      fullPath: '/measurement-report/$token'
+      preLoaderRoute: typeof MeasurementReportTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/report/$token': {
       id: '/report/$token'
       path: '/report/$token'
@@ -847,6 +867,7 @@ const rootRouteChildren: RootRouteChildren = {
   PortalRoute: PortalRoute,
   BackendSplatRoute: BackendSplatRoute,
   CsatTokenRoute: CsatTokenRoute,
+  MeasurementReportTokenRoute: MeasurementReportTokenRoute,
   ReportTokenRoute: ReportTokenRoute,
   ApiPublicPortalChatStartRoute: ApiPublicPortalChatStartRoute,
   ApiPublicPortalRequestOtpRoute: ApiPublicPortalRequestOtpRoute,

@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, apticket, pg_catalog;
-select plan(15);
+select plan(17);
 
 select is(
   apticket.calcular_vencimento_medicao(
@@ -129,6 +129,29 @@ select is(
   (select count(*)::integer from apticket.medicoes_contrato where tenant_id = '11000000-0000-0000-0000-000000000001'),
   3,
   'gera uma medição para cada modelo de cobrança'
+);
+
+select is(
+  (
+    select count(distinct report_token)::integer
+    from apticket.medicoes_contrato
+    where tenant_id = '11000000-0000-0000-0000-000000000001'
+  ),
+  3,
+  'cada medição recebe um token público exclusivo para o boletim'
+);
+
+select ok(
+  exists (
+    select 1
+    from apticket.medicoes_contrato as measurement
+    cross join lateral jsonb_array_elements(
+      apticket.get_contract_measurement_report_by_token(measurement.report_token) -> 'items'
+    ) as report_item
+    where measurement.contrato_id = '31000000-0000-0000-0000-000000000001'
+      and report_item ->> 'description' = 'Servidor principal - EQ-001'
+  ),
+  'boletim público retorna o snapshot dos itens medidos'
 );
 
 select is(

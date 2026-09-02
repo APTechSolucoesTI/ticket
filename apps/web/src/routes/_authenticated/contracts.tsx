@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, FileText, Eye } from "lucide-react";
 import { z } from "zod";
@@ -101,6 +101,9 @@ const serviceSchema = z.object({
   price: z.number().min(0),
 });
 
+const equipmentTiersSchema = z.array(tierSchema);
+const serviceItemsSchema = z.array(serviceSchema);
+
 const schema = z.object({
   company_id: z.string().uuid("Selecione um cliente"),
   contract_type_id: z.string().uuid().nullable(),
@@ -112,8 +115,8 @@ const schema = z.object({
   hours_monthly_quota: z.number().int().min(0),
   extra_hour_price: z.number().min(0),
   monthly_value: z.number().min(0),
-  equipment_tiers: z.array(tierSchema),
-  service_items: z.array(serviceSchema),
+  equipment_tiers: equipmentTiersSchema,
+  service_items: serviceItemsSchema,
   includes_remote: z.boolean(),
   includes_lab: z.boolean(),
   includes_onsite: z.boolean(),
@@ -193,11 +196,15 @@ function ContractsPage() {
         .select("*, companies(name), contract_types(name), sla_policies(name)")
         .order("starts_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []).map((c: any) => ({
-        ...c,
-        equipment_tiers: Array.isArray(c.equipment_tiers) ? c.equipment_tiers : [],
-        service_items: Array.isArray(c.service_items) ? c.service_items : [],
-      })) as Contract[];
+      return (data ?? []).map((contract) => {
+        const equipmentTiers = equipmentTiersSchema.safeParse(contract.equipment_tiers);
+        const serviceItems = serviceItemsSchema.safeParse(contract.service_items);
+        return {
+          ...contract,
+          equipment_tiers: equipmentTiers.success ? equipmentTiers.data : [],
+          service_items: serviceItems.success ? serviceItems.data : [],
+        } as Contract;
+      });
     },
   });
 
@@ -520,6 +527,7 @@ function ContractDialog({
     notes: "",
   });
   const [selectedEquipIds, setSelectedEquipIds] = useState<string[]>([]);
+  const hydratedEquipmentLinksFor = useRef<string | null>(null);
 
   const { data: companies } = useQuery({
     queryKey: ["companies", "options"],
@@ -562,7 +570,7 @@ function ContractDialog({
         .select("equipment_id")
         .eq("contract_id", editing!.id);
       if (error) throw error;
-      return (data ?? []).map((r: any) => r.equipment_id as string);
+      return (data ?? []).map((r) => r.equipment_id);
     },
   });
 
@@ -698,29 +706,46 @@ function ContractDialog({
       description: editing?.description ?? "",
       notes: editing?.notes ?? "",
     });
-    setSelectedEquipIds([]);
-  }, [open, editing]);
+    const editingId = editing?.id ?? null;
+    const cachedLinks = editingId
+      ? qc.getQueryData<string[]>(["contract_equipments", editingId])
+      : undefined;
+    setSelectedEquipIds(cachedLinks ?? []);
+    hydratedEquipmentLinksFor.current = cachedLinks ? editingId : null;
+  }, [open, editing, qc]);
 
   useEffect(() => {
-    if (existingLinks) setSelectedEquipIds(existingLinks);
-  }, [existingLinks]);
+    if (
+      !open ||
+      !editing?.id ||
+      !existingLinks ||
+      hydratedEquipmentLinksFor.current === editing.id
+    ) {
+      return;
+    }
+
+    setSelectedEquipIds(existingLinks);
+    hydratedEquipmentLinksFor.current = editing.id;
+  }, [editing?.id, existingLinks, open]);
 
   // Ao trocar de cliente, limpar equipamentos selecionados de outra empresa
   useEffect(() => {
     setSelectedEquipIds((prev) => {
       if (!companyEquipments) return prev;
-      const allowed = new Set(companyEquipments.map((e: any) => e.id));
+      const allowed = new Set(companyEquipments.map((equipment) => equipment.id));
       return prev.filter((id) => allowed.has(id));
     });
   }, [companyEquipments]);
 
   // Herdar defaults do tipo selecionado (só ao trocar, sem sobrescrever edição existente)
   const applyTypeDefaults = (typeId: string) => {
-    const t: any = types?.find((x: any) => x.id === typeId);
+    const t = types?.find((type) => type.id === typeId);
     if (!t) {
       setForm((f) => ({ ...f, contract_type_id: typeId }));
       return;
     }
+    const equipmentTiers = equipmentTiersSchema.safeParse(t.equipment_tiers);
+    const serviceItems = serviceItemsSchema.safeParse(t.service_items);
     setForm((f) => ({
       ...f,
       contract_type_id: typeId,
@@ -729,18 +754,11 @@ function ContractDialog({
       includes_lab: t.includes_lab ?? f.includes_lab,
       includes_onsite: t.includes_onsite ?? f.includes_onsite,
       equipment_tiers:
-        Array.isArray(t.equipment_tiers) && t.equipment_tiers.length
-          ? t.equipment_tiers
+        equipmentTiers.success && equipmentTiers.data.length
+          ? equipmentTiers.data
           : f.equipment_tiers,
       service_items:
-        Array.isArray(t.service_items) && t.service_items.length
-          ? (t.service_items as ServiceItem[]).map((s) => ({
-              reference: s.reference ?? "",
-              description: s.description ?? "",
-              quantity: Number(s.quantity ?? 0),
-              price: Number(s.price ?? 0),
-            }))
-          : f.service_items,
+        serviceItems.success && serviceItems.data.length ? serviceItems.data : f.service_items,
     }));
   };
 
@@ -941,7 +959,7 @@ function ContractDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={NONE}>Nenhum</SelectItem>
-                      {types?.map((t: any) => (
+                      {types?.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.name}
                         </SelectItem>
@@ -1224,7 +1242,7 @@ function ContractDialog({
                       </div>
                     ) : (
                       <div className="max-h-56 overflow-y-auto border rounded-md divide-y">
-                        {companyEquipments.map((eq: any) => {
+                        {companyEquipments.map((eq) => {
                           const checked = selectedEquipIds.includes(eq.id);
                           return (
                             <label

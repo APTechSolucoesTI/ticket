@@ -867,6 +867,7 @@ export type Database = {
           id: string;
           modelo_cobranca: string;
           numero_contrato: string;
+          report_token: string;
           status: Database["apticket"]["Enums"]["status_medicao_contrato"];
           tenant_id: string;
           tipo_contrato_nome: string | null;
@@ -885,6 +886,7 @@ export type Database = {
           id?: string;
           modelo_cobranca: string;
           numero_contrato: string;
+          report_token?: string;
           status?: Database["apticket"]["Enums"]["status_medicao_contrato"];
           tenant_id: string;
           tipo_contrato_nome?: string | null;
@@ -903,6 +905,7 @@ export type Database = {
           id?: string;
           modelo_cobranca?: string;
           numero_contrato?: string;
+          report_token?: string;
           status?: Database["apticket"]["Enums"]["status_medicao_contrato"];
           tenant_id?: string;
           tipo_contrato_nome?: string | null;
@@ -2412,6 +2415,10 @@ export type Database = {
       };
       current_tenant_id: { Args: never; Returns: string };
       get_closing_report_by_token: {
+        Args: { _token: string };
+        Returns: Json;
+      };
+      get_contract_measurement_report_by_token: {
         Args: { _token: string };
         Returns: Json;
       };

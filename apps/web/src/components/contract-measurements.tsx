@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, FileText, Loader2, Play, ReceiptText } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronDown,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Play,
+  Printer,
+  ReceiptText,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@apticket/shared-types/database";
 import { supabase } from "@/integrations/supabase/client";
@@ -243,6 +252,33 @@ export function ContractMeasurements({
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+
+                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      window.open(`/measurement-report/${measurement.report_token}`, "_blank")
+                    }
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir boletim
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      window.open(
+                        `/measurement-report/${measurement.report_token}?print=1`,
+                        "_blank",
+                      )
+                    }
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir boletim
+                  </Button>
                 </div>
               </div>
             </details>
