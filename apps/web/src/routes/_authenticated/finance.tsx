@@ -46,6 +46,7 @@ import { useModulePermissions } from "@/lib/permission-ui";
 import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { MeasurementReceivables } from "@/components/measurement-receivables";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -182,7 +183,7 @@ function FinancePage() {
     <div className="space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Financeiro"
-        subtitle="Controle o faturamento dos atendimentos avulsos e acompanhe os recebimentos."
+        subtitle="Controle o faturamento dos atendimentos avulsos e das medições contratuais."
         actions={
           access.edit ? (
             <Button variant="outline" className="gap-2" onClick={() => setPriceOpen(true)}>
@@ -192,35 +193,38 @@ function FinancePage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          icon={Clock3}
-          label="A faturar"
-          count={charges.filter((c) => effectiveStatus(c) === "a_faturar").length}
-          value={totalByStatus("a_faturar")}
-          tone="amber"
-        />
-        <SummaryCard
-          icon={Banknote}
-          label="Faturado"
-          count={charges.filter((c) => effectiveStatus(c) === "faturado").length}
-          value={totalByStatus("faturado")}
-          tone="blue"
-        />
-        <SummaryCard
-          icon={CalendarClock}
-          label="Vencido"
-          count={charges.filter((c) => effectiveStatus(c) === "vencido").length}
-          value={totalByStatus("vencido")}
-          tone="red"
-        />
-        <SummaryCard
-          icon={CheckCircle2}
-          label="Recebido"
-          count={charges.filter((c) => effectiveStatus(c) === "recebido").length}
-          value={totalByStatus("recebido")}
-          tone="green"
-        />
+      <div>
+        <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            icon={Clock3}
+            label="A faturar"
+            count={charges.filter((c) => effectiveStatus(c) === "a_faturar").length}
+            value={totalByStatus("a_faturar")}
+            tone="amber"
+          />
+          <SummaryCard
+            icon={Banknote}
+            label="Faturado"
+            count={charges.filter((c) => effectiveStatus(c) === "faturado").length}
+            value={totalByStatus("faturado")}
+            tone="blue"
+          />
+          <SummaryCard
+            icon={CalendarClock}
+            label="Vencido"
+            count={charges.filter((c) => effectiveStatus(c) === "vencido").length}
+            value={totalByStatus("vencido")}
+            tone="red"
+          />
+          <SummaryCard
+            icon={CheckCircle2}
+            label="Recebido"
+            count={charges.filter((c) => effectiveStatus(c) === "recebido").length}
+            value={totalByStatus("recebido")}
+            tone="green"
+          />
+        </div>
       </div>
 
       <Card>
@@ -324,6 +328,8 @@ function FinancePage() {
           )}
         </CardContent>
       </Card>
+
+      <MeasurementReceivables canEdit={access.edit} />
 
       <ChargeDialog
         charge={editing}

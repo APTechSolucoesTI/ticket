@@ -53,6 +53,7 @@ const billingModelLabel: Record<string, string> = {
 
 const statusLabel: Record<string, string> = {
   gerada: "Gerada",
+  aprovada: "Aprovada",
   faturada: "Faturada",
   cancelada: "Cancelada",
 };

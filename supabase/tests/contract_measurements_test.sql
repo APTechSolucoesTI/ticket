@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, apticket, pg_catalog;
-select plan(17);
+select plan(31);
 
 select is(
   apticket.calcular_vencimento_medicao(
@@ -38,6 +38,24 @@ select is(
 
 insert into apticket.tenants (id, name, slug)
 values ('11000000-0000-0000-0000-000000000001', 'Tenant teste medição', 'tenant-teste-medicao');
+
+insert into apticket.profiles (id, tenant_id, name, email, is_active)
+values (
+  '12000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000001',
+  'Administrador de teste',
+  'medicoes@example.test',
+  true
+);
+
+insert into apticket.user_roles (user_id, tenant_id, role_id)
+select
+  '12000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000001',
+  role.id
+from apticket.roles as role
+where role.tenant_id = '11000000-0000-0000-0000-000000000001'
+  and role.name = 'Admin';
 
 insert into apticket.companies (id, tenant_id, name)
 values (
@@ -216,6 +234,123 @@ select ok(
 select ok(
   not has_table_privilege('authenticated', 'apticket.medicao_itens', 'INSERT'),
   'usuário autenticado não insere itens diretamente'
+);
+
+select set_config('request.jwt.claim.sub', '12000000-0000-0000-0000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select lives_ok(
+  $$select apticket.aprovar_medicao_contrato(
+    (select id from apticket.medicoes_contrato
+     where contrato_id = '31000000-0000-0000-0000-000000000001')
+  )$$,
+  'aprova medição gerada'
+);
+
+select is(
+  (select status::text from apticket.medicoes_contrato
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  'aprovada',
+  'aprovação atualiza o status da medição'
+);
+
+select is(
+  (select count(*)::integer from apticket.contas_receber
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  1,
+  'aprovação cria uma conta a receber'
+);
+
+select is(
+  (select valor_original from apticket.contas_receber
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  100.00::numeric,
+  'conta a receber preserva o valor total da medição'
+);
+
+select is(
+  (select vencimento_em from apticket.contas_receber
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  (select data_vencimento from apticket.medicoes_contrato
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  'conta a receber usa o vencimento calculado no boletim'
+);
+
+select lives_ok(
+  $$select apticket.aprovar_medicao_contrato(
+    (select id from apticket.medicoes_contrato
+     where contrato_id = '31000000-0000-0000-0000-000000000001')
+  )$$,
+  'repetir aprovação é idempotente'
+);
+
+select is(
+  (select count(*)::integer from apticket.contas_receber
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  1,
+  'idempotência impede contas a receber duplicadas'
+);
+
+select lives_ok(
+  $$select apticket.cancelar_medicao_contrato_confirmada(
+    (select id from apticket.medicoes_contrato
+     where contrato_id = '31000000-0000-0000-0000-000000000002'),
+    'Cliente solicitou correção dos itens medidos.',
+    '12000000-0000-0000-0000-000000000001',
+    '11000000-0000-0000-0000-000000000001'
+  )$$,
+  'cancela medição com ator autorizado e justificativa'
+);
+
+select is(
+  (select status::text from apticket.medicoes_contrato
+   where contrato_id = '31000000-0000-0000-0000-000000000002'),
+  'cancelada',
+  'cancelamento atualiza o status da medição'
+);
+
+select is(
+  (select justificativa_cancelamento from apticket.medicoes_contrato
+   where contrato_id = '31000000-0000-0000-0000-000000000002'),
+  'Cliente solicitou correção dos itens medidos.',
+  'cancelamento registra a justificativa para auditoria'
+);
+
+select throws_ok(
+  $$select apticket.aprovar_medicao_contrato(
+    (select id from apticket.medicoes_contrato
+     where contrato_id = '31000000-0000-0000-0000-000000000002')
+  )$$,
+  '22023',
+  'Uma medição cancelada não pode ser aprovada.',
+  'medição cancelada não pode ser aprovada'
+);
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'apticket.atualizar_status_medicao_contrato(uuid, apticket.status_medicao_contrato)',
+    'EXECUTE'
+  ),
+  'RPC genérica não permite burlar as transições'
+);
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'apticket.cancelar_medicao_contrato_confirmada(uuid, text, uuid, uuid)',
+    'EXECUTE'
+  ),
+  'cancelamento confirmado fica restrito ao servidor'
+);
+
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'apticket.aprovar_medicao_contrato(uuid)',
+    'EXECUTE'
+  ),
+  'usuário autenticado autorizado pode executar a aprovação'
 );
 
 select * from finish();

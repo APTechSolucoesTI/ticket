@@ -117,6 +117,101 @@ export type Database = {
           },
         ];
       };
+      contas_receber: {
+        Row: {
+          aprovado_em: string;
+          aprovado_por: string | null;
+          cliente_nome: string;
+          company_id: string;
+          competencia: string;
+          contrato_id: string;
+          created_at: string;
+          deleted_at: string | null;
+          descricao: string;
+          documento_referencia: string;
+          id: string;
+          medicao_id: string;
+          observacoes: string | null;
+          status_cobranca: Database["apticket"]["Enums"]["status_cobranca_avulsa"];
+          tenant_id: string;
+          updated_at: string;
+          valor_aberto: number;
+          valor_original: number;
+          vencimento_em: string;
+        };
+        Insert: {
+          aprovado_em: string;
+          aprovado_por?: string | null;
+          cliente_nome: string;
+          company_id: string;
+          competencia: string;
+          contrato_id: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          descricao: string;
+          documento_referencia: string;
+          id?: string;
+          medicao_id: string;
+          observacoes?: string | null;
+          status_cobranca?: Database["apticket"]["Enums"]["status_cobranca_avulsa"];
+          tenant_id: string;
+          updated_at?: string;
+          valor_aberto: number;
+          valor_original: number;
+          vencimento_em: string;
+        };
+        Update: {
+          aprovado_em?: string;
+          aprovado_por?: string | null;
+          cliente_nome?: string;
+          company_id?: string;
+          competencia?: string;
+          contrato_id?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          descricao?: string;
+          documento_referencia?: string;
+          id?: string;
+          medicao_id?: string;
+          observacoes?: string | null;
+          status_cobranca?: Database["apticket"]["Enums"]["status_cobranca_avulsa"];
+          tenant_id?: string;
+          updated_at?: string;
+          valor_aberto?: number;
+          valor_original?: number;
+          vencimento_em?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contas_receber_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contas_receber_contrato_id_fkey";
+            columns: ["contrato_id"];
+            isOneToOne: false;
+            referencedRelation: "contracts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contas_receber_medicao_id_fkey";
+            columns: ["medicao_id"];
+            isOneToOne: true;
+            referencedRelation: "medicoes_contrato";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contas_receber_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contacts: {
         Row: {
           can_open_tickets: boolean;
@@ -855,6 +950,12 @@ export type Database = {
       };
       medicoes_contrato: {
         Row: {
+          aprovada_em: string | null;
+          aprovada_por: string | null;
+          aprovada_por_nome: string | null;
+          cancelada_em: string | null;
+          cancelada_por: string | null;
+          cancelada_por_nome: string | null;
           cliente_nome: string;
           competencia: string;
           contrato_id: string;
@@ -865,6 +966,7 @@ export type Database = {
           emite_boleto: boolean;
           emite_nf: boolean;
           id: string;
+          justificativa_cancelamento: string | null;
           modelo_cobranca: string;
           numero_contrato: string;
           report_token: string;
@@ -874,6 +976,12 @@ export type Database = {
           valor_total: number;
         };
         Insert: {
+          aprovada_em?: string | null;
+          aprovada_por?: string | null;
+          aprovada_por_nome?: string | null;
+          cancelada_em?: string | null;
+          cancelada_por?: string | null;
+          cancelada_por_nome?: string | null;
           cliente_nome: string;
           competencia: string;
           contrato_id: string;
@@ -884,6 +992,7 @@ export type Database = {
           emite_boleto: boolean;
           emite_nf: boolean;
           id?: string;
+          justificativa_cancelamento?: string | null;
           modelo_cobranca: string;
           numero_contrato: string;
           report_token?: string;
@@ -893,6 +1002,12 @@ export type Database = {
           valor_total: number;
         };
         Update: {
+          aprovada_em?: string | null;
+          aprovada_por?: string | null;
+          aprovada_por_nome?: string | null;
+          cancelada_em?: string | null;
+          cancelada_por?: string | null;
+          cancelada_por_nome?: string | null;
           cliente_nome?: string;
           competencia?: string;
           contrato_id?: string;
@@ -903,6 +1018,7 @@ export type Database = {
           emite_boleto?: boolean;
           emite_nf?: boolean;
           id?: string;
+          justificativa_cancelamento?: string | null;
           modelo_cobranca?: string;
           numero_contrato?: string;
           report_token?: string;
@@ -2396,6 +2512,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      aprovar_medicao_contrato: {
+        Args: { p_medicao_id: string };
+        Returns: Json;
+      };
       atualizar_cobrancas_vencidas: { Args: never; Returns: number };
       atualizar_status_medicao_contrato: {
         Args: {
@@ -2412,6 +2532,15 @@ export type Database = {
           p_tipo_vencimento: Database["apticket"]["Enums"]["tipo_vencimento_contrato"];
         };
         Returns: string;
+      };
+      cancelar_medicao_contrato_confirmada: {
+        Args: {
+          p_actor_id: string;
+          p_justificativa: string;
+          p_medicao_id: string;
+          p_tenant_id: string;
+        };
+        Returns: Database["apticket"]["Tables"]["medicoes_contrato"]["Row"];
       };
       current_tenant_id: { Args: never; Returns: string };
       get_closing_report_by_token: {
@@ -2480,7 +2609,7 @@ export type Database = {
       message_author_type: "agent" | "contact" | "system";
       motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato";
       status_cobranca_avulsa: "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
-      status_medicao_contrato: "gerada" | "faturada" | "cancelada";
+      status_medicao_contrato: "gerada" | "aprovada" | "faturada" | "cancelada";
       ticket_channel: "email" | "whatsapp" | "chat" | "manual" | "portal";
       ticket_priority: "low" | "medium" | "high" | "urgent";
       ticket_status: "new" | "in_progress" | "pending" | "resolved" | "closed";
