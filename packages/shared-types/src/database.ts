@@ -291,7 +291,10 @@ export type Database = {
           company_id: string;
           contract_type_id: string | null;
           created_at: string;
+          dia_vencimento: number;
           description: string | null;
+          emite_boleto: boolean;
+          emite_nf: boolean;
           ends_at: string;
           equipment_tiers: Json;
           extra_hour_price: number;
@@ -302,11 +305,14 @@ export type Database = {
           includes_remote: boolean;
           monthly_value: number;
           notes: string | null;
+          numero_contrato: string;
           service_items: Json;
           sla_policy_id: string | null;
           starts_at: string;
           status: Database["apticket"]["Enums"]["contract_status"];
           tenant_id: string;
+          tipo_medicao: Database["apticket"]["Enums"]["tipo_medicao_contrato"];
+          tipo_vencimento: Database["apticket"]["Enums"]["tipo_vencimento_contrato"];
           updated_at: string;
         };
         Insert: {
@@ -315,7 +321,10 @@ export type Database = {
           company_id: string;
           contract_type_id?: string | null;
           created_at?: string;
+          dia_vencimento?: number;
           description?: string | null;
+          emite_boleto?: boolean;
+          emite_nf?: boolean;
           ends_at: string;
           equipment_tiers?: Json;
           extra_hour_price?: number;
@@ -326,11 +335,14 @@ export type Database = {
           includes_remote?: boolean;
           monthly_value?: number;
           notes?: string | null;
+          numero_contrato?: string;
           service_items?: Json;
           sla_policy_id?: string | null;
           starts_at: string;
           status?: Database["apticket"]["Enums"]["contract_status"];
           tenant_id: string;
+          tipo_medicao?: Database["apticket"]["Enums"]["tipo_medicao_contrato"];
+          tipo_vencimento?: Database["apticket"]["Enums"]["tipo_vencimento_contrato"];
           updated_at?: string;
         };
         Update: {
@@ -339,7 +351,10 @@ export type Database = {
           company_id?: string;
           contract_type_id?: string | null;
           created_at?: string;
+          dia_vencimento?: number;
           description?: string | null;
+          emite_boleto?: boolean;
+          emite_nf?: boolean;
           ends_at?: string;
           equipment_tiers?: Json;
           extra_hour_price?: number;
@@ -350,11 +365,14 @@ export type Database = {
           includes_remote?: boolean;
           monthly_value?: number;
           notes?: string | null;
+          numero_contrato?: string;
           service_items?: Json;
           sla_policy_id?: string | null;
           starts_at?: string;
           status?: Database["apticket"]["Enums"]["contract_status"];
           tenant_id?: string;
+          tipo_medicao?: Database["apticket"]["Enums"]["tipo_medicao_contrato"];
+          tipo_vencimento?: Database["apticket"]["Enums"]["tipo_vencimento_contrato"];
           updated_at?: string;
         };
         Relationships: [
@@ -736,6 +754,170 @@ export type Database = {
           },
           {
             foreignKeyName: "kb_categories_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      feriados: {
+        Row: {
+          abrangencia: string;
+          created_at: string;
+          data: string;
+          id: string;
+          nome: string;
+          tenant_id: string | null;
+        };
+        Insert: {
+          abrangencia?: string;
+          created_at?: string;
+          data: string;
+          id?: string;
+          nome: string;
+          tenant_id?: string | null;
+        };
+        Update: {
+          abrangencia?: string;
+          created_at?: string;
+          data?: string;
+          id?: string;
+          nome?: string;
+          tenant_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "feriados_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      medicao_itens: {
+        Row: {
+          created_at: string;
+          descricao: string;
+          id: string;
+          medicao_id: string;
+          quantidade: number;
+          referencia: string | null;
+          referencia_id: string | null;
+          tenant_id: string;
+          tipo_item: Database["apticket"]["Enums"]["tipo_item_medicao"];
+          valor_total: number;
+          valor_unitario: number;
+        };
+        Insert: {
+          created_at?: string;
+          descricao: string;
+          id?: string;
+          medicao_id: string;
+          quantidade?: number;
+          referencia?: string | null;
+          referencia_id?: string | null;
+          tenant_id: string;
+          tipo_item: Database["apticket"]["Enums"]["tipo_item_medicao"];
+          valor_total: number;
+          valor_unitario: number;
+        };
+        Update: {
+          created_at?: string;
+          descricao?: string;
+          id?: string;
+          medicao_id?: string;
+          quantidade?: number;
+          referencia?: string | null;
+          referencia_id?: string | null;
+          tenant_id?: string;
+          tipo_item?: Database["apticket"]["Enums"]["tipo_item_medicao"];
+          valor_total?: number;
+          valor_unitario?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "medicao_itens_medicao_id_fkey";
+            columns: ["medicao_id"];
+            isOneToOne: false;
+            referencedRelation: "medicoes_contrato";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "medicao_itens_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      medicoes_contrato: {
+        Row: {
+          cliente_nome: string;
+          competencia: string;
+          contrato_id: string;
+          created_at: string;
+          data_medicao: string;
+          data_vencimento: string;
+          deleted_at: string | null;
+          emite_boleto: boolean;
+          emite_nf: boolean;
+          id: string;
+          modelo_cobranca: string;
+          numero_contrato: string;
+          status: Database["apticket"]["Enums"]["status_medicao_contrato"];
+          tenant_id: string;
+          tipo_contrato_nome: string | null;
+          valor_total: number;
+        };
+        Insert: {
+          cliente_nome: string;
+          competencia: string;
+          contrato_id: string;
+          created_at?: string;
+          data_medicao?: string;
+          data_vencimento: string;
+          deleted_at?: string | null;
+          emite_boleto: boolean;
+          emite_nf: boolean;
+          id?: string;
+          modelo_cobranca: string;
+          numero_contrato: string;
+          status?: Database["apticket"]["Enums"]["status_medicao_contrato"];
+          tenant_id: string;
+          tipo_contrato_nome?: string | null;
+          valor_total: number;
+        };
+        Update: {
+          cliente_nome?: string;
+          competencia?: string;
+          contrato_id?: string;
+          created_at?: string;
+          data_medicao?: string;
+          data_vencimento?: string;
+          deleted_at?: string | null;
+          emite_boleto?: boolean;
+          emite_nf?: boolean;
+          id?: string;
+          modelo_cobranca?: string;
+          numero_contrato?: string;
+          status?: Database["apticket"]["Enums"]["status_medicao_contrato"];
+          tenant_id?: string;
+          tipo_contrato_nome?: string | null;
+          valor_total?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "medicoes_contrato_contrato_id_fkey";
+            columns: ["contrato_id"];
+            isOneToOne: false;
+            referencedRelation: "contracts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "medicoes_contrato_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -2212,6 +2394,22 @@ export type Database = {
     };
     Functions: {
       atualizar_cobrancas_vencidas: { Args: never; Returns: number };
+      atualizar_status_medicao_contrato: {
+        Args: {
+          p_medicao_id: string;
+          p_status: Database["apticket"]["Enums"]["status_medicao_contrato"];
+        };
+        Returns: Database["apticket"]["Tables"]["medicoes_contrato"]["Row"];
+      };
+      calcular_vencimento_medicao: {
+        Args: {
+          p_competencia: string;
+          p_dia_vencimento: number;
+          p_tenant_id: string;
+          p_tipo_vencimento: Database["apticket"]["Enums"]["tipo_vencimento_contrato"];
+        };
+        Returns: string;
+      };
       current_tenant_id: { Args: never; Returns: string };
       get_closing_report_by_token: {
         Args: { _token: string };
@@ -2234,6 +2432,14 @@ export type Database = {
           module: string;
           override: boolean | null;
         }[];
+      };
+      gerar_medicoes_contrato: {
+        Args: {
+          p_competencia?: string;
+          p_contrato_id?: string | null;
+          p_forcar?: boolean;
+        };
+        Returns: Json;
       };
       has_permission: {
         Args: { _action: string; _module: string; _user_id: string };
@@ -2267,10 +2473,14 @@ export type Database = {
       message_author_type: "agent" | "contact" | "system";
       motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato";
       status_cobranca_avulsa: "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
+      status_medicao_contrato: "gerada" | "faturada" | "cancelada";
       ticket_channel: "email" | "whatsapp" | "chat" | "manual" | "portal";
       ticket_priority: "low" | "medium" | "high" | "urgent";
       ticket_status: "new" | "in_progress" | "pending" | "resolved" | "closed";
       tipo_atendimento: "contratual" | "avulso";
+      tipo_item_medicao: "equipamento" | "servico" | "pacote_horas";
+      tipo_medicao_contrato: "mensal" | "trimestral" | "semestral" | "anual" | "unica";
+      tipo_vencimento_contrato: "fixo" | "util";
     };
     CompositeTypes: {
       [_ in never]: never;

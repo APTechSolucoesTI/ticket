@@ -14,6 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ContractMeasurements } from "@/components/contract-measurements";
 import {
   Select,
   SelectContent,
@@ -49,6 +52,8 @@ export const Route = createFileRoute("/_authenticated/contracts")({
 });
 
 type BillingModel = "hours_package" | "per_equipment" | "per_service";
+type MeasurementFrequency = "mensal" | "trimestral" | "semestral" | "anual" | "unica";
+type DueType = "fixo" | "util";
 type EquipmentTier = { min: number; max: number; price: number };
 type ServiceItem = { reference: string; description: string; quantity: number; price: number };
 
@@ -70,6 +75,12 @@ type Contract = {
   includes_lab: boolean;
   includes_onsite: boolean;
   auto_renew: boolean;
+  numero_contrato: string;
+  tipo_medicao: MeasurementFrequency;
+  emite_nf: boolean;
+  emite_boleto: boolean;
+  tipo_vencimento: DueType;
+  dia_vencimento: number;
   description: string | null;
   notes: string | null;
   companies?: { name: string } | null;
@@ -107,6 +118,15 @@ const schema = z.object({
   includes_lab: z.boolean(),
   includes_onsite: z.boolean(),
   auto_renew: z.boolean(),
+  tipo_medicao: z.enum(["mensal", "trimestral", "semestral", "anual", "unica"]),
+  emite_nf: z.boolean(),
+  emite_boleto: z.boolean(),
+  tipo_vencimento: z.enum(["fixo", "util"]),
+  dia_vencimento: z
+    .number()
+    .int()
+    .min(1, "O dia deve ser no mínimo 1")
+    .max(30, "O dia deve ser no máximo 30"),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
 });
@@ -122,6 +142,14 @@ const billingLabel: Record<BillingModel, string> = {
   hours_package: "Pacote de horas",
   per_equipment: "Por equipamento",
   per_service: "Por serviço",
+};
+
+const measurementFrequencyLabel: Record<MeasurementFrequency, string> = {
+  mensal: "Mensal",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+  anual: "Anual",
+  unica: "Única",
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -221,6 +249,7 @@ function ContractsPage() {
             rows={data}
             rowKey={(c) => c.id}
             defaultColumns={[
+              "number",
               "company",
               "type",
               "billing",
@@ -232,6 +261,13 @@ function ContractsPage() {
             ]}
             columns={
               [
+                {
+                  key: "number",
+                  label: "Contrato",
+                  className: "whitespace-nowrap font-mono text-xs font-semibold",
+                  accessor: (c) => c.numero_contrato,
+                  cell: (c) => c.numero_contrato,
+                },
                 {
                   key: "company",
                   label: "Cliente",
@@ -254,6 +290,13 @@ function ContractsPage() {
                   label: "Cobrança",
                   className: "text-sm",
                   cell: (c) => billingLabel[c.billing_model],
+                },
+                {
+                  key: "measurement_frequency",
+                  label: "Medição",
+                  className: "text-sm",
+                  accessor: (c) => c.tipo_medicao,
+                  cell: (c) => measurementFrequencyLabel[c.tipo_medicao],
                 },
                 {
                   key: "sla",
@@ -410,6 +453,7 @@ function ContractsPage() {
 const NONE = "__none__";
 
 type FormState = {
+  numero_contrato: string;
   company_id: string;
   contract_type_id: string;
   sla_policy_id: string;
@@ -427,6 +471,11 @@ type FormState = {
   includes_lab: boolean;
   includes_onsite: boolean;
   auto_renew: boolean;
+  tipo_medicao: MeasurementFrequency;
+  emite_nf: boolean;
+  emite_boleto: boolean;
+  tipo_vencimento: DueType;
+  dia_vencimento: number;
   description: string;
   notes: string;
 };
@@ -444,6 +493,7 @@ function ContractDialog({
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState>({
+    numero_contrato: "",
     company_id: "",
     contract_type_id: "",
     sla_policy_id: "",
@@ -461,6 +511,11 @@ function ContractDialog({
     includes_lab: false,
     includes_onsite: false,
     auto_renew: false,
+    tipo_medicao: "mensal",
+    emite_nf: false,
+    emite_boleto: false,
+    tipo_vencimento: "fixo",
+    dia_vencimento: 1,
     description: "",
     notes: "",
   });
@@ -545,6 +600,11 @@ function ContractDialog({
         status: payload.status,
         starts_at: payload.starts_at,
         ends_at: payload.ends_at,
+        tipo_medicao: payload.tipo_medicao,
+        emite_nf: payload.emite_nf,
+        emite_boleto: payload.emite_boleto,
+        tipo_vencimento: payload.tipo_vencimento,
+        dia_vencimento: payload.dia_vencimento,
         billing_model: payload.billing_model,
         hours_monthly_quota:
           payload.billing_model === "hours_package" ? payload.hours_monthly_quota : 0,
@@ -609,6 +669,7 @@ function ContractDialog({
   useEffect(() => {
     if (!open) return;
     setForm({
+      numero_contrato: editing?.numero_contrato ?? "",
       company_id: editing?.company_id ?? "",
       contract_type_id: editing?.contract_type_id ?? "",
       sla_policy_id: editing?.sla_policy_id ?? "",
@@ -629,6 +690,11 @@ function ContractDialog({
       includes_lab: editing?.includes_lab ?? false,
       includes_onsite: editing?.includes_onsite ?? false,
       auto_renew: editing?.auto_renew ?? false,
+      tipo_medicao: editing?.tipo_medicao ?? "mensal",
+      emite_nf: editing?.emite_nf ?? false,
+      emite_boleto: editing?.emite_boleto ?? false,
+      tipo_vencimento: editing?.tipo_vencimento ?? "fixo",
+      dia_vencimento: editing?.dia_vencimento ?? 1,
       description: editing?.description ?? "",
       notes: editing?.notes ?? "",
     });
@@ -717,435 +783,554 @@ function ContractDialog({
             </DialogTitle>
           </DialogHeader>
           <ReadOnlyNotice show={readOnly} />
-          <form
-            className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4 [&_label]:text-[11px] [&_input]:h-8 [&_input]:text-xs [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (readOnly) return;
-              const r = schema.safeParse({
-                ...form,
-                contract_type_id: form.contract_type_id || null,
-                sla_policy_id: form.sla_policy_id || null,
-              });
-              if (!r.success) {
-                toast.error(getValidationErrorMessage(r.error));
-                return;
-              }
-              if (r.data.billing_model === "per_equipment" && r.data.equipment_tiers.length === 0) {
-                toast.error("Adicione ao menos uma faixa de equipamentos");
-                return;
-              }
-              if (r.data.billing_model === "per_service" && r.data.service_items.length === 0) {
-                toast.error("Adicione ao menos um serviço");
-                return;
-              }
+          <Tabs key={editing?.id ?? "new"} defaultValue="cadastro" className="min-w-0">
+            <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+              <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
+              <TabsTrigger value="medicoes" disabled={!editing}>
+                Histórico de Medições
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="cadastro">
+              <form
+                className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4 [&_label]:text-[11px] [&_input]:h-8 [&_input]:text-xs [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (readOnly) return;
+                  const r = schema.safeParse({
+                    ...form,
+                    contract_type_id: form.contract_type_id || null,
+                    sla_policy_id: form.sla_policy_id || null,
+                  });
+                  if (!r.success) {
+                    toast.error(getValidationErrorMessage(r.error));
+                    return;
+                  }
+                  if (
+                    r.data.billing_model === "per_equipment" &&
+                    r.data.equipment_tiers.length === 0
+                  ) {
+                    toast.error("Adicione ao menos uma faixa de equipamentos");
+                    return;
+                  }
+                  if (r.data.billing_model === "per_service" && r.data.service_items.length === 0) {
+                    toast.error("Adicione ao menos um serviço");
+                    return;
+                  }
 
-              save.mutate(r.data);
-            }}
-          >
-            <div className="sm:col-span-2 lg:col-span-4">
-              <Label>Cliente *</Label>
-              <Select
-                value={form.company_id}
-                onValueChange={(v) => setForm({ ...form, company_id: v })}
+                  save.mutate(r.data);
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Tipo de contrato</Label>
-              <Select
-                value={form.contract_type_id || NONE}
-                onValueChange={(v) => applyTypeDefaults(v === NONE ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Nenhum" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Nenhum</SelectItem>
-                  {types?.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>SLA</Label>
-              <Select
-                value={form.sla_policy_id || NONE}
-                onValueChange={(v) => setForm({ ...form, sla_policy_id: v === NONE ? "" : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Nenhum" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Nenhum</SelectItem>
-                  {slas?.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Modelo de cobrança *</Label>
-              <Select
-                value={form.billing_model}
-                onValueChange={(v) => setForm({ ...form, billing_model: v as BillingModel })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hours_package">Pacote de horas</SelectItem>
-                  <SelectItem value="per_equipment">Por equipamento vinculado</SelectItem>
-                  <SelectItem value="per_service">Por serviço vinculado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => setForm({ ...form, status: v as Contract["status"] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="suspended">Suspenso</SelectItem>
-                  <SelectItem value="expired">Expirado</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Início *</Label>
-              <Input
-                type="date"
-                value={form.starts_at}
-                onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Fim *</Label>
-              <Input
-                type="date"
-                value={form.ends_at}
-                onChange={(e) => setForm({ ...form, ends_at: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Valor hora extra (R$)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.extra_hour_price}
-                onChange={(e) => setForm({ ...form, extra_hour_price: Number(e.target.value) })}
-              />
-            </div>
-            <div className="flex items-end justify-between rounded-md border px-3 h-[52px]">
-              <div className="text-[11px]">Renovação auto.</div>
-              <Switch
-                checked={form.auto_renew}
-                onCheckedChange={(v) => setForm({ ...form, auto_renew: v })}
-              />
-            </div>
-
-            {form.billing_model === "hours_package" ? (
-              <>
                 <div>
-                  <Label>Horas/mês</Label>
+                  <Label>Número do contrato</Label>
+                  <Input
+                    value={form.numero_contrato}
+                    placeholder="Gerado automaticamente"
+                    readOnly
+                    className="font-mono"
+                  />
+                </div>
+                <div>
+                  <Label>Tipo de medição *</Label>
+                  <Select
+                    value={form.tipo_medicao}
+                    onValueChange={(value) =>
+                      setForm({ ...form, tipo_medicao: value as MeasurementFrequency })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mensal">Mensal</SelectItem>
+                      <SelectItem value="trimestral">Trimestral</SelectItem>
+                      <SelectItem value="semestral">Semestral</SelectItem>
+                      <SelectItem value="anual">Anual</SelectItem>
+                      <SelectItem value="unica">Única</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Dia do vencimento *</Label>
                   <Input
                     type="number"
-                    min={0}
-                    value={form.hours_monthly_quota}
-                    onChange={(e) =>
-                      setForm({ ...form, hours_monthly_quota: Number(e.target.value) })
+                    min={1}
+                    max={30}
+                    value={form.dia_vencimento}
+                    onChange={(event) =>
+                      setForm({ ...form, dia_vencimento: Number(event.target.value) })
                     }
                   />
                 </div>
-                <div className="sm:col-span-2 lg:col-span-3">
-                  <Label>Valor mensal (R$)</Label>
+                <fieldset className="rounded-md border px-3 py-2">
+                  <legend className="px-1 text-[11px] font-medium">Regra de vencimento</legend>
+                  <RadioGroup
+                    value={form.tipo_vencimento}
+                    onValueChange={(value) =>
+                      setForm({ ...form, tipo_vencimento: value as DueType })
+                    }
+                    disabled={readOnly}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    <label className="flex items-center gap-2">
+                      <RadioGroupItem value="fixo" /> Fixo
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <RadioGroupItem value="util" /> Útil
+                    </label>
+                  </RadioGroup>
+                </fieldset>
+
+                <p className="text-[11px] leading-relaxed text-muted-foreground sm:col-span-2 lg:col-span-4">
+                  {form.tipo_vencimento === "fixo"
+                    ? "Fixo: vence no dia informado dentro do mês da competência. Em meses mais curtos, usa o último dia."
+                    : "Útil: vence no N-ésimo dia útil contado desde o início do mês da competência, desconsiderando fins de semana e feriados."}
+                </p>
+
+                <label className="flex items-center justify-between rounded-md border px-3 py-2 sm:col-span-1 lg:col-span-2">
+                  <span>
+                    <span className="block font-medium">Emitir nota fiscal</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Registra a solicitação na medição.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={form.emite_nf}
+                    onCheckedChange={(checked) => setForm({ ...form, emite_nf: checked })}
+                  />
+                </label>
+                <label className="flex items-center justify-between rounded-md border px-3 py-2 sm:col-span-1 lg:col-span-2">
+                  <span>
+                    <span className="block font-medium">Emitir boleto</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Registra a solicitação na medição.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={form.emite_boleto}
+                    onCheckedChange={(checked) => setForm({ ...form, emite_boleto: checked })}
+                  />
+                </label>
+
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <Label>Cliente *</Label>
+                  <Select
+                    value={form.company_id}
+                    onValueChange={(v) => setForm({ ...form, company_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Tipo de contrato</Label>
+                  <Select
+                    value={form.contract_type_id || NONE}
+                    onValueChange={(v) => applyTypeDefaults(v === NONE ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nenhum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Nenhum</SelectItem>
+                      {types?.map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>SLA</Label>
+                  <Select
+                    value={form.sla_policy_id || NONE}
+                    onValueChange={(v) => setForm({ ...form, sla_policy_id: v === NONE ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nenhum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Nenhum</SelectItem>
+                      {slas?.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Modelo de cobrança *</Label>
+                  <Select
+                    value={form.billing_model}
+                    onValueChange={(v) => setForm({ ...form, billing_model: v as BillingModel })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hours_package">Pacote de horas</SelectItem>
+                      <SelectItem value="per_equipment">Por equipamento vinculado</SelectItem>
+                      <SelectItem value="per_service">Por serviço vinculado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => setForm({ ...form, status: v as Contract["status"] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Ativo</SelectItem>
+                      <SelectItem value="suspended">Suspenso</SelectItem>
+                      <SelectItem value="expired">Expirado</SelectItem>
+                      <SelectItem value="cancelled">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Início *</Label>
+                  <Input
+                    type="date"
+                    value={form.starts_at}
+                    onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Fim *</Label>
+                  <Input
+                    type="date"
+                    value={form.ends_at}
+                    onChange={(e) => setForm({ ...form, ends_at: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Valor hora extra (R$)</Label>
                   <Input
                     type="number"
                     min={0}
                     step="0.01"
-                    value={form.monthly_value}
-                    onChange={(e) => setForm({ ...form, monthly_value: Number(e.target.value) })}
+                    value={form.extra_hour_price}
+                    onChange={(e) => setForm({ ...form, extra_hour_price: Number(e.target.value) })}
                   />
                 </div>
-              </>
-            ) : form.billing_model === "per_service" ? (
-              <div className="space-y-2 rounded-md border p-3 sm:col-span-2 lg:col-span-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label className="text-[11px] font-medium">Serviços vinculados ao contrato</Label>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-muted-foreground">
-                      Valor mensal:{" "}
-                      <span className="font-medium text-foreground">
-                        R$ {computedMonthly.toFixed(2)}
-                      </span>
-                    </span>
-                    {!readOnly && (
-                      <Button type="button" size="sm" variant="outline" onClick={addService}>
-                        <Plus className="h-3 w-3 mr-1" /> Adicionar serviços
-                      </Button>
-                    )}
-                  </div>
+                <div className="flex items-end justify-between rounded-md border px-3 h-[52px]">
+                  <div className="text-[11px]">Renovação auto.</div>
+                  <Switch
+                    checked={form.auto_renew}
+                    onCheckedChange={(v) => setForm({ ...form, auto_renew: v })}
+                  />
                 </div>
-                {form.service_items.length === 0 && (
-                  <div className="text-[11px] text-muted-foreground">
-                    Nenhum serviço adicionado.
-                  </div>
-                )}
-                {form.service_items.map((s, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_0.8fr_1fr_auto]"
-                  >
-                    <div>
-                      <Label>Referência</Label>
-                      <Input
-                        value={s.reference}
-                        onChange={(e) => updateService(i, { reference: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Descrição</Label>
-                      <Input
-                        value={s.description}
-                        onChange={(e) => updateService(i, { description: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Quantidade</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={s.quantity}
-                        onChange={(e) => updateService(i, { quantity: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Valor unitário (R$)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={s.price}
-                        onChange={(e) => updateService(i, { price: Number(e.target.value) })}
-                      />
-                    </div>
-                    {!readOnly && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeService(i)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2 rounded-md border p-3 sm:col-span-2 lg:col-span-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label className="text-[11px] font-medium">
-                    Faixas por quantidade de equipamentos
-                  </Label>
-                  {!readOnly && (
-                    <Button type="button" size="sm" variant="outline" onClick={addTier}>
-                      <Plus className="h-3 w-3 mr-1" /> Adicionar faixa
-                    </Button>
-                  )}
-                </div>
-                {form.equipment_tiers.length === 0 && (
-                  <div className="text-[11px] text-muted-foreground">Nenhuma faixa cadastrada.</div>
-                )}
-                {form.equipment_tiers.map((t, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]"
-                  >
-                    <div>
-                      <Label>De</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={t.min}
-                        onChange={(e) => updateTier(i, { min: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Até</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={t.max}
-                        onChange={(e) => updateTier(i, { max: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Valor (R$)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={t.price}
-                        onChange={(e) => updateTier(i, { price: Number(e.target.value) })}
-                      />
-                    </div>
-                    {!readOnly && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeTier(i)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {form.billing_model === "per_equipment" && (
-              <div className="space-y-2 rounded-md border p-3 sm:col-span-2 lg:col-span-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-medium">
-                    Equipamentos vinculados ao contrato
-                    {form.company_id ? "" : " (selecione um cliente primeiro)"}
-                  </Label>
-                  <div className="text-[11px] text-muted-foreground">
-                    {selectedEquipIds.length} selecionado(s) · Valor mensal:{" "}
-                    <span className="font-medium text-foreground">
-                      R$ {computedMonthly.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-                {!form.company_id ? null : !companyEquipments?.length ? (
-                  <div className="text-[11px] text-muted-foreground">
-                    Nenhum equipamento cadastrado para este cliente.
+                {form.billing_model === "hours_package" ? (
+                  <>
+                    <div>
+                      <Label>Horas/mês</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={form.hours_monthly_quota}
+                        onChange={(e) =>
+                          setForm({ ...form, hours_monthly_quota: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <Label>Valor mensal (R$)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={form.monthly_value}
+                        onChange={(e) =>
+                          setForm({ ...form, monthly_value: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                  </>
+                ) : form.billing_model === "per_service" ? (
+                  <div className="space-y-2 rounded-md border p-3 sm:col-span-2 lg:col-span-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Label className="text-[11px] font-medium">
+                        Serviços vinculados ao contrato
+                      </Label>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] text-muted-foreground">
+                          Valor mensal:{" "}
+                          <span className="font-medium text-foreground">
+                            R$ {computedMonthly.toFixed(2)}
+                          </span>
+                        </span>
+                        {!readOnly && (
+                          <Button type="button" size="sm" variant="outline" onClick={addService}>
+                            <Plus className="h-3 w-3 mr-1" /> Adicionar serviços
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {form.service_items.length === 0 && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Nenhum serviço adicionado.
+                      </div>
+                    )}
+                    {form.service_items.map((s, i) => (
+                      <div
+                        key={i}
+                        className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_0.8fr_1fr_auto]"
+                      >
+                        <div>
+                          <Label>Referência</Label>
+                          <Input
+                            value={s.reference}
+                            onChange={(e) => updateService(i, { reference: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Descrição</Label>
+                          <Input
+                            value={s.description}
+                            onChange={(e) => updateService(i, { description: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Quantidade</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={s.quantity}
+                            onChange={(e) => updateService(i, { quantity: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Valor unitário (R$)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={s.price}
+                            onChange={(e) => updateService(i, { price: Number(e.target.value) })}
+                          />
+                        </div>
+                        {!readOnly && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeService(i)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="max-h-56 overflow-y-auto border rounded-md divide-y">
-                    {companyEquipments.map((eq: any) => {
-                      const checked = selectedEquipIds.includes(eq.id);
-                      return (
-                        <label
-                          key={eq.id}
-                          className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/40 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={readOnly}
-                            checked={checked}
-                            onChange={(e) => {
-                              setSelectedEquipIds((prev) =>
-                                e.target.checked
-                                  ? [...prev, eq.id]
-                                  : prev.filter((id) => id !== eq.id),
-                              );
-                            }}
+                  <div className="space-y-2 rounded-md border p-3 sm:col-span-2 lg:col-span-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Label className="text-[11px] font-medium">
+                        Faixas por quantidade de equipamentos
+                      </Label>
+                      {!readOnly && (
+                        <Button type="button" size="sm" variant="outline" onClick={addTier}>
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar faixa
+                        </Button>
+                      )}
+                    </div>
+                    {form.equipment_tiers.length === 0 && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Nenhuma faixa cadastrada.
+                      </div>
+                    )}
+                    {form.equipment_tiers.map((t, i) => (
+                      <div
+                        key={i}
+                        className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]"
+                      >
+                        <div>
+                          <Label>De</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={t.min}
+                            onChange={(e) => updateTier(i, { min: Number(e.target.value) })}
                           />
-                          <div className="flex-1">
-                            <div className="text-[12px] font-medium">{eq.name}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {[eq.type, eq.brand, eq.model, eq.serial_number]
-                                .filter(Boolean)
-                                .join(" · ") || "-"}
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
+                        </div>
+                        <div>
+                          <Label>Até</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={t.max}
+                            onChange={(e) => updateTier(i, { max: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Valor (R$)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={t.price}
+                            onChange={(e) => updateTier(i, { price: Number(e.target.value) })}
+                          />
+                        </div>
+                        {!readOnly && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTier(i)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
-                {selectedEquipIds.length > 0 &&
-                  !form.equipment_tiers.some(
-                    (t) => selectedEquipIds.length >= t.min && selectedEquipIds.length <= t.max,
-                  ) && (
-                    <div className="text-[11px] text-destructive">
-                      A quantidade selecionada ({selectedEquipIds.length}) não se enquadra em
-                      nenhuma faixa cadastrada.
+
+                {form.billing_model === "per_equipment" && (
+                  <div className="space-y-2 rounded-md border p-3 sm:col-span-2 lg:col-span-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-medium">
+                        Equipamentos vinculados ao contrato
+                        {form.company_id ? "" : " (selecione um cliente primeiro)"}
+                      </Label>
+                      <div className="text-[11px] text-muted-foreground">
+                        {selectedEquipIds.length} selecionado(s) · Valor mensal:{" "}
+                        <span className="font-medium text-foreground">
+                          R$ {computedMonthly.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
+                    {!form.company_id ? null : !companyEquipments?.length ? (
+                      <div className="text-[11px] text-muted-foreground">
+                        Nenhum equipamento cadastrado para este cliente.
+                      </div>
+                    ) : (
+                      <div className="max-h-56 overflow-y-auto border rounded-md divide-y">
+                        {companyEquipments.map((eq: any) => {
+                          const checked = selectedEquipIds.includes(eq.id);
+                          return (
+                            <label
+                              key={eq.id}
+                              className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/40 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={readOnly}
+                                checked={checked}
+                                onChange={(e) => {
+                                  setSelectedEquipIds((prev) =>
+                                    e.target.checked
+                                      ? [...prev, eq.id]
+                                      : prev.filter((id) => id !== eq.id),
+                                  );
+                                }}
+                              />
+                              <div className="flex-1">
+                                <div className="text-[12px] font-medium">{eq.name}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {[eq.type, eq.brand, eq.model, eq.serial_number]
+                                    .filter(Boolean)
+                                    .join(" · ") || "-"}
+                                </div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {selectedEquipIds.length > 0 &&
+                      !form.equipment_tiers.some(
+                        (t) => selectedEquipIds.length >= t.min && selectedEquipIds.length <= t.max,
+                      ) && (
+                        <div className="text-[11px] text-destructive">
+                          A quantidade selecionada ({selectedEquipIds.length}) não se enquadra em
+                          nenhuma faixa cadastrada.
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-3 lg:col-span-4">
+                  <label className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span>Suporte remoto</span>
+                    <Switch
+                      checked={form.includes_remote}
+                      onCheckedChange={(v) => setForm({ ...form, includes_remote: v })}
+                    />
+                  </label>
+                  <label className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span>Laboratório</span>
+                    <Switch
+                      checked={form.includes_lab}
+                      onCheckedChange={(v) => setForm({ ...form, includes_lab: v })}
+                    />
+                  </label>
+                  <label className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span>Visita técnica</span>
+                    <Switch
+                      checked={form.includes_onsite}
+                      onCheckedChange={(v) => setForm({ ...form, includes_onsite: v })}
+                    />
+                  </label>
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <Label>Descrição do contrato</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Resumo exibido ao abrir tickets (sistema e portal). Ex.: escopo atendido, janelas, exclusões."
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <Label>Observações</Label>
+                  <RichTextEditor
+                    value={form.notes}
+                    onChange={(html) => setForm({ ...form, notes: html })}
+                  />
+                </div>
+                <DialogFooter className="sm:col-span-2 lg:col-span-4">
+                  <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                    {readOnly ? "Fechar" : "Cancelar"}
+                  </Button>
+                  {!readOnly && (
+                    <Button type="submit" disabled={save.isPending}>
+                      {save.isPending ? "Salvando…" : "Salvar"}
+                    </Button>
                   )}
-              </div>
+                </DialogFooter>
+              </form>
+            </TabsContent>
+            {editing && (
+              <TabsContent value="medicoes">
+                <ContractMeasurements
+                  contractId={editing.id}
+                  contractNumber={editing.numero_contrato}
+                  canGenerate={!readOnly}
+                />
+              </TabsContent>
             )}
-
-            <div className="grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-3 lg:col-span-4">
-              <label className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span>Suporte remoto</span>
-                <Switch
-                  checked={form.includes_remote}
-                  onCheckedChange={(v) => setForm({ ...form, includes_remote: v })}
-                />
-              </label>
-              <label className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span>Laboratório</span>
-                <Switch
-                  checked={form.includes_lab}
-                  onCheckedChange={(v) => setForm({ ...form, includes_lab: v })}
-                />
-              </label>
-              <label className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span>Visita técnica</span>
-                <Switch
-                  checked={form.includes_onsite}
-                  onCheckedChange={(v) => setForm({ ...form, includes_onsite: v })}
-                />
-              </label>
-            </div>
-
-            <div className="sm:col-span-2 lg:col-span-4">
-              <Label>Descrição do contrato</Label>
-              <Textarea
-                rows={3}
-                placeholder="Resumo exibido ao abrir tickets (sistema e portal). Ex.: escopo atendido, janelas, exclusões."
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </div>
-
-            <div className="sm:col-span-2 lg:col-span-4">
-              <Label>Observações</Label>
-              <RichTextEditor
-                value={form.notes}
-                onChange={(html) => setForm({ ...form, notes: html })}
-              />
-            </div>
-            <DialogFooter className="sm:col-span-2 lg:col-span-4">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-                {readOnly ? "Fechar" : "Cancelar"}
-              </Button>
-              {!readOnly && (
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Salvando…" : "Salvar"}
-                </Button>
-              )}
-            </DialogFooter>
-          </form>
+          </Tabs>
         </DialogContent>
       </ReadOnlyProvider>
     </Dialog>

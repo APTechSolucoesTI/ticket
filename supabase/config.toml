@@ -1,1 +1,7 @@
 project_id = "qwfknrhvnprkkhllzxwk"
+
+[functions.gerar-medicoes-contrato]
+enabled = true
+verify_jwt = true
+import_map = "./functions/gerar-medicoes-contrato/deno.json"
+entrypoint = "./functions/gerar-medicoes-contrato/index.ts"
