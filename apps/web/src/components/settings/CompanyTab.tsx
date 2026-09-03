@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Building2, Loader2, Search } from "lucide-react";
+import { AlertCircle, Building2, Loader2, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { maskCNPJ, maskCEP, maskPhone, normalizePhone } from "@/lib/masks";
@@ -109,7 +109,14 @@ async function requireTenantId() {
 export function CompanyTab() {
   const qc = useQueryClient();
   const access = useModulePermissions("empresa");
-  const { data: tenant, isLoading } = useQuery({
+  const {
+    data: tenant,
+    error: tenantError,
+    isError: isTenantError,
+    isFetching: isTenantFetching,
+    isLoading,
+    refetch: refetchTenant,
+  } = useQuery({
     queryKey: ["tenant-config"],
     queryFn: async (): Promise<TenantRow | null> => {
       const tid = await requireTenantId();
@@ -265,6 +272,38 @@ export function CompanyTab() {
       <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
         <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
       </div>
+    );
+  }
+
+  if (isTenantError) {
+    return (
+      <Card className="flex flex-col items-start gap-3 border-destructive/30 p-5">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div>
+            <h3 className="text-sm font-semibold">Não foi possível carregar os dados da empresa</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {getUserFacingError(
+                tenantError,
+                "O cadastro permanece armazenado. Tente carregar os dados novamente.",
+              )}
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void refetchTenant()}
+          disabled={isTenantFetching}
+        >
+          {isTenantFetching ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Tentar novamente
+        </Button>
+      </Card>
     );
   }
 
