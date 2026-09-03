@@ -57,6 +57,7 @@ type Company = {
   name: string;
   fantasy_name: string | null;
   cnpj: string | null;
+  cnaes: CompanyCnae[];
   segment: string | null;
   phone: string | null;
   website: string | null;
@@ -70,6 +71,18 @@ type Company = {
   is_vip: boolean;
   notes: string | null;
 };
+
+type CompanyCnae = {
+  code: string;
+  description: string;
+  is_primary: boolean;
+};
+
+const cnaeSchema = z.object({
+  code: z.string().regex(/^\d{7}$/),
+  description: z.string().trim().min(1).max(300),
+  is_primary: z.boolean(),
+});
 
 const schema = z.object({
   name: z.string().trim().min(1, "Nome obrigatório").max(150),
@@ -116,7 +129,52 @@ const schema = z.object({
   address_state: z.string().trim().max(2).optional().or(z.literal("")),
   is_vip: z.boolean(),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
+  cnaes: z.array(cnaeSchema).max(200),
 });
+
+function normalizeCnaeCode(value: unknown) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits ? digits.padStart(7, "0").slice(-7) : "";
+}
+
+function formatCnaeCode(code: string) {
+  const digits = normalizeCnaeCode(code);
+  return digits.replace(/^(\d{2})(\d{2})(\d)(\d{2})$/, "$1.$2-$3-$4");
+}
+
+function parseStoredCnaes(value: unknown): CompanyCnae[] {
+  const result = z.array(cnaeSchema).safeParse(value);
+  return result.success ? result.data : [];
+}
+
+function extractCnaesFromCnpjLookup(data: Record<string, unknown>): CompanyCnae[] {
+  const entries = new Map<string, CompanyCnae>();
+  const primaryCode = normalizeCnaeCode(data.cnae_fiscal);
+  const primaryDescription = String(data.cnae_fiscal_descricao ?? "").trim();
+
+  if (primaryCode && primaryDescription) {
+    entries.set(primaryCode, {
+      code: primaryCode,
+      description: primaryDescription,
+      is_primary: true,
+    });
+  }
+
+  const secondary = Array.isArray(data.cnaes_secundarios) ? data.cnaes_secundarios : [];
+  secondary.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const record = item as Record<string, unknown>;
+    const code = normalizeCnaeCode(record.codigo);
+    const description = String(record.descricao ?? "").trim();
+    if (!code || !description || code === primaryCode) return;
+    entries.set(code, { code, description, is_primary: false });
+  });
+
+  return [...entries.values()].sort(
+    (first, second) =>
+      Number(second.is_primary) - Number(first.is_primary) || first.code.localeCompare(second.code),
+  );
+}
 
 function CustomersPage() {
   const access = useModulePermissions("clientes");
@@ -130,7 +188,10 @@ function CustomersPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("companies").select("*").order("name");
       if (error) throw error;
-      return data as Company[];
+      return (data ?? []).map((company) => ({
+        ...company,
+        cnaes: parseStoredCnaes(company.cnaes),
+      })) as Company[];
     },
   });
 
@@ -181,7 +242,7 @@ function CustomersPage() {
             listKey="customers"
             rows={data}
             rowKey={(c) => c.id}
-            defaultColumns={["name", "cnpj", "segment", "phone", "vip"]}
+            defaultColumns={["name", "cnpj", "cnae", "segment", "phone", "vip"]}
             columns={
               [
                 {
@@ -205,6 +266,26 @@ function CustomersPage() {
                   label: "CNPJ",
                   className: "text-sm",
                   cell: (c) => (c.cnpj ? maskCNPJ(c.cnpj) : "-"),
+                },
+                {
+                  key: "cnae",
+                  label: "CNAE principal",
+                  className: "text-sm",
+                  cell: (company) => {
+                    const primary = company.cnaes.find((cnae) => cnae.is_primary);
+                    return primary ? (
+                      <div className="max-w-64" title={primary.description}>
+                        <Badge variant="secondary" className="font-mono">
+                          {formatCnaeCode(primary.code)}
+                        </Badge>
+                        <div className="mt-1 truncate text-xs text-muted-foreground">
+                          {primary.description}
+                        </div>
+                      </div>
+                    ) : (
+                      "-"
+                    );
+                  },
                 },
                 {
                   key: "segment",
@@ -331,6 +412,7 @@ function CompanyDialog({
     address_state: "",
     is_vip: false,
     notes: "",
+    cnaes: [] as CompanyCnae[],
   });
   const [lookingUp, setLookingUp] = useState(false);
   const [cepLookup, setCepLookup] = useState(false);
@@ -353,6 +435,7 @@ function CompanyDialog({
       address_state: editing?.address_state ?? "",
       is_vip: editing?.is_vip ?? false,
       notes: editing?.notes ?? "",
+      cnaes: parseStoredCnaes(editing?.cnaes),
     });
   }, [open, editing]);
 
@@ -378,6 +461,7 @@ function CompanyDialog({
         address_state: payload.address_state ? payload.address_state.toUpperCase() : null,
         is_vip: payload.is_vip,
         notes: payload.notes || null,
+        cnaes: payload.cnaes,
       };
 
       if (payload.cnpj) {
@@ -438,9 +522,12 @@ function CompanyDialog({
             }}
           >
             <Tabs defaultValue="dados" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="dados">Dados</TabsTrigger>
                 <TabsTrigger value="endereco">Endereço</TabsTrigger>
+                <TabsTrigger value="atividades">
+                  Atividades{form.cnaes.length ? ` (${form.cnaes.length})` : ""}
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="dados" className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
@@ -462,13 +549,22 @@ function CompanyDialog({
                   <div className="flex gap-2">
                     <Input
                       value={form.cnpj}
-                      onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })}
+                      onChange={(e) => {
+                        const cnpj = maskCNPJ(e.target.value);
+                        setForm({
+                          ...form,
+                          cnpj,
+                          cnaes: unmask(cnpj) === unmask(form.cnpj) ? form.cnaes : [],
+                        });
+                      }}
                       placeholder="00.000.000/0000-00"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
+                      aria-label="Consultar dados do CNPJ"
+                      title="Consultar dados do CNPJ"
                       disabled={readOnly || lookingUp}
                       onClick={async () => {
                         const digits = unmask(form.cnpj);
@@ -480,22 +576,28 @@ function CompanyDialog({
                         try {
                           const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
                           if (!res.ok) throw new Error("CNPJ não encontrado");
-                          const d = await res.json();
+                          const d = (await res.json()) as Record<string, unknown>;
+                          const cnaes = extractCnaesFromCnpjLookup(d);
                           setForm((f) => ({
                             ...f,
-                            name: d.razao_social || f.name,
-                            fantasy_name: d.nome_fantasia || f.fantasy_name,
-                            segment: d.cnae_fiscal_descricao || f.segment,
-                            phone: d.ddd_telefone_1 ? maskPhone(d.ddd_telefone_1) : f.phone,
+                            name: String(d.razao_social || f.name),
+                            fantasy_name: String(d.nome_fantasia || f.fantasy_name),
+                            segment: String(d.cnae_fiscal_descricao || f.segment),
+                            phone: d.ddd_telefone_1 ? maskPhone(String(d.ddd_telefone_1)) : f.phone,
                             address_zip: d.cep ? maskCEP(String(d.cep)) : f.address_zip,
-                            address_street: d.logradouro || f.address_street,
+                            address_street: String(d.logradouro || f.address_street),
                             address_number: d.numero ? String(d.numero) : f.address_number,
-                            address_neighborhood: d.bairro || f.address_neighborhood,
-                            address_complement: d.complemento || f.address_complement,
-                            address_city: d.municipio || f.address_city,
-                            address_state: d.uf || f.address_state,
+                            address_neighborhood: String(d.bairro || f.address_neighborhood),
+                            address_complement: String(d.complemento || f.address_complement),
+                            address_city: String(d.municipio || f.address_city),
+                            address_state: String(d.uf || f.address_state),
+                            cnaes,
                           }));
-                          toast.success("Dados preenchidos pela Receita Federal");
+                          toast.success(
+                            cnaes.length
+                              ? `Dados preenchidos e ${cnaes.length} CNAE${cnaes.length === 1 ? "" : "s"} localizado${cnaes.length === 1 ? "" : "s"}`
+                              : "Dados preenchidos pela Receita Federal",
+                          );
                         } catch (err) {
                           toast.error(
                             err instanceof Error ? err.message : "Falha ao consultar CNPJ",
@@ -665,6 +767,48 @@ function CompanyDialog({
                     onChange={(e) => setForm({ ...form, address_city: e.target.value })}
                   />
                 </div>
+              </TabsContent>
+              <TabsContent value="atividades" className="mt-4">
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold">Atividades econômicas da empresa</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    CNAEs obtidos na consulta do CNPJ. Faça uma nova consulta para atualizar esta
+                    relação conforme os dados públicos da Receita Federal.
+                  </p>
+                </div>
+
+                {form.cnaes.length ? (
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    {form.cnaes.map((cnae) => (
+                      <div
+                        key={cnae.code}
+                        className={`rounded-lg border p-3 ${
+                          cnae.is_primary
+                            ? "border-primary/40 bg-primary/5 shadow-sm"
+                            : "bg-muted/20"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-semibold text-foreground">
+                            {formatCnaeCode(cnae.code)}
+                          </span>
+                          {cnae.is_primary && <Badge>Principal</Badge>}
+                        </div>
+                        <p className="mt-1 text-sm leading-relaxed text-foreground/90">
+                          {cnae.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center">
+                    <Building2 className="mx-auto h-8 w-8 text-muted-foreground/60" />
+                    <p className="mt-3 text-sm font-medium">Nenhum CNAE carregado</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Informe um CNPJ válido na aba Dados e utilize o botão de consulta.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
             <DialogFooter>

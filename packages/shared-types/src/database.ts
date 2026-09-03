@@ -53,6 +53,7 @@ export type Database = {
           address_street: string | null;
           address_zip: string | null;
           cnpj: string | null;
+          cnaes: Json;
           created_at: string;
           fantasy_name: string | null;
           id: string;
@@ -74,6 +75,7 @@ export type Database = {
           address_street?: string | null;
           address_zip?: string | null;
           cnpj?: string | null;
+          cnaes?: Json;
           created_at?: string;
           fantasy_name?: string | null;
           id?: string;
@@ -95,6 +97,7 @@ export type Database = {
           address_street?: string | null;
           address_zip?: string | null;
           cnpj?: string | null;
+          cnaes?: Json;
           created_at?: string;
           fantasy_name?: string | null;
           id?: string;
