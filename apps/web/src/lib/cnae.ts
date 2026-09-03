@@ -6,7 +6,7 @@ export type Cnae = {
   is_primary: boolean;
 };
 
-const cnaeSchema = z.object({
+export const cnaeSchema = z.object({
   code: z.string().regex(/^\d{7}$/),
   description: z.string().trim().min(1).max(300),
   is_primary: z.boolean(),
