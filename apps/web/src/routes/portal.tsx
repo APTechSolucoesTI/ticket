@@ -712,7 +712,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
 
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-2">Responder</h3>
-          <form onSubmit={sendReply} className="space-y-2">
+          <form onSubmit={sendReply} className="space-y-3">
             <Textarea
               required
               rows={4}
@@ -720,26 +720,35 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
               onChange={(e) => setReply(e.target.value)}
               placeholder="Digite sua mensagem..."
             />
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <input
-                  id="reply-files"
-                  type="file"
-                  multiple
-                  className="text-xs"
-                  onChange={(e) => setReplyFiles(Array.from(e.target.files ?? []))}
-                />
-                {replyFiles.length > 0 && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {replyFiles.length} arquivo(s)
-                  </span>
-                )}
+            <div>
+              <Label htmlFor="reply-files">Anexos</Label>
+              <input
+                id="reply-files"
+                type="file"
+                multiple
+                className="sr-only"
+                onChange={(e) => setReplyFiles(Array.from(e.target.files ?? []))}
+              />
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Button type="button" size="sm" asChild>
+                  <label htmlFor="reply-files" className="cursor-pointer">
+                    <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                    Selecionar anexos
+                  </label>
+                </Button>
+                <span className="text-[11px] text-muted-foreground">
+                  {replyFiles.length > 0
+                    ? `${replyFiles.length} arquivo(s) selecionado(s)`
+                    : "Nenhum arquivo selecionado"}
+                </span>
               </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">Máx. 5 arquivos, 10MB cada.</p>
+            </div>
+            <div className="flex justify-end">
               <Button type="submit" size="sm" disabled={replying || !reply.trim()}>
                 {replying ? "Enviando..." : "Enviar"}
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground">Máx. 5 arquivos, 10MB cada.</p>
           </form>
         </Card>
       </div>
