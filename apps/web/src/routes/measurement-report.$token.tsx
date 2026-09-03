@@ -95,6 +95,15 @@ function MeasurementReportPage() {
 
   const publicUrl =
     typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : "";
+  const isEquipmentBilling = data.billing_model === "per_equipment";
+  const sortedEquipmentItems = isEquipmentBilling
+    ? [...data.items].sort((first, second) =>
+        first.description.localeCompare(second.description, "pt-BR", {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      )
+    : data.items;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#F0F4F8] px-3 py-6 sm:px-0 sm:py-8 print:bg-white print:px-0 print:py-0">
@@ -105,24 +114,24 @@ function MeasurementReportPage() {
         }
       `}</style>
 
-      <div className="mx-auto mb-3 flex w-full max-w-3xl justify-end print:hidden">
+      <div className="mx-auto mb-3 flex w-full max-w-full justify-end sm:max-w-3xl print:hidden">
         <Button onClick={() => window.print()} className="gap-2">
           <Printer className="h-4 w-4" />
           Imprimir / Salvar PDF
         </Button>
       </div>
 
-      <main className="mx-auto w-full min-w-0 max-w-3xl overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-sm print:rounded-none print:border-none print:shadow-none">
+      <main className="mx-auto w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-sm sm:max-w-3xl print:rounded-none print:border-none print:shadow-none">
         <header className="relative bg-[#0D2B5E] px-6 py-6 text-white sm:px-8">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
               <BrandLogo variant="dark" className="size-12 drop-shadow-md" alt="" />
-              <div>
+              <div className="min-w-0">
                 <div className="text-2xl font-bold tracking-tight">APTicket</div>
                 <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">
                   Boletim de Medição
                 </div>
-                <div className="mt-1 break-words text-sm font-bold text-[#00C2CB] sm:text-lg">
+                <div className="mt-1 break-all text-sm font-bold text-[#00C2CB] sm:break-words sm:text-lg">
                   {data.report_number}
                 </div>
               </div>
@@ -136,13 +145,14 @@ function MeasurementReportPage() {
         </header>
         <div className="h-1 bg-[#00C2CB]" />
 
-        <section className="grid grid-cols-2 gap-4 border-b border-[#E2E8F0] bg-[#F8FAFC] px-6 py-4 sm:grid-cols-3 sm:px-8">
+        <section className="grid grid-cols-2 gap-4 border-b border-[#E2E8F0] bg-[#F8FAFC] px-6 py-4 sm:grid-cols-4 sm:px-8">
           <MetaItem label="Cliente" value={data.client_name} />
           <MetaItem label="Contrato" value={data.contract_number} />
           <MetaItem label="Competência" value={formatCompetence(data.competence)} />
+          <MetaItem label="Status" value={statusLabel[data.status] ?? data.status} />
           <MetaItem label="Data da medição" value={formatDate(data.measurement_date)} />
           <MetaItem label="Vencimento" value={formatDate(data.due_date)} />
-          <MetaItem label="Status" value={statusLabel[data.status] ?? data.status} />
+          <TotalMetaItem value={money.format(Number(data.total_value))} />
         </section>
 
         <div className="space-y-6 px-6 py-6 sm:px-8">
@@ -165,85 +175,121 @@ function MeasurementReportPage() {
           </Section>
 
           <Section title="Itens medidos">
-            <div className="hidden overflow-x-auto rounded-md border border-[#E2E8F0] sm:block print:block">
-              <table className="w-full min-w-[620px] text-sm">
-                <thead>
-                  <tr className="bg-[#0D2B5E] text-left text-[10px] uppercase tracking-wide text-white">
-                    <th className="px-3 py-2">Referência</th>
-                    <th className="px-3 py-2">Descrição</th>
-                    <th className="px-3 py-2 text-right">Quantidade</th>
-                    <th className="px-3 py-2 text-right">Valor unitário</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((item, index) => (
-                    <tr
-                      key={`${item.reference ?? "item"}-${index}`}
-                      className="border-t border-[#E2E8F0]"
+            {isEquipmentBilling ? (
+              <div className="overflow-hidden rounded-md border border-[#CBD5E1]">
+                <div className="grid min-w-0 grid-cols-2 gap-px bg-[#CBD5E1]">
+                  {sortedEquipmentItems.map((item, index) => (
+                    <article
+                      key={`${item.reference ?? "equipment"}-${index}`}
+                      className="flex min-w-0 items-start gap-2 bg-white px-2 py-2.5 sm:gap-3 sm:px-3 print:break-inside-avoid"
                     >
-                      <td className="px-3 py-2 text-muted-foreground">{item.reference ?? "-"}</td>
-                      <td className="px-3 py-2 font-medium text-[#1A1A2E]">{item.description}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {Number(item.quantity).toLocaleString("pt-BR", {
-                          maximumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {money.format(Number(item.unit_value))}
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        {money.format(Number(item.total_value))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-[#E2E8F0] bg-[#F8FAFC] font-semibold text-[#0D2B5E]">
-                    <td className="px-3 py-3" colSpan={4}>
-                      Valor total da medição
-                    </td>
-                    <td className="px-3 py-3 text-right text-base tabular-nums">
-                      {money.format(Number(data.total_value))}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <div className="space-y-2 sm:hidden print:hidden">
-              {data.items.map((item, index) => (
-                <article
-                  key={`${item.reference ?? "item"}-${index}`}
-                  className="rounded-md border border-[#E2E8F0] p-3"
-                >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {item.reference ?? `Item ${index + 1}`}
-                      </div>
-                      <div className="mt-1 break-words text-sm font-medium text-[#1A1A2E]">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#E6F7F8] text-[10px] font-bold tabular-nums text-[#0D6470]">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 break-all text-xs font-medium leading-5 text-[#1A1A2E] sm:break-words">
                         {item.description}
                       </div>
-                    </div>
-                    <div className="shrink-0 text-right font-semibold text-[#0D2B5E]">
-                      {money.format(Number(item.total_value))}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-[#E2E8F0] pt-2 text-xs text-muted-foreground">
-                    <span>
-                      Qtd.{" "}
-                      {Number(item.quantity).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
-                    </span>
-                    <span>{money.format(Number(item.unit_value))} por unidade</span>
-                  </div>
-                </article>
-              ))}
-              <div className="flex items-center justify-between rounded-md bg-[#0D2B5E] px-3 py-3 font-semibold text-white">
-                <span>Valor total</span>
-                <span className="tabular-nums">{money.format(Number(data.total_value))}</span>
+                    </article>
+                  ))}
+                </div>
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-[#0D2B5E] bg-[#0D2B5E] px-3 py-3 text-white sm:gap-4 sm:px-4">
+                  <span className="text-xs font-semibold uppercase tracking-wide">
+                    Valor total da medição
+                  </span>
+                  <span className="text-lg font-bold tabular-nums">
+                    {money.format(Number(data.total_value))}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto rounded-md border border-[#E2E8F0] sm:block print:block">
+                  <table className="w-full min-w-[620px] text-sm">
+                    <thead>
+                      <tr className="bg-[#0D2B5E] text-left text-[10px] uppercase tracking-wide text-white">
+                        <th className="px-3 py-2">Referência</th>
+                        <th className="px-3 py-2">Descrição</th>
+                        <th className="px-3 py-2 text-right">Quantidade</th>
+                        <th className="px-3 py-2 text-right">Valor unitário</th>
+                        <th className="px-3 py-2 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.items.map((item, index) => (
+                        <tr
+                          key={`${item.reference ?? "item"}-${index}`}
+                          className="border-t border-[#E2E8F0]"
+                        >
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {item.reference ?? "-"}
+                          </td>
+                          <td className="px-3 py-2 font-medium text-[#1A1A2E]">
+                            {item.description}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {Number(item.quantity).toLocaleString("pt-BR", {
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {money.format(Number(item.unit_value))}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium tabular-nums">
+                            {money.format(Number(item.total_value))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-[#E2E8F0] bg-[#F8FAFC] font-semibold text-[#0D2B5E]">
+                        <td className="px-3 py-3" colSpan={4}>
+                          Valor total da medição
+                        </td>
+                        <td className="px-3 py-3 text-right text-base tabular-nums">
+                          {money.format(Number(data.total_value))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="space-y-2 sm:hidden print:hidden">
+                  {data.items.map((item, index) => (
+                    <article
+                      key={`${item.reference ?? "item"}-${index}`}
+                      className="rounded-md border border-[#E2E8F0] p-3"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {item.reference ?? `Item ${index + 1}`}
+                          </div>
+                          <div className="mt-1 break-words text-sm font-medium text-[#1A1A2E]">
+                            {item.description}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right font-semibold text-[#0D2B5E]">
+                          {money.format(Number(item.total_value))}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between border-t border-[#E2E8F0] pt-2 text-xs text-muted-foreground">
+                        <span>
+                          Qtd.{" "}
+                          {Number(item.quantity).toLocaleString("pt-BR", {
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                        <span>{money.format(Number(item.unit_value))} por unidade</span>
+                      </div>
+                    </article>
+                  ))}
+                  <div className="flex items-center justify-between rounded-md bg-[#0D2B5E] px-3 py-3 font-semibold text-white">
+                    <span>Valor total</span>
+                    <span className="tabular-nums">{money.format(Number(data.total_value))}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </Section>
 
           <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] p-4">
@@ -285,13 +331,26 @@ function MetaItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function TotalMetaItem({ value }: { value: string }) {
+  return (
+    <div className="col-span-2 flex items-center justify-between gap-3 rounded-md border border-[#00A7B0]/30 bg-[#DDF7F8] px-3 py-2 sm:justify-start">
+      <div>
+        <div className="text-[9px] font-bold uppercase tracking-wide text-[#0D6470]">
+          Valor total da medição
+        </div>
+        <div className="text-lg font-bold tabular-nums text-[#0D2B5E]">{value}</div>
+      </div>
+    </div>
+  );
+}
+
 function InfoLine({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className="mt-0.5 font-medium text-[#1A1A2E]">{value}</div>
+      <div className="mt-0.5 break-words font-medium text-[#1A1A2E]">{value}</div>
     </div>
   );
 }
