@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { verifySessionToken } from "@/lib/jwt.server";
 
 const cancelMeasurementSchema = z.object({
   token: z.string().min(20),
@@ -12,10 +13,7 @@ const cancelMeasurementSchema = z.object({
 export const cancelContractMeasurement = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => cancelMeasurementSchema.parse(input))
   .handler(async ({ data }) => {
-    const [{ verifySessionToken }, { supabaseAdmin }] = await Promise.all([
-      import("@/lib/jwt.server"),
-      import("@/integrations/supabase/client.server"),
-    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const claims = verifySessionToken(data.token);
     if (!claims) throw new Error("Sua sessão expirou. Entre novamente para continuar.");
 
