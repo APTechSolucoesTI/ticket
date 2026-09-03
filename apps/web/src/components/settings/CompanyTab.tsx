@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Search } from "lucide-react";
+import { Building2, Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { maskCNPJ, maskCEP, maskPhone, normalizePhone } from "@/lib/masks";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,12 @@ import {
 } from "@/components/ui/select";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import {
+  extractCnaesFromCnpjLookup,
+  formatCnaeCode,
+  parseStoredCnaes,
+  type Cnae,
+} from "@/lib/cnae";
 
 type TenantRow = {
   id: string;
@@ -26,6 +33,7 @@ type TenantRow = {
   legal_name: string | null;
   trade_name: string | null;
   cnpj: string | null;
+  cnaes: Cnae[];
   state_registration: string | null;
   municipal_registration: string | null;
   email: string | null;
@@ -56,6 +64,7 @@ const emptyForm: Omit<TenantRow, "id"> = {
   legal_name: "",
   trade_name: "",
   cnpj: "",
+  cnaes: [],
   state_registration: "",
   municipal_registration: "",
   email: "",
@@ -107,7 +116,7 @@ export function CompanyTab() {
       const { data, error } = await supabase
         .from("tenants")
         .select(
-          "id, name, legal_name, trade_name, cnpj, state_registration, municipal_registration, email, phone, whatsapp, website, support_email, support_phone, zip_code, address_street, address_number, address_complement, address_district, address_city, address_state, address_country, logo_url, primary_color, timezone, business_hours_start, business_hours_end, business_days, notes",
+          "id, name, legal_name, trade_name, cnpj, cnaes, state_registration, municipal_registration, email, phone, whatsapp, website, support_email, support_phone, zip_code, address_street, address_number, address_complement, address_district, address_city, address_state, address_country, logo_url, primary_color, timezone, business_hours_start, business_hours_end, business_days, notes",
         )
         .eq("id", tid)
         .maybeSingle();
@@ -127,6 +136,7 @@ export function CompanyTab() {
       legal_name: tenant.legal_name ?? "",
       trade_name: tenant.trade_name ?? "",
       cnpj: tenant.cnpj ? maskCNPJ(tenant.cnpj) : "",
+      cnaes: parseStoredCnaes(tenant.cnaes),
       state_registration: tenant.state_registration ?? "",
       municipal_registration: tenant.municipal_registration ?? "",
       email: tenant.email ?? "",
@@ -185,23 +195,29 @@ export function CompanyTab() {
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
       if (!res.ok) throw new Error("CNPJ não localizado.");
-      const d = await res.json();
+      const d = (await res.json()) as Record<string, unknown>;
+      const cnaes = extractCnaesFromCnpjLookup(d);
       setForm((f) => ({
         ...f,
-        legal_name: d.razao_social ?? f.legal_name,
-        trade_name: d.nome_fantasia ?? f.trade_name,
-        name: f.name || d.nome_fantasia || d.razao_social || f.name,
-        email: d.email ?? f.email,
-        phone: d.ddd_telefone_1 ? maskPhone(d.ddd_telefone_1) : f.phone,
+        legal_name: String(d.razao_social || f.legal_name),
+        trade_name: String(d.nome_fantasia || f.trade_name),
+        name: String(f.name || d.nome_fantasia || d.razao_social || f.name),
+        email: String(d.email || f.email),
+        phone: d.ddd_telefone_1 ? maskPhone(String(d.ddd_telefone_1)) : f.phone,
         zip_code: d.cep ? maskCEP(String(d.cep)) : f.zip_code,
-        address_street: d.logradouro ?? f.address_street,
-        address_number: d.numero ?? f.address_number,
-        address_complement: d.complemento ?? f.address_complement,
-        address_district: d.bairro ?? f.address_district,
-        address_city: d.municipio ?? f.address_city,
-        address_state: d.uf ?? f.address_state,
+        address_street: String(d.logradouro || f.address_street),
+        address_number: String(d.numero || f.address_number),
+        address_complement: String(d.complemento || f.address_complement),
+        address_district: String(d.bairro || f.address_district),
+        address_city: String(d.municipio || f.address_city),
+        address_state: String(d.uf || f.address_state),
+        cnaes,
       }));
-      toast.success("Dados do CNPJ carregados.");
+      toast.success(
+        cnaes.length
+          ? `Dados carregados e ${cnaes.length} CNAE${cnaes.length === 1 ? "" : "s"} localizado${cnaes.length === 1 ? "" : "s"}.`
+          : "Dados do CNPJ carregados.",
+      );
     } catch (e) {
       toast.error(getUserFacingError(e, "Não foi possível consultar o CNPJ."));
     } finally {
@@ -298,7 +314,17 @@ export function CompanyTab() {
                 <div className="flex gap-1">
                   <Input
                     value={form.cnpj ?? ""}
-                    onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })}
+                    onChange={(e) => {
+                      const cnpj = maskCNPJ(e.target.value);
+                      setForm({
+                        ...form,
+                        cnpj,
+                        cnaes:
+                          cnpj.replace(/\D/g, "") === (form.cnpj ?? "").replace(/\D/g, "")
+                            ? form.cnaes
+                            : [],
+                      });
+                    }}
                     placeholder="00.000.000/0000-00"
                   />
                   <Button
@@ -307,6 +333,8 @@ export function CompanyTab() {
                     size="icon"
                     onClick={lookupCnpj}
                     disabled={lookingUpCnpj || !access.edit}
+                    aria-label="Consultar dados do CNPJ"
+                    title="Consultar dados do CNPJ"
                   >
                     {lookingUpCnpj ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -331,6 +359,53 @@ export function CompanyTab() {
                 />
               </div>
             </div>
+          </Card>
+
+          <Card className="space-y-4 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold">Atividades econômicas</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  CNAEs vinculados ao CNPJ da empresa conforme os dados públicos consultados.
+                </p>
+              </div>
+              {form.cnaes.length > 0 && (
+                <Badge variant="outline">
+                  {form.cnaes.length} atividade{form.cnaes.length === 1 ? "" : "s"}
+                </Badge>
+              )}
+            </div>
+
+            {form.cnaes.length ? (
+              <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+                {form.cnaes.map((cnae) => (
+                  <article
+                    key={cnae.code}
+                    className={`rounded-lg border p-3 ${
+                      cnae.is_primary ? "border-primary/40 bg-primary/5 shadow-sm" : "bg-muted/20"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold">
+                        {formatCnaeCode(cnae.code)}
+                      </span>
+                      {cnae.is_primary && <Badge>Principal</Badge>}
+                    </div>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/90">
+                      {cnae.description}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-7 text-center">
+                <Building2 className="mx-auto h-8 w-8 text-muted-foreground/60" />
+                <p className="mt-3 text-sm font-medium">Nenhum CNAE carregado</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Informe o CNPJ acima e utilize o botão de consulta para carregar as atividades.
+                </p>
+              </div>
+            )}
           </Card>
 
           <Card className="p-5 space-y-4">

@@ -1511,6 +1511,7 @@ export type Database = {
           business_hours_end: string | null;
           business_hours_start: string | null;
           cnpj: string | null;
+          cnaes: Json;
           created_at: string;
           email: string | null;
           email_enabled: boolean;
@@ -1563,6 +1564,7 @@ export type Database = {
           business_hours_end?: string | null;
           business_hours_start?: string | null;
           cnpj?: string | null;
+          cnaes?: Json;
           created_at?: string;
           email?: string | null;
           email_enabled?: boolean;
@@ -1615,6 +1617,7 @@ export type Database = {
           business_hours_end?: string | null;
           business_hours_start?: string | null;
           cnpj?: string | null;
+          cnaes?: Json;
           created_at?: string;
           email?: string | null;
           email_enabled?: boolean;
