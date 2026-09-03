@@ -4,6 +4,8 @@ packages:
 allowBuilds:
   # bullmq's anonymous-usage telemetry postinstall ping - no functional need, denied.
   '@scarf/scarf': false
+  # core-js postinstall only prints project funding information; runtime build is unnecessary.
+  core-js: false
   # native msgpack encoder used by ioredis for faster (de)serialization.
   msgpackr-extract: true
   # native module resolver used by jest - real perf benefit, from Jest's own toolchain.

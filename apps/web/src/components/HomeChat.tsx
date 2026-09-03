@@ -39,6 +39,13 @@ type SessionResp =
       }>;
     };
 
+export type PortalChatSession = Omit<Extract<SessionResp, { found: true }>, "found">;
+
+type HomeChatProps = {
+  authenticatedSession?: PortalChatSession;
+  onTicketCreated?: () => void | Promise<void>;
+};
+
 type ChatMsg = {
   id: string;
   content: string;
@@ -71,7 +78,7 @@ function savePersisted(v: Persisted) {
   else localStorage.setItem(STORAGE_KEY, JSON.stringify(v));
 }
 
-export default function HomeChat() {
+export default function HomeChat({ authenticatedSession, onTicketCreated }: HomeChatProps) {
   const [step, setStep] = useState<Step>("closed");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -84,20 +91,34 @@ export default function HomeChat() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!authenticatedSession) return;
+    setEmail(authenticatedSession.contact.email);
+    setSession({ found: true, ...authenticatedSession });
+    setContractId((current) =>
+      authenticatedSession.contracts.some((contract) => contract.id === current)
+        ? current
+        : (authenticatedSession.contracts[0]?.id ?? ""),
+    );
+  }, [authenticatedSession]);
+
   // Restore existing chat on open (only if the verified session token is still present -
   // otherwise the poll effect would immediately 401 and bounce back anyway).
   useEffect(() => {
     if (step === "closed") return;
     if (ticket) return;
     const p = loadPersisted();
-    if (p && getPortalToken()) {
+    const belongsToAuthenticatedContact =
+      !authenticatedSession ||
+      p?.email.toLocaleLowerCase() === authenticatedSession.contact.email.toLocaleLowerCase();
+    if (p && getPortalToken() && belongsToAuthenticatedContact) {
       setEmail(p.email);
       setTicket({ id: p.ticket_id, number: p.number });
       setStep("chat");
     } else if (p) {
       savePersisted(null);
     }
-  }, [step, ticket]);
+  }, [authenticatedSession, step, ticket]);
 
   const fetchMessages = useCallback(async () => {
     if (!ticket) return;
@@ -194,7 +215,7 @@ export default function HomeChat() {
 
   const startChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstMessage.trim() || !contractId) return;
+    if (!firstMessage.trim()) return;
     setLoading(true);
     setError(null);
     try {
@@ -202,7 +223,7 @@ export default function HomeChat() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contract_id: contractId,
+          ...(contractId ? { contract_id: contractId } : {}),
           message: firstMessage.trim(),
         }),
       });
@@ -216,6 +237,7 @@ export default function HomeChat() {
       savePersisted({ email: email.trim(), ticket_id: t.id, number: t.number });
       setFirstMessage("");
       setStep("chat");
+      await onTicketCreated?.();
     } catch {
       setError("Erro de conexão. Tente novamente.");
     } finally {
@@ -241,11 +263,17 @@ export default function HomeChat() {
   if (step === "closed") {
     return (
       <button
-        onClick={() => setStep("email")}
+        type="button"
+        onClick={() => setStep(ticket ? "chat" : authenticatedSession ? "start" : "email")}
         aria-label="Abrir chat de suporte"
-        className="fixed bottom-5 right-5 z-[60] h-14 w-14 rounded-full gradient-primary text-white shadow-premium flex items-center justify-center hover:scale-105 transition-transform"
+        className={
+          authenticatedSession
+            ? "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-primary/25 bg-primary/10 px-3 text-sm font-medium text-primary shadow-sm transition-colors hover:bg-primary/15"
+            : "fixed bottom-5 right-5 z-[60] flex h-14 w-14 items-center justify-center rounded-full gradient-primary text-white shadow-premium transition-transform hover:scale-105"
+        }
       >
-        <MessageCircle className="size-6" />
+        <MessageCircle className={authenticatedSession ? "size-4" : "size-6"} />
+        {authenticatedSession && <span>Atendimento via chat</span>}
       </button>
     );
   }
@@ -402,6 +430,11 @@ export default function HomeChat() {
             {session.contracts.find((c) => c.id === contractId)?.description && (
               <div className="text-[11px] rounded-md bg-muted p-2 leading-snug">
                 {session.contracts.find((c) => c.id === contractId)?.description}
+              </div>
+            )}
+            {session.contracts.length === 0 && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-snug text-amber-900 dark:text-amber-100">
+                O atendimento será aberto como avulso, pois não há contrato ativo disponível.
               </div>
             )}
             <label className="text-xs font-medium">Descreva sua solicitação</label>

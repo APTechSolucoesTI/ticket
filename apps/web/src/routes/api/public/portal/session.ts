@@ -72,7 +72,7 @@ export const Route = createFileRoute("/api/public/portal/session")({
           .eq("tenant_id", contact.tenant_id)
           .eq("contact_id", contact.id)
           .order("created_at", { ascending: false })
-          .limit(20);
+          .limit(500);
 
         const { data: equipments } = await supabaseAdmin
           .from("equipments")

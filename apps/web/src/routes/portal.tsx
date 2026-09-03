@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import HomeChat from "@/components/HomeChat";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,6 +35,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   CircleDollarSign,
+  FileSpreadsheet,
+  FileText,
+  Paperclip,
+  Search,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import {
@@ -85,6 +90,27 @@ type SessionData = {
 };
 
 type LoginStep = "email" | "otp";
+
+const ticketStatusLabels: Record<TicketStatus, string> = {
+  new: "Novo",
+  in_progress: "Em atendimento",
+  pending: "Pendente",
+  resolved: "Resolvido",
+  closed: "Fechado",
+};
+
+const priorityLabels = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  urgent: "Urgente",
+} as const;
+
+const pendingLabels: Record<Exclude<PendingType, null | undefined>, string> = {
+  awaiting_customer: "Pendente de retorno do cliente",
+  awaiting_tech: "Pendente de retorno técnico",
+  tech_response: "Retorno técnico",
+};
 
 function PortalPage() {
   const [email, setEmail] = useState("");
@@ -337,6 +363,106 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
   const [reply, setReply] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [replying, setReplying] = useState(false);
+  const [ticketQuery, setTicketQuery] = useState("");
+  const [ticketStatus, setTicketStatus] = useState<"all" | TicketStatus>("all");
+  const [ticketPriority, setTicketPriority] = useState<
+    "all" | "low" | "medium" | "high" | "urgent"
+  >("all");
+
+  const filteredTickets = useMemo(() => {
+    const normalizedQuery = ticketQuery.trim().toLocaleLowerCase("pt-BR");
+    return session.tickets.filter((ticket) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        String(ticket.number).includes(normalizedQuery) ||
+        ticket.subject.toLocaleLowerCase("pt-BR").includes(normalizedQuery);
+      const matchesStatus = ticketStatus === "all" || ticket.status === ticketStatus;
+      const matchesPriority = ticketPriority === "all" || ticket.priority === ticketPriority;
+      return matchesQuery && matchesStatus && matchesPriority;
+    });
+  }, [session.tickets, ticketPriority, ticketQuery, ticketStatus]);
+
+  const exportRows = () =>
+    filteredTickets.map((ticket) => ({
+      Número: ticket.number,
+      Assunto: ticket.subject,
+      Status: ticketStatusLabels[ticket.status],
+      Pendência: ticket.pending_type ? pendingLabels[ticket.pending_type] : "",
+      Prioridade: priorityLabels[ticket.priority],
+      Abertura: new Date(ticket.created_at).toLocaleString("pt-BR"),
+    }));
+
+  const exportXlsx = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(exportRows());
+      worksheet["!cols"] = [
+        { wch: 12 },
+        { wch: 48 },
+        { wch: 18 },
+        { wch: 32 },
+        { wch: 14 },
+        { wch: 20 },
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Meus chamados");
+      XLSX.writeFile(workbook, `meus-chamados-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch {
+      toast.error("Não foi possível exportar os chamados para Excel.");
+    }
+  };
+
+  const exportPdf = async () => {
+    try {
+      const { jsPDF } = await import("jspdf");
+      const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const rows = exportRows();
+      const addHeader = () => {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(15);
+        document.text("Meus chamados", 14, 14);
+        document.setFontSize(8);
+        document.setTextColor(90);
+        document.text(`Exportado em ${new Date().toLocaleString("pt-BR")}`, 14, 19);
+        document.setTextColor(0);
+        document.setFillColor(235, 243, 247);
+        document.rect(12, 23, 273, 8, "F");
+        document.setFontSize(8);
+        document.text("Número", 15, 28);
+        document.text("Assunto", 35, 28);
+        document.text("Status", 137, 28);
+        document.text("Pendência", 174, 28);
+        document.text("Prioridade", 236, 28);
+        document.text("Abertura", 259, 28);
+      };
+
+      addHeader();
+      let y = 37;
+      rows.forEach((row) => {
+        if (y > 195) {
+          document.addPage("a4", "landscape");
+          addHeader();
+          y = 37;
+        }
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        const subjectLines = document.splitTextToSize(row.Assunto, 96) as string[];
+        document.text(String(row.Número), 15, y);
+        document.text(subjectLines, 35, y);
+        document.text(row.Status, 137, y);
+        document.text(row.Pendência || "-", 174, y);
+        document.text(row.Prioridade, 236, y);
+        document.text(row.Abertura.split(",")[0], 259, y);
+        const rowHeight = Math.max(8, subjectLines.length * 4 + 3);
+        document.setDrawColor(225);
+        document.line(12, y + rowHeight - 3, 285, y + rowHeight - 3);
+        y += rowHeight;
+      });
+      document.save(`meus-chamados-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch {
+      toast.error("Não foi possível exportar os chamados para PDF.");
+    }
+  };
   const toggleEquipment = (id: string) =>
     setEquipmentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
@@ -622,7 +748,7 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h2 className="text-xl font-semibold">Olá, {session.contact.name}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -635,10 +761,11 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Button variant="ghost" size="sm" onClick={reload}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
+          {canOpen && <HomeChat authenticatedSession={session} onTicketCreated={reload} />}
           {canOpen && (
             <Button
               size="sm"
@@ -748,13 +875,23 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
                 id="new-files"
                 type="file"
                 multiple
-                className="text-xs block mt-1"
+                className="sr-only"
                 onChange={(e) => setNewFiles(Array.from(e.target.files ?? []))}
               />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {newFiles.length > 0 ? `${newFiles.length} arquivo(s) selecionado(s). ` : ""}Máx. 5
-                arquivos, 10MB cada.
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Button type="button" asChild>
+                  <label htmlFor="new-files" className="cursor-pointer">
+                    <Paperclip className="mr-2 h-4 w-4" />
+                    Selecionar anexos
+                  </label>
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {newFiles.length > 0
+                    ? `${newFiles.length} arquivo(s) selecionado(s)`
+                    : "Nenhum arquivo selecionado"}
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">Máx. 5 arquivos, 10MB cada.</p>
             </div>
             {isAvulso && (
               <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
@@ -788,44 +925,124 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
         </Card>
       )}
 
-      <Card className="p-0 overflow-hidden">
-        <div className="px-4 py-3 border-b">
-          <h3 className="text-sm font-semibold">Meus chamados</h3>
+      <Card className="overflow-hidden p-0">
+        <div className="space-y-3 border-b px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">Meus chamados</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {filteredTickets.length} de {session.tickets.length} chamado(s)
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!filteredTickets.length}
+                onClick={() => void exportPdf()}
+              >
+                <FileText className="mr-1.5 h-4 w-4" /> PDF
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!filteredTickets.length}
+                onClick={() => void exportXlsx()}
+              >
+                <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Excel XLSX
+              </Button>
+            </div>
+          </div>
+          <div className="grid gap-2 md:grid-cols-[minmax(220px,1fr)_190px_170px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={ticketQuery}
+                onChange={(event) => setTicketQuery(event.target.value)}
+                className="pl-9"
+                placeholder="Buscar por número ou assunto"
+                aria-label="Buscar chamados"
+              />
+            </div>
+            <Select
+              value={ticketStatus}
+              onValueChange={(value) => setTicketStatus(value as typeof ticketStatus)}
+            >
+              <SelectTrigger aria-label="Filtrar por status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {Object.entries(ticketStatusLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={ticketPriority}
+              onValueChange={(value) => setTicketPriority(value as typeof ticketPriority)}
+            >
+              <SelectTrigger aria-label="Filtrar por prioridade">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as prioridades</SelectItem>
+                {Object.entries(priorityLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {session.tickets.length === 0 ? (
           <div className="p-8 text-center text-xs text-muted-foreground">
             Nenhum chamado registrado.
           </div>
+        ) : filteredTickets.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground">
+            Nenhum chamado corresponde aos filtros selecionados.
+          </div>
         ) : (
-          <ul className="divide-y">
-            {session.tickets.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => openTicket(t.id)}
-                  disabled={loadingDetail === t.id}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/40 transition-colors disabled:opacity-60"
-                >
-                  <span className="font-mono text-xs text-muted-foreground w-14">#{t.number}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm truncate">{t.subject}</div>
-                    {t.pending_type && (
-                      <div className="mt-0.5">
-                        <PendingBadge pending={t.pending_type} />
-                      </div>
-                    )}
-                  </div>
-                  <PriorityBadge priority={t.priority} />
-                  <div className="flex flex-col items-end gap-1">
-                    <TicketBadge status={t.status} />
-                  </div>
-                  <span className="text-[11px] text-muted-foreground w-24 text-right">
-                    {new Date(t.created_at).toLocaleDateString("pt-BR")}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div>
+            <div className="hidden grid-cols-[4rem_minmax(0,1fr)_8rem_12rem_6rem] gap-3 border-b bg-muted/40 px-4 py-2 text-[11px] font-medium text-muted-foreground md:grid">
+              <span>Número</span>
+              <span>Assunto</span>
+              <span>Prioridade</span>
+              <span>Status</span>
+              <span className="text-right">Abertura</span>
+            </div>
+            <ul className="divide-y">
+              {filteredTickets.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => openTicket(t.id)}
+                    disabled={loadingDetail === t.id}
+                    className="grid w-full grid-cols-1 gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40 disabled:opacity-60 md:grid-cols-[4rem_minmax(0,1fr)_8rem_12rem_6rem] md:items-center md:gap-3"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground">#{t.number}</span>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{t.subject}</div>
+                    </div>
+                    <PriorityBadge priority={t.priority} className="justify-self-start" />
+                    <div className="flex flex-col items-start gap-1">
+                      <TicketBadge status={t.status} />
+                      <PendingBadge pending={t.pending_type} />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground md:text-right">
+                      {new Date(t.created_at).toLocaleDateString("pt-BR")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
       <Dialog

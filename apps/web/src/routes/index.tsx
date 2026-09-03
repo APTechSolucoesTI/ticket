@@ -8,7 +8,6 @@ import {
   MessageCircle, Timer, BarChart3, Menu, Mail, MapPin,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import HomeChat from "@/components/HomeChat";
 import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/")({
@@ -117,7 +116,6 @@ function Navbar() {
     </header>
   );
 }
-
 function FooterCol({ title, links }: { title: string; links: { href: string; label: string; to?: string }[] }) {
   return (
     <div>
@@ -524,7 +522,6 @@ function Landing() {
       </section>
 
       <SiteFooter />
-      <HomeChat />
     </div>
   );
 }
