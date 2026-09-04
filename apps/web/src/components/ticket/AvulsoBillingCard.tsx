@@ -23,15 +23,28 @@ export function AvulsoBillingCard({ ticketId }: { ticketId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tickets_cobranca_avulsa")
-        .select(
-          "minutos_apurados, valor_base, valor_final, valor_ajustado_manualmente, status_cobranca, vencimento_em, revisado_em",
-        )
+        .select("minutos_apurados, status_cobranca, vencimento_em, revisado_em")
         .eq("ticket_id", ticketId)
         .is("deleted_at", null)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: financialData, isLoading: isFinancialLoading } = useQuery({
+    queryKey: ["avulso-charge-financial-value", ticketId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tickets_cobranca_avulsa")
+        .select("valor_final, valor_ajustado_manualmente")
+        .eq("ticket_id", ticketId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !finance.loading && finance.view,
   });
 
   const status =
@@ -53,17 +66,23 @@ export function AvulsoBillingCard({ ticketId }: { ticketId: string }) {
           <p className="text-muted-foreground">Calculando cobrança…</p>
         ) : data ? (
           <>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${finance.view ? "grid-cols-2" : "grid-cols-1"}`}>
               <div>
                 <span className="text-muted-foreground">Tempo</span>
                 <div className="font-medium">
                   {Math.floor(data.minutos_apurados / 60)}h {data.minutos_apurados % 60}min
                 </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Valor final</span>
-                <div className="font-semibold">{money.format(Number(data.valor_final))}</div>
-              </div>
+              {finance.view && (
+                <div>
+                  <span className="text-muted-foreground">Valor final</span>
+                  <div className="font-semibold">
+                    {isFinancialLoading || !financialData
+                      ? "Carregando…"
+                      : money.format(Number(financialData.valor_final))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{labels[status ?? ""] ?? status}</Badge>
@@ -72,7 +91,7 @@ export function AvulsoBillingCard({ ticketId }: { ticketId: string }) {
                   Revisão financeira pendente
                 </span>
               )}
-              {data.valor_ajustado_manualmente && (
+              {finance.view && financialData?.valor_ajustado_manualmente && (
                 <span className="text-muted-foreground">Valor ajustado</span>
               )}
             </div>
