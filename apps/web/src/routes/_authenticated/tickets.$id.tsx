@@ -387,6 +387,7 @@ function TicketDetailPage() {
   const [askOpen, setAskOpen] = useState(false);
   const [startingAttendance, setStartingAttendance] = useState(false);
   const activeAttendanceTicketRef = useRef<string | null>(null);
+  const navigateAfterSaveRef = useRef(false);
   const [finalizeStatus, setFinalizeStatus] = useState<"resolved" | "closed" | null>(null);
 
   // Novo e Pendente sempre perguntam. Em atendimento abre automaticamente para
@@ -425,8 +426,8 @@ function TicketDetailPage() {
     setFinalizeStatus(null);
 
     if (canStartAttendance(ticket.status as TicketStatus)) {
-      setAttendance("ask");
-      setAskOpen(true);
+      setAttendance(navigateAfterSaveRef.current ? "readonly" : "ask");
+      setAskOpen(!navigateAfterSaveRef.current);
     } else {
       setAttendance("readonly");
       setAskOpen(false);
@@ -536,8 +537,6 @@ function TicketDetailPage() {
     toast.info("Ticket aberto em modo somente leitura");
   };
 
-  const [navigateAfterSave, setNavigateAfterSave] = useState(false);
-
   // Ao entrar (ou voltar) para somente leitura, elimina qualquer fluxo de
   // edição que tenha sido aberto enquanto o atendimento estava ativo.
   useEffect(() => {
@@ -550,8 +549,11 @@ function TicketDetailPage() {
     setPendingTime(null);
     setAskResolved(false);
     setFinalizeStatus(null);
-    setNavigateAfterSave(false);
   }, [id, readOnly]);
+
+  useEffect(() => {
+    navigateAfterSaveRef.current = false;
+  }, [id]);
 
   const handleBack = () => {
     if (timerRunning && timerStartedAt) {
@@ -559,7 +561,7 @@ function TicketDetailPage() {
       setTimerRunning(false);
       setMinutesInput(String(elapsedMin));
       setPendingTime({ msgId: "timer" });
-      setNavigateAfterSave(true);
+      navigateAfterSaveRef.current = true;
       toast.success(`Cronômetro parado (${elapsedMin} min)`);
       return;
     }
@@ -660,12 +662,13 @@ function TicketDetailPage() {
       qc.invalidateQueries({ queryKey: ["ticket_services_performed", id] });
       qc.invalidateQueries({ queryKey: ["ticket_closing_report", id] });
       setFinalizeStatus(null);
-      if (navigateAfterSave) {
-        setNavigateAfterSave(false);
+      if (navigateAfterSaveRef.current) {
+        navigateAfterSaveRef.current = false;
         navigate({ to: "/tickets" });
       }
     },
     onError: (e: Error, _patch, context) => {
+      navigateAfterSaveRef.current = false;
       if (context?.previousTicket) {
         qc.setQueryData(["ticket", id], context.previousTicket);
       }
@@ -729,8 +732,8 @@ function TicketDetailPage() {
       qc.invalidateQueries({ queryKey: ["time_entries", id] });
       if (wasTimer) {
         setAskResolved(true);
-      } else if (navigateAfterSave) {
-        setNavigateAfterSave(false);
+      } else if (navigateAfterSaveRef.current) {
+        navigateAfterSaveRef.current = false;
         navigate({ to: "/tickets" });
       }
     },
@@ -1640,8 +1643,8 @@ function TicketDetailPage() {
                   setTimerStartedAt(null);
                   setMinutesInput("");
                   if (wasTimer) setAskResolved(true);
-                  else if (navigateAfterSave) {
-                    setNavigateAfterSave(false);
+                  else if (navigateAfterSaveRef.current) {
+                    navigateAfterSaveRef.current = false;
                     navigate({ to: "/tickets" });
                   }
                 }}
