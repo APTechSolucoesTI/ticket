@@ -58,7 +58,10 @@ export function decodeSessionUser(token: string): SessionUser | null {
   try {
     const payload = token.split(".")[1];
     if (!payload) return null;
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const bytes = Uint8Array.from(atob(paddedBase64), (character) => character.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
     const claims = JSON.parse(json) as {
       sub?: string;
       email?: string;
