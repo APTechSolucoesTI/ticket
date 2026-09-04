@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 
-export type PendingType = "awaiting_tech" | "awaiting_customer" | "tech_response" | null | undefined;
+export type PendingType =
+  "awaiting_tech" | "awaiting_customer" | "tech_response" | "in_progress" | null | undefined;
 
 const map: Record<string, { label: string; className: string }> = {
   awaiting_tech: {
@@ -14,6 +15,10 @@ const map: Record<string, { label: string; className: string }> = {
   tech_response: {
     label: "Retorno Técnico",
     className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+  },
+  in_progress: {
+    label: "Em atendimento",
+    className: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30",
   },
 };
 

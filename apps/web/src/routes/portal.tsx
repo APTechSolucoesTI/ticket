@@ -110,6 +110,7 @@ const pendingLabels: Record<Exclude<PendingType, null | undefined>, string> = {
   awaiting_customer: "Pendente de retorno do cliente",
   awaiting_tech: "Pendente de retorno técnico",
   tech_response: "Retorno técnico",
+  in_progress: "Em atendimento",
 };
 
 function PortalPage() {

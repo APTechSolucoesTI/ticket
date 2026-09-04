@@ -2594,6 +2594,7 @@ export type Database = {
       pause_ticket: {
         Args: {
           _complement: string;
+          _pending_type: string;
           _reason_id: string;
           _ticket_id: string;
           _timer_started_at: string;

@@ -62,6 +62,14 @@ function canStartAttendance(status: TicketStatus) {
   return status === "new" || status === "pending";
 }
 
+type PendingSituation = "awaiting_customer" | "awaiting_tech";
+
+function activeSituationFor(channel: TicketChannel | null): PendingType {
+  return channel && ["chat", "whatsapp", "email", "portal"].includes(channel)
+    ? "in_progress"
+    : null;
+}
+
 type Msg = {
   id: string;
   content: string;
@@ -307,6 +315,7 @@ function TicketDetailPage() {
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [pauseReasonId, setPauseReasonId] = useState("");
   const [pauseComplement, setPauseComplement] = useState("");
+  const [pausePendingType, setPausePendingType] = useState<PendingSituation | "">("");
   const [newPauseReason, setNewPauseReason] = useState("");
   const [addingPauseReason, setAddingPauseReason] = useState(false);
   const entryUserIds = useMemo(
@@ -380,6 +389,7 @@ function TicketDetailPage() {
   // reply/internal state now lives inside TicketComposer
   const [pendingTime, setPendingTime] = useState<{ msgId: string } | null>(null);
   const [askResolved, setAskResolved] = useState(false);
+  const [pendingSituationOpen, setPendingSituationOpen] = useState(false);
   const [minutesInput, setMinutesInput] = useState("");
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(null);
@@ -388,6 +398,7 @@ function TicketDetailPage() {
   const [startingAttendance, setStartingAttendance] = useState(false);
   const activeAttendanceTicketRef = useRef<string | null>(null);
   const navigateAfterSaveRef = useRef(false);
+  const suppressStartPromptRef = useRef(false);
   const [finalizeStatus, setFinalizeStatus] = useState<"resolved" | "closed" | null>(null);
 
   // Novo e Pendente sempre perguntam. Em atendimento abre automaticamente para
@@ -402,7 +413,17 @@ function TicketDetailPage() {
       setTimerStartedAt(null);
       setPendingTime(null);
       setAskResolved(false);
+      setPendingSituationOpen(false);
       setFinalizeStatus(null);
+      return;
+    }
+
+    if (activePause && ticket.assigned_to === user.id) {
+      activeAttendanceTicketRef.current = null;
+      setAttendance("readonly");
+      setAskOpen(false);
+      setTimerRunning(false);
+      setTimerStartedAt(null);
       return;
     }
 
@@ -423,16 +444,18 @@ function TicketDetailPage() {
     setTimerStartedAt(null);
     setPendingTime(null);
     setAskResolved(false);
+    setPendingSituationOpen(false);
     setFinalizeStatus(null);
 
     if (canStartAttendance(ticket.status as TicketStatus)) {
-      setAttendance(navigateAfterSaveRef.current ? "readonly" : "ask");
-      setAskOpen(!navigateAfterSaveRef.current);
+      const suppressStartPrompt = navigateAfterSaveRef.current || suppressStartPromptRef.current;
+      setAttendance(suppressStartPrompt ? "readonly" : "ask");
+      setAskOpen(!suppressStartPrompt);
     } else {
       setAttendance("readonly");
       setAskOpen(false);
     }
-  }, [ticket, user, access.edit]);
+  }, [ticket, user, access.edit, activePause]);
 
   const isFinalized = ticket?.status === "resolved" || ticket?.status === "closed";
   const readOnly = !access.edit || attendance !== "active" || isFinalized;
@@ -505,7 +528,13 @@ function TicketDetailPage() {
     try {
       const { data: claimedTicket, error } = await supabase
         .from("tickets")
-        .update({ assigned_to: user.id, status: "in_progress", resolved_at: null, closed_at: null })
+        .update({
+          assigned_to: user.id,
+          status: "in_progress",
+          pending_type: activeSituationFor(ticket.channel as TicketChannel | null),
+          resolved_at: null,
+          closed_at: null,
+        })
         .eq("id", id)
         .eq("status", ticket.status)
         .select("id")
@@ -519,6 +548,7 @@ function TicketDetailPage() {
       setTimerRunning(true);
       setAttendance("active");
       setAskOpen(false);
+      suppressStartPromptRef.current = false;
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
       toast.success("Atendimento iniciado - cronômetro em execução");
@@ -544,15 +574,18 @@ function TicketDetailPage() {
     setPauseDialogOpen(false);
     setPauseReasonId("");
     setPauseComplement("");
+    setPausePendingType("");
     setNewPauseReason("");
     setAddingPauseReason(false);
     setPendingTime(null);
     setAskResolved(false);
+    setPendingSituationOpen(false);
     setFinalizeStatus(null);
   }, [id, readOnly]);
 
   useEffect(() => {
     navigateAfterSaveRef.current = false;
+    suppressStartPromptRef.current = false;
   }, [id]);
 
   const handleBack = () => {
@@ -593,8 +626,14 @@ function TicketDetailPage() {
         resolved_at: string | null;
         closed_at: string | null;
       }> = { ...rest };
-      if (patch.status === "resolved") full.resolved_at = new Date().toISOString();
-      if (patch.status === "closed") full.closed_at = new Date().toISOString();
+      if (patch.status === "resolved") {
+        full.resolved_at = new Date().toISOString();
+        full.pending_type = null;
+      }
+      if (patch.status === "closed") {
+        full.closed_at = new Date().toISOString();
+        full.pending_type = null;
+      }
       if (patch.status && patch.status !== "resolved" && patch.status !== "closed") {
         full.resolved_at = null;
         full.closed_at = null;
@@ -650,7 +689,9 @@ function TicketDetailPage() {
           ...(Object.prototype.hasOwnProperty.call(patch, "assigned_to")
             ? { assigned_to: patch.assigned_to ?? null }
             : {}),
-          ...(patch.pending_type ? { pending_type: patch.pending_type } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, "pending_type")
+            ? { pending_type: patch.pending_type ?? null }
+            : {}),
         };
       });
       return { previousTicket };
@@ -669,12 +710,19 @@ function TicketDetailPage() {
     },
     onError: (e: Error, _patch, context) => {
       navigateAfterSaveRef.current = false;
+      suppressStartPromptRef.current = false;
       if (context?.previousTicket) {
         qc.setQueryData(["ticket", id], context.previousTicket);
       }
       toast.error(`${e.message}. Alteração desfeita.`);
     },
   });
+
+  const markTicketPending = (pendingType: PendingSituation) => {
+    suppressStartPromptRef.current = true;
+    setPendingSituationOpen(false);
+    updateTicket.mutate({ status: "pending", pending_type: pendingType });
+  };
 
   // Resolver/fechar exige laudo final (resumo + diagnóstico) - a menos que o
   // ticket já tenha um (ex: indo de "resolvido" pra "fechado" sem reabrir).
@@ -748,13 +796,18 @@ function TicketDetailPage() {
         throw new Error("O Time Tracking precisa estar ativo para pausar o ticket");
       }
       if (!pauseReasonId) throw new Error("Selecione o motivo da pausa");
+      if (!pausePendingType) throw new Error("Selecione a situação de pendência do ticket");
       const { error } = await supabase.rpc("pause_ticket", {
         _ticket_id: id,
         _reason_id: pauseReasonId,
         _complement: pauseComplement,
         _timer_started_at: timerStartedAt.toISOString(),
+        _pending_type: pausePendingType,
       });
       if (error) throw error;
+    },
+    onMutate: () => {
+      suppressStartPromptRef.current = true;
     },
     onSuccess: () => {
       setTimerRunning(false);
@@ -762,23 +815,29 @@ function TicketDetailPage() {
       setPauseDialogOpen(false);
       setPauseReasonId("");
       setPauseComplement("");
+      setPausePendingType("");
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
       qc.invalidateQueries({ queryKey: ["time_entries", id] });
       toast.success("Atendimento pausado e Time Tracking apontado");
     },
-    onError: (e: Error) =>
-      toast.error(getUserFacingError(e, "Não foi possível pausar o atendimento.")),
+    onError: (e: Error) => {
+      suppressStartPromptRef.current = false;
+      toast.error(getUserFacingError(e, "Não foi possível pausar o atendimento."));
+    },
   });
 
   const resumeTicket = useMutation({
     mutationFn: async () => {
-      await assertTicketEditable();
+      if (!access.edit || !ticket || !user || ticket.assigned_to !== user.id || !activePause) {
+        throw new Error("Este atendimento não está disponível para retomada");
+      }
       const { error } = await supabase.rpc("resume_ticket", { _ticket_id: id });
       if (error) throw error;
     },
     onSuccess: () => {
+      suppressStartPromptRef.current = false;
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["ticket_pauses", id] });
@@ -1366,7 +1425,9 @@ function TicketDetailPage() {
                   size="sm"
                   variant="outline"
                   className="h-8 w-full gap-1.5 text-xs"
-                  disabled={resumeTicket.isPending || readOnly || ticket.assigned_to !== user?.id}
+                  disabled={
+                    resumeTicket.isPending || !access.edit || ticket.assigned_to !== user?.id
+                  }
                   onClick={() => resumeTicket.mutate()}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -1591,6 +1652,40 @@ function TicketDetailPage() {
               placeholder="Inclua detalhes que ajudem a equipe a entender a espera."
               className="mt-1.5 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
+            <fieldset className="mt-4">
+              <legend className="text-xs font-medium">Situação após pausar</legend>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Informe quem deve realizar a próxima interação no ticket.
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ["awaiting_customer", "Pendente de Retorno do Cliente"],
+                    ["awaiting_tech", "Pendente de Retorno Técnico"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors",
+                      pausePendingType === value
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "hover:bg-muted/50",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="pause-pending-situation"
+                      value={value}
+                      checked={pausePendingType === value}
+                      onChange={() => setPausePendingType(value)}
+                      className="accent-primary"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 variant="ghost"
@@ -1606,6 +1701,7 @@ function TicketDetailPage() {
                   readOnly ||
                   pauseTicket.isPending ||
                   !pauseReasonId ||
+                  !pausePendingType ||
                   (pauseReasons.find((reason) => reason.id === pauseReasonId)?.name === "Outro" &&
                     pauseComplement.trim().length < 3)
                 }
@@ -1676,8 +1772,8 @@ function TicketDetailPage() {
                 size="sm"
                 disabled={readOnly || updateTicket.isPending}
                 onClick={() => {
-                  updateTicket.mutate({ status: "pending" });
                   setAskResolved(false);
+                  setPendingSituationOpen(true);
                 }}
               >
                 Não - Pendente
@@ -1691,6 +1787,44 @@ function TicketDetailPage() {
                 }}
               >
                 Sim - Resolvido
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingSituationOpen && !readOnly && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pending-situation-title"
+          >
+            <h3 id="pending-situation-title" className="text-sm font-semibold">
+              Qual é a situação do ticket?
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              O ticket retornará para Pendente. Informe quem deve realizar a próxima interação.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-auto min-h-14 whitespace-normal px-3 py-2 text-xs"
+                disabled={updateTicket.isPending}
+                onClick={() => markTicketPending("awaiting_customer")}
+              >
+                Pendente de Retorno do Cliente
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-auto min-h-14 whitespace-normal px-3 py-2 text-xs"
+                disabled={updateTicket.isPending}
+                onClick={() => markTicketPending("awaiting_tech")}
+              >
+                Pendente de Retorno Técnico
               </Button>
             </div>
           </div>
