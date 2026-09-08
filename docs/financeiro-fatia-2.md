@@ -108,6 +108,20 @@ Os segredos reutilizados são `apticket_internal_functions_url` e
 Referência de implantação usada pelo skill Supabase:
 [agendamento de Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions).
 
+Implantação confirmada em 08/09/2026: migration aplicada e registrada; Edge
+Function publicada no Supabase self-hosted a partir do código versionado;
+cron `apticket-fechar-ciclos-financeiros` ativo. Teste HTTP de serviço retornou
+200 com zero cobranças e chamada sem autenticação retornou 401. Os 125 testes
+passaram; typecheck e lint também. O advisor de segurança executou sem apontar
+os novos objetos financeiros; verificações de catálogo confirmaram RLS e RPC
+sem permissão de execução para anon/authenticated.
+
+Backup estrutural anterior à migration no servidor:
+`/home/administrador/apticket-backups/apticket_schema_before_cycle_closure_20260908.sql.gz`.
+Nenhum contrato real habilitado e nenhum recebível real criado nesta publicação.
+O deploy necessário foi o da Edge Function; o frontend/Dokploy não exigiu
+rebuild, pois não houve alteração no aplicativo web.
+
 ## Próximo ponto de revisão
 
 Esta fatia não emite boleto/PIX/cartão, não implementa NFS-e, AP, conciliação,
