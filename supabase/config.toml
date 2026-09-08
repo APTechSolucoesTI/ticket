@@ -5,3 +5,8 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/gerar-medicoes-contrato/deno.json"
 entrypoint = "./functions/gerar-medicoes-contrato/index.ts"
+
+[functions.fechar-ciclos-financeiros]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/fechar-ciclos-financeiros/index.ts"
