@@ -1046,9 +1046,12 @@ function ContractDialog({
                     onChange={(e) => setForm({ ...form, extra_hour_price: Number(e.target.value) })}
                   />
                 </div>
-                <div className="flex items-end justify-between rounded-md border px-3 h-[52px]">
-                  <div className="text-[11px]">Renovação auto.</div>
+                <div className="flex h-[52px] items-center justify-between rounded-md border px-3">
+                  <Label htmlFor="contract-auto-renew" className="text-[11px]">
+                    Renovação auto.
+                  </Label>
                   <Switch
+                    id="contract-auto-renew"
                     checked={form.auto_renew}
                     onCheckedChange={(v) => setForm({ ...form, auto_renew: v })}
                   />
