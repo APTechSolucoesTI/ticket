@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CompanyTab } from "@/components/settings/CompanyTab";
+import { InterTab } from "@/components/settings/InterTab";
 import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
@@ -113,6 +114,7 @@ async function getTenantId() {
 
 const SETTINGS_TABS = [
   { value: "company", module: "empresa", label: "Empresa" },
+  { value: "inter", module: "empresa", label: "Banco Inter" },
   { value: "users", module: "usuarios", label: "Usuários" },
   { value: "roles", module: "papeis", label: "Papéis" },
   { value: "user-permissions", module: "permissoes", label: "Permissões" },
@@ -147,7 +149,7 @@ function SettingsPage() {
         subtitle="Usuários, departamentos, SLAs, tipos de contrato, canais e respostas padrão."
       />
       <Tabs defaultValue={firstTab}>
-        <TabsList>
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
           {visibleTabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
               {t.label}
@@ -161,6 +163,7 @@ function SettingsPage() {
             </ModulePermissionProvider>
           </TabsContent>
         )}
+        {perms.has("empresa", "view") && <TabsContent value="inter" className="mt-4"><InterTab /></TabsContent>}
         {perms.has("usuarios", "view") && (
           <TabsContent value="users" className="mt-4">
             <ModulePermissionProvider module="usuarios">
