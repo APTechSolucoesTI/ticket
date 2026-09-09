@@ -75,7 +75,6 @@ RPCs negadas para anon/service role e zero snapshots reais após a publicação.
 Backup estrutural anterior no servidor:
 `/home/administrador/apticket-backups/apticket_schema_before_payer_snapshot_20260909170856.sql.gz`.
 
-Próxima fatia: apresentar a revisão do pagador dentro da tela Cobrança Inter,
-com indicação dos campos faltantes e link para corrigir o cliente. Só depois
-disso será implementado o processador de emissão em homologação, com recuperação
-de resultado incerto e retorno assíncrono.
+A apresentação e confirmação na tela foram concluídas na
+[fatia 9](financeiro-fatia-9.md). A próxima etapa é o processador de emissão em
+homologação, com recuperação de resultado incerto e retorno assíncrono.

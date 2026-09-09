@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState, ErrorState } from "@/components/data-state";
+import { InterPayerReview } from "@/components/inter-payer-review";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const date = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR");
@@ -51,7 +52,7 @@ export function InterChargeDialog({ id, onClose }: { id: string; onClose(): void
   const busy = mutation.isPending || query.isFetching;
   return (
     <Dialog open onOpenChange={(open) => !open && !mutation.isPending && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="mr-4">Preparação de cobrança Inter</DialogTitle>
           <DialogDescription>
@@ -138,6 +139,9 @@ export function InterChargeDialog({ id, onClose }: { id: string; onClose(): void
                 <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                   Nenhuma solicitação neste ambiente.
                 </p>
+              )}
+              {existing && !changed && (
+                <InterPayerReview key={`${environment}-${existing.id}`} requestId={existing.id} />
               )}
               {!review?.canPrepare && (
                 <p role="status" className="text-sm text-muted-foreground">
