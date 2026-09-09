@@ -44,6 +44,10 @@ Nenhum vínculo real confirmado durante os testes.
 
 Próxima etapa: dados do pagador e fluxo homologado de emissão/retorno.
 
+Atualização: o backend de pré-validação e snapshot do pagador está descrito na
+[fatia 8](financeiro-fatia-8.md). A apresentação na tela e a emissão continuam
+pendentes.
+
 ## Correção da consulta de perfil
 
 A consulta `roles(name)` retornava HTTP 300 / `PGRST201` na API real: existem
