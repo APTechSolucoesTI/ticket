@@ -24,7 +24,8 @@ boleto/PIX e não implementa webhook ou conciliação**.
 
 ## Operação nesta fatia
 
-Endpoint técnico, ainda **sem botão novo na interface**:
+Endpoint técnico. A interface de preparação foi adicionada depois, na
+[fatia 5](financeiro-fatia-5.md):
 
 ```http
 POST /functions/v1/preparar-cobranca-inter

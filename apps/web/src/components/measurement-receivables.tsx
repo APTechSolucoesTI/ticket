@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { BillingCycleDialog } from "@/components/billing-cycle-dialog";
+import { InterChargeDialog } from "@/components/inter-charge-dialog";
 
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
 type Receivable = Tables<"contas_receber"> & {
@@ -86,6 +87,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   const [filter, setFilter] = useState<"todos" | BillingStatus>("todos");
   const [editing, setEditing] = useState<Receivable | null>(null);
   const [cycleId, setCycleId] = useState<string | null>(null);
+  const [interId, setInterId] = useState<string | null>(null);
   const [origin, setOrigin] = useState("todos");
 
   const query = useQuery({
@@ -209,7 +211,16 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                       <StatusBadge status={effectiveStatus(receivable)} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {receivable.billing_cycle_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setInterId(receivable.id)}
+                          >
+                            Cobrança Inter
+                          </Button>
+                        )}
                         {receivable.billing_cycle_id && (
                           <Button
                             size="sm"
@@ -253,6 +264,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
         }}
       />
       <BillingCycleDialog id={cycleId} onClose={() => setCycleId(null)} />
+      {interId && <InterChargeDialog key={interId} id={interId} onClose={() => setInterId(null)} />}
     </Card>
   );
 }
