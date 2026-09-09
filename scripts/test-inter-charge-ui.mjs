@@ -2,7 +2,8 @@
 import { readFileSync, readdirSync, mkdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
-const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href);
+const playwrightModule = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href);
+const { chromium } = playwrightModule.default ?? playwrightModule;
 const files = readdirSync("apps/web/.output/server/_ssr");
 function functionId(prefix, name) {
   const source = readFileSync(
@@ -25,7 +26,10 @@ const receivable = {
   valor_aberto: 1500,
   vencimento_em: "2026-10-15",
   status_cobranca: "a_faturar",
-  billing_cycle_id: "cycle-test",
+  billing_cycle_id: null,
+  medicao_id: "e7000000-0000-0000-0000-000000000001",
+  operating_company_id: "e8000000-0000-0000-0000-000000000001",
+  origin: "measurement",
   competencia: "2026-09-01",
 };
 const browser = await chromium.launch({ channel: "msedge", headless: true });

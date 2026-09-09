@@ -82,6 +82,7 @@ export type InterChargeReview = {
     valor_aberto: number;
     vencimento_em: string;
     status_cobranca: string;
+    origin: "measurement" | "recurring";
   };
   canPrepare: boolean;
   requests: InterChargeRequest[];
@@ -95,15 +96,19 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
     const { data: receivable, error } = await db
       .from("contas_receber")
       .select(
-        "id,cliente_nome,documento_referencia,valor_original,valor_aberto,vencimento_em,status_cobranca,operating_company_id,billing_cycle_id",
+        "id,cliente_nome,documento_referencia,valor_original,valor_aberto,vencimento_em,status_cobranca,operating_company_id,billing_cycle_id,medicao_id",
       )
       .eq("id", data.id)
       .eq("tenant_id", context.claims.tenantId)
       .is("deleted_at", null)
       .maybeSingle();
     if (error) throw new Error("Não foi possível carregar a cobrança. Tente novamente.");
-    if (!receivable?.billing_cycle_id || !receivable.operating_company_id)
-      throw new Error("Recebível recorrente indisponível ou sem acesso à empresa.");
+    if (!receivable || Boolean(receivable.billing_cycle_id) === Boolean(receivable.medicao_id))
+      throw new Error("Conta a receber contratual indisponível.");
+    if (!receivable.operating_company_id)
+      throw new Error(
+        "Defina a empresa operadora deste contrato antes de emitir a cobrança Inter.",
+      );
     const [{ data: requests, error: requestError }, { data: canPrepare, error: scopeError }] =
       await Promise.all([
         db
@@ -123,7 +128,10 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
     if (requestError || scopeError)
       throw new Error("Não foi possível consultar as solicitações e permissões. Tente novamente.");
     return {
-      receivable,
+      receivable: {
+        ...receivable,
+        origin: receivable.medicao_id ? "measurement" : "recurring",
+      },
       requests: requests ?? [],
       canPrepare: canPrepare === true,
     } as InterChargeReview;

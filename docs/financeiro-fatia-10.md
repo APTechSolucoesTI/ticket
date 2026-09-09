@@ -2,7 +2,7 @@
 
 ## Como usar
 
-1. Em **Financeiro**, abra **Cobrança Inter** em uma conta a receber recorrente.
+1. Em **Financeiro**, abra **Cobrança Inter** em uma conta a receber de medição aprovada ou de ciclo recorrente.
 2. Na aba **Homologação**, registre a preparação e confirme o pagador.
 3. Confira novamente ambiente, pagador, valor e vencimento.
 4. Marque a autorização de envio e clique em **Emitir no sandbox**.
@@ -42,9 +42,12 @@ e [Changelog da API](https://developers.inter.co/changelog).
 
 ## Componentes
 
-- Migration: `20260909180411_inter_sandbox_dispatch_processor.sql`.
+- Migrations: `20260909180411_inter_sandbox_dispatch_processor.sql` e
+  `20260909231713_enable_inter_for_measurement_receivables.sql`.
 - Edge Function: `emitir-cobranca-inter`.
 - Testes de banco: `inter_sandbox_dispatch_processor_test.sql`.
+- Teste de medição e regressão: `contract_measurements_test.sql` e
+  `inter_charge_requests_test.sql`.
 - Testes da função: `emitir-cobranca-inter/handler.test.ts`.
 - Teste de interface: `scripts/test-inter-charge-ui.mjs`.
 

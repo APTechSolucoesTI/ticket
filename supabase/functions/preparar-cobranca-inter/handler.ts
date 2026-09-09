@@ -72,7 +72,7 @@ export function createHandler(deps: Dependencies) {
         if (error.code === "23514") {
           return json({
             message:
-              "Prepare apenas recebíveis recorrentes a faturar, sem baixa parcial e com saldo positivo.",
+              "Prepare apenas contas de medições aprovadas ou ciclos recorrentes a faturar, sem baixa parcial e com saldo positivo.",
           }, 422);
         }
         return json({ message: "Não foi possível preparar a cobrança." }, 502);

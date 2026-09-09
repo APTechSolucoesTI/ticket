@@ -212,13 +212,24 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-wrap justify-end gap-2">
-                        {receivable.billing_cycle_id && (
+                        {(receivable.billing_cycle_id || receivable.medicao_id) &&
+                          receivable.operating_company_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setInterId(receivable.id)}
+                            >
+                              Cobrança Inter
+                            </Button>
+                          )}
+                        {receivable.medicao_id && !receivable.operating_company_id && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setInterId(receivable.id)}
+                            disabled
+                            title="Defina a empresa operadora do contrato para emitir pelo Inter."
                           >
-                            Cobrança Inter
+                            Empresa operadora pendente
                           </Button>
                         )}
                         {receivable.billing_cycle_id && (

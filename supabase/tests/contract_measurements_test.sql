@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, apticket, pg_catalog;
-select plan(31);
+select plan(34);
 
 select is(
   apticket.calcular_vencimento_medicao(
@@ -45,6 +45,23 @@ values (
   '11000000-0000-0000-0000-000000000001',
   'Administrador de teste',
   'medicoes@example.test',
+  true
+);
+
+insert into apticket.operating_companies (id, tenant_id, legal_name, tax_id)
+values (
+  '13000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000001',
+  'Empresa operadora de teste',
+  '12345678000195'
+);
+
+insert into apticket.financial_access (
+  tenant_id, user_id, operating_company_id, can_write
+) values (
+  '11000000-0000-0000-0000-000000000001',
+  '12000000-0000-0000-0000-000000000001',
+  '13000000-0000-0000-0000-000000000001',
   true
 );
 
@@ -274,6 +291,34 @@ select is(
   (select data_vencimento from apticket.medicoes_contrato
    where contrato_id = '31000000-0000-0000-0000-000000000001'),
   'conta a receber usa o vencimento calculado no boletim'
+);
+
+select is(
+  (select operating_company_id from apticket.contas_receber
+   where contrato_id = '31000000-0000-0000-0000-000000000001'),
+  '13000000-0000-0000-0000-000000000001'::uuid,
+  'conta da medição recebe a única empresa operadora ativa da tenant'
+);
+
+select is(
+  (
+    select apticket.prepare_inter_charge(receivable.id, 'sandbox') ->> 'status'
+    from apticket.contas_receber as receivable
+    where receivable.contrato_id = '31000000-0000-0000-0000-000000000001'
+  ),
+  'blocked_homologation',
+  'conta da medição pode preparar cobrança Inter'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from apticket.inter_charge_requests as request
+    join apticket.contas_receber as receivable on receivable.id = request.receivable_id
+    where receivable.medicao_id is not null
+  ),
+  1,
+  'solicitação Inter preserva a origem por medição'
 );
 
 select lives_ok(
