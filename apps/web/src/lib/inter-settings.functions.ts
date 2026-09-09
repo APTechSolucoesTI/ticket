@@ -1,7 +1,37 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { interSettingsSchema, type InterSettingsMetadata } from "./inter-settings.schema";
+
+export const testInterConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        environment: z.enum(["sandbox", "production"]),
+        version: z.number().int().positive(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.functions.invoke("testar-conexao-inter", {
+      body: { actor: context.userId, tenant: context.claims.tenantId, ...data },
+    });
+    if (error) {
+      // Only the internal function's sanitized message is allowed through.
+      if (error.context instanceof Response) {
+        const response = await error.context.json().catch(() => null);
+        if (response?.ok === false && typeof response.message === "string")
+          return { ok: false, message: response.message };
+      }
+      return { ok: false, message: "Serviço de teste indisponível. Tente novamente mais tarde." };
+    }
+    if (typeof result?.ok !== "boolean" || typeof result?.message !== "string")
+      return { ok: false, message: "Resposta inválida do serviço de teste." };
+    return { ok: result.ok, message: result.message };
+  });
 
 export const listInterSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

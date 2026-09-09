@@ -12,7 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModulePermissions } from "@/lib/permission-ui";
-import { listInterSettings, saveInterSettings } from "@/lib/inter-settings.functions";
+import {
+  listInterSettings,
+  saveInterSettings,
+  testInterConnection,
+} from "@/lib/inter-settings.functions";
 import {
   interSettingsSchema,
   type InterSettingsInput,
@@ -91,6 +95,10 @@ function InterForm({
 }) {
   const queryClient = useQueryClient();
   const save = useServerFn(saveInterSettings);
+  const testConnection = useServerFn(testInterConnection);
+  const connection = useMutation({
+    mutationFn: () => testConnection({ data: { environment, version: current!.version } }),
+  });
   const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const [reading, setReading] = useState(false);
   const form = useForm<InterSettingsInput>({
@@ -125,7 +133,7 @@ function InterForm({
     },
     onError: (error: Error) => toast.error(error.message || "Não foi possível salvar."),
   });
-  const busy = mutation.isPending || reading;
+  const busy = mutation.isPending || reading || connection.isPending;
   const error = (field: keyof InterSettingsInput) => form.formState.errors[field]?.message;
   async function upload(field: "certificate" | "privateKey", file?: File) {
     if (!file) return;
@@ -295,14 +303,37 @@ function InterForm({
         )}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className="max-w-lg text-xs text-muted-foreground">
-            Esta etapa salva a configuração e valida o par de arquivos. A conexão com o banco e a
-            emissão de boletos serão integradas na próxima etapa.
+            Salve antes de testar. O teste autentica as credenciais salvas deste ambiente, sem
+            validar a conta corrente, emitir boletos ou movimentar valores.
           </p>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!current || form.formState.isDirty}
+            onClick={() => connection.mutate()}
+          >
+            {connection.isPending && <Loader2 className="size-4 animate-spin" />}
+            Testar conexão
+          </Button>
           <Button type="submit">
             {busy && <Loader2 className="size-4 animate-spin" />}Salvar configuração
           </Button>
         </div>
       </fieldset>
+      {(connection.data || connection.isError) && (
+        <div
+          role="status"
+          className={`rounded-lg border p-3 text-sm ${connection.data?.ok ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"}`}
+        >
+          <p className="font-medium">
+            {environment === "sandbox" ? "Homologação" : "Produção"}:{" "}
+            {connection.data?.ok ? "Autenticação confirmada" : "Teste não concluído"}
+          </p>
+          <p className="mt-1">
+            {connection.data?.message ?? "Não foi possível executar o teste. Tente novamente."}
+          </p>
+        </div>
+      )}
     </form>
   );
 }

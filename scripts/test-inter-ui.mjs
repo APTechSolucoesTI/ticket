@@ -12,6 +12,7 @@ function functionId(prefix, name) {
 const permissionsId = functionId('permissions.functions-', 'getMyPermissions');
 const listId = functionId('inter-settings.functions-', 'listInterSettings');
 const saveId = functionId('inter-settings.functions-', 'saveInterSettings');
+const testId = functionId('inter-settings.functions-', 'testInterConnection');
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 mkdirSync('artifacts/inter-settings', { recursive: true });
 try {
@@ -29,6 +30,7 @@ try {
     await page.route('**/*', async route => {
       const url = route.request().url();
       if (url.includes('/_serverFn/')) {
+        if (url.includes(testId)) return route.fulfill({json:{result:{ok:true,message:'Autenticação com o Inter confirmada. Teste simulado.'},context:{}}});
         if (url.includes(listId) && failList) return route.fulfill({json:{error:{message:'Falha simulada'},context:{}}});
         if (url.includes(saveId)) {
           metadata[0] = {...metadata[0],account:'987654',version:2};
@@ -52,12 +54,17 @@ try {
     assert.deepEqual(errors, [], 'Browser errors');
     await page.locator('main').evaluate(element => { element.scrollTop = 0; });
     await page.screenshot({path:`artifacts/inter-settings/production-${width}.png`,fullPage:true});
+    await page.getByRole('button',{name:'Testar conexão',exact:true}).scrollIntoViewIfNeeded();
+    await page.screenshot({path:`artifacts/inter-settings/actions-${width}.png`,fullPage:true});
     console.log(`PASS layout/validation/production-confirmation ${width}px`);
     if (width === 1440) {
       metadata = [{environment:'sandbox',account:'123456',is_active:false,certificate_expires_at:'2040-01-01',certificate_fingerprint:'TEST-FINGERPRINT',version:1,updated_at:'2026-09-08'}];
       await page.reload();
       await page.getByRole('tab',{name:'Banco Inter',exact:true}).click();
+      await page.getByRole('button',{name:'Testar conexão',exact:true}).click();
+      await page.getByText('Homologação: Autenticação confirmada',{exact:true}).waitFor();
       await page.getByLabel('Conta corrente com dígito').fill('987654');
+      assert.equal(await page.getByRole('button',{name:'Testar conexão',exact:true}).isDisabled(),true);
       await page.getByRole('button',{name:'Salvar configuração'}).click();
       await page.getByText('Configuração do Inter salva com segurança.').waitFor();
       assert.equal(await page.getByLabel('Client Secret',{exact:true}).inputValue(),'');
@@ -66,6 +73,7 @@ try {
       await page.getByRole('tab',{name:'Banco Inter',exact:true}).click();
       await page.getByText('Somente leitura.',{exact:false}).waitFor();
       assert.equal(await page.getByRole('button',{name:'Salvar configuração'}).isDisabled(),true);
+      assert.equal(await page.getByRole('button',{name:'Testar conexão',exact:true}).isDisabled(),true);
       failList=true;
       await page.reload();
       await page.getByRole('tab',{name:'Banco Inter',exact:true}).click();
