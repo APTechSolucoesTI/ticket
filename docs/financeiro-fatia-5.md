@@ -56,3 +56,6 @@ necessária apenas do aplicativo web, pelo fluxo GitHub → Dokploy.
 Próxima parte pendente: vínculo bancário da empresa, dados do pagador,
 revisão corretiva e processamento de emissão/retorno. Não habilitar envio
 real antes da homologação.
+
+Atualização: o backend de consulta e confirmação do vínculo bancário está
+descrito na [fatia 6](financeiro-fatia-6.md). A interface e a emissão seguem pendentes.
