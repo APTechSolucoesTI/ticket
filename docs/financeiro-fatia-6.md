@@ -81,5 +81,8 @@ Próxima fatia: interface de consulta e confirmação do vínculo, reutilizando
 Configurações/Financeiro. Depois: dados do pagador e processamento homologado
 de emissão/retorno, sem habilitar produção por inferência.
 
+Atualização: interface disponível em **Financeiro > Empresa operadora**,
+conforme [fatia 7](financeiro-fatia-7.md).
+
 Referência de segurança consultada com a skill Supabase:
 [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security).

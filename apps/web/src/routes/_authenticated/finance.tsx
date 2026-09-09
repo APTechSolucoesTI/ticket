@@ -47,6 +47,7 @@ import { getCurrentUserId } from "@/lib/session";
 import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { MeasurementReceivables } from "@/components/measurement-receivables";
+import { InterBindingDialog } from "@/components/inter-binding-dialog";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -136,6 +137,7 @@ function FinancePage() {
   const [filter, setFilter] = useState<"todos" | BillingStatus>("todos");
   const [editing, setEditing] = useState<Charge | null>(null);
   const [priceOpen, setPriceOpen] = useState(false);
+  const [operatorOpen, setOperatorOpen] = useState(false);
 
   const chargesQuery = useQuery({
     queryKey: ["avulso-billing"],
@@ -185,13 +187,20 @@ function FinancePage() {
         title="Financeiro"
         subtitle="Controle o faturamento dos atendimentos avulsos, medições e ciclos recorrentes."
         actions={
-          access.edit ? (
-            <Button variant="outline" className="gap-2" onClick={() => setPriceOpen(true)}>
-              <Settings2 className="size-4" /> Configurar preços
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setOperatorOpen(true)}>
+              Empresa operadora
             </Button>
-          ) : undefined
+            {access.edit ? (
+              <Button variant="outline" className="gap-2" onClick={() => setPriceOpen(true)}>
+                <Settings2 className="size-4" /> Configurar preços
+              </Button>
+            ) : null}
+          </div>
         }
       />
+
+      {operatorOpen && <InterBindingDialog onClose={() => setOperatorOpen(false)} />}
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>
