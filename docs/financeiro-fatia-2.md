@@ -124,6 +124,9 @@ rebuild, pois não houve alteração no aplicativo web.
 
 ## Próximo ponto de revisão
 
+Atualização: a consulta visual de ciclos foi adicionada na
+[fatia 3](financeiro-fatia-3.md), preservando o motor e suas permissões.
+
 Esta fatia não emite boleto/PIX/cartão, não implementa NFS-e, AP, conciliação,
 régua de cobrança, dashboard, cadastro visual de regras ou coleta automática
 de snapshots. Revisar o cálculo mensal/pró-rata e a transição do legado antes

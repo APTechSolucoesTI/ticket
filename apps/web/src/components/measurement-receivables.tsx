@@ -34,9 +34,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { BillingCycleDialog } from "@/components/billing-cycle-dialog";
 
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
 type Receivable = Tables<"contas_receber"> & {
+  billing_cycle_id: string | null;
   medicoes_contrato: { report_token: string } | null;
 };
 
@@ -83,6 +85,8 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"todos" | BillingStatus>("todos");
   const [editing, setEditing] = useState<Receivable | null>(null);
+  const [cycleId, setCycleId] = useState<string | null>(null);
+  const [origin, setOrigin] = useState("todos");
 
   const query = useQuery({
     queryKey: ["measurement-receivables"],
@@ -99,7 +103,10 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
 
   const receivables = useMemo(() => query.data ?? [], [query.data]);
   const filtered = receivables.filter(
-    (receivable) => filter === "todos" || effectiveStatus(receivable) === filter,
+    (receivable) =>
+      (filter === "todos" || effectiveStatus(receivable) === filter) &&
+      (origin === "todos" ||
+        (origin === "recorrente" ? !!receivable.billing_cycle_id : !receivable.billing_cycle_id)),
   );
   const pendingTotal = receivables
     .filter((receivable) => !["recebido", "cancelado"].includes(effectiveStatus(receivable)))
@@ -113,39 +120,51 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
             <FileCheck2 className="size-5" />
           </div>
           <div>
-            <CardTitle className="text-base">Contas a receber de medições</CardTitle>
+            <CardTitle className="text-base">Contas a receber de contratos</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               {receivables.length} lançamento(s) · {money.format(pendingTotal)} em aberto
             </p>
           </div>
         </div>
-        <Select value={filter} onValueChange={(value) => setFilter(value as typeof filter)}>
-          <SelectTrigger className="w-full shrink-0 sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os status</SelectItem>
-            {STATUS.map((status) => (
-              <SelectItem key={status.value} value={status.value}>
-                {status.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <Select value={origin} onValueChange={setOrigin}>
+            <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar origem">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas as origens</SelectItem>
+              <SelectItem value="medicao">Medições</SelectItem>
+              <SelectItem value="recorrente">Ciclos recorrentes</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filter} onValueChange={(value) => setFilter(value as typeof filter)}>
+            <SelectTrigger className="w-full shrink-0 sm:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os status</SelectItem>
+              {STATUS.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {query.isLoading ? (
           <LoadingState label="Carregando contas a receber…" />
         ) : query.isError ? (
           <ErrorState
-            title="Não foi possível carregar as medições aprovadas"
+            title="Não foi possível carregar as contas a receber"
             description="Verifique sua conexão e tente novamente."
             action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
           />
         ) : filtered.length === 0 ? (
           <EmptyState
-            title="Nenhuma conta a receber neste status"
-            description="As medições aprovadas aparecerão aqui automaticamente."
+            title="Nenhuma conta a receber nos filtros selecionados"
+            description="Medições aprovadas e ciclos fechados aparecerão aqui, conforme seu acesso à empresa."
           />
         ) : (
           <div className="overflow-x-auto">
@@ -166,6 +185,9 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                   <TableRow key={receivable.id}>
                     <TableCell>
                       <div className="font-medium">{receivable.documento_referencia}</div>
+                      <Badge variant="outline" className="my-1">
+                        {receivable.billing_cycle_id ? "Ciclo recorrente" : "Medição"}
+                      </Badge>
                       <div className="max-w-64 truncate text-[11px] text-muted-foreground">
                         {receivable.descricao}
                       </div>
@@ -188,6 +210,15 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {receivable.billing_cycle_id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setCycleId(receivable.billing_cycle_id)}
+                          >
+                            Detalhar fatura
+                          </Button>
+                        )}
                         {receivable.medicoes_contrato?.report_token && (
                           <Button asChild size="sm" variant="ghost">
                             <a
@@ -221,6 +252,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
           void queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] });
         }}
       />
+      <BillingCycleDialog id={cycleId} onClose={() => setCycleId(null)} />
     </Card>
   );
 }
@@ -278,7 +310,7 @@ function ReceivableDialog({
         {receivable && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Valor da medição</Label>
+              <Label>Valor original</Label>
               <Input value={money.format(Number(receivable.valor_original))} disabled />
             </div>
             <div>

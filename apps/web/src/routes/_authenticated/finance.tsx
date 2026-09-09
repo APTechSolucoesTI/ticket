@@ -183,7 +183,7 @@ function FinancePage() {
     <div className="space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Financeiro"
-        subtitle="Controle o faturamento dos atendimentos avulsos e das medições contratuais."
+        subtitle="Controle o faturamento dos atendimentos avulsos, medições e ciclos recorrentes."
         actions={
           access.edit ? (
             <Button variant="outline" className="gap-2" onClick={() => setPriceOpen(true)}>
