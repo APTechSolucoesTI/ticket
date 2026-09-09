@@ -10,3 +10,8 @@ entrypoint = "./functions/gerar-medicoes-contrato/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/fechar-ciclos-financeiros/index.ts"
+
+[functions.emitir-cobranca-inter]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/emitir-cobranca-inter/index.ts"

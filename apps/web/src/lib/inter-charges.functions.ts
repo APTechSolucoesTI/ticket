@@ -56,6 +56,23 @@ const payerReviewSchema = z.object({
   dispatch_enabled: z.literal(false),
 });
 export type InterPayerReview = z.infer<typeof payerReviewSchema> & { canConfirm: boolean };
+export type InterChargeRequest = {
+  id: string;
+  environment: "sandbox" | "production";
+  amount: number;
+  due_date: string;
+  status: "blocked_homologation" | "dispatching" | "submitted" | "uncertain" | "failed";
+  created_at: string;
+  deleted_at: string | null;
+  dispatch_attempts: number;
+  dispatch_started_at: string | null;
+  bank_request_id: string | null;
+  bank_status: string | null;
+  bank_accepted_at: string | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+  updated_at: string;
+};
 export type InterChargeReview = {
   receivable: {
     id: string;
@@ -67,15 +84,7 @@ export type InterChargeReview = {
     status_cobranca: string;
   };
   canPrepare: boolean;
-  requests: {
-    id: string;
-    environment: "sandbox" | "production";
-    amount: number;
-    due_date: string;
-    status: string;
-    created_at: string;
-    deleted_at: string | null;
-  }[];
+  requests: InterChargeRequest[];
 };
 
 export const getInterChargeReview = createServerFn({ method: "GET" })
@@ -99,7 +108,9 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
       await Promise.all([
         db
           .from("inter_charge_requests")
-          .select("id,environment,amount,due_date,status,created_at,deleted_at")
+          .select(
+            "id,environment,amount,due_date,status,created_at,deleted_at,dispatch_attempts,dispatch_started_at,bank_request_id,bank_status,bank_accepted_at,last_error_code,last_error_message,updated_at",
+          )
           .eq("receivable_id", data.id)
           .eq("tenant_id", context.claims.tenantId)
           .order("created_at"),
@@ -240,4 +251,32 @@ export const confirmInterPayer = createServerFn({ method: "POST" })
     return z
       .object({ id: z.string().uuid(), reused: z.boolean(), dispatch_enabled: z.literal(false) })
       .parse(result.data);
+  });
+
+export const emitInterSandboxCharge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => idSchema.extend({ confirmed: z.literal(true) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.functions.invoke(
+      "emitir-cobranca-inter",
+      { body: { request_id: data.id, confirmed: true } },
+    );
+    if (error) {
+      if (error.context instanceof Response) {
+        const response = await error.context.json().catch(() => null);
+        if (typeof response?.message === "string") throw new Error(response.message);
+      }
+      throw new Error(
+        "NÃ£o foi possÃ­vel concluir a comunicaÃ§Ã£o com o Inter. Atualize a consulta antes de qualquer nova tentativa.",
+      );
+    }
+    return z
+      .object({
+        ok: z.boolean(),
+        state: z.enum(["dispatching", "submitted", "uncertain", "failed"]),
+        bank_request_id: z.string().uuid().nullable().optional(),
+        reused: z.boolean().optional(),
+        message: z.string(),
+      })
+      .parse(result);
   });

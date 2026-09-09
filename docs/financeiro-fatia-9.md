@@ -56,6 +56,6 @@ orientou o uso dos RPCs protegidos, do RLS e da autorização já implantada.
 Não há migration nem Edge Function nova nesta fatia. A publicação web ocorre via
 GitHub > Dokploy.
 
-Próxima etapa: implementar o processador de emissão no ambiente de homologação,
-com idempotência, recuperação de resultado incerto e acompanhamento assíncrono
-por webhook ou consulta ativa.
+O processador manual de emissão em homologação foi concluído na
+[fatia 10](financeiro-fatia-10.md). O acompanhamento assíncrono por webhook ou
+consulta ativa permanece como próxima etapa.

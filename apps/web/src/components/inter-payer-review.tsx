@@ -2,10 +2,21 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, UserRoundCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  RefreshCw,
+  Send,
+  ShieldAlert,
+  UserRoundCheck,
+} from "lucide-react";
 import {
   confirmInterPayer,
+  emitInterSandboxCharge,
   getInterPayerReview,
+  type InterChargeRequest,
   type InterPayerReview as Review,
 } from "@/lib/inter-charges.functions";
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +53,19 @@ const formatZip = (value: string | null) => {
 };
 const valueOrMissing = (value: string | null) => value?.trim() || "Não informado";
 
-export function InterPayerReview({ requestId }: { requestId: string }) {
+export function InterPayerReview({
+  request,
+  onRequestChanged,
+}: {
+  request: InterChargeRequest;
+  onRequestChanged(): Promise<unknown>;
+}) {
+  const requestId = request.id;
   const [confirmationToken, setConfirmationToken] = useState("");
+  const [dispatchToken, setDispatchToken] = useState("");
   const getReview = useServerFn(getInterPayerReview);
   const confirm = useServerFn(confirmInterPayer);
+  const emit = useServerFn(emitInterSandboxCharge);
   const query = useQuery({
     queryKey: ["inter-payer-review", requestId],
     queryFn: () => getReview({ data: { id: requestId } }),
@@ -74,6 +94,14 @@ export function InterPayerReview({ requestId }: { requestId: string }) {
       await query.refetch();
     },
   });
+  const dispatchMutation = useMutation({
+    mutationFn: () => emit({ data: { id: requestId, confirmed: true } }),
+    onSuccess: async () => {
+      setDispatchToken("");
+      mutation.reset();
+      await Promise.all([query.refetch(), onRequestChanged()]);
+    },
+  });
   if (query.isPending) return <LoadingState label="Revisando dados do pagador…" />;
   if (query.isError)
     return (
@@ -85,6 +113,13 @@ export function InterPayerReview({ requestId }: { requestId: string }) {
     );
   if (!review) return null;
   const confirmable = ["confirmation_required", "confirmation_outdated"].includes(review.state);
+  const dispatchable =
+    request.environment === "sandbox" &&
+    review.state === "confirmed" &&
+    review.canConfirm &&
+    ["blocked_homologation", "failed"].includes(request.status);
+  const dispatchConfirmation = `${request.id}|${request.updated_at}|${request.dispatch_attempts}`;
+  const dispatchChecked = dispatchToken === dispatchConfirmation;
   const address = [review.payer.street, review.payer.number, review.payer.complement]
     .filter(Boolean)
     .join(", ");
@@ -215,6 +250,82 @@ export function InterPayerReview({ requestId }: { requestId: string }) {
         </p>
       )}
 
+      {request.environment === "production" && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+          <p>
+            Emissão oficial bloqueada. A produção será liberada somente depois da homologação e das
+            validações de segurança.
+          </p>
+        </div>
+      )}
+
+      {request.status === "dispatching" && (
+        <div role="status" className="flex items-start gap-2 rounded-md bg-blue-500/10 p-3 text-sm">
+          <Clock3 className="mt-0.5 size-4 shrink-0 text-blue-700" />
+          <p>A solicitação está sendo enviada ao Inter. Atualize a consulta em instantes.</p>
+        </div>
+      )}
+      {request.status === "submitted" && (
+        <div
+          role="status"
+          className="space-y-1 rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-900"
+        >
+          <p className="flex items-center gap-2 font-medium">
+            <CheckCircle2 className="size-4" /> Solicitação aceita pelo Inter
+          </p>
+          <p>O processamento bancário está em andamento.</p>
+          {request.bank_request_id && (
+            <p className="break-all text-xs">Código da solicitação: {request.bank_request_id}</p>
+          )}
+        </div>
+      )}
+      {request.status === "uncertain" && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
+        >
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <p>
+            O resultado do envio é incerto. Por segurança, o sistema não repetirá a cobrança
+            automaticamente. Revise o histórico antes de qualquer ação manual.
+          </p>
+        </div>
+      )}
+      {request.status === "failed" && (
+        <p role="alert" className="rounded-md bg-destructive/5 p-3 text-sm text-destructive">
+          {request.last_error_message ||
+            "A emissão falhou antes de uma confirmação bancária. Revise os dados para tentar novamente."}
+        </p>
+      )}
+
+      {dispatchable && (
+        <label className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={dispatchChecked}
+            disabled={dispatchMutation.isPending || query.isFetching}
+            onChange={(event) => setDispatchToken(event.target.checked ? dispatchConfirmation : "")}
+          />
+          <span>
+            Estou no ambiente de <strong>Homologação</strong>, conferi o pagador, o valor e o
+            vencimento, e autorizo o envio desta cobrança de teste ao Banco Inter.
+          </span>
+        </label>
+      )}
+
+      {dispatchMutation.isSuccess && (
+        <p role="status" className="rounded-md bg-primary/5 p-3 text-sm">
+          {dispatchMutation.data.message}
+        </p>
+      )}
+      {dispatchMutation.isError && (
+        <p role="alert" className="rounded-md bg-destructive/5 p-3 text-sm text-destructive">
+          {dispatchMutation.error.message}
+        </p>
+      )}
+
       {mutation.isSuccess && (
         <p role="status" className="rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-800">
           {mutation.data.reused
@@ -233,8 +344,8 @@ export function InterPayerReview({ requestId }: { requestId: string }) {
         <Button
           size="sm"
           variant="outline"
-          disabled={mutation.isPending || query.isFetching}
-          onClick={() => void query.refetch()}
+          disabled={mutation.isPending || dispatchMutation.isPending || query.isFetching}
+          onClick={() => void Promise.all([query.refetch(), onRequestChanged()])}
         >
           <RefreshCw className={query.isFetching ? "animate-spin" : ""} /> Atualizar pagador
         </Button>
@@ -245,6 +356,20 @@ export function InterPayerReview({ requestId }: { requestId: string }) {
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending && <Loader2 className="animate-spin" />} Confirmar pagador
+          </Button>
+        )}
+        {dispatchable && (
+          <Button
+            size="sm"
+            disabled={!dispatchChecked || dispatchMutation.isPending || query.isFetching}
+            onClick={() => dispatchMutation.mutate()}
+          >
+            {dispatchMutation.isPending ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
+            Emitir no sandbox
           </Button>
         )}
       </div>
