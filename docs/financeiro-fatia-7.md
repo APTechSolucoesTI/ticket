@@ -43,3 +43,13 @@ Sem migrations ou Edge Functions novas. Publicação via GitHub > Dokploy.
 Nenhum vínculo real confirmado durante os testes.
 
 Próxima etapa: dados do pagador e fluxo homologado de emissão/retorno.
+
+## Correção da consulta de perfil
+
+A consulta `roles(name)` retornava HTTP 300 / `PGRST201` na API real: existem
+duas FKs entre `user_roles` e `roles`. Corrigida para
+`roles!user_roles_role_tenant_fkey(name)`, preservando o relacionamento composto
+com tenant. Consulta real de leitura reproduziu o erro anterior e retornou
+HTTP 200 com o perfil Admin após a correção. Os RPCs de revisão e escopo
+foram verificados separadamente com papel authenticated: revisão aguardando
+confirmação e acesso de escrita válido. Nenhuma permissão ou migration alterada.

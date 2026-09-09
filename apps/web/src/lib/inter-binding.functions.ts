@@ -61,11 +61,16 @@ export const getInterBindingReview = createServerFn({ method: "GET" })
       }),
       db
         .from("user_roles")
-        .select("roles(name)")
+        // Há duas FKs para roles; selecione explicitamente a que inclui a tenant.
+        .select("roles!user_roles_role_tenant_fkey(name)")
         .eq("user_id", context.userId)
         .eq("tenant_id", context.claims.tenantId),
     ]);
-    if (review.error || scope.error || roles.error)
+    if (roles.error)
+      throw new Error(
+        "Não foi possível consultar o perfil do usuário. Atualize a página e tente novamente.",
+      );
+    if (review.error || scope.error)
       throw new Error(
         "Vínculo indisponível. Verifique seu acesso financeiro à empresa e tente novamente.",
       );
