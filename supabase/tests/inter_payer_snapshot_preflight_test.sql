@@ -20,17 +20,17 @@ insert into apticket.companies(id,tenant_id,name) values
  ('f8400000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001','Cliente Pagador Ltda');
 insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento)
 values('f8500000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001',
- 'f8400000-0000-0000-0000-000000000001','active',(date_trunc('month',current_date)-interval '1 month')::date,
+ 'f8400000-0000-0000-0000-000000000001','active',(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date,
  '2099-12-31','hours_package',100,28);
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date,
  billing_enabled,billing_anchor_month)
 values('f8500000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001',
- 'f8300000-0000-0000-0000-000000000001',current_date,true,(date_trunc('month',current_date)-interval '1 month')::date);
+ 'f8300000-0000-0000-0000-000000000001',(now() at time zone 'America/Sao_Paulo')::date,true,(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date);
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason)
 values('f8600000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001',
  'f8300000-0000-0000-0000-000000000001','f8500000-0000-0000-0000-000000000001',
- (date_trunc('month',current_date)-interval '1 month')::date,100,'Payer test');
-select apticket.close_billing_cycles('f8500000-0000-0000-0000-000000000001',current_date,1);
+ (date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date,100,'Payer test');
+select apticket.close_billing_cycles('f8500000-0000-0000-0000-000000000001',(now() at time zone 'America/Sao_Paulo')::date,1);
 select set_config('test.receivable',(select id::text from apticket.contas_receber where contrato_id='f8500000-0000-0000-0000-000000000001'),true);
 
 set local role authenticated;
@@ -62,13 +62,14 @@ update apticket.companies set cnpj='11.111.111/1111-11' where id='f8400000-0000-
 set local role authenticated;
 select ok((apticket.review_inter_payer(current_setting('test.request')::uuid)->'missing_fields') @> '["tax_id"]','CNPJ checksum validated');
 reset role;
-update apticket.companies set cnpj='45.723.174/0001-10',phone='(11) 98765-4321',address_street='Rua das Flores',
+update apticket.companies set cnpj='45.723.174/0001-10',phone='+55 (11) 98765-4321',address_street='Rua das Flores',
  address_number='123',address_complement='Sala 4',address_neighborhood='Centro',address_city='São Paulo',
  address_state='sp',address_zip='01001-000' where id='f8400000-0000-0000-0000-000000000001';
 set local role authenticated;
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)->>'state','confirmation_required','complete payer awaits confirmation');
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)#>>'{payer,type}','JURIDICA','payer type from company');
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)#>>'{payer,ddd}','11','phone area code normalized');
+select is(apticket.review_inter_payer(current_setting('test.request')::uuid)#>>'{payer,phone}','987654321','country code removed from bank phone');
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)#>>'{payer,zip}','01001000','zip normalized');
 select set_config('test.fingerprint',apticket.review_inter_payer(current_setting('test.request')::uuid)->>'source_fingerprint',true);
 select is(apticket.confirm_inter_payer(current_setting('test.request')::uuid,current_setting('test.fingerprint'),
@@ -76,6 +77,7 @@ select is(apticket.confirm_inter_payer(current_setting('test.request')::uuid,cur
 select is(apticket.confirm_inter_payer(current_setting('test.request')::uuid,current_setting('test.fingerprint'),
  'f8700000-0000-0000-0000-000000000001',null,true)->>'reused','true','retry is idempotent');
 select is((select count(*) from apticket.inter_payer_snapshots),1::bigint,'retry does not duplicate');
+select is((select payer_ddd||payer_phone from apticket.inter_payer_snapshots),'11987654321','snapshot stores the Inter phone format');
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)->>'state','confirmed','snapshot current');
 select set_config('test.snapshot',(select id::text from apticket.inter_payer_snapshots where request_id=current_setting('test.request')::uuid),true);
 select throws_ok($$update apticket.inter_payer_snapshots set payer_name='Changed'$$,'42501',null,'direct update denied');
@@ -118,6 +120,8 @@ select throws_ok($$select apticket.review_inter_payer(null)$$,'42501',null,'anon
 select throws_ok($$select apticket.confirm_inter_payer(null,null,null,null,true)$$,'42501',null,'anon cannot confirm');
 reset role;
 select ok(not has_function_privilege('authenticated','apticket_finance_private.is_valid_cnpj(text)','execute'),'CNPJ helper remains private');
+select ok(not has_function_privilege('authenticated','apticket_finance_private.normalize_inter_phone(text)','execute'),'phone helper remains private');
+select is(apticket_finance_private.normalize_inter_phone('+1 212 555-0123'),array[null::text,null::text],'explicit foreign country code is rejected');
 select throws_ok($$delete from apticket.inter_payer_snapshots$$,'23514',null,'physical history deletion blocked');
 select is((select count(*) from apticket.inter_charge_requests where status<>'blocked_homologation'),0::bigint,'requests remain blocked');
 select * from finish();

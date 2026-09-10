@@ -19,16 +19,16 @@ insert into apticket.companies(id,tenant_id,name,cnpj,phone,address_street,addre
  ('fa400000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','Cliente Emissao Ltda','45.723.174/0001-10','(11) 98765-4321','Rua das Flores','123','Centro','Sao Paulo','SP','01001-000');
 insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento)
 values('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
- 'fa400000-0000-0000-0000-000000000001','active',(date_trunc('month',current_date)-interval '1 month')::date,
+ 'fa400000-0000-0000-0000-000000000001','active',(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date,
  '2099-12-31','hours_package',150,28);
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date,billing_enabled,billing_anchor_month)
 values('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
- 'fa300000-0000-0000-0000-000000000001',current_date,true,(date_trunc('month',current_date)-interval '1 month')::date);
+ 'fa300000-0000-0000-0000-000000000001',(now() at time zone 'America/Sao_Paulo')::date,true,(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date);
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason)
 values('fa600000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
  'fa300000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001',
- (date_trunc('month',current_date)-interval '1 month')::date,150,'Dispatch test');
-select apticket.close_billing_cycles('fa500000-0000-0000-0000-000000000001',current_date,1);
+ (date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date,150,'Dispatch test');
+select apticket.close_billing_cycles('fa500000-0000-0000-0000-000000000001',(now() at time zone 'America/Sao_Paulo')::date,1);
 select set_config('test.receivable',(select id::text from apticket.contas_receber where contrato_id='fa500000-0000-0000-0000-000000000001'),true);
 
 set local role authenticated;

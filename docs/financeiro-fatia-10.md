@@ -12,6 +12,11 @@ O botão exige perfil Admin ou Financeiro, acesso financeiro de escrita e um
 snapshot de pagador confirmado e vigente. Ele nunca aparece na aba
 **Produção / Oficial**, que permanece bloqueada.
 
+O telefone do cliente permanece cadastrado no padrão internacional
+`país + DDD + número`. Na revisão do pagador, telefones brasileiros iniciados
+por `55` são convertidos automaticamente para os campos `DDD` e `telefone`
+exigidos pelo Inter, sem alterar o cadastro original.
+
 ## Estados e segurança operacional
 
 - `dispatching`: tentativa exclusiva em andamento; cliques concorrentes
@@ -43,7 +48,9 @@ e [Changelog da API](https://developers.inter.co/changelog).
 ## Componentes
 
 - Migrations: `20260909180411_inter_sandbox_dispatch_processor.sql` e
-  `20260909231713_enable_inter_for_measurement_receivables.sql`.
+  `20260909231713_enable_inter_for_measurement_receivables.sql`, com a
+  normalização de telefone em `20260910014208_normalize_inter_payer_phone.sql`
+  e `20260910014905_reject_non_brazilian_inter_phone.sql`.
 - Edge Function: `emitir-cobranca-inter`.
 - Testes de banco: `inter_sandbox_dispatch_processor_test.sql`.
 - Teste de medição e regressão: `contract_measurements_test.sql` e
