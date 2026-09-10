@@ -186,7 +186,7 @@ export const getInterPayerReview = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<InterPayerReview> => {
     const db = context.supabase as unknown as SupabaseClient;
     const [review, request, roles] = await Promise.all([
-      db.rpc("review_inter_payer", { p_request: data.id }),
+      db.rpc("review_inter_payer_display", { p_request: data.id }),
       db
         .from("inter_charge_requests")
         .select("operating_company_id")

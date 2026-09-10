@@ -44,6 +44,8 @@ const browser = await chromium.launch({
 mkdirSync("artifacts/inter-settings", { recursive: true });
 try {
   for (const width of [1440, 768, 390]) {
+    receivable.status_cobranca = "a_faturar";
+    receivable.valor_aberto = receivable.valor_original;
     const page = await browser.newPage({ viewport: { width, height: 1000 } });
     const errors = [];
     let editable = true,
@@ -184,6 +186,7 @@ try {
         }
         if (url.includes(syncId)) {
           syncCalls++;
+          receivable.status_cobranca = "faturado";
           requests[0] = {
             ...requests[0],
             bank_status: "A_RECEBER",
@@ -268,6 +271,7 @@ try {
     await dialog.getByRole("button", { name: "Consultar no Inter", exact: true }).click();
     await dialog.getByText("A receber", { exact: true }).waitFor();
     await dialog.getByText("Nosso número: 123456", { exact: true }).waitFor();
+    assert.equal(await dialog.getByText("Preparação indisponível", { exact: false }).count(), 0);
     assert.equal(syncCalls, 1);
     const bounds = await dialog.boundingBox();
     assert.ok(
@@ -304,6 +308,7 @@ try {
     await dialog.getByText("O recebível mudou", { exact: false }).waitFor();
     await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
     requests[0].amount = 1500;
+    receivable.status_cobranca = "a_faturar";
     requests = [];
     payerState = "confirmation_required";
     productionMode = true;

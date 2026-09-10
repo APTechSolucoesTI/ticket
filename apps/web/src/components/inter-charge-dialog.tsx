@@ -176,7 +176,7 @@ export function InterChargeDialog({ id, onClose }: { id: string; onClose(): void
                   preparar.
                 </p>
               )}
-              {!eligible && (
+              {!existing && !eligible && (
                 <p role="alert" className="text-sm text-destructive">
                   Preparação indisponível: o recebível deve estar a faturar, com saldo positivo e
                   sem baixa parcial.

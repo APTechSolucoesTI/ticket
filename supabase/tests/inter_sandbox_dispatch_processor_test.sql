@@ -105,6 +105,8 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select is(apticket.review_inter_payer_display(current_setting('test.request')::uuid)->>'state','confirmed','submitted charge keeps its confirmed payer after receivable becomes billed');
+select is(apticket.review_inter_payer_display(current_setting('test.request')::uuid)->'missing_fields','[]'::jsonb,'financial lifecycle is not reported as incomplete payer data');
 select is(apticket.prepare_inter_charge_sync(current_setting('test.request')::uuid)->>'state','synced','recent result is reused without bank call');
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
 select throws_ok(format($$select apticket.prepare_inter_charge_dispatch(%L,true,false)$$,current_setting('test.request')),'42501',null,'admin without financial scope denied');
