@@ -18,6 +18,7 @@ type SetupOptions = {
   bankStatus?: number;
   malformedBank?: boolean;
   throwAt?: "load" | "oauth" | "bank";
+  environment?: "sandbox" | "production";
 };
 
 function setup(options: SetupOptions = {}) {
@@ -29,39 +30,49 @@ function setup(options: SetupOptions = {}) {
     serviceKey: "service-test",
     now: () => 1_000_000,
     createClient: (certificate, key) => {
-      assert(certificate === "certificate" && key === secret, "mTLS material mismatch");
+      assert(
+        certificate === "certificate" && key === secret,
+        "mTLS material mismatch",
+      );
       return { close() {} };
     },
     fetch: (async (input: string | URL | Request, init?: RequestInit) => {
       await Promise.resolve();
       const url = String(input);
       calls.push({ url, init });
-      if (url.endsWith("/rpc/prepare_inter_sandbox_dispatch")) {
+      if (url.endsWith("/rpc/prepare_inter_charge_dispatch")) {
         prepareCount++;
         if (options.prepareCode) {
-          return new Response(JSON.stringify({ code: options.prepareCode, details: secret }), {
-            status: 400,
-          });
+          return new Response(
+            JSON.stringify({ code: options.prepareCode, details: secret }),
+            {
+              status: 400,
+            },
+          );
         }
         return new Response(
           JSON.stringify(
             options.prepare ?? {
               state: "dispatching",
               request_id: requestId,
-              attempt_id: prepareCount === 1 ? attemptId : "a3000000-0000-0000-0000-000000000002",
+              attempt_id: prepareCount === 1
+                ? attemptId
+                : "a3000000-0000-0000-0000-000000000002",
               actor_id: actorId,
               reused: false,
             },
           ),
         );
       }
-      if (url.endsWith("/rpc/load_inter_sandbox_dispatch")) {
+      if (url.endsWith("/rpc/load_inter_charge_dispatch")) {
         if (options.throwAt === "load") throw new Error(secret);
         return new Response(
           JSON.stringify({
-            attempt_id: prepareCount === 1 ? attemptId : "a3000000-0000-0000-0000-000000000002",
+            attempt_id: prepareCount === 1
+              ? attemptId
+              : "a3000000-0000-0000-0000-000000000002",
             actor_id: actorId,
-            environment: "sandbox",
+            environment: options.environment ?? "sandbox",
             account: "12345678",
             token_cache_key: "tenant:sandbox:1:fingerprint",
             credentials: {
@@ -95,11 +106,13 @@ function setup(options: SetupOptions = {}) {
       if (url.endsWith("/cobranca/v3/cobrancas")) {
         if (options.throwAt === "bank") throw new Error(secret);
         return new Response(
-          JSON.stringify(options.malformedBank ? {} : { codigoSolicitacao: bankId }),
+          JSON.stringify(
+            options.malformedBank ? {} : { codigoSolicitacao: bankId },
+          ),
           { status: options.bankStatus ?? 200 },
         );
       }
-      if (url.endsWith("/rpc/finish_inter_sandbox_dispatch")) {
+      if (url.endsWith("/rpc/finish_inter_charge_dispatch")) {
         const payload = JSON.parse(String(init?.body));
         return new Response(
           JSON.stringify({
@@ -116,7 +129,14 @@ function setup(options: SetupOptions = {}) {
   return { handler, calls };
 }
 
-const request = (body: unknown = { request_id: requestId, confirmed: true }, bearer = "user-jwt") =>
+const request = (
+  body: unknown = {
+    request_id: requestId,
+    confirmed: true,
+    production_confirmed: false,
+  },
+  bearer = "user-jwt",
+) =>
   new Request("https://edge.test", {
     method: "POST",
     headers: { Authorization: `Bearer ${bearer}` },
@@ -126,7 +146,10 @@ const request = (body: unknown = { request_id: requestId, confirmed: true }, bea
 Deno.test("requires user session and strict confirmed payload", async () => {
   const test = setup();
   assert((await test.handler(request(undefined, ""))).status === 401);
-  assert((await test.handler(request({ request_id: requestId, confirmed: false }))).status === 400);
+  assert(
+    (await test.handler(request({ request_id: requestId, confirmed: false })))
+      .status === 400,
+  );
   assert(
     (
       await test.handler(
@@ -141,13 +164,15 @@ Deno.test("requires user session and strict confirmed payload", async () => {
   assert(test.calls.length === 0);
 });
 
-for (const [code, status] of [
-  ["42501", 403],
-  ["23514", 409],
-  ["0A000", 409],
-  ["54000", 429],
-  ["22023", 422],
-] as const) {
+for (
+  const [code, status] of [
+    ["42501", 403],
+    ["23514", 409],
+    ["P0001", 409],
+    ["54000", 429],
+    ["22023", 422],
+  ] as const
+) {
   Deno.test(`maps database ${code} safely`, async () => {
     const test = setup({ prepareCode: code });
     const response = await test.handler(request());
@@ -180,38 +205,92 @@ Deno.test("emits sandbox charge with mTLS, required scopes and safe payload", as
   const text = await response.text();
   assert(text.includes(bankId));
   assert(!text.includes(secret));
-  const prepare = test.calls.find((call) => call.url.includes("prepare_inter_sandbox"));
-  const load = test.calls.find((call) => call.url.includes("load_inter_sandbox"));
+  const prepare = test.calls.find((call) =>
+    call.url.includes("prepare_inter_charge")
+  );
+  const load = test.calls.find((call) =>
+    call.url.includes("load_inter_charge")
+  );
   const oauth = test.calls.find((call) => call.url.endsWith("/oauth/v2/token"));
-  const bank = test.calls.find((call) => call.url.endsWith("/cobranca/v3/cobrancas"));
-  const finish = test.calls.find((call) => call.url.includes("finish_inter_sandbox"));
-  assert(prepare?.init?.headers && JSON.stringify(prepare.init.headers).includes("user-jwt"));
-  assert(load?.init?.headers && JSON.stringify(load.init.headers).includes("service-test"));
-  assert(String(oauth?.init?.body).includes("boleto-cobranca.write+boleto-cobranca.read"));
+  const bank = test.calls.find((call) =>
+    call.url.endsWith("/cobranca/v3/cobrancas")
+  );
+  const finish = test.calls.find((call) =>
+    call.url.includes("finish_inter_charge")
+  );
+  assert(
+    prepare?.init?.headers &&
+      JSON.stringify(prepare.init.headers).includes("user-jwt"),
+  );
+  assert(
+    load?.init?.headers &&
+      JSON.stringify(load.init.headers).includes("service-test"),
+  );
+  assert(
+    String(oauth?.init?.body).includes(
+      "boleto-cobranca.write+boleto-cobranca.read",
+    ),
+  );
   assert(JSON.stringify(bank?.init?.headers).includes(`Bearer ${secret}`));
   assert(JSON.stringify(bank?.init?.headers).includes("12345678"));
-  assert(String(bank?.init?.body).includes('"formasRecebimento":["BOLETO","PIX"]'));
+  assert(
+    String(bank?.init?.body).includes('"formasRecebimento":["BOLETO","PIX"]'),
+  );
   assert(String(finish?.init?.body).includes('"p_outcome":"submitted"'));
+});
+
+Deno.test("requires explicit production confirmation and uses the official host", async () => {
+  const test = setup({ environment: "production" });
+  const response = await test.handler(
+    request({
+      request_id: requestId,
+      confirmed: true,
+      production_confirmed: true,
+    }),
+  );
+  assert(response.status === 200);
+  const prepare = test.calls.find((call) =>
+    call.url.includes("prepare_inter_charge")
+  );
+  assert(String(prepare?.init?.body).includes('"p_production_confirmed":true'));
+  assert(
+    test.calls.some((call) =>
+      call.url.startsWith("https://cdpj.partners.bancointer.com.br/")
+    ),
+  );
+  assert(
+    !test.calls.some((call) =>
+      call.url.startsWith("https://cdpj-sandbox.partners.uatinter.co/")
+    ),
+  );
 });
 
 Deno.test("reuses OAuth token while it remains valid in the isolate", async () => {
   const test = setup();
   assert((await test.handler(request())).status === 200);
   assert((await test.handler(request())).status === 200);
-  assert(test.calls.filter((call) => call.url.endsWith("/oauth/v2/token")).length === 1);
-  assert(test.calls.filter((call) => call.url.endsWith("/cobranca/v3/cobrancas")).length === 2);
+  assert(
+    test.calls.filter((call) => call.url.endsWith("/oauth/v2/token")).length ===
+      1,
+  );
+  assert(
+    test.calls.filter((call) => call.url.endsWith("/cobranca/v3/cobrancas"))
+      .length === 2,
+  );
 });
 
-for (const options of [
-  { bankStatus: 400 },
-  { bankStatus: 403 },
-  { bankStatus: 429 },
-  { bankStatus: 500 },
-  { malformedBank: true },
-  { throwAt: "bank" as const },
-  { throwAt: "oauth" as const },
-  { throwAt: "load" as const },
-]) {
+for (
+  const options of [
+    { bankStatus: 400 },
+    { bankStatus: 403 },
+    { bankStatus: 429 },
+    { bankStatus: 500 },
+    { malformedBank: true },
+    { throwAt: "bank" as const },
+    { throwAt: "oauth" as const },
+    { throwAt: "load" as const },
+  ]
+) {
   Deno.test(`finalizes safe failure ${JSON.stringify(options)}`, async () => {
     const test = setup(options);
     const response = await test.handler(request());
@@ -219,14 +298,18 @@ for (const options of [
     assert(response.status >= 202);
     assert(!text.includes(secret));
     if (options.throwAt === "oauth") {
-      assert(text.includes("autenticação de homologação"));
+      assert(text.includes("autenticação"));
     }
-    const finish = test.calls.filter((call) => call.url.includes("finish_inter_sandbox")).at(-1);
+    const finish = test.calls.filter((call) =>
+      call.url.includes("finish_inter_charge")
+    ).at(-1);
     assert(finish, "attempt must be finalized or conservatively leased");
     const body = String(finish.init?.body);
-    const uncertain =
-      options.bankStatus === 500 || options.malformedBank || options.throwAt === "bank";
-    assert(body.includes(`"p_outcome":"${uncertain ? "uncertain" : "failed"}"`));
+    const uncertain = options.bankStatus === 500 || options.malformedBank ||
+      options.throwAt === "bank";
+    assert(
+      body.includes(`"p_outcome":"${uncertain ? "uncertain" : "failed"}"`),
+    );
     if (options.throwAt === "oauth") {
       assert(body.includes('"p_error_code":"OAUTH_CONNECTION_FAILURE"'));
     }

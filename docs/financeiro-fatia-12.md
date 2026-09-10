@@ -26,8 +26,9 @@ resposta autenticada pode marcar uma conta como faturada, vencida ou recebida.
 5. A Edge Function consulta o Inter e atualiza evento, cobrança e recebível na
    mesma transação.
 
-O ambiente oficial pode ter o webhook configurado, embora a emissão oficial de
-cobranças continue bloqueada até a liberação específica desse fluxo.
+O ambiente oficial pode ter o webhook configurado. A emissão controlada em
+produção foi adicionada na [fatia 13](financeiro-fatia-13.md), mantendo este
+webhook como pré-requisito obrigatório.
 
 ## Componentes
 

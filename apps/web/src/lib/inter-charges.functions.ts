@@ -269,13 +269,21 @@ export const confirmInterPayer = createServerFn({ method: "POST" })
       .parse(result.data);
   });
 
-export const emitInterSandboxCharge = createServerFn({ method: "POST" })
+export const emitInterCharge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => idSchema.extend({ confirmed: z.literal(true) }).parse(input))
+  .inputValidator((input: unknown) =>
+    idSchema.extend({ confirmed: z.literal(true), productionConfirmed: z.boolean() }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.functions.invoke(
       "emitir-cobranca-inter",
-      { body: { request_id: data.id, confirmed: true } },
+      {
+        body: {
+          request_id: data.id,
+          confirmed: true,
+          production_confirmed: data.productionConfirmed,
+        },
+      },
     );
     if (error) {
       if (error.context instanceof Response) {
@@ -297,7 +305,7 @@ export const emitInterSandboxCharge = createServerFn({ method: "POST" })
       .parse(result);
   });
 
-export const syncInterSandboxCharge = createServerFn({ method: "POST" })
+export const syncInterCharge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => idSchema.parse(input))
   .handler(async ({ data, context }) => {

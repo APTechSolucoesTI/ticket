@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import {
   confirmInterPayer,
-  emitInterSandboxCharge,
+  emitInterCharge,
   getInterPayerReview,
-  syncInterSandboxCharge,
+  syncInterCharge,
   type InterChargeRequest,
   type InterPayerReview as Review,
 } from "@/lib/inter-charges.functions";
@@ -86,8 +86,8 @@ export function InterPayerReview({
   const [dispatchToken, setDispatchToken] = useState("");
   const getReview = useServerFn(getInterPayerReview);
   const confirm = useServerFn(confirmInterPayer);
-  const emit = useServerFn(emitInterSandboxCharge);
-  const sync = useServerFn(syncInterSandboxCharge);
+  const emit = useServerFn(emitInterCharge);
+  const sync = useServerFn(syncInterCharge);
   const query = useQuery({
     queryKey: ["inter-payer-review", requestId],
     queryFn: () => getReview({ data: { id: requestId } }),
@@ -117,7 +117,14 @@ export function InterPayerReview({
     },
   });
   const dispatchMutation = useMutation({
-    mutationFn: () => emit({ data: { id: requestId, confirmed: true } }),
+    mutationFn: () =>
+      emit({
+        data: {
+          id: requestId,
+          confirmed: true,
+          productionConfirmed: request.environment === "production",
+        },
+      }),
     onSuccess: async () => {
       setDispatchToken("");
       mutation.reset();
@@ -143,7 +150,6 @@ export function InterPayerReview({
   if (!review) return null;
   const confirmable = ["confirmation_required", "confirmation_outdated"].includes(review.state);
   const dispatchable =
-    request.environment === "sandbox" &&
     review.state === "confirmed" &&
     review.canConfirm &&
     ["blocked_homologation", "failed"].includes(request.status);
@@ -281,12 +287,12 @@ export function InterPayerReview({
         </p>
       )}
 
-      {request.environment === "production" && (
+      {request.environment === "production" && review.state !== "confirmed" && (
         <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" />
           <p>
-            Emissão oficial bloqueada. A produção será liberada somente depois da homologação e das
-            validações de segurança.
+            Antes da emissão oficial, confirme os dados do pagador, ative a configuração de produção
+            e registre o webhook desse ambiente.
           </p>
         </div>
       )}
@@ -363,7 +369,13 @@ export function InterPayerReview({
       )}
 
       {dispatchable && (
-        <label className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+        <label
+          className={`flex items-start gap-3 rounded-md border p-3 text-sm ${
+            request.environment === "production"
+              ? "border-red-500/40 bg-red-500/10"
+              : "border-primary/30 bg-primary/5"
+          }`}
+        >
           <input
             type="checkbox"
             className="mt-1"
@@ -372,8 +384,12 @@ export function InterPayerReview({
             onChange={(event) => setDispatchToken(event.target.checked ? dispatchConfirmation : "")}
           />
           <span>
-            Estou no ambiente de <strong>Homologação</strong>, conferi o pagador, o valor e o
-            vencimento, e autorizo o envio desta cobrança de teste ao Banco Inter.
+            Estou no ambiente de{" "}
+            <strong>
+              {request.environment === "production" ? "Produção / Oficial" : "Homologação"}
+            </strong>
+            , conferi o pagador, o valor e o vencimento, e autorizo o envio desta cobrança
+            {request.environment === "production" ? " real" : " de teste"} ao Banco Inter.
           </span>
         </label>
       )}
@@ -412,19 +428,17 @@ export function InterPayerReview({
         >
           <RefreshCw className={query.isFetching ? "animate-spin" : ""} /> Atualizar pagador
         </Button>
-        {request.status === "submitted" &&
-          request.environment === "sandbox" &&
-          review.canConfirm && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={syncMutation.isPending || query.isFetching}
-              onClick={() => syncMutation.mutate()}
-            >
-              <RefreshCw className={syncMutation.isPending ? "animate-spin" : ""} />
-              Consultar no Inter
-            </Button>
-          )}
+        {request.status === "submitted" && review.canConfirm && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={syncMutation.isPending || query.isFetching}
+            onClick={() => syncMutation.mutate()}
+          >
+            <RefreshCw className={syncMutation.isPending ? "animate-spin" : ""} />
+            Consultar no Inter
+          </Button>
+        )}
         {confirmable && review.canConfirm && (
           <Button
             size="sm"
@@ -437,6 +451,7 @@ export function InterPayerReview({
         {dispatchable && (
           <Button
             size="sm"
+            variant={request.environment === "production" ? "destructive" : "default"}
             disabled={!dispatchChecked || dispatchMutation.isPending || query.isFetching}
             onClick={() => dispatchMutation.mutate()}
           >
@@ -445,7 +460,7 @@ export function InterPayerReview({
             ) : (
               <Send className="size-4" />
             )}
-            Emitir no sandbox
+            {request.environment === "production" ? "Emitir cobrança oficial" : "Emitir no sandbox"}
           </Button>
         )}
       </div>

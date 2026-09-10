@@ -18,8 +18,8 @@ const reviewId = functionId("inter-charges.functions-", "getInterChargeReview");
 const prepareId = functionId("inter-charges.functions-", "prepareInterCharge");
 const payerReviewId = functionId("inter-charges.functions-", "getInterPayerReview");
 const payerConfirmId = functionId("inter-charges.functions-", "confirmInterPayer");
-const emitId = functionId("inter-charges.functions-", "emitInterSandboxCharge");
-const syncId = functionId("inter-charges.functions-", "syncInterSandboxCharge");
+const emitId = functionId("inter-charges.functions-", "emitInterCharge");
+const syncId = functionId("inter-charges.functions-", "syncInterCharge");
 const receivable = {
   id: "e1000000-0000-0000-0000-000000000001",
   cliente_nome: "Cliente de teste",
@@ -54,12 +54,13 @@ try {
       emitCalls = 0,
       syncCalls = 0,
       requests = [],
-      payerState = "confirmation_required";
+      payerState = "confirmation_required",
+      productionMode = false;
     const payerReview = () => ({
       state: payerState,
       missing_fields: payerState === "missing_data" ? ["tax_id", "zip"] : [],
       request_id: "e3000000-0000-0000-0000-000000000001",
-      environment: "sandbox",
+      environment: productionMode ? "production" : "sandbox",
       binding_id: payerState === "binding_required" ? null : "e4000000-0000-0000-0000-000000000001",
       snapshot_id: payerState === "confirmed" ? "e5000000-0000-0000-0000-000000000001" : null,
       confirmed_at: payerState === "confirmed" ? "2026-09-09T12:10:00Z" : null,
@@ -112,7 +113,7 @@ try {
           requests = [
             {
               id: "e3000000-0000-0000-0000-000000000001",
-              environment: "sandbox",
+              environment: productionMode ? "production" : "sandbox",
               amount: 1500,
               due_date: "2026-10-15",
               status: "blocked_homologation",
@@ -245,7 +246,7 @@ try {
     assert.equal(await submit.isDisabled(), true);
     await dialog.getByRole("checkbox").check();
     await submit.click();
-    await dialog.getByText("Aguardando homologação", { exact: true }).waitFor();
+    await dialog.getByText("Aguardando emissão", { exact: true }).waitFor();
     assert.equal(calls, 1);
     assert.equal(
       await dialog.getByRole("button", { name: "Registrar preparação", exact: true }).count(),
@@ -303,6 +304,28 @@ try {
     await dialog.getByText("O recebível mudou", { exact: false }).waitFor();
     await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
     requests[0].amount = 1500;
+    requests = [];
+    payerState = "confirmation_required";
+    productionMode = true;
+    await open();
+    await dialog.getByRole("tab", { name: "Produção / Oficial" }).click();
+    await dialog.getByText("A emissão oficial exige", { exact: false }).waitFor();
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: "Registrar preparação", exact: true }).click();
+    await dialog.getByText("Confirmação necessária", { exact: true }).waitFor();
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: "Confirmar pagador", exact: true }).click();
+    await dialog.getByText("Pagador confirmado", { exact: true }).waitFor();
+    await dialog.getByRole("checkbox").check();
+    const officialButton = dialog.getByRole("button", {
+      name: "Emitir cobrança oficial",
+      exact: true,
+    });
+    assert.equal(await officialButton.isEnabled(), true);
+    await page.screenshot({ path: `artifacts/inter-settings/charge-production-${width}.png` });
+    await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+    requests = [];
+    productionMode = false;
     payerState = "confirmation_required";
     editable = false;
     await page.reload();
@@ -313,15 +336,17 @@ try {
       0,
     );
     await dialog.getByRole("tab", { name: "Produção / Oficial" }).click();
-    await dialog
-      .getByText("Envio ao banco bloqueado em Produção / Oficial", { exact: false })
-      .waitFor();
+    await dialog.getByText("A emissão oficial exige", { exact: false }).waitFor();
     assert.equal(
       await dialog.getByRole("button", { name: "Confirmar pagador", exact: true }).count(),
       0,
     );
     assert.equal(
       await dialog.getByRole("button", { name: "Emitir no sandbox", exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await dialog.getByRole("button", { name: "Emitir cobrança oficial", exact: true }).count(),
       0,
     );
     assert.deepEqual(errors, []);

@@ -50,32 +50,32 @@ select set_config('test.fingerprint',apticket.review_inter_payer(current_setting
 select apticket.confirm_inter_payer(current_setting('test.request')::uuid,current_setting('test.fingerprint'),
  'fa700000-0000-0000-0000-000000000001',null,true);
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)->>'state','confirmed','payer snapshot confirmed');
-select set_config('test.prepared',apticket.prepare_inter_sandbox_dispatch(current_setting('test.request')::uuid,true)::text,true);
+select set_config('test.prepared',apticket.prepare_inter_charge_dispatch(current_setting('test.request')::uuid,true,false)::text,true);
 select is(current_setting('test.prepared')::jsonb->>'state','dispatching','first dispatch claimed');
 select is(current_setting('test.prepared')::jsonb->>'reused','false','first dispatch is new');
 select set_config('test.attempt',current_setting('test.prepared')::jsonb->>'attempt_id',true);
-select is(apticket.prepare_inter_sandbox_dispatch(current_setting('test.request')::uuid,true)->>'reused','true','concurrent retry reuses claim');
+select is(apticket.prepare_inter_charge_dispatch(current_setting('test.request')::uuid,true,false)->>'reused','true','concurrent retry reuses claim');
 select is((select count(*) from apticket.inter_charge_dispatch_attempts where request_id=current_setting('test.request')::uuid),1::bigint,'retry does not duplicate bank attempt');
 select throws_ok($$update apticket.inter_charge_dispatch_attempts set error_code='tampered'$$,'42501',null,'authenticated user cannot mutate attempt');
-select throws_ok(format($$select apticket.load_inter_sandbox_dispatch(%L,%L)$$,current_setting('test.attempt'),'fa200000-0000-0000-0000-000000000001'),'42501',null,'authenticated user cannot load secrets');
+select throws_ok(format($$select apticket.load_inter_charge_dispatch(%L,%L)$$,current_setting('test.attempt'),'fa200000-0000-0000-0000-000000000001'),'42501',null,'authenticated user cannot load secrets');
 reset role;
 
 set local role service_role;
-select set_config('test.dispatch',apticket.load_inter_sandbox_dispatch(current_setting('test.attempt')::uuid,'fa200000-0000-0000-0000-000000000001')::text,true);
+select set_config('test.dispatch',apticket.load_inter_charge_dispatch(current_setting('test.attempt')::uuid,'fa200000-0000-0000-0000-000000000001')::text,true);
 select is(current_setting('test.dispatch')::jsonb->>'environment','sandbox','service loads sandbox only');
 select is(current_setting('test.dispatch')::jsonb#>>'{charge,formasRecebimento,0}','BOLETO','payload requests boleto');
 select is(current_setting('test.dispatch')::jsonb#>>'{charge,formasRecebimento,1}','PIX','payload requests pix');
 select is(current_setting('test.dispatch')::jsonb#>>'{charge,pagador,cpfCnpj}','45723174000110','payer comes from immutable snapshot');
-select set_config('test.finished',apticket.finish_inter_sandbox_dispatch(current_setting('test.attempt')::uuid,'submitted',
+select set_config('test.finished',apticket.finish_inter_charge_dispatch(current_setting('test.attempt')::uuid,'submitted',
  'fa800000-0000-4000-8000-000000000001',200,null,null)::text,true);
 select is(current_setting('test.finished')::jsonb->>'state','submitted','service finalizes accepted request');
-select is(apticket.finish_inter_sandbox_dispatch(current_setting('test.attempt')::uuid,'submitted',
+select is(apticket.finish_inter_charge_dispatch(current_setting('test.attempt')::uuid,'submitted',
  'fa800000-0000-4000-8000-000000000001',200,null,null)->>'reused','true','finalization is idempotent');
 reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
-select is(apticket.prepare_inter_sandbox_dispatch(current_setting('test.request')::uuid,true)->>'state','submitted','accepted request never posts twice');
+select is(apticket.prepare_inter_charge_dispatch(current_setting('test.request')::uuid,true,false)->>'state','submitted','accepted request never posts twice');
 select is((select bank_status from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'EM_PROCESSAMENTO','asynchronous bank state recorded');
 select ok((select bank_accepted_at is not null from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'bank acceptance timestamp recorded');
 select set_config('test.sync_prepared',apticket.prepare_inter_charge_sync(current_setting('test.request')::uuid)::text,true);
@@ -107,12 +107,12 @@ set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
 select is(apticket.prepare_inter_charge_sync(current_setting('test.request')::uuid)->>'state','synced','recent result is reused without bank call');
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
-select throws_ok(format($$select apticket.prepare_inter_sandbox_dispatch(%L,true)$$,current_setting('test.request')),'42501',null,'admin without financial scope denied');
+select throws_ok(format($$select apticket.prepare_inter_charge_dispatch(%L,true,false)$$,current_setting('test.request')),'42501',null,'admin without financial scope denied');
 select throws_ok(format($$select apticket.prepare_inter_charge_sync(%L)$$,current_setting('test.request')),'42501',null,'reconciliation without financial scope denied');
 select is((select count(*) from apticket.inter_charge_dispatch_attempts),0::bigint,'RLS hides attempts outside scope');
 select is((select count(*) from apticket.inter_charge_sync_attempts),0::bigint,'RLS hides reconciliation attempts outside scope');
 set local role anon;
-select throws_ok(format($$select apticket.prepare_inter_sandbox_dispatch(%L,true)$$,current_setting('test.request')),'42501',null,'anonymous dispatch denied');
+select throws_ok(format($$select apticket.prepare_inter_charge_dispatch(%L,true,false)$$,current_setting('test.request')),'42501',null,'anonymous dispatch denied');
 reset role;
 
 insert into apticket.inter_charge_requests(tenant_id,operating_company_id,receivable_id,environment,amount,due_date,created_by)
@@ -121,7 +121,8 @@ from apticket.inter_charge_requests where id=current_setting('test.request')::uu
 select set_config('test.production_request',(select id::text from apticket.inter_charge_requests where receivable_id=current_setting('test.receivable')::uuid and environment='production'),true);
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
-select throws_ok(format($$select apticket.prepare_inter_sandbox_dispatch(%L,true)$$,current_setting('test.production_request')),'0A000',null,'production dispatch remains blocked');
+select throws_ok(format($$select apticket.prepare_inter_charge_dispatch(%L,true,false)$$,current_setting('test.production_request')),'22023',null,'production requires a specific confirmation');
+select throws_ok(format($$select apticket.prepare_inter_charge_dispatch(%L,true,true)$$,current_setting('test.production_request')),'P0001',null,'production remains blocked without active configuration and webhook');
 reset role;
 
 set local role service_role;
@@ -188,9 +189,63 @@ select throws_ok(format($$select apticket.accept_inter_charge_webhook('sandbox',
 select ok(not has_table_privilege('authenticated','apticket.inter_charge_webhook_events','select'),'callback audit is hidden from browser');
 reset role;
 
-select ok(not has_function_privilege('authenticated','apticket.load_inter_sandbox_dispatch(uuid,uuid)','execute'),'authenticated cannot load dispatch secrets');
-select ok(not has_function_privilege('authenticated','apticket.finish_inter_sandbox_dispatch(uuid,text,uuid,integer,text,text)','execute'),'authenticated cannot finalize attempts');
-select ok(has_function_privilege('service_role','apticket.load_inter_sandbox_dispatch(uuid,uuid)','execute'),'service role can load claimed dispatch');
+update apticket.contas_receber set status_cobranca='a_faturar',valor_aberto=valor_original
+  where id=current_setting('test.receivable')::uuid;
+update apticket.tenant_inter_configurations set is_active=false
+  where tenant_id='fa100000-0000-0000-0000-000000000001' and environment='sandbox';
+insert into apticket.tenant_inter_configurations(
+  tenant_id,environment,account,secret_id,certificate_expires_at,certificate_fingerprint,is_active,version,updated_by
+) values(
+  'fa100000-0000-0000-0000-000000000001','production','87654321',
+  vault.create_secret('{"client_id":"prod-client","client_secret":"prod-secret","certificate":"prod-certificate","private_key":"prod-key"}'),
+  now()+interval '1 year','production-dispatch-fixture',true,1,'fa200000-0000-0000-0000-000000000001'
+);
+insert into apticket.operating_company_inter_bindings(
+  id,tenant_id,operating_company_id,environment,configuration_version,company_tax_id,account_last_four,created_by
+) values(
+  'fa700000-0000-0000-0000-000000000002','fa100000-0000-0000-0000-000000000001',
+  'fa300000-0000-0000-0000-000000000001','production',1,'12345678000195','4321',
+  'fa200000-0000-0000-0000-000000000001'
+);
+set local role service_role;
+select set_config('test.production_webhook',apticket.prepare_inter_webhook_registration(
+  'fa200000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
+  'production',1,'https://apticket.example.test/backend/webhooks/inter/production'
+)::text,true);
+select apticket.finish_inter_webhook_registration(
+  (current_setting('test.production_webhook')::jsonb->>'attempt_id')::uuid,'registered',204,null,null,
+  current_setting('test.production_webhook')::jsonb->>'candidate_token'
+);
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('test.production_fingerprint',apticket.review_inter_payer(current_setting('test.production_request')::uuid)->>'source_fingerprint',true);
+select apticket.confirm_inter_payer(
+  current_setting('test.production_request')::uuid,current_setting('test.production_fingerprint'),
+  'fa700000-0000-0000-0000-000000000002',null,true
+);
+select set_config('test.production_prepared',apticket.prepare_inter_charge_dispatch(
+  current_setting('test.production_request')::uuid,true,true
+)::text,true);
+select is(current_setting('test.production_prepared')::jsonb->>'state','dispatching','official dispatch is claimed after all safeguards');
+select set_config('test.production_attempt',current_setting('test.production_prepared')::jsonb->>'attempt_id',true);
+select ok((select production_confirmed_at is not null from apticket.inter_charge_dispatch_attempts where id=current_setting('test.production_attempt')::uuid),'official confirmation is audited on the attempt');
+select throws_ok(format($$select apticket.load_inter_charge_dispatch(%L,%L)$$,current_setting('test.production_attempt'),'fa200000-0000-0000-0000-000000000001'),'42501',null,'browser cannot load official credentials');
+reset role;
+set local role service_role;
+select set_config('test.production_dispatch',apticket.load_inter_charge_dispatch(
+  current_setting('test.production_attempt')::uuid,'fa200000-0000-0000-0000-000000000001'
+)::text,true);
+select is(current_setting('test.production_dispatch')::jsonb->>'environment','production','service loads the official environment');
+select is(current_setting('test.production_dispatch')::jsonb->>'account','87654321','official account is selected');
+select apticket.finish_inter_charge_dispatch(
+  current_setting('test.production_attempt')::uuid,'failed',null,422,'TEST_ONLY','No bank request in transaction test'
+);
+reset role;
+
+select ok(not has_function_privilege('authenticated','apticket.load_inter_charge_dispatch(uuid,uuid)','execute'),'authenticated cannot load dispatch secrets');
+select ok(not has_function_privilege('authenticated','apticket.finish_inter_charge_dispatch(uuid,text,uuid,integer,text,text)','execute'),'authenticated cannot finalize attempts');
+select ok(has_function_privilege('service_role','apticket.load_inter_charge_dispatch(uuid,uuid)','execute'),'service role can load claimed dispatch');
 select ok(not has_function_privilege('authenticated','apticket.load_inter_charge_sync(uuid,uuid)','execute'),'authenticated cannot load reconciliation secrets');
 select ok(not has_function_privilege('authenticated','apticket.finish_inter_charge_sync(uuid,text,integer,text,text,jsonb)','execute'),'authenticated cannot finalize reconciliation');
 select ok(has_function_privilege('service_role','apticket.load_inter_charge_sync(uuid,uuid)','execute'),'service role can load claimed reconciliation');

@@ -19,7 +19,7 @@ import { InterPayerReview } from "@/components/inter-payer-review";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const date = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR");
 const requestStatus = {
-  blocked_homologation: { label: "Aguardando homologação", icon: LockKeyhole },
+  blocked_homologation: { label: "Aguardando emissão", icon: LockKeyhole },
   dispatching: { label: "Enviando ao Inter", icon: Clock3 },
   submitted: { label: "Aceita pelo Inter", icon: CheckCircle2 },
   uncertain: { label: "Resultado incerto", icon: CircleAlert },
@@ -76,8 +76,9 @@ export function InterChargeDialog({ id, onClose }: { id: string; onClose(): void
             </p>
           ) : (
             <p>
-              Envio ao banco bloqueado em Produção / Oficial. Preparar não emite boleto e não altera
-              o status financeiro.
+              A emissão oficial exige confirmação explícita e só ficará disponível com a
+              configuração de produção ativa, vínculo confirmado e webhook registrado. Preparar não
+              envia dados ao banco.
             </p>
           )}
         </div>
