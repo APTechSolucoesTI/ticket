@@ -146,6 +146,12 @@ Deno.test("accepts webhook mode only with the service credential", async () => {
       call.url.endsWith("/rpc/prepare_inter_charge_sync_from_webhook")
     ),
   );
+  const prepare = service.calls.find((call) =>
+    call.url.endsWith("/rpc/prepare_inter_charge_sync_from_webhook")
+  );
+  assert(
+    new Headers(prepare?.init?.headers).get("Content-Profile") === "apticket",
+  );
   assert(
     service.calls.some((call) =>
       call.url.startsWith("https://cdpj.partners.bancointer.com.br/")

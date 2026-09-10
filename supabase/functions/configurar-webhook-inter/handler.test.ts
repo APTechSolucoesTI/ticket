@@ -86,6 +86,13 @@ Deno.test("registers an HTTPS webhook without exposing the secret", async () => 
   const finish = ctx.calls.find((call) =>
     call.url.endsWith("/rpc/finish_inter_webhook_registration")
   );
+  const prepare = ctx.calls.find((call) =>
+    call.url.endsWith("/rpc/prepare_inter_webhook_registration")
+  );
+  assertEquals(
+    new Headers(prepare?.init?.headers).get("Content-Profile"),
+    "apticket",
+  );
   assertEquals(
     JSON.parse(String(finish?.init?.body)).p_candidate_token,
     candidate,

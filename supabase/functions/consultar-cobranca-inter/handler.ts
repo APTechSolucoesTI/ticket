@@ -71,6 +71,7 @@ export function createHandler(deps: Dependencies) {
           : deps.anonKey,
         Authorization: `Bearer ${authorization}`,
         "Content-Type": "application/json",
+        "Content-Profile": "apticket",
       },
       body: JSON.stringify(body),
     });
