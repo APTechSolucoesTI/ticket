@@ -21,7 +21,7 @@ type Prepared = {
 type Dispatch = {
   attempt_id: string;
   actor_id: string;
-  environment: "sandbox";
+  environment: "sandbox" | "production";
   account: string;
   bank_request_id: string;
   token_cache_key: string;
@@ -33,7 +33,10 @@ type Dispatch = {
   };
 };
 
-const bankHost = "https://cdpj-sandbox.partners.uatinter.co";
+const bankHosts = {
+  sandbox: "https://cdpj-sandbox.partners.uatinter.co",
+  production: "https://cdpj.partners.bancointer.com.br",
+};
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const bankSituations = new Set([
@@ -103,28 +106,45 @@ export function createHandler(deps: Dependencies) {
       request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
     if (!bearer) return fail("Sessão obrigatória.", 401);
     let requestId = "";
+    let webhookEventId = "";
+    const internalWebhook = bearer === deps.serviceKey;
     try {
       const body = await request.json();
+      const allowedKeys = internalWebhook
+        ? ["request_id", "source", "event_id"]
+        : ["request_id"];
       if (
-        !body || Object.keys(body).some((key) => key !== "request_id") ||
-        !uuid.test(body.request_id)
+        !body ||
+        Object.keys(body).some((key) => !allowedKeys.includes(key)) ||
+        !uuid.test(body.request_id) ||
+        (internalWebhook &&
+          (body.source !== "webhook" || !uuid.test(body.event_id)))
       ) {
         return fail("Informe uma cobrança válida para consulta.", 400);
       }
       requestId = body.request_id;
+      webhookEventId = internalWebhook ? body.event_id : "";
     } catch {
       return fail("Informe uma cobrança válida para consulta.", 400);
     }
 
     let prepared: Prepared;
     try {
-      const response = await rpc("prepare_inter_charge_sync", {
-        p_request: requestId,
-      }, bearer);
+      const response = await rpc(
+        internalWebhook
+          ? "prepare_inter_charge_sync_from_webhook"
+          : "prepare_inter_charge_sync",
+        internalWebhook
+          ? { p_request: requestId, p_event: webhookEventId }
+          : { p_request: requestId },
+        bearer,
+      );
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         const message = error.code === "42501"
-          ? "É necessário perfil Admin ou Financeiro com acesso de escrita à empresa."
+          ? internalWebhook
+            ? "Evento de webhook não autorizado."
+            : "É necessário perfil Admin ou Financeiro com acesso de escrita à empresa."
           : error.code === "22023"
           ? "Somente uma cobrança aceita pelo Inter pode ser consultada."
           : "Não foi possível iniciar a consulta bancária.";
@@ -143,16 +163,21 @@ export function createHandler(deps: Dependencies) {
       });
     }
     if (prepared.reused) {
-      return json({
-        ok: true,
-        state: "syncing",
-        message: "A consulta já está em andamento.",
-        reused: true,
-      }, 202);
+      return json(
+        {
+          ok: true,
+          state: "syncing",
+          message: "A consulta já está em andamento.",
+          reused: true,
+        },
+        202,
+      );
     }
     if (
-      !prepared.attempt_id || !prepared.actor_id ||
-      !uuid.test(prepared.attempt_id) || !uuid.test(prepared.actor_id)
+      !prepared.attempt_id ||
+      !prepared.actor_id ||
+      !uuid.test(prepared.attempt_id) ||
+      !uuid.test(prepared.actor_id)
     ) {
       return fail("Tentativa de consulta inválida.", 502);
     }
@@ -170,7 +195,7 @@ export function createHandler(deps: Dependencies) {
       const dispatch = (await loaded.json()) as Dispatch;
       if (
         !uuid.test(dispatch.bank_request_id) ||
-        dispatch.environment !== "sandbox" ||
+        !["sandbox", "production"].includes(dispatch.environment) ||
         !dispatch.account ||
         !dispatch.credentials?.client_id ||
         !dispatch.credentials?.client_secret ||
@@ -187,19 +212,22 @@ export function createHandler(deps: Dependencies) {
       let accessToken = tokens.get(dispatch.token_cache_key);
       if (!accessToken || accessToken.expiresAt <= now() + 60_000) {
         phase = "oauth";
-        const tokenResponse = await deps.fetch(`${bankHost}/oauth/v2/token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: dispatch.credentials.client_id,
-            client_secret: dispatch.credentials.client_secret,
-            grant_type: "client_credentials",
-            scope: "boleto-cobranca.read",
-          }),
-          client,
-          redirect: "error",
-          signal: AbortSignal.timeout(12_000),
-        } as RequestInit);
+        const tokenResponse = await deps.fetch(
+          `${bankHosts[dispatch.environment]}/oauth/v2/token`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              client_id: dispatch.credentials.client_id,
+              client_secret: dispatch.credentials.client_secret,
+              grant_type: "client_credentials",
+              scope: "boleto-cobranca.read",
+            }),
+            client,
+            redirect: "error",
+            signal: AbortSignal.timeout(12_000),
+          } as RequestInit,
+        );
         if (!tokenResponse.ok) {
           await tokenResponse.body?.cancel();
           await finish(attempt, "failed", {
@@ -224,8 +252,10 @@ export function createHandler(deps: Dependencies) {
 
       phase = "bank";
       const response = await deps.fetch(
-        `${bankHost}/cobranca/v3/cobrancas/${
-          encodeURIComponent(dispatch.bank_request_id)
+        `${bankHosts[dispatch.environment]}/cobranca/v3/cobrancas/${
+          encodeURIComponent(
+            dispatch.bank_request_id,
+          )
         }`,
         {
           method: "GET",

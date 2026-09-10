@@ -67,10 +67,10 @@ select is(current_setting('test.dispatch')::jsonb#>>'{charge,formasRecebimento,0
 select is(current_setting('test.dispatch')::jsonb#>>'{charge,formasRecebimento,1}','PIX','payload requests pix');
 select is(current_setting('test.dispatch')::jsonb#>>'{charge,pagador,cpfCnpj}','45723174000110','payer comes from immutable snapshot');
 select set_config('test.finished',apticket.finish_inter_sandbox_dispatch(current_setting('test.attempt')::uuid,'submitted',
- 'fa800000-0000-0000-0000-000000000001',200,null,null)::text,true);
+ 'fa800000-0000-4000-8000-000000000001',200,null,null)::text,true);
 select is(current_setting('test.finished')::jsonb->>'state','submitted','service finalizes accepted request');
 select is(apticket.finish_inter_sandbox_dispatch(current_setting('test.attempt')::uuid,'submitted',
- 'fa800000-0000-0000-0000-000000000001',200,null,null)->>'reused','true','finalization is idempotent');
+ 'fa800000-0000-4000-8000-000000000001',200,null,null)->>'reused','true','finalization is idempotent');
 reset role;
 
 set local role authenticated;
@@ -87,11 +87,11 @@ reset role;
 
 set local role service_role;
 select set_config('test.sync_dispatch',apticket.load_inter_charge_sync(current_setting('test.sync_attempt')::uuid,'fa200000-0000-0000-0000-000000000001')::text,true);
-select is(current_setting('test.sync_dispatch')::jsonb->>'bank_request_id','fa800000-0000-0000-0000-000000000001','service loads accepted bank identifier');
+select is(current_setting('test.sync_dispatch')::jsonb->>'bank_request_id','fa800000-0000-4000-8000-000000000001','service loads accepted bank identifier');
 select set_config('test.sync_finished',apticket.finish_inter_charge_sync(
   current_setting('test.sync_attempt')::uuid,'synced',200,null,null,
   jsonb_build_object(
-    'codigo_solicitacao','fa800000-0000-0000-0000-000000000001',
+    'codigo_solicitacao','fa800000-0000-4000-8000-000000000001',
     'situacao','A_RECEBER','data_situacao',current_date::text,
     'nosso_numero','123456','linha_digitavel','00190000090000000000100000000123456780000015000'
   )
@@ -124,15 +124,83 @@ select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-00000000
 select throws_ok(format($$select apticket.prepare_inter_sandbox_dispatch(%L,true)$$,current_setting('test.production_request')),'0A000',null,'production dispatch remains blocked');
 reset role;
 
+set local role service_role;
+select set_config('test.webhook_prepared',apticket.prepare_inter_webhook_registration(
+  'fa200000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
+  'sandbox',1,'https://apticket.example.test/backend/webhooks/inter/sandbox'
+)::text,true);
+select set_config('test.webhook_attempt',current_setting('test.webhook_prepared')::jsonb->>'attempt_id',true);
+select set_config('test.webhook_token',current_setting('test.webhook_prepared')::jsonb->>'candidate_token',true);
+select set_config('test.webhook_hash',encode(extensions.digest(current_setting('test.webhook_token'),'sha256'),'hex'),true);
+select is(length(current_setting('test.webhook_token')),64,'registration creates a strong callback token');
+select ok(current_setting('test.webhook_prepared')::jsonb->>'callback_url' like 'https://%?token=%','Inter receives an HTTPS callback URL with token');
+select is(apticket.finish_inter_webhook_registration(
+  current_setting('test.webhook_attempt')::uuid,'registered',204,null,null,current_setting('test.webhook_token')
+)->>'state','registered','webhook registration is finalized');
+select is((select webhook_status from apticket.tenant_inter_configurations where tenant_id='fa100000-0000-0000-0000-000000000001' and environment='sandbox'),'active','webhook becomes active');
+select is((select webhook_secret_hash from apticket.tenant_inter_configurations where tenant_id='fa100000-0000-0000-0000-000000000001' and environment='sandbox'),current_setting('test.webhook_hash'),'only callback token hash is indexed');
+select ok(not exists(select 1 from apticket.inter_webhook_registration_attempts where to_jsonb(inter_webhook_registration_attempts)::text like '%'||current_setting('test.webhook_token')||'%'),'raw callback token is absent from audit table');
+select throws_ok($$select apticket.accept_inter_charge_webhook('sandbox',repeat('0',64),'[{"codigo_solicitacao":"fa800000-0000-4000-8000-000000000001"}]')$$,'42501',null,'wrong callback token is denied');
+select set_config('test.webhook_accepted',apticket.accept_inter_charge_webhook(
+  'sandbox',current_setting('test.webhook_hash'),jsonb_build_array(jsonb_build_object(
+    'codigo_solicitacao','fa800000-0000-4000-8000-000000000001',
+    'situacao','RECEBIDO','data_hora_situacao','2026-09-10T12:00:00Z',
+    'valor_total_recebido','999999.00','pagador',jsonb_build_object('cpfCnpj','secret')
+  ))
+)::text,true);
+select set_config('test.webhook_event',current_setting('test.webhook_accepted')::jsonb#>>'{events,0,event_id}',true);
+select is((select status_cobranca::text from apticket.contas_receber where id=current_setting('test.receivable')::uuid),'faturado','untrusted callback does not change receivable');
+select is((select count(*) from apticket.inter_charge_webhook_events where id=current_setting('test.webhook_event')::uuid),1::bigint,'normalized callback event is recorded');
+select is((select count(*) from apticket.inter_charge_webhook_events where notified_status='RECEBIDO'),1::bigint,'only safe notification metadata is stored');
+select apticket.accept_inter_charge_webhook(
+  'sandbox',current_setting('test.webhook_hash'),jsonb_build_array(jsonb_build_object(
+    'codigo_solicitacao','fa800000-0000-4000-8000-000000000001',
+    'situacao','RECEBIDO','data_hora_situacao','2026-09-10T12:00:00Z'
+  ))
+);
+select is((select count(*) from apticket.inter_charge_webhook_events where request_id=current_setting('test.request')::uuid),1::bigint,'duplicate callback is idempotent');
+reset role;
+update apticket.inter_charge_requests set bank_synced_at=clock_timestamp()-interval '1 minute'
+  where id=current_setting('test.request')::uuid;
+set local role service_role;
+select set_config('test.webhook_sync',apticket.prepare_inter_charge_sync_from_webhook(
+  current_setting('test.request')::uuid,current_setting('test.webhook_event')::uuid
+)::text,true);
+select is(current_setting('test.webhook_sync')::jsonb->>'state','syncing','callback claims active verification');
+select set_config('test.webhook_sync_attempt',current_setting('test.webhook_sync')::jsonb->>'attempt_id',true);
+select is((select initiation_source from apticket.inter_charge_sync_attempts where id=current_setting('test.webhook_sync_attempt')::uuid),'webhook','system reconciliation source is explicit');
+select apticket.load_inter_charge_sync(current_setting('test.webhook_sync_attempt')::uuid,'fa200000-0000-0000-0000-000000000001');
+select apticket.finish_inter_charge_sync(
+  current_setting('test.webhook_sync_attempt')::uuid,'synced',200,null,null,
+  jsonb_build_object(
+    'codigo_solicitacao','fa800000-0000-4000-8000-000000000001','situacao','RECEBIDO',
+    'data_situacao',current_date::text,'valor_total_recebido','150.00','origem_recebimento','PIX'
+  )
+);
+select is((select status from apticket.inter_charge_webhook_events where id=current_setting('test.webhook_event')::uuid),'verified','event is verified only after active bank query');
+select is((select status_cobranca::text from apticket.contas_receber where id=current_setting('test.receivable')::uuid),'recebido','verified bank state updates receivable');
+select is((select valor_aberto from apticket.contas_receber where id=current_setting('test.receivable')::uuid),0::numeric,'verified receipt closes balance');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select throws_ok(format($$select apticket.accept_inter_charge_webhook('sandbox',%L,'[]')$$,current_setting('test.webhook_hash')),'42501',null,'browser cannot accept bank callbacks');
+select ok(not has_table_privilege('authenticated','apticket.inter_charge_webhook_events','select'),'callback audit is hidden from browser');
+reset role;
+
 select ok(not has_function_privilege('authenticated','apticket.load_inter_sandbox_dispatch(uuid,uuid)','execute'),'authenticated cannot load dispatch secrets');
 select ok(not has_function_privilege('authenticated','apticket.finish_inter_sandbox_dispatch(uuid,text,uuid,integer,text,text)','execute'),'authenticated cannot finalize attempts');
 select ok(has_function_privilege('service_role','apticket.load_inter_sandbox_dispatch(uuid,uuid)','execute'),'service role can load claimed dispatch');
 select ok(not has_function_privilege('authenticated','apticket.load_inter_charge_sync(uuid,uuid)','execute'),'authenticated cannot load reconciliation secrets');
 select ok(not has_function_privilege('authenticated','apticket.finish_inter_charge_sync(uuid,text,integer,text,text,jsonb)','execute'),'authenticated cannot finalize reconciliation');
 select ok(has_function_privilege('service_role','apticket.load_inter_charge_sync(uuid,uuid)','execute'),'service role can load claimed reconciliation');
+select ok(not has_function_privilege('authenticated','apticket.accept_inter_charge_webhook(text,text,jsonb)','execute'),'authenticated cannot accept callbacks');
+select ok(has_function_privilege('service_role','apticket.accept_inter_charge_webhook(text,text,jsonb)','execute'),'service role can accept callbacks');
 select throws_ok($$delete from apticket.inter_charge_dispatch_attempts$$,'23514',null,'physical attempt deletion blocked');
 select throws_ok($$delete from apticket.inter_charge_sync_attempts$$,'23514',null,'physical reconciliation deletion blocked');
+select throws_ok($$delete from apticket.inter_charge_webhook_events$$,'23514',null,'physical webhook event deletion blocked');
 select ok((select count(*)>=2 from apticket.financial_audit_log where entity_table='inter_charge_dispatch_attempts'),'attempt lifecycle audited');
 select ok((select count(*)>=2 from apticket.financial_audit_log where entity_table='inter_charge_sync_attempts'),'reconciliation lifecycle audited');
+select ok((select count(*)>=2 from apticket.financial_audit_log where entity_table='inter_charge_webhook_events'),'webhook lifecycle audited');
 select * from finish();
 rollback;

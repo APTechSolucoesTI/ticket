@@ -3,7 +3,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Landmark, ShieldCheck, Loader2, Upload } from "lucide-react";
+import {
+  CircleCheck,
+  Landmark,
+  Loader2,
+  RefreshCw,
+  ShieldCheck,
+  TriangleAlert,
+  Upload,
+  Webhook,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModulePermissions } from "@/lib/permission-ui";
 import {
+  configureInterWebhook,
   listInterSettings,
   saveInterSettings,
   testInterConnection,
@@ -96,6 +106,7 @@ function InterForm({
   const queryClient = useQueryClient();
   const save = useServerFn(saveInterSettings);
   const testConnection = useServerFn(testInterConnection);
+  const configureWebhook = useServerFn(configureInterWebhook);
   const connection = useMutation({
     mutationFn: () => testConnection({ data: { environment, version: current!.version } }),
   });
@@ -133,7 +144,16 @@ function InterForm({
     },
     onError: (error: Error) => toast.error(error.message || "Não foi possível salvar."),
   });
-  const busy = mutation.isPending || reading || connection.isPending;
+  const webhook = useMutation({
+    mutationFn: () => configureWebhook({ data: { environment, version: current!.version } }),
+    onSuccess: async (result) => {
+      toast.success(result.message);
+      await queryClient.invalidateQueries({ queryKey: ["inter-settings"] });
+    },
+    onError: (error: Error) =>
+      toast.error(error.message || "Não foi possível configurar o webhook."),
+  });
+  const busy = mutation.isPending || reading || connection.isPending || webhook.isPending;
   const error = (field: keyof InterSettingsInput) => form.formState.errors[field]?.message;
   async function upload(field: "certificate" | "privateKey", file?: File) {
     if (!file) return;
@@ -334,7 +354,75 @@ function InterForm({
           </p>
         </div>
       )}
+      {current && (
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Webhook className="size-5 text-primary" />
+                <h4 className="font-semibold">Atualizações automáticas</h4>
+                <WebhookStatus status={current.webhook_status} />
+              </div>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                O Inter avisará quando uma cobrança mudar. Cada aviso será confirmado diretamente no
+                banco antes de atualizar o contas a receber.
+              </p>
+              {current.webhook_status === "active" && current.webhook_registered_at && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                  <CircleCheck className="size-3.5 shrink-0" />
+                  Registrado em {new Date(current.webhook_registered_at).toLocaleString("pt-BR")}.
+                </p>
+              )}
+              {current.webhook_last_error_message && (
+                <p role="alert" className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+                  {current.webhook_last_error_message}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant={current.webhook_status === "active" ? "outline" : "default"}
+              disabled={!canEdit || busy || form.formState.isDirty}
+              onClick={() => webhook.mutate()}
+              className="shrink-0"
+            >
+              {webhook.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <RefreshCw className="size-4" />
+              )}
+              {current.webhook_status === "active" ? "Atualizar webhook" : "Configurar webhook"}
+            </Button>
+          </div>
+          {form.formState.isDirty && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Salve as alterações das credenciais antes de configurar o webhook.
+            </p>
+          )}
+        </div>
+      )}
     </form>
+  );
+}
+
+function WebhookStatus({ status }: { status: InterSettingsMetadata["webhook_status"] }) {
+  const styles = {
+    active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    configuring: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    failed: "border-destructive/30 bg-destructive/10 text-destructive",
+    not_configured: "",
+  };
+  const labels = {
+    active: "Ativo",
+    configuring: "Configurando",
+    failed: "Falhou",
+    not_configured: "Não configurado",
+  };
+  return (
+    <Badge variant="outline" className={styles[status]}>
+      {labels[status]}
+    </Badge>
   );
 }
 

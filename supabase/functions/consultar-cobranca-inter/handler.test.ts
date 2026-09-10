@@ -4,6 +4,7 @@ const requestId = "10000000-0000-4000-8000-000000000001";
 const attemptId = "20000000-0000-4000-8000-000000000002";
 const actorId = "30000000-0000-4000-8000-000000000003";
 const bankId = "40000000-0000-4000-8000-000000000004";
+const eventId = "50000000-0000-4000-8000-000000000005";
 const secret = "secret-never-return";
 const assert: (condition: unknown, message?: string) => asserts condition = (
   condition,
@@ -16,6 +17,7 @@ type SetupOptions = {
   prepared?: Record<string, unknown>;
   bankStatus?: number;
   situation?: string;
+  environment?: "sandbox" | "production";
   throwAt?: "oauth" | "bank";
 };
 
@@ -42,12 +44,24 @@ function setup(options: SetupOptions = {}) {
           ),
         );
       }
+      if (url.endsWith("/rpc/prepare_inter_charge_sync_from_webhook")) {
+        return new Response(
+          JSON.stringify(
+            options.prepared ?? {
+              state: "syncing",
+              attempt_id: attemptId,
+              actor_id: actorId,
+              reused: false,
+            },
+          ),
+        );
+      }
       if (url.endsWith("/rpc/load_inter_charge_sync")) {
         return new Response(
           JSON.stringify({
             attempt_id: attemptId,
             actor_id: actorId,
-            environment: "sandbox",
+            environment: options.environment ?? "sandbox",
             account: "12345678",
             bank_request_id: bankId,
             token_cache_key: `${requestId}-${Math.random()}`,
@@ -112,6 +126,31 @@ Deno.test("requires authenticated valid request", async () => {
     (await test.handler(request({ request_id: "invalid" }))).status === 400,
   );
   assert(test.calls.length === 0);
+});
+
+Deno.test("accepts webhook mode only with the service credential", async () => {
+  const user = setup();
+  const internalBody = {
+    request_id: requestId,
+    source: "webhook",
+    event_id: eventId,
+  };
+  assert((await user.handler(request(internalBody))).status === 400);
+  assert(user.calls.length === 0);
+
+  const service = setup({ environment: "production" });
+  const response = await service.handler(request(internalBody, "service-test"));
+  assert(response.status === 200);
+  assert(
+    service.calls.some((call) =>
+      call.url.endsWith("/rpc/prepare_inter_charge_sync_from_webhook")
+    ),
+  );
+  assert(
+    service.calls.some((call) =>
+      call.url.startsWith("https://cdpj.partners.bancointer.com.br/")
+    ),
+  );
 });
 
 Deno.test("reuses a recent synchronization without calling Inter", async () => {

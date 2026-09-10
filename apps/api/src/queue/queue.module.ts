@@ -9,6 +9,7 @@ export const QUEUE_EMAIL_SEND = 'email-send';
 export const QUEUE_WHATSAPP_INBOUND = 'whatsapp-inbound';
 export const QUEUE_WHATSAPP_OUTBOUND = 'whatsapp-outbound';
 export const QUEUE_NOTIFICATION_FANOUT = 'notification-fanout';
+export const QUEUE_INTER_WEBHOOK = 'inter-webhook';
 
 /**
  * Conexão Redis central pro BullMQ. Cada módulo de canal registra as

@@ -53,7 +53,7 @@ export const listInterSettings = createServerFn({ method: "GET" })
     const { data, error } = await db
       .from("tenant_inter_configurations")
       .select(
-        "environment,account,is_active,certificate_expires_at,certificate_fingerprint,version,updated_at",
+        "environment,account,is_active,certificate_expires_at,certificate_fingerprint,version,updated_at,webhook_status,webhook_callback_base_url,webhook_registered_at,webhook_updated_at,webhook_last_error_code,webhook_last_error_message",
       )
       .eq("tenant_id", context.claims.tenantId);
     if (error) throw new Error("Não foi possível consultar as configurações do Inter.");
@@ -108,4 +108,49 @@ export const saveInterSettings = createServerFn({ method: "POST" })
       );
     }
     return { saved: true };
+  });
+
+export const configureInterWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        environment: z.enum(["sandbox", "production"]),
+        version: z.number().int().positive(),
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; message: string }> => {
+    const siteUrl = process.env.PUBLIC_SITE_URL;
+    if (!siteUrl || !siteUrl.startsWith("https://")) {
+      throw new Error("Configure a URL pública HTTPS do APTicket antes de ativar o webhook.");
+    }
+    const callbackBaseUrl = new URL(
+      `/backend/webhooks/inter/${data.environment}`,
+      siteUrl,
+    ).toString();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.functions.invoke(
+      "configurar-webhook-inter",
+      {
+        body: {
+          actor: context.userId,
+          tenant: context.claims.tenantId,
+          environment: data.environment,
+          version: data.version,
+          callback_base_url: callbackBaseUrl,
+        },
+      },
+    );
+    if (error) {
+      if (error.context instanceof Response) {
+        const response = await error.context.json().catch(() => null);
+        if (typeof response?.message === "string") throw new Error(response.message);
+      }
+      throw new Error("Não foi possível configurar o webhook do Inter. Tente novamente.");
+    }
+    return z
+      .object({ ok: z.literal(true), state: z.literal("registered"), message: z.string() })
+      .parse(result);
   });

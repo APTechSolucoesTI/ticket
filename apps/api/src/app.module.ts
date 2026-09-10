@@ -9,6 +9,7 @@ import { QueueModule } from './queue/queue.module';
 import { EmailModule } from './channels/email/email.module';
 import { WhatsappModule } from './channels/whatsapp/whatsapp.module';
 import { ChatModule } from './channels/chat/chat.module';
+import { InterModule } from './integrations/inter/inter.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ChatModule } from './channels/chat/chat.module';
     EmailModule,
     WhatsappModule,
     ChatModule,
+    InterModule,
   ],
   controllers: [AppController],
 })

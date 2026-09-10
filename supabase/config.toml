@@ -20,3 +20,8 @@ entrypoint = "./functions/emitir-cobranca-inter/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/consultar-cobranca-inter/index.ts"
+
+[functions.configurar-webhook-inter]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/configurar-webhook-inter/index.ts"

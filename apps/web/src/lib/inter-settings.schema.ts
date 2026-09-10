@@ -61,4 +61,10 @@ export type InterSettingsMetadata = {
   certificate_fingerprint: string;
   version: number;
   updated_at: string;
+  webhook_status: "not_configured" | "configuring" | "active" | "failed";
+  webhook_callback_base_url: string | null;
+  webhook_registered_at: string | null;
+  webhook_updated_at: string | null;
+  webhook_last_error_code: string | null;
+  webhook_last_error_message: string | null;
 };

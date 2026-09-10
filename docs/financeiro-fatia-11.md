@@ -30,9 +30,9 @@ Function recebe, via `service_role`, as credenciais protegidas no Vault. Uma
 consulta em andamento é reutilizada e consultas concluídas há menos de 15
 segundos não voltam ao banco.
 
-Produção continua bloqueada. O webhook será implementado depois de definir um
-mecanismo de autenticação que não confie apenas no conteúdo recebido; até lá,
-a conciliação é sempre iniciada por um operador autorizado.
+Produção continua bloqueada para emissão. A etapa seguinte implementa o webhook
+como gatilho não confiável e mantém esta consulta ativa como confirmação
+obrigatória; consulte `financeiro-fatia-12.md`.
 
 ## Componentes
 
