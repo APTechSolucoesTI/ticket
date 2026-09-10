@@ -34,7 +34,13 @@ const receivable = {
   origin: "measurement",
   competencia: "2026-09-01",
 };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await chromium.launch({
+  channel: "msedge",
+  headless: true,
+  args: process.env.TEST_HOST_RESOLVER
+    ? [`--host-resolver-rules=${process.env.TEST_HOST_RESOLVER}`]
+    : [],
+});
 mkdirSync("artifacts/inter-settings", { recursive: true });
 try {
   for (const width of [1440, 768, 390]) {

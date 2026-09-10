@@ -127,6 +127,7 @@ export function InterPayerReview({
   const syncMutation = useMutation({
     mutationFn: () => sync({ data: { id: requestId } }),
     onSuccess: async () => {
+      dispatchMutation.reset();
       await Promise.all([query.refetch(), onRequestChanged()]);
     },
   });
@@ -165,7 +166,9 @@ export function InterPayerReview({
             <UserRoundCheck className="size-4 text-primary" /> Dados do pagador
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Snapshot usado futuramente na emissão da cobrança deste ambiente.
+            {request.status === "submitted"
+              ? "Snapshot utilizado na emissão da cobrança deste ambiente."
+              : "Snapshot que será utilizado na emissão da cobrança deste ambiente."}
           </p>
         </div>
         {review.state === "confirmed" ? (
