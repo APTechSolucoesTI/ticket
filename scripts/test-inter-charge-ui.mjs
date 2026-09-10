@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
 const playwrightModule = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href);
 const { chromium } = playwrightModule.default ?? playwrightModule;
+const baseUrl = process.env.TEST_BASE_URL ?? "http://127.0.0.1:4173";
 const files = readdirSync("apps/web/.output/server/_ssr");
 function functionId(prefix, name) {
   const source = readFileSync(
@@ -18,6 +19,7 @@ const prepareId = functionId("inter-charges.functions-", "prepareInterCharge");
 const payerReviewId = functionId("inter-charges.functions-", "getInterPayerReview");
 const payerConfirmId = functionId("inter-charges.functions-", "confirmInterPayer");
 const emitId = functionId("inter-charges.functions-", "emitInterSandboxCharge");
+const syncId = functionId("inter-charges.functions-", "syncInterSandboxCharge");
 const receivable = {
   id: "e1000000-0000-0000-0000-000000000001",
   cliente_nome: "Cliente de teste",
@@ -44,6 +46,7 @@ try {
       calls = 0,
       payerCalls = 0,
       emitCalls = 0,
+      syncCalls = 0,
       requests = [],
       payerState = "confirmation_required";
     const payerReview = () => ({
@@ -113,9 +116,17 @@ try {
               dispatch_started_at: null,
               bank_request_id: null,
               bank_status: null,
+              bank_status_at: null,
               bank_accepted_at: null,
+              bank_our_number: null,
+              bank_digitable_line: null,
+              bank_received_amount: null,
+              bank_receipt_origin: null,
+              bank_synced_at: null,
               last_error_code: null,
               last_error_message: null,
+              last_sync_error_code: null,
+              last_sync_error_message: null,
               updated_at: "2026-09-09T12:00:00Z",
             },
           ];
@@ -164,6 +175,29 @@ try {
             },
           });
         }
+        if (url.includes(syncId)) {
+          syncCalls++;
+          requests[0] = {
+            ...requests[0],
+            bank_status: "A_RECEBER",
+            bank_status_at: "2026-09-10",
+            bank_our_number: "123456",
+            bank_digitable_line: "00190000090000000000100000000123456780000015000",
+            bank_synced_at: "2026-09-10T12:20:00Z",
+          };
+          return route.fulfill({
+            json: {
+              result: {
+                ok: true,
+                state: "synced",
+                bank_status: "A_RECEBER",
+                reused: false,
+                message: "Situação da cobrança atualizada pelo Inter.",
+              },
+              context: {},
+            },
+          });
+        }
         if (url.includes(payerReviewId) && payerFail)
           return route.fulfill({
             json: { error: { message: "Falha do pagador simulada" }, context: {} },
@@ -181,11 +215,11 @@ try {
         return route.fulfill({ json: { result, context: {} } });
       }
       if (url.includes("/rest/v1/contas_receber")) return route.fulfill({ json: [receivable] });
-      if (!url.startsWith("http://127.0.0.1:4173")) return route.fulfill({ json: [] });
+      if (!url.startsWith(baseUrl)) return route.fulfill({ json: [] });
       return route.continue();
     });
     async function open() {
-      await page.goto("http://127.0.0.1:4173/finance");
+      await page.goto(baseUrl + "/finance");
       const button = page.getByRole("button", { name: "Cobrança Inter", exact: true });
       try {
         await button.click();
@@ -224,6 +258,10 @@ try {
       await dialog.getByRole("button", { name: "Emitir no sandbox", exact: true }).count(),
       0,
     );
+    await dialog.getByRole("button", { name: "Consultar no Inter", exact: true }).click();
+    await dialog.getByText("A receber", { exact: true }).waitFor();
+    await dialog.getByText("Nosso número: 123456", { exact: true }).waitFor();
+    assert.equal(syncCalls, 1);
     const bounds = await dialog.boundingBox();
     assert.ok(
       bounds.x >= 0 &&

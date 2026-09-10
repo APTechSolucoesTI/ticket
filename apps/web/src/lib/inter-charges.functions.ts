@@ -68,9 +68,17 @@ export type InterChargeRequest = {
   dispatch_started_at: string | null;
   bank_request_id: string | null;
   bank_status: string | null;
+  bank_status_at: string | null;
   bank_accepted_at: string | null;
+  bank_our_number: string | null;
+  bank_digitable_line: string | null;
+  bank_received_amount: number | null;
+  bank_receipt_origin: "BOLETO" | "PIX" | null;
+  bank_synced_at: string | null;
   last_error_code: string | null;
   last_error_message: string | null;
+  last_sync_error_code: string | null;
+  last_sync_error_message: string | null;
   updated_at: string;
 };
 export type InterChargeReview = {
@@ -114,7 +122,7 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
         db
           .from("inter_charge_requests")
           .select(
-            "id,environment,amount,due_date,status,created_at,deleted_at,dispatch_attempts,dispatch_started_at,bank_request_id,bank_status,bank_accepted_at,last_error_code,last_error_message,updated_at",
+            "id,environment,amount,due_date,status,created_at,deleted_at,dispatch_attempts,dispatch_started_at,bank_request_id,bank_status,bank_status_at,bank_accepted_at,bank_our_number,bank_digitable_line,bank_received_amount,bank_receipt_origin,bank_synced_at,last_error_code,last_error_message,last_sync_error_code,last_sync_error_message,updated_at",
           )
           .eq("receivable_id", data.id)
           .eq("tenant_id", context.claims.tenantId)
@@ -285,6 +293,34 @@ export const emitInterSandboxCharge = createServerFn({ method: "POST" })
         bank_request_id: z.string().uuid().nullable().optional(),
         reused: z.boolean().optional(),
         message: z.string(),
+      })
+      .parse(result);
+  });
+
+export const syncInterSandboxCharge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => idSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.functions.invoke(
+      "consultar-cobranca-inter",
+      { body: { request_id: data.id } },
+    );
+    if (error) {
+      if (error.context instanceof Response) {
+        const response = await error.context.json().catch(() => null);
+        if (typeof response?.message === "string") throw new Error(response.message);
+      }
+      throw new Error(
+        "Não foi possível consultar a cobrança no Inter. Nenhum dado financeiro foi alterado.",
+      );
+    }
+    return z
+      .object({
+        ok: z.boolean(),
+        state: z.enum(["syncing", "synced"]),
+        bank_status: z.string().nullable().optional(),
+        reused: z.boolean().optional(),
+        message: z.string().optional(),
       })
       .parse(result);
   });

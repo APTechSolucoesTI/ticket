@@ -46,8 +46,8 @@ persistidos. Tentativas têm RLS, leitura por escopo financeiro, auditoria e
 bloqueio de alteração/exclusão direta.
 
 O endpoint de Cobrança V3 do Inter responde de forma assíncrona com
-`codigoSolicitacao`; o acompanhamento definitivo será implementado por webhook
-ou consulta ativa na próxima fatia. Referências oficiais:
+`codigoSolicitacao`; a consulta ativa foi implementada na fatia 11. O webhook
+permanece reservado para uma etapa posterior. Referências oficiais:
 [Cobrança V3 / Boleto com Pix](https://developers.inter.co/references/cobranca-bolepix)
 e [Changelog da API](https://developers.inter.co/changelog).
 
@@ -73,6 +73,5 @@ sandbox ocorre apenas pelo clique explícito de um operador autorizado.
 Skills: Supabase orientou RLS, RPCs, Vault, migração e Edge Function; Lovable
 orientou os estados visuais e o comportamento responsivo do modal.
 
-Próxima etapa: consultar o resultado assíncrono pelo `codigoSolicitacao`,
-processar webhook idempotente e refletir os estados bancários sem liberar
-produção automaticamente.
+Próxima etapa: configurar e processar webhook idempotente sem confiar no
+payload recebido e sem liberar produção automaticamente.

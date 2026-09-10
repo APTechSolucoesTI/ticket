@@ -78,9 +78,39 @@ select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-00000000
 select is(apticket.prepare_inter_sandbox_dispatch(current_setting('test.request')::uuid,true)->>'state','submitted','accepted request never posts twice');
 select is((select bank_status from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'EM_PROCESSAMENTO','asynchronous bank state recorded');
 select ok((select bank_accepted_at is not null from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'bank acceptance timestamp recorded');
+select set_config('test.sync_prepared',apticket.prepare_inter_charge_sync(current_setting('test.request')::uuid)::text,true);
+select is(current_setting('test.sync_prepared')::jsonb->>'state','syncing','active reconciliation claimed');
+select set_config('test.sync_attempt',current_setting('test.sync_prepared')::jsonb->>'attempt_id',true);
+select is(apticket.prepare_inter_charge_sync(current_setting('test.request')::uuid)->>'reused','true','concurrent reconciliation reuses claim');
+select throws_ok(format($$select apticket.load_inter_charge_sync(%L,%L)$$,current_setting('test.sync_attempt'),'fa200000-0000-0000-0000-000000000001'),'42501',null,'authenticated user cannot load reconciliation secrets');
+reset role;
+
+set local role service_role;
+select set_config('test.sync_dispatch',apticket.load_inter_charge_sync(current_setting('test.sync_attempt')::uuid,'fa200000-0000-0000-0000-000000000001')::text,true);
+select is(current_setting('test.sync_dispatch')::jsonb->>'bank_request_id','fa800000-0000-0000-0000-000000000001','service loads accepted bank identifier');
+select set_config('test.sync_finished',apticket.finish_inter_charge_sync(
+  current_setting('test.sync_attempt')::uuid,'synced',200,null,null,
+  jsonb_build_object(
+    'codigo_solicitacao','fa800000-0000-0000-0000-000000000001',
+    'situacao','A_RECEBER','data_situacao',current_date::text,
+    'nosso_numero','123456','linha_digitavel','00190000090000000000100000000123456780000015000'
+  )
+)::text,true);
+select is(current_setting('test.sync_finished')::jsonb->>'state','synced','service finalizes active reconciliation');
+select is((select bank_status from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'A_RECEBER','bank situation reconciled');
+select is((select bank_our_number from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'123456','known bank details persisted');
+select is((select status_cobranca::text from apticket.contas_receber where id=current_setting('test.receivable')::uuid),'faturado','receivable follows open bank charge');
+select ok((select bank_synced_at is not null from apticket.inter_charge_requests where id=current_setting('test.request')::uuid),'synchronization timestamp recorded');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select is(apticket.prepare_inter_charge_sync(current_setting('test.request')::uuid)->>'state','synced','recent result is reused without bank call');
 select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
 select throws_ok(format($$select apticket.prepare_inter_sandbox_dispatch(%L,true)$$,current_setting('test.request')),'42501',null,'admin without financial scope denied');
+select throws_ok(format($$select apticket.prepare_inter_charge_sync(%L)$$,current_setting('test.request')),'42501',null,'reconciliation without financial scope denied');
 select is((select count(*) from apticket.inter_charge_dispatch_attempts),0::bigint,'RLS hides attempts outside scope');
+select is((select count(*) from apticket.inter_charge_sync_attempts),0::bigint,'RLS hides reconciliation attempts outside scope');
 set local role anon;
 select throws_ok(format($$select apticket.prepare_inter_sandbox_dispatch(%L,true)$$,current_setting('test.request')),'42501',null,'anonymous dispatch denied');
 reset role;
@@ -97,7 +127,12 @@ reset role;
 select ok(not has_function_privilege('authenticated','apticket.load_inter_sandbox_dispatch(uuid,uuid)','execute'),'authenticated cannot load dispatch secrets');
 select ok(not has_function_privilege('authenticated','apticket.finish_inter_sandbox_dispatch(uuid,text,uuid,integer,text,text)','execute'),'authenticated cannot finalize attempts');
 select ok(has_function_privilege('service_role','apticket.load_inter_sandbox_dispatch(uuid,uuid)','execute'),'service role can load claimed dispatch');
+select ok(not has_function_privilege('authenticated','apticket.load_inter_charge_sync(uuid,uuid)','execute'),'authenticated cannot load reconciliation secrets');
+select ok(not has_function_privilege('authenticated','apticket.finish_inter_charge_sync(uuid,text,integer,text,text,jsonb)','execute'),'authenticated cannot finalize reconciliation');
+select ok(has_function_privilege('service_role','apticket.load_inter_charge_sync(uuid,uuid)','execute'),'service role can load claimed reconciliation');
 select throws_ok($$delete from apticket.inter_charge_dispatch_attempts$$,'23514',null,'physical attempt deletion blocked');
+select throws_ok($$delete from apticket.inter_charge_sync_attempts$$,'23514',null,'physical reconciliation deletion blocked');
 select ok((select count(*)>=2 from apticket.financial_audit_log where entity_table='inter_charge_dispatch_attempts'),'attempt lifecycle audited');
+select ok((select count(*)>=2 from apticket.financial_audit_log where entity_table='inter_charge_sync_attempts'),'reconciliation lifecycle audited');
 select * from finish();
 rollback;

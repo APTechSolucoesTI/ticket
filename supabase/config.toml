@@ -15,3 +15,8 @@ entrypoint = "./functions/fechar-ciclos-financeiros/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/emitir-cobranca-inter/index.ts"
+
+[functions.consultar-cobranca-inter]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/consultar-cobranca-inter/index.ts"

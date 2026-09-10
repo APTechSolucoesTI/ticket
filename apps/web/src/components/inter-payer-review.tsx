@@ -16,6 +16,7 @@ import {
   confirmInterPayer,
   emitInterSandboxCharge,
   getInterPayerReview,
+  syncInterSandboxCharge,
   type InterChargeRequest,
   type InterPayerReview as Review,
 } from "@/lib/inter-charges.functions";
@@ -52,6 +53,26 @@ const formatZip = (value: string | null) => {
     : value || "Não informado";
 };
 const valueOrMissing = (value: string | null) => value?.trim() || "Não informado";
+const bankStatusLabels: Record<string, string> = {
+  EM_PROCESSAMENTO: "Em processamento",
+  A_RECEBER: "A receber",
+  ATRASADO: "Em atraso",
+  RECEBIDO: "Recebido",
+  MARCADO_RECEBIDO: "Marcado como recebido",
+  CANCELADO: "Cancelado",
+  EXPIRADO: "Expirado",
+  FALHA_EMISSAO: "Falha na emissão",
+  PROTESTO: "Em protesto",
+};
+const bankStatusTone: Record<string, string> = {
+  RECEBIDO: "bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
+  MARCADO_RECEBIDO: "bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
+  ATRASADO: "bg-red-500/10 text-red-900 dark:text-red-200",
+  PROTESTO: "bg-red-500/10 text-red-900 dark:text-red-200",
+  CANCELADO: "bg-muted text-muted-foreground",
+  EXPIRADO: "bg-muted text-muted-foreground",
+  FALHA_EMISSAO: "bg-destructive/10 text-destructive",
+};
 
 export function InterPayerReview({
   request,
@@ -66,6 +87,7 @@ export function InterPayerReview({
   const getReview = useServerFn(getInterPayerReview);
   const confirm = useServerFn(confirmInterPayer);
   const emit = useServerFn(emitInterSandboxCharge);
+  const sync = useServerFn(syncInterSandboxCharge);
   const query = useQuery({
     queryKey: ["inter-payer-review", requestId],
     queryFn: () => getReview({ data: { id: requestId } }),
@@ -99,6 +121,12 @@ export function InterPayerReview({
     onSuccess: async () => {
       setDispatchToken("");
       mutation.reset();
+      await Promise.all([query.refetch(), onRequestChanged()]);
+    },
+  });
+  const syncMutation = useMutation({
+    mutationFn: () => sync({ data: { id: requestId } }),
+    onSuccess: async () => {
       await Promise.all([query.refetch(), onRequestChanged()]);
     },
   });
@@ -269,16 +297,48 @@ export function InterPayerReview({
       {request.status === "submitted" && (
         <div
           role="status"
-          className="space-y-1 rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-900"
+          className={
+            "space-y-1 rounded-md p-3 text-sm " +
+            (bankStatusTone[request.bank_status ?? ""] ??
+              "bg-blue-500/10 text-blue-900 dark:text-blue-200")
+          }
         >
           <p className="flex items-center gap-2 font-medium">
             <CheckCircle2 className="size-4" /> Solicitação aceita pelo Inter
           </p>
-          <p>O processamento bancário está em andamento.</p>
+          <p>
+            Situação bancária:{" "}
+            <strong>{bankStatusLabels[request.bank_status ?? ""] ?? "Aguardando consulta"}</strong>
+          </p>
           {request.bank_request_id && (
             <p className="break-all text-xs">Código da solicitação: {request.bank_request_id}</p>
           )}
+          {request.bank_our_number && (
+            <p className="text-xs">Nosso número: {request.bank_our_number}</p>
+          )}
+          {request.bank_digitable_line && (
+            <p className="break-all text-xs">Linha digitável: {request.bank_digitable_line}</p>
+          )}
+          {request.bank_received_amount !== null && (
+            <p className="text-xs">
+              Valor recebido: {money.format(request.bank_received_amount)}
+              {request.bank_receipt_origin ? " via " + request.bank_receipt_origin : ""}
+            </p>
+          )}
+          {request.bank_synced_at && (
+            <p className="text-xs opacity-80">
+              Última consulta em {new Date(request.bank_synced_at).toLocaleString("pt-BR")}
+            </p>
+          )}
         </div>
+      )}
+      {request.last_sync_error_message && (
+        <p
+          role="alert"
+          className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
+        >
+          Última consulta: {request.last_sync_error_message}
+        </p>
       )}
       {request.status === "uncertain" && (
         <div
@@ -349,6 +409,19 @@ export function InterPayerReview({
         >
           <RefreshCw className={query.isFetching ? "animate-spin" : ""} /> Atualizar pagador
         </Button>
+        {request.status === "submitted" &&
+          request.environment === "sandbox" &&
+          review.canConfirm && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={syncMutation.isPending || query.isFetching}
+              onClick={() => syncMutation.mutate()}
+            >
+              <RefreshCw className={syncMutation.isPending ? "animate-spin" : ""} />
+              Consultar no Inter
+            </Button>
+          )}
         {confirmable && review.canConfirm && (
           <Button
             size="sm"
@@ -373,6 +446,11 @@ export function InterPayerReview({
           </Button>
         )}
       </div>
+      {syncMutation.isError && (
+        <p role="alert" className="rounded-md bg-destructive/5 p-3 text-sm text-destructive">
+          {syncMutation.error.message}
+        </p>
+      )}
     </section>
   );
 }
