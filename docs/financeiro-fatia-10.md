@@ -17,6 +17,12 @@ O telefone do cliente permanece cadastrado no padrão internacional
 por `55` são convertidos automaticamente para os campos `DDD` e `telefone`
 exigidos pelo Inter, sem alterar o cadastro original.
 
+Se o OAuth do ambiente de homologação não responder, a tentativa termina
+antes do limite da Edge Function e fica registrada como
+`OAUTH_CONNECTION_FAILURE`. Nenhum POST de cobrança é executado nesse caso;
+devem ser conferidos Client ID, Client Secret, certificado e a habilitação da
+API de Cobrança na mesma integração do portal do Inter.
+
 ## Estados e segurança operacional
 
 - `dispatching`: tentativa exclusiva em andamento; cliques concorrentes

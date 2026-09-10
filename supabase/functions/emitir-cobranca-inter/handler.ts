@@ -112,9 +112,7 @@ export function createHandler(deps: Dependencies) {
       const body = await request.json();
       if (
         !body ||
-        Object.keys(body).some((key) =>
-          !["request_id", "confirmed"].includes(key)
-        ) ||
+        Object.keys(body).some((key) => !["request_id", "confirmed"].includes(key)) ||
         !uuid.test(body.request_id) ||
         body.confirmed !== true
       ) {
@@ -122,10 +120,7 @@ export function createHandler(deps: Dependencies) {
       }
       input = body;
     } catch {
-      return fail(
-        "Confirme uma solicitação válida para emitir em homologação.",
-        400,
-      );
+      return fail("Confirme uma solicitação válida para emitir em homologação.", 400);
     }
 
     let prepared: Prepared;
@@ -140,30 +135,20 @@ export function createHandler(deps: Dependencies) {
         const error = await response.json().catch(() => ({}));
         const mapped: Record<string, [string, number]> = {
           "42501": ["Sem permissão para emitir esta cobrança.", 403],
-          "23514": [
-            "Revise e confirme novamente o pagador e o vínculo bancário.",
-            409,
-          ],
-          "0A000": [
-            "Emissão em produção permanece bloqueada nesta etapa.",
-            409,
-          ],
-          "54000": [
-            "Aguarde antes de tentar novamente ou revise o histórico de tentativas.",
-            429,
-          ],
+          "23514": ["Revise e confirme novamente o pagador e o vínculo bancário.", 409],
+          "0A000": ["Emissão em produção permanece bloqueada nesta etapa.", 409],
+          "54000": ["Aguarde antes de tentar novamente ou revise o histórico de tentativas.", 429],
           "22023": ["Confirmação explícita obrigatória.", 422],
         };
-        const [message, status] = mapped[error.code] ??
-          ["Não foi possível iniciar a emissão.", 502];
+        const [message, status] = mapped[error.code] ?? [
+          "Não foi possível iniciar a emissão.",
+          502,
+        ];
         return fail(message, status);
       }
       prepared = await response.json();
     } catch {
-      return fail(
-        "Serviço financeiro indisponível antes do envio ao banco. Tente novamente.",
-        503,
-      );
+      return fail("Serviço financeiro indisponível antes do envio ao banco. Tente novamente.", 503);
     }
 
     if (
@@ -176,8 +161,7 @@ export function createHandler(deps: Dependencies) {
     }
     if (prepared.reused) {
       const messages = {
-        dispatching:
-          "A emissão já está em processamento. Atualize a consulta em instantes.",
+        dispatching: "A emissão já está em processamento. Atualize a consulta em instantes.",
         submitted: "A solicitação já foi aceita pelo Inter.",
         uncertain:
           "O resultado do envio anterior é incerto. O sistema não repetirá a emissão automaticamente.",
@@ -194,8 +178,10 @@ export function createHandler(deps: Dependencies) {
       );
     }
     if (
-      !prepared.attempt_id || !prepared.actor_id ||
-      !uuid.test(prepared.attempt_id) || !uuid.test(prepared.actor_id)
+      !prepared.attempt_id ||
+      !prepared.actor_id ||
+      !uuid.test(prepared.attempt_id) ||
+      !uuid.test(prepared.actor_id)
     ) {
       return fail("Tentativa de emissão inválida.", 502);
     }
@@ -203,6 +189,7 @@ export function createHandler(deps: Dependencies) {
     const attempt = prepared.attempt_id;
     let client: HttpClient | undefined;
     let postStarted = false;
+    let phase: "load" | "mtls" | "oauth" | "bank" | "finish" = "load";
     try {
       const loaded = await rpc(
         "load_inter_sandbox_dispatch",
@@ -214,8 +201,7 @@ export function createHandler(deps: Dependencies) {
         await finish(attempt, "failed", {
           httpStatus: loaded.status,
           errorCode: "DISPATCH_INVALID",
-          errorMessage:
-            "A configuração ou o snapshot deixou de ser válido antes do envio.",
+          errorMessage: "A configuração ou o snapshot deixou de ser válido antes do envio.",
         });
         return fail(
           "Configuração bancária ou pagador inválido. Revise os dados antes de tentar novamente.",
@@ -235,6 +221,7 @@ export function createHandler(deps: Dependencies) {
       ) {
         throw new Error("INVALID_DISPATCH");
       }
+      phase = "mtls";
       client = deps.createClient(
         dispatch.credentials.certificate,
         dispatch.credentials.private_key,
@@ -242,6 +229,7 @@ export function createHandler(deps: Dependencies) {
 
       let accessToken = tokens.get(dispatch.token_cache_key);
       if (!accessToken || accessToken.expiresAt <= now() + 60_000) {
+        phase = "oauth";
         const tokenResponse = await deps.fetch(`${bankHost}/oauth/v2/token`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -253,16 +241,19 @@ export function createHandler(deps: Dependencies) {
           }),
           client,
           redirect: "error",
-          signal: AbortSignal.timeout(20_000),
+          // Finaliza antes do limite do runtime para registrar um erro preciso
+          // e manter a próxima tentativa segura.
+          signal: AbortSignal.timeout(12_000),
         } as RequestInit);
         if (!tokenResponse.ok) {
           await tokenResponse.body?.cancel();
           await finish(attempt, "failed", {
             httpStatus: tokenResponse.status,
             errorCode: `OAUTH_${tokenResponse.status}`,
-            errorMessage: tokenResponse.status === 429
-              ? "O Inter limitou a autenticação. Aguarde antes de tentar novamente."
-              : "O Inter recusou a autenticação ou os escopos de cobrança.",
+            errorMessage:
+              tokenResponse.status === 429
+                ? "O Inter limitou a autenticação. Aguarde antes de tentar novamente."
+                : "O Inter recusou a autenticação ou os escopos de cobrança.",
           });
           return fail(
             tokenResponse.status === 429
@@ -288,6 +279,7 @@ export function createHandler(deps: Dependencies) {
         tokens.set(dispatch.token_cache_key, accessToken);
       }
 
+      phase = "bank";
       postStarted = true;
       const bank = await deps.fetch(`${bankHost}/cobranca/v3/cobrancas`, {
         method: "POST",
@@ -321,14 +313,14 @@ export function createHandler(deps: Dependencies) {
       }
       const bankResult = await bank.json().catch(() => null);
       if (
-        !bankResult || typeof bankResult.codigoSolicitacao !== "string" ||
+        !bankResult ||
+        typeof bankResult.codigoSolicitacao !== "string" ||
         !uuid.test(bankResult.codigoSolicitacao)
       ) {
         await finish(attempt, "uncertain", {
           httpStatus: bank.status,
           errorCode: "INTER_INVALID_RESPONSE",
-          errorMessage:
-            "O Inter aceitou a chamada, mas não retornou um identificador válido.",
+          errorMessage: "O Inter aceitou a chamada, mas não retornou um identificador válido.",
         });
         return fail(
           "Resposta bancária incompleta. O resultado será tratado como incerto e não será reenviado.",
@@ -336,6 +328,7 @@ export function createHandler(deps: Dependencies) {
           "uncertain",
         );
       }
+      phase = "finish";
       const result = await finish(attempt, "submitted", {
         bankRequest: bankResult.codigoSolicitacao,
         httpStatus: bank.status,
@@ -345,16 +338,27 @@ export function createHandler(deps: Dependencies) {
         state: "submitted",
         bank_request_id: bankResult.codigoSolicitacao,
         reused: result.reused === true,
-        message:
-          "Solicitação aceita pelo Inter e aguardando processamento assíncrono.",
+        message: "Solicitação aceita pelo Inter e aguardando processamento assíncrono.",
       });
     } catch {
+      const oauthFailure = !postStarted && phase === "oauth";
+      const mtlsFailure = !postStarted && phase === "mtls";
       try {
         await finish(attempt, postStarted ? "uncertain" : "failed", {
-          errorCode: postStarted ? "NETWORK_UNCERTAIN" : "PRE_SEND_FAILURE",
+          errorCode: postStarted
+            ? "NETWORK_UNCERTAIN"
+            : oauthFailure
+              ? "OAUTH_CONNECTION_FAILURE"
+              : mtlsFailure
+                ? "MTLS_CONFIGURATION_FAILURE"
+                : "PRE_SEND_FAILURE",
           errorMessage: postStarted
             ? "A conexão terminou sem confirmação após o início do envio; não repetir automaticamente."
-            : "Falha segura antes de iniciar o envio bancário.",
+            : oauthFailure
+              ? "O OAuth de homologação do Inter não respondeu antes do limite seguro."
+              : mtlsFailure
+                ? "Não foi possível iniciar a conexão mTLS com o certificado configurado."
+                : "Falha segura antes de iniciar o envio bancário.",
         });
       } catch {
         // A tentativa permanece em dispatching; a lease expirada será convertida
@@ -363,7 +367,11 @@ export function createHandler(deps: Dependencies) {
       return fail(
         postStarted
           ? "A conexão terminou sem confirmação. O resultado é incerto e a emissão não será repetida automaticamente."
-          : "Falha antes do envio ao banco. Atualize a consulta e tente novamente.",
+          : oauthFailure
+            ? "O Inter não respondeu à autenticação de homologação. Confira se Client ID, Client Secret e certificado pertencem à mesma integração e se a API de Cobrança está habilitada."
+            : mtlsFailure
+              ? "Não foi possível usar o certificado da homologação. Revise o certificado e a chave privada configurados."
+              : "Falha antes do envio ao banco. Atualize a consulta e tente novamente.",
         postStarted ? 202 : 503,
         postStarted ? "uncertain" : "failed",
       );
