@@ -39,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { SupplierPayables, type PayableContractOption } from "@/components/supplier-payables";
 
 type Company = { id: string; legal_name: string };
 type SupplierContract = {
@@ -141,7 +142,8 @@ const contractSchema = z
         message: "A data final não pode anteceder o início.",
       });
   });
-type ContractForm = z.infer<typeof contractSchema>;
+type ContractFormInput = z.input<typeof contractSchema>;
+type ContractForm = z.output<typeof contractSchema>;
 
 export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
@@ -219,6 +221,18 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
   const monthlyFixed = contracts
     .filter((c) => c.billing_unit === "fixed")
     .reduce((sum, c) => sum + Number(c.base_amount) / c.billing_interval_months, 0);
+  const payableContracts: PayableContractOption[] = (query.data ?? []).flatMap((supplier) =>
+    supplier.supplier_contracts.map((contract) => ({
+      id: contract.id,
+      supplierName: supplier.trade_name || supplier.legal_name,
+      description: contract.description,
+      billingUnit: contract.billing_unit,
+      intervalMonths: contract.billing_interval_months,
+      startsAt: contract.starts_at,
+      endsAt: contract.ends_at,
+      active: supplier.is_active && contract.is_active,
+    })),
+  );
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: ["payable-suppliers", companyId] });
 
@@ -428,6 +442,7 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
               )}
             </CardContent>
           </Card>
+          <SupplierPayables companyId={companyId} contracts={payableContracts} canEdit={canEdit} />
         </>
       )}
       {editing !== undefined ? (
@@ -675,7 +690,7 @@ function ContractDialog({
   onSaved(): void;
 }) {
   const contract = target.contract;
-  const form = useForm<ContractForm>({
+  const form = useForm<ContractFormInput, unknown, ContractForm>({
     resolver: zodResolver(contractSchema),
     defaultValues: {
       description: contract?.description ?? "",
