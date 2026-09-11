@@ -1,7 +1,19 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CalendarPlus, CircleDollarSign, Eye, Loader2, RefreshCw, Search } from "lucide-react";
+import {
+  CalendarPlus,
+  Check,
+  CircleDollarSign,
+  Clock3,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Search,
+  Send,
+  Settings2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -32,7 +45,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/session";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-policies-dialog";
 
 export type PayableContractOption = {
   id: string;
@@ -45,6 +60,8 @@ export type PayableContractOption = {
   active: boolean;
 };
 
+type PayableStatus =
+  "scheduled" | "awaiting_approval" | "approved" | "paid" | "overdue" | "cancelled";
 type Payable = {
   id: string;
   supplier_contract_id: string;
@@ -58,7 +75,7 @@ type Payable = {
   unit_price: number;
   total_amount: number;
   allocation_status: "pending_rule" | "complete";
-  status: "scheduled" | "awaiting_approval" | "approved" | "paid" | "overdue" | "cancelled";
+  status: PayableStatus;
   terms_snapshot: { supplier_name?: string; contract_description?: string };
 };
 
@@ -72,6 +89,25 @@ type Allocation = {
   unit_price: number;
   percentage: number | null;
   amount: number;
+};
+type ApprovalRequest = {
+  id: string;
+  policy_name: string;
+  status: "pending" | "approved" | "rejected";
+  submitted_by_name: string;
+  submitted_at: string;
+  completed_at: string | null;
+  rejection_reason: string | null;
+};
+type ApprovalStep = {
+  id: string;
+  request_id: string;
+  step_order: number;
+  approver_id: string;
+  approver_name: string;
+  status: "pending" | "approved" | "rejected";
+  decided_at: string | null;
+  decision_comment: string | null;
 };
 
 const db = supabase as unknown as SupabaseClient;
@@ -111,7 +147,7 @@ function effectiveStatus(payable: Payable) {
   return payable.status;
 }
 
-const statusLabels = {
+const statusLabels: Record<PayableStatus, string> = {
   scheduled: "Agendado",
   awaiting_approval: "Aguardando aprovação",
   approved: "Aprovado",
@@ -134,7 +170,9 @@ export function SupplierPayables({
   const [allocationFilter, setAllocationFilter] = useState<"all" | "pending_rule" | "complete">(
     "all",
   );
+  const [statusFilter, setStatusFilter] = useState<"all" | PayableStatus>("all");
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [policiesOpen, setPoliciesOpen] = useState(false);
   const [selected, setSelected] = useState<Payable>();
   const query = useQuery({
     queryKey: ["supplier-payables", companyId],
@@ -157,12 +195,13 @@ export function SupplierPayables({
     return (query.data ?? []).filter(
       (item) =>
         (allocationFilter === "all" || item.allocation_status === allocationFilter) &&
+        (statusFilter === "all" || effectiveStatus(item) === statusFilter) &&
         (!term ||
           `${item.document_number} ${item.description} ${item.terms_snapshot.supplier_name ?? ""}`
             .toLocaleLowerCase("pt-BR")
             .includes(term)),
     );
-  }, [allocationFilter, query.data, search]);
+  }, [allocationFilter, query.data, search, statusFilter]);
   const total = (query.data ?? []).reduce((sum, item) => sum + Number(item.total_amount), 0);
   const pending = (query.data ?? []).filter((item) => item.allocation_status === "pending_rule");
 
@@ -179,24 +218,37 @@ export function SupplierPayables({
           </p>
         </div>
         {canEdit ? (
-          <Button
-            className="gap-2"
-            onClick={() => setGenerateOpen(true)}
-            disabled={!contracts.length}
-          >
-            <CalendarPlus className="size-4" />
-            Gerar lançamento
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setPoliciesOpen(true)}>
+              <Settings2 className="size-4" />
+              Alçadas
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => setGenerateOpen(true)}
+              disabled={!contracts.length}
+            >
+              <CalendarPlus className="size-4" />
+              Gerar lançamento
+            </Button>
+          </div>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Summary label="Total lançado" value={money.format(total)} />
           <Summary label="Lançamentos" value={String(query.data?.length ?? 0)} />
           <Summary
             label="Rateio pendente"
             value={String(pending.length)}
             alert={pending.length > 0}
+          />
+          <Summary
+            label="Aguardando aprovação"
+            value={String(
+              (query.data ?? []).filter((item) => item.status === "awaiting_approval").length,
+            )}
+            alert={(query.data ?? []).some((item) => item.status === "awaiting_approval")}
           />
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -222,6 +274,24 @@ export function SupplierPayables({
               <SelectItem value="pending_rule">Rateio pendente</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+          >
+            <SelectTrigger className="sm:w-52">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              {(Object.entries(statusLabels) as Array<[PayableStatus, string]>).map(
+                ([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
         </div>
         {query.isLoading ? (
           <LoadingState label="Carregando lançamentos…" />
@@ -235,7 +305,7 @@ export function SupplierPayables({
           <EmptyState
             title="Nenhum lançamento encontrado"
             description={
-              search || allocationFilter !== "all"
+              search || allocationFilter !== "all" || statusFilter !== "all"
                 ? "Ajuste os filtros para ampliar a busca."
                 : "Gere o primeiro lançamento a partir de um contrato de fornecedor ativo."
             }
@@ -316,6 +386,15 @@ export function SupplierPayables({
           }
         />
       ) : null}
+      {policiesOpen ? (
+        <SupplierApprovalPoliciesDialog
+          companyId={companyId}
+          onClose={() => setPoliciesOpen(false)}
+          onSaved={() =>
+            void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
+          }
+        />
+      ) : null}
       {selected ? (
         <AllocationDialog
           payable={selected}
@@ -327,6 +406,20 @@ export function SupplierPayables({
         />
       ) : null}
     </Card>
+  );
+}
+
+function ApprovalStatusBadge({ status }: { status: ApprovalRequest["status"] }) {
+  const labels = { pending: "Em aprovação", approved: "Aprovada", rejected: "Rejeitada" };
+  const classes = {
+    pending: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    approved: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    rejected: "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
+  };
+  return (
+    <Badge variant="outline" className={classes[status]}>
+      {labels[status]}
+    </Badge>
   );
 }
 
@@ -465,6 +558,8 @@ function AllocationDialog({
   onApplied: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [decisionComment, setDecisionComment] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
   const query = useQuery({
     queryKey: ["supplier-payable-allocations", payable.id],
     queryFn: async () => {
@@ -479,6 +574,82 @@ function AllocationDialog({
       if (allocationsResult.error) throw allocationsResult.error;
       return (allocationsResult.data ?? []) as Allocation[];
     },
+  });
+  const approvalQuery = useQuery({
+    queryKey: ["supplier-payable-approvals", payable.id],
+    queryFn: async () => {
+      const requestsResult = await db
+        .from("supplier_payable_approval_requests")
+        .select(
+          "id,policy_name,status,submitted_by_name,submitted_at,completed_at,rejection_reason",
+        )
+        .eq("supplier_payable_id", payable.id)
+        .order("submitted_at", { ascending: false });
+      if (requestsResult.error) throw requestsResult.error;
+      const requests = (requestsResult.data ?? []) as ApprovalRequest[];
+      if (!requests.length) return [] as Array<ApprovalRequest & { steps: ApprovalStep[] }>;
+      const stepsResult = await db
+        .from("supplier_payable_approval_steps")
+        .select(
+          "id,request_id,step_order,approver_id,approver_name,status,decided_at,decision_comment",
+        )
+        .in(
+          "request_id",
+          requests.map((item) => item.id),
+        )
+        .order("step_order");
+      if (stepsResult.error) throw stepsResult.error;
+      const steps = (stepsResult.data ?? []) as ApprovalStep[];
+      return requests.map((request) => ({
+        ...request,
+        steps: steps.filter((step) => step.request_id === request.id),
+      }));
+    },
+  });
+  const pendingRequest = approvalQuery.data?.find((item) => item.status === "pending");
+  const currentStep = pendingRequest?.steps.find((item) => item.status === "pending");
+  const isCurrentApprover = currentStep?.approver_id === getCurrentUserId();
+  const finishApprovalAction = async (message: string) => {
+    toast.success(message);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["supplier-payable-approvals", payable.id] }),
+      queryClient.invalidateQueries({ queryKey: ["supplier-payables"] }),
+    ]);
+    onApplied();
+    onClose();
+  };
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await db.rpc("submit_supplier_payable_for_approval", {
+        p_supplier_payable_id: payable.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => void finishApprovalAction("Lançamento enviado para aprovação."),
+    onError: (error) => toast.error(getUserFacingError(error, "enviar para aprovação")),
+  });
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await db.rpc("approve_supplier_payable", {
+        p_request_id: pendingRequest!.id,
+        p_comment: decisionComment.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => void finishApprovalAction("Etapa aprovada."),
+    onError: (error) => toast.error(getUserFacingError(error, "aprovar o lançamento")),
+  });
+  const rejectMutation = useMutation({
+    mutationFn: async () => {
+      if (rejectionReason.trim().length < 3) throw new Error("Informe o motivo da rejeição.");
+      const { error } = await db.rpc("reject_supplier_payable", {
+        p_request_id: pendingRequest!.id,
+        p_reason: rejectionReason.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => void finishApprovalAction("Lançamento devolvido para revisão."),
+    onError: (error) => toast.error(getUserFacingError(error, "rejeitar o lançamento")),
   });
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -501,7 +672,7 @@ function AllocationDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Rateio do lançamento</DialogTitle>
+          <DialogTitle>Detalhes do lançamento</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 rounded-lg border bg-muted/25 p-3 sm:grid-cols-3">
           <div>
@@ -560,6 +731,152 @@ function AllocationDialog({
             </Table>
           </div>
         )}
+        <section className="space-y-3 border-t pt-4" aria-labelledby="approval-history-title">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 id="approval-history-title" className="font-medium">
+                Aprovação por alçada
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Responsáveis, decisões e reenvios ficam preservados no histórico.
+              </p>
+            </div>
+            <Badge
+              variant={
+                payable.status === "approved" || payable.status === "paid" ? "secondary" : "outline"
+              }
+            >
+              {statusLabels[payable.status]}
+            </Badge>
+          </div>
+          {approvalQuery.isLoading ? (
+            <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Carregando aprovações
+            </div>
+          ) : approvalQuery.isError ? (
+            <p className="text-sm text-destructive">
+              Não foi possível consultar o histórico de aprovação.
+            </p>
+          ) : approvalQuery.data?.length ? (
+            <div className="space-y-3">
+              {approvalQuery.data.map((request, requestIndex) => (
+                <div key={request.id} className="rounded-lg border p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {request.policy_name}
+                        {requestIndex === 0 ? " · envio atual" : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Enviado por {request.submitted_by_name} em{" "}
+                        {new Date(request.submitted_at).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <ApprovalStatusBadge status={request.status} />
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {request.steps.map((step) => (
+                      <div key={step.id} className="flex items-start gap-2 text-sm">
+                        <div
+                          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${step.status === "approved" ? "bg-emerald-500/10 text-emerald-700" : step.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}
+                        >
+                          {step.status === "approved" ? (
+                            <Check className="size-3.5" />
+                          ) : step.status === "rejected" ? (
+                            <X className="size-3.5" />
+                          ) : (
+                            <Clock3 className="size-3.5" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">
+                            {step.step_order}. {step.approver_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {step.status === "approved"
+                              ? `Aprovado${step.decided_at ? ` em ${new Date(step.decided_at).toLocaleString("pt-BR")}` : ""}`
+                              : step.status === "rejected"
+                                ? "Rejeitado"
+                                : "Aguardando decisão"}
+                            {step.decision_comment ? ` · ${step.decision_comment}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {request.rejection_reason ? (
+                    <p className="mt-3 rounded-md bg-destructive/5 p-2 text-xs text-destructive">
+                      Motivo: {request.rejection_reason}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
+              Este lançamento ainda não foi enviado para aprovação.
+            </div>
+          )}
+
+          {isCurrentApprover ? (
+            <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-sm font-medium">Sua decisão é necessária nesta etapa.</p>
+              <div className="space-y-1.5">
+                <Label htmlFor="approval-comment">Comentário da aprovação, opcional</Label>
+                <Textarea
+                  id="approval-comment"
+                  maxLength={1000}
+                  value={decisionComment}
+                  onChange={(event) => setDecisionComment(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rejection-reason">Motivo para rejeição</Label>
+                <Textarea
+                  id="rejection-reason"
+                  maxLength={1000}
+                  value={rejectionReason}
+                  placeholder="Obrigatório somente ao rejeitar"
+                  onChange={(event) => setRejectionReason(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  variant="destructive"
+                  onClick={() => rejectMutation.mutate()}
+                  disabled={
+                    rejectMutation.isPending ||
+                    approveMutation.isPending ||
+                    rejectionReason.trim().length < 3
+                  }
+                >
+                  {rejectMutation.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <X className="mr-2 size-4" />
+                  )}
+                  Rejeitar
+                </Button>
+                <Button
+                  onClick={() => approveMutation.mutate()}
+                  disabled={rejectMutation.isPending || approveMutation.isPending}
+                >
+                  {approveMutation.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 size-4" />
+                  )}
+                  Aprovar etapa
+                </Button>
+              </div>
+            </div>
+          ) : pendingRequest && currentStep ? (
+            <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+              Aguardando decisão de{" "}
+              <span className="font-medium text-foreground">{currentStep.approver_name}</span>.
+            </p>
+          ) : null}
+        </section>
         <DialogFooter>
           {canEdit && payable.allocation_status === "pending_rule" ? (
             <Button onClick={() => applyMutation.mutate()} disabled={applyMutation.isPending}>
@@ -569,6 +886,16 @@ function AllocationDialog({
                 <RefreshCw className="mr-2 size-4" />
               )}
               Aplicar rateio
+            </Button>
+          ) : null}
+          {canEdit && payable.status === "scheduled" && payable.allocation_status === "complete" ? (
+            <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+              {submitMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 size-4" />
+              )}
+              Enviar para aprovação
             </Button>
           ) : null}
           <Button variant="outline" onClick={onClose}>
