@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   Building2,
+  Landmark,
   FilePlus2,
   Loader2,
   PackageSearch,
@@ -50,6 +51,7 @@ import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierPayables, type PayableContractOption } from "@/components/supplier-payables";
 import { FixedAllocationDialog } from "@/components/fixed-allocation-dialog";
+import { SupplierBankAccountsDialog } from "@/components/supplier-bank-accounts-dialog";
 
 type Company = { id: string; legal_name: string };
 type SupplierContract = {
@@ -169,6 +171,7 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
     supplier: Supplier;
     contract: SupplierContract;
   }>();
+  const [bankTarget, setBankTarget] = useState<Supplier>();
   const companies = useQuery({
     queryKey: ["payable-operating-companies"],
     queryFn: async () => {
@@ -457,6 +460,15 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
                               <Button
                                 size="icon"
                                 variant="ghost"
+                                aria-label={`Dados bancários de ${supplier.legal_name}`}
+                                title="Dados bancários"
+                                onClick={() => setBankTarget(supplier)}
+                              >
+                                <Landmark className="size-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 aria-label={`Editar ${supplier.legal_name}`}
                                 onClick={() => setEditing(supplier)}
                               >
@@ -502,6 +514,14 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
           contract={allocationTarget.contract}
           onClose={() => setAllocationTarget(undefined)}
           onSaved={refresh}
+        />
+      ) : null}
+      {bankTarget ? (
+        <SupplierBankAccountsDialog
+          supplierId={bankTarget.id}
+          supplierName={bankTarget.trade_name || bankTarget.legal_name}
+          canEdit={canEdit}
+          onClose={() => setBankTarget(undefined)}
         />
       ) : null}
     </section>

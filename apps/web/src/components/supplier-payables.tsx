@@ -48,6 +48,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-policies-dialog";
+import { SupplierPaymentSection } from "@/components/supplier-payment-section";
 
 export type PayableContractOption = {
   id: string;
@@ -64,6 +65,9 @@ type PayableStatus =
   "scheduled" | "awaiting_approval" | "approved" | "paid" | "overdue" | "cancelled";
 type Payable = {
   id: string;
+  tenant_id: string;
+  operating_company_id: string;
+  supplier_id: string;
   supplier_contract_id: string;
   document_number: string;
   description: string;
@@ -181,7 +185,7 @@ export function SupplierPayables({
       const { data, error } = await db
         .from("supplier_payables")
         .select(
-          "id,supplier_contract_id,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
+          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
         )
         .eq("operating_company_id", companyId)
         .is("deleted_at", null)
@@ -877,6 +881,7 @@ function AllocationDialog({
             </p>
           ) : null}
         </section>
+        <SupplierPaymentSection payable={payable} canEdit={canEdit} onChanged={onApplied} />
         <DialogFooter>
           {canEdit && payable.allocation_status === "pending_rule" ? (
             <Button onClick={() => applyMutation.mutate()} disabled={applyMutation.isPending}>
