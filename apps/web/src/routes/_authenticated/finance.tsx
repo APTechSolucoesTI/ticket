@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Clock3,
   Loader2,
+  PackageSearch,
   Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ import { getUserFacingError } from "@/lib/user-facing-error";
 import { MeasurementReceivables } from "@/components/measurement-receivables";
 import { InterBindingDialog } from "@/components/inter-binding-dialog";
 import { CollectionRulesDialog } from "@/components/collection-rules-dialog";
+import { PayableSuppliers } from "@/components/payable-suppliers";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -188,9 +190,18 @@ function FinancePage() {
     <div className="space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Financeiro"
-        subtitle="Controle o faturamento dos atendimentos avulsos, medições e ciclos recorrentes."
+        subtitle="Controle recebíveis, cobranças e compromissos recorrentes com fornecedores."
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                document.getElementById("payables-title")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <PackageSearch className="size-4" /> Contas a pagar
+            </Button>
             {access.edit ? (
               <Button variant="outline" className="gap-2" onClick={() => setCollectionOpen(true)}>
                 <BellRing className="size-4" /> Régua de cobrança
@@ -348,6 +359,8 @@ function FinancePage() {
       </Card>
 
       <MeasurementReceivables canEdit={access.edit} />
+
+      <PayableSuppliers canEdit={access.edit} />
 
       <ChargeDialog
         charge={editing}
