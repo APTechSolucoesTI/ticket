@@ -3,7 +3,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Building2, FilePlus2, Loader2, PackageSearch, Pencil, Plus, Search } from "lucide-react";
+import {
+  Building2,
+  FilePlus2,
+  Loader2,
+  PackageSearch,
+  Pencil,
+  Percent,
+  Plus,
+  Search,
+} from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -40,6 +49,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierPayables, type PayableContractOption } from "@/components/supplier-payables";
+import { FixedAllocationDialog } from "@/components/fixed-allocation-dialog";
 
 type Company = { id: string; legal_name: string };
 type SupplierContract = {
@@ -154,6 +164,10 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
   const [contractTarget, setContractTarget] = useState<{
     supplier: Supplier;
     contract?: SupplierContract;
+  }>();
+  const [allocationTarget, setAllocationTarget] = useState<{
+    supplier: Supplier;
+    contract: SupplierContract;
   }>();
   const companies = useQuery({
     queryKey: ["payable-operating-companies"],
@@ -381,16 +395,32 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
                             <div className="space-y-1">
                               {supplier.supplier_contracts.length ? (
                                 supplier.supplier_contracts.slice(0, 2).map((contract) => (
-                                  <button
+                                  <div
                                     key={contract.id}
-                                    className="block max-w-72 truncate text-left text-xs text-primary hover:underline"
-                                    onClick={() => setContractTarget({ supplier, contract })}
+                                    className="flex max-w-80 items-center gap-1"
                                   >
-                                    {contract.description} ·{" "}
-                                    {contract.billing_unit === "fixed"
-                                      ? money.format(contract.base_amount)
-                                      : `${money.format(contract.unit_price)}/un.`}
-                                  </button>
+                                    <button
+                                      className="min-w-0 flex-1 truncate text-left text-xs text-primary hover:underline"
+                                      onClick={() => setContractTarget({ supplier, contract })}
+                                    >
+                                      {contract.description} ·{" "}
+                                      {contract.billing_unit === "fixed"
+                                        ? money.format(contract.base_amount)
+                                        : `${money.format(contract.unit_price)}/un.`}
+                                    </button>
+                                    {canEdit && contract.billing_unit === "fixed" ? (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="size-7 shrink-0"
+                                        aria-label={`Configurar rateio de ${contract.description}`}
+                                        title="Configurar rateio fixo"
+                                        onClick={() => setAllocationTarget({ supplier, contract })}
+                                      >
+                                        <Percent className="size-3.5" />
+                                      </Button>
+                                    ) : null}
+                                  </div>
                                 ))
                               ) : (
                                 <span className="text-xs text-muted-foreground">
@@ -460,6 +490,17 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
           target={contractTarget}
           canEdit={canEdit}
           onClose={() => setContractTarget(undefined)}
+          onSaved={refresh}
+        />
+      ) : null}
+      {allocationTarget ? (
+        <FixedAllocationDialog
+          companyId={companyId}
+          supplierName={
+            allocationTarget.supplier.trade_name || allocationTarget.supplier.legal_name
+          }
+          contract={allocationTarget.contract}
+          onClose={() => setAllocationTarget(undefined)}
           onSaved={refresh}
         />
       ) : null}

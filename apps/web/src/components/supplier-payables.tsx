@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CalendarPlus, CircleDollarSign, Eye, Loader2, Search } from "lucide-react";
+import { CalendarPlus, CircleDollarSign, Eye, Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Badge } from "@/components/ui/badge";
@@ -67,9 +67,10 @@ type Allocation = {
   customer_contract_id: string;
   customer_name: string;
   contract_number: string;
-  metric: "active_users" | "devices";
+  metric: "active_users" | "devices" | null;
   quantity: number;
   unit_price: number;
+  percentage: number | null;
   amount: number;
 };
 
@@ -316,7 +317,14 @@ export function SupplierPayables({
         />
       ) : null}
       {selected ? (
-        <AllocationDialog payable={selected} onClose={() => setSelected(undefined)} />
+        <AllocationDialog
+          payable={selected}
+          canEdit={canEdit}
+          onClose={() => setSelected(undefined)}
+          onApplied={() =>
+            void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
+          }
+        />
       ) : null}
     </Card>
   );
@@ -445,14 +453,25 @@ function GenerateDialog({
   );
 }
 
-function AllocationDialog({ payable, onClose }: { payable: Payable; onClose: () => void }) {
+function AllocationDialog({
+  payable,
+  canEdit,
+  onClose,
+  onApplied,
+}: {
+  payable: Payable;
+  canEdit: boolean;
+  onClose: () => void;
+  onApplied: () => void;
+}) {
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["supplier-payable-allocations", payable.id],
     queryFn: async () => {
       const allocationsResult = await db
         .from("supplier_payable_allocations")
         .select(
-          "id,customer_contract_id,customer_name,contract_number,metric,quantity,unit_price,amount",
+          "id,customer_contract_id,customer_name,contract_number,metric,quantity,unit_price,percentage,amount",
         )
         .eq("supplier_payable_id", payable.id)
         .is("deleted_at", null)
@@ -460,6 +479,23 @@ function AllocationDialog({ payable, onClose }: { payable: Payable; onClose: () 
       if (allocationsResult.error) throw allocationsResult.error;
       return (allocationsResult.data ?? []) as Allocation[];
     },
+  });
+  const applyMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await db.rpc("apply_supplier_payable_allocation", {
+        p_supplier_payable_id: payable.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      toast.success("Rateio aplicado ao lançamento.");
+      await queryClient.invalidateQueries({
+        queryKey: ["supplier-payable-allocations", payable.id],
+      });
+      onApplied();
+      onClose();
+    },
+    onError: (error) => toast.error(getUserFacingError(error, "aplicar o rateio")),
   });
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -501,7 +537,7 @@ function AllocationDialog({ payable, onClose }: { payable: Payable; onClose: () 
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Contrato</TableHead>
-                  <TableHead>Quantidade</TableHead>
+                  <TableHead>Critério</TableHead>
                   <TableHead className="text-right">Custo rateado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -511,8 +547,9 @@ function AllocationDialog({ payable, onClose }: { payable: Payable; onClose: () 
                     <TableCell className="font-medium">{item.customer_name}</TableCell>
                     <TableCell>{item.contract_number}</TableCell>
                     <TableCell>
-                      {number.format(item.quantity)}{" "}
-                      {unitLabels[item.metric].toLocaleLowerCase("pt-BR")}
+                      {item.percentage !== null
+                        ? `${number.format(item.percentage)}%`
+                        : `${number.format(item.quantity)} ${unitLabels[item.metric!].toLocaleLowerCase("pt-BR")}`}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
                       {money.format(item.amount)}
@@ -524,6 +561,16 @@ function AllocationDialog({ payable, onClose }: { payable: Payable; onClose: () 
           </div>
         )}
         <DialogFooter>
+          {canEdit && payable.allocation_status === "pending_rule" ? (
+            <Button onClick={() => applyMutation.mutate()} disabled={applyMutation.isPending}>
+              {applyMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 size-4" />
+              )}
+              Aplicar rateio
+            </Button>
+          ) : null}
           <Button variant="outline" onClick={onClose}>
             Fechar
           </Button>
