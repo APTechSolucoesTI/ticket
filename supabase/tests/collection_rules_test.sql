@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public,apticket,pg_catalog;
-select plan(17);
+select plan(25);
 
 insert into apticket.tenants(id,name,slug) values
  ('f1000000-0000-0000-0000-000000000001','Collection A','collection-a'),
@@ -21,6 +21,9 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
 insert into apticket.companies(id,tenant_id,name) values
  ('f4000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','Customer A'),
  ('f4000000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','Customer B');
+insert into apticket.contacts(id,tenant_id,company_id,name,email,phone,is_active,can_open_tickets) values
+ ('f4100000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001','Billing A','billing-a@example.test','+55 (19) 99999-0001',true,true),
+ ('f4100000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f4000000-0000-0000-0000-000000000002','Billing B','billing-b@example.test','+55 (19) 99999-0002',true,true);
 insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value) values
  ('f5000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001','active','2026-01-01','2027-01-01','hours_package',100),
  ('f5000000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f4000000-0000-0000-0000-000000000002','active','2026-01-01','2027-01-01','hours_package',100);
@@ -53,11 +56,21 @@ select is(apticket.evaluate_collection_policy('f3000000-0000-0000-0000-000000000
 select is((select count(*) from apticket.financial_domain_events),1::bigint,'evento também é idempotente');
 select is((select count(*) from apticket.collection_actions where tenant_id='f1000000-0000-0000-0000-000000000002'),0::bigint,'processamento não atravessa tenant');
 select is((select count(*) from apticket.collection_actions where status='pending'),2::bigint,'ações aguardam processador externo');
+select is((select recipient_snapshot->>'email' from apticket.collection_actions where channel='email'),'billing-a@example.test','snapshot preserva e-mail do destinatário');
+select is((select recipient_snapshot->>'phone' from apticket.collection_actions where channel='whatsapp'),'+55 (19) 99999-0001','snapshot preserva telefone do destinatário');
 select throws_ok($$delete from apticket.collection_actions$$,'42501',null,'fila financeira não aceita exclusão física');
 select throws_ok($$select apticket.schedule_collection_policies('2026-03-15',10)$$,'42501',null,'usuário não executa rotina automática');
+select throws_ok($$select apticket_finance_private.claim_collection_actions(10)$$,'42501',null,'usuário não reivindica ações da fila');
 set local role service_role;
 select set_config('request.jwt.claim.role','service_role',true);
 select is(apticket.schedule_collection_policies('2026-03-15',10)->>'policies','1','rotina de serviço processa políticas ativas');
+create temporary table claimed_collection_actions(payload jsonb);
+insert into claimed_collection_actions select apticket_finance_private.claim_collection_actions(10);
+select is(jsonb_array_length((select payload from claimed_collection_actions)),2,'serviço reivindica lote de ações');
+select is((select count(*) from apticket.collection_actions where status='processing'),2::bigint,'lote fica em processamento');
+select is(apticket_finance_private.finish_collection_action((select id from apticket.collection_actions where channel='email'),true,'mail-1',null,true)->>'status','sent','confirma envio com sucesso');
+select is(apticket_finance_private.finish_collection_action((select id from apticket.collection_actions where channel='whatsapp'),false,null,'provider unavailable',false)->>'status','failed','registra falha terminal');
+select ok((select next_attempt_at is null from apticket.collection_actions where channel='whatsapp'),'falha não retentável não volta à fila');
 set local role anon;
 select throws_ok($$select apticket.get_collection_policy('f3000000-0000-0000-0000-000000000001')$$,'42501',null,'anônimo não consulta a régua');
 select * from finish();

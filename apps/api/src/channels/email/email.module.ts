@@ -22,6 +22,6 @@ import { EmailReplyService } from './email-reply.service';
     EmailSenderService,
     EmailReplyService,
   ],
-  exports: [EmailChannelService, EmailPollingService],
+  exports: [EmailChannelService, EmailPollingService, EmailSenderService],
 })
 export class EmailModule {}

@@ -158,8 +158,9 @@ export function CollectionRulesDialog({ onClose }: { onClose(): void }) {
               <Metric label="Suspensões sinalizadas" value={query.data?.pending_events ?? 0} />
             </div>
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-              Nesta etapa, o processamento cria uma fila auditável. Nenhuma mensagem é enviada e
-              nenhum contrato é suspenso diretamente.
+              Ao ativar, os lembretes por e-mail e WhatsApp serão enviados automaticamente a cada 15
+              minutos pelos canais configurados. SMS permanece bloqueado até a configuração de um
+              provedor. Nenhum contrato é suspenso diretamente.
             </div>
             <div className="space-y-2">
               <div className="flex items-end justify-between gap-3">

@@ -10,6 +10,7 @@ import { EmailModule } from './channels/email/email.module';
 import { WhatsappModule } from './channels/whatsapp/whatsapp.module';
 import { ChatModule } from './channels/chat/chat.module';
 import { InterModule } from './integrations/inter/inter.module';
+import { FinanceModule } from './finance/finance.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { InterModule } from './integrations/inter/inter.module';
     WhatsappModule,
     ChatModule,
     InterModule,
+    FinanceModule,
   ],
   controllers: [AppController],
 })

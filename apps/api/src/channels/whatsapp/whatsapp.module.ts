@@ -27,5 +27,6 @@ import { UazapiService } from './uazapi.service';
     WhatsappReplyService,
     UazapiService,
   ],
+  exports: [UazapiService],
 })
 export class WhatsappModule {}
