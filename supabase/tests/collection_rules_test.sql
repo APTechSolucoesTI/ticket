@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public,apticket,pg_catalog;
-select plan(25);
+select plan(40);
 
 insert into apticket.tenants(id,name,slug) values
  ('f1000000-0000-0000-0000-000000000001','Collection A','collection-a'),
@@ -71,6 +71,38 @@ select is((select count(*) from apticket.collection_actions where status='proces
 select is(apticket_finance_private.finish_collection_action((select id from apticket.collection_actions where channel='email'),true,'mail-1',null,true)->>'status','sent','confirma envio com sucesso');
 select is(apticket_finance_private.finish_collection_action((select id from apticket.collection_actions where channel='whatsapp'),false,null,'provider unavailable',false)->>'status','failed','registra falha terminal');
 select ok((select next_attempt_at is null from apticket.collection_actions where channel='whatsapp'),'falha não retentável não volta à fila');
+select is(apticket.process_contract_financial_events(10,'2026-03-15')->>'suspended_contracts','1','worker suspende contrato elegivel');
+select is((select status::text from apticket.contracts where id='f5000000-0000-0000-0000-000000000001'),'suspended','status operacional recebe a suspensao financeira');
+select is((select status from apticket.financial_domain_events where event_type='contract.suspended_for_delinquency' and source_id in (select id from apticket.contas_receber where contrato_id='f5000000-0000-0000-0000-000000000001')),'processed','evento de suspensao e concluido');
+select is((select count(*) from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000001' and status='active'),1::bigint,'bloqueio financeiro ativo fica registrado');
+select ok((select changed_contract_status from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000001'),'bloqueio registra que o status pertence ao fluxo financeiro');
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+select throws_ok($$select apticket.process_contract_financial_events(10,'2026-03-15')$$,'42501',null,'usuario autenticado nao executa transicao automatica');
+set local role service_role;
+select set_config('request.jwt.claim.role','service_role',true);
+update apticket.contas_receber set status_cobranca='recebido',valor_aberto=0
+ where contrato_id='f5000000-0000-0000-0000-000000000001';
+select is(apticket.process_contract_financial_events(10,'2026-03-15')->>'released_contracts','1','baixa libera suspensao pertencente ao financeiro');
+select is((select status::text from apticket.contracts where id='f5000000-0000-0000-0000-000000000001'),'active','contrato volta a ativo apos a baixa');
+select is((select status from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000001'),'released','bloqueio e encerrado');
+select ok((select restored_at is not null from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000001'),'restauracao do contrato e auditavel');
+select is((select count(*) from apticket.financial_domain_events where event_type='contract.financial_suspension_released' and aggregate_id='f5000000-0000-0000-0000-000000000001'),1::bigint,'liberacao publica evento de dominio');
+select is(apticket.process_contract_financial_events(10,'2026-03-15')->>'released_contracts','0','reprocessamento da baixa e idempotente');
+select set_config('apticket.financial_event_processing','off',true);
+update apticket.contracts set status='suspended' where id='f5000000-0000-0000-0000-000000000002';
+insert into apticket.financial_domain_events(tenant_id,operating_company_id,aggregate_type,aggregate_id,event_type,source_id,payload)
+select tenant_id,operating_company_id,'contract',contrato_id,'contract.suspended_for_delinquency',id,'{}'::jsonb
+ from apticket.contas_receber where contrato_id='f5000000-0000-0000-0000-000000000002';
+select is(apticket.process_contract_financial_events(10,'2026-03-15')->>'ignored_events','1','suspensao manual preexistente nao e assumida pelo financeiro');
+select is((select status from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000002'),'ignored','motivo financeiro ignorado fica registrado');
+update apticket.contas_receber set status_cobranca='recebido',valor_aberto=0
+ where contrato_id='f5000000-0000-0000-0000-000000000002';
+select is((with processed as (
+  select apticket.process_contract_financial_events(10,'2026-03-15')
+) select c.status::text from apticket.contracts c cross join processed
+  where c.id='f5000000-0000-0000-0000-000000000002'),'suspended','baixa nao remove suspensao manual');
 set local role anon;
 select throws_ok($$select apticket.get_collection_policy('f3000000-0000-0000-0000-000000000001')$$,'42501',null,'anônimo não consulta a régua');
 select * from finish();

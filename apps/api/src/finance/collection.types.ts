@@ -25,3 +25,10 @@ export interface CollectionAction {
 export interface CollectionJobData {
   action: CollectionAction;
 }
+
+export interface ContractFinancialEventResult {
+  suspended_contracts: number;
+  released_contracts: number;
+  ignored_events: number;
+  failed_events: number;
+}

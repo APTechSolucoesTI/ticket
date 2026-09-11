@@ -44,6 +44,7 @@ describe('CollectionDispatchService', () => {
     .mockResolvedValue({ data: tenant, error: null });
   const supabase = {
     client: {
+      rpc: jest.fn(),
       from: jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({ maybeSingle }),
@@ -110,5 +111,25 @@ describe('CollectionDispatchService', () => {
     ).rejects.toMatchObject<CollectionDispatchError>({
       retryable: false,
     });
+  });
+
+  it('processa suspensões financeiras pelo RPC de serviço', async () => {
+    supabase.client.rpc.mockResolvedValueOnce({
+      data: {
+        suspended_contracts: 1,
+        released_contracts: 0,
+        ignored_events: 0,
+        failed_events: 0,
+      },
+      error: null,
+    });
+
+    await expect(service.processContractEvents()).resolves.toEqual(
+      expect.objectContaining({ suspended_contracts: 1 }),
+    );
+    expect(supabase.client.rpc).toHaveBeenCalledWith(
+      'process_contract_financial_events',
+      expect.objectContaining({ p_limit: 100 }),
+    );
   });
 });

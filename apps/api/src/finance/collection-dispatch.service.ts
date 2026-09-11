@@ -6,7 +6,10 @@ import { SecretsService } from '../crypto/secrets.service';
 import { RedisService } from '../queue/redis.service';
 import { EmailSenderService } from '../channels/email/email-sender.service';
 import { UazapiService } from '../channels/whatsapp/uazapi.service';
-import type { CollectionAction } from './collection.types';
+import type {
+  CollectionAction,
+  ContractFinancialEventResult,
+} from './collection.types';
 
 const actionSchema = z.object({
   id: z.string().uuid(),
@@ -28,6 +31,13 @@ const actionSchema = z.object({
     amount: z.coerce.number().nullable().optional(),
     due_date: z.string().nullable().optional(),
   }),
+});
+
+const contractFinancialEventResultSchema = z.object({
+  suspended_contracts: z.number().int().nonnegative(),
+  released_contracts: z.number().int().nonnegative(),
+  ignored_events: z.number().int().nonnegative(),
+  failed_events: z.number().int().nonnegative(),
 });
 
 export class CollectionDispatchError extends Error {
@@ -81,6 +91,19 @@ export class CollectionDispatchService {
       'Provedor SMS ainda não configurado para esta tenant.',
       false,
     );
+  }
+
+  async processContractEvents(): Promise<ContractFinancialEventResult> {
+    const today = new Date().toISOString().slice(0, 10);
+    const response = await this.db.rpc('process_contract_financial_events', {
+      p_limit: 100,
+      p_as_of: today,
+    });
+    if (response.error)
+      throw new Error(
+        `contract_financial_events_failed:${response.error.code}`,
+      );
+    return contractFinancialEventResultSchema.parse(response.data);
   }
 
   async finish(

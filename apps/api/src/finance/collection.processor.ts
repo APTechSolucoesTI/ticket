@@ -23,6 +23,23 @@ export class CollectionProcessor extends WorkerHost {
   async process(job: Job<CollectionJobData>): Promise<void> {
     if (job.name === 'schedule') {
       const actions = await this.dispatchService.prepareActions();
+      try {
+        const result = await this.dispatchService.processContractEvents();
+        if (
+          result.suspended_contracts ||
+          result.released_contracts ||
+          result.ignored_events ||
+          result.failed_events
+        ) {
+          this.logger.log(
+            `contratos suspensos=${result.suspended_contracts} liberados=${result.released_contracts} ignorados=${result.ignored_events} falhas=${result.failed_events}`,
+          );
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Falha desconhecida.';
+        this.logger.error(`falha ao processar eventos financeiros: ${message}`);
+      }
       for (const action of actions) {
         await this.queue.add(
           'dispatch',
