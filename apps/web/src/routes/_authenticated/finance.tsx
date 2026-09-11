@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Banknote,
+  BellRing,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
@@ -48,6 +49,7 @@ import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { MeasurementReceivables } from "@/components/measurement-receivables";
 import { InterBindingDialog } from "@/components/inter-binding-dialog";
+import { CollectionRulesDialog } from "@/components/collection-rules-dialog";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -138,6 +140,7 @@ function FinancePage() {
   const [editing, setEditing] = useState<Charge | null>(null);
   const [priceOpen, setPriceOpen] = useState(false);
   const [operatorOpen, setOperatorOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
 
   const chargesQuery = useQuery({
     queryKey: ["avulso-billing"],
@@ -188,6 +191,11 @@ function FinancePage() {
         subtitle="Controle o faturamento dos atendimentos avulsos, medições e ciclos recorrentes."
         actions={
           <div className="flex flex-wrap gap-2">
+            {access.edit ? (
+              <Button variant="outline" className="gap-2" onClick={() => setCollectionOpen(true)}>
+                <BellRing className="size-4" /> Régua de cobrança
+              </Button>
+            ) : null}
             <Button variant="outline" onClick={() => setOperatorOpen(true)}>
               Empresa operadora
             </Button>
@@ -201,6 +209,7 @@ function FinancePage() {
       />
 
       {operatorOpen && <InterBindingDialog onClose={() => setOperatorOpen(false)} />}
+      {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>
