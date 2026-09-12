@@ -5,6 +5,7 @@ import {
   Banknote,
   BellRing,
   CalendarClock,
+  CalendarCheck2,
   ChartNoAxesCombined,
   CheckCircle2,
   CircleDollarSign,
@@ -58,6 +59,7 @@ import { PayableSuppliers } from "@/components/payable-suppliers";
 import { CashFlowDashboard } from "@/components/cash-flow-dashboard";
 import { FinancialBudgetDashboard } from "@/components/financial-budget-dashboard";
 import { FinancialManagementStatement } from "@/components/financial-management-statement";
+import { FinancialPeriodClosure } from "@/components/financial-period-closure";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -232,6 +234,17 @@ function FinancePage() {
               variant="outline"
               className="gap-2"
               onClick={() =>
+                document
+                  .getElementById("financial-period-closure")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <CalendarCheck2 className="size-4" /> Fechamento
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
                 document.getElementById("payables-title")?.scrollIntoView({ behavior: "smooth" })
               }
             >
@@ -259,6 +272,7 @@ function FinancePage() {
 
       <CashFlowDashboard canEdit={access.edit} />
       <FinancialBudgetDashboard canEdit={access.edit} />
+      <FinancialPeriodClosure canEdit={access.edit} />
       <FinancialManagementStatement />
 
       <div>
