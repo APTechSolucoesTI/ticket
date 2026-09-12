@@ -1,4 +1,6 @@
 begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path=extensions,public,apticket,pg_catalog;
 select plan(11);
 
 insert into apticket.tenants (id, name, slug)

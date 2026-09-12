@@ -123,6 +123,6 @@ select ok(not has_function_privilege('authenticated','apticket_finance_private.i
 select ok(not has_function_privilege('authenticated','apticket_finance_private.normalize_inter_phone(text)','execute'),'phone helper remains private');
 select is(apticket_finance_private.normalize_inter_phone('+1 212 555-0123'),array[null::text,null::text],'explicit foreign country code is rejected');
 select throws_ok($$delete from apticket.inter_payer_snapshots$$,'23514',null,'physical history deletion blocked');
-select is((select count(*) from apticket.inter_charge_requests where status<>'blocked_homologation'),0::bigint,'requests remain blocked');
+select is((select count(*) from apticket.inter_charge_requests where tenant_id='f8100000-0000-0000-0000-000000000001' and status<>'blocked_homologation'),0::bigint,'requests remain blocked');
 select * from finish();
 rollback;

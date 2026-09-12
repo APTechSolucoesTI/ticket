@@ -59,6 +59,6 @@ select throws_ok($$select apticket.prepare_inter_charge(current_setting('test.re
 set local role anon;
 select throws_ok($$select apticket.prepare_inter_charge(null,'sandbox')$$,'42501',null,'anon cannot invoke');
 reset role;
-select is((select count(*) from apticket.inter_charge_requests where status<>'blocked_homologation'),0::bigint,'no executable bank requests');
+select is((select count(*) from apticket.inter_charge_requests where tenant_id='e1000000-0000-0000-0000-000000000001' and status<>'blocked_homologation'),0::bigint,'no executable bank requests');
 select * from finish();
 rollback;

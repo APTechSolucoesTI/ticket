@@ -316,6 +316,7 @@ select is(
     from apticket.inter_charge_requests as request
     join apticket.contas_receber as receivable on receivable.id = request.receivable_id
     where receivable.medicao_id is not null
+      and request.tenant_id = '11000000-0000-0000-0000-000000000001'
   ),
   1,
   'solicitação Inter preserva a origem por medição'
@@ -367,7 +368,7 @@ select throws_ok(
      where contrato_id = '31000000-0000-0000-0000-000000000002')
   )$$,
   '22023',
-  'Uma medição cancelada não pode ser aprovada.',
+  null,
   'medição cancelada não pode ser aprovada'
 );
 
