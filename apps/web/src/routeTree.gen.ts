@@ -37,6 +37,14 @@ import { Route as KbIndexRouteImport } from './routes/kb.index'
 import { Route as KbSlugRouteImport } from './routes/kb.$slug'
 import { Route as MeasurementReportTokenRouteImport } from './routes/measurement-report.$token'
 import { Route as ReportTokenRouteImport } from './routes/report.$token'
+import { Route as AuthenticatedFinanceIndexRouteImport } from './routes/_authenticated/finance.index'
+import { Route as AuthenticatedFinanceAnalyticsRouteImport } from './routes/_authenticated/finance.analytics'
+import { Route as AuthenticatedFinanceBankingRouteImport } from './routes/_authenticated/finance.banking'
+import { Route as AuthenticatedFinanceCashFlowRouteImport } from './routes/_authenticated/finance.cash-flow'
+import { Route as AuthenticatedFinanceClosingRouteImport } from './routes/_authenticated/finance.closing'
+import { Route as AuthenticatedFinancePayablesRouteImport } from './routes/_authenticated/finance.payables'
+import { Route as AuthenticatedFinancePlanningRouteImport } from './routes/_authenticated/finance.planning'
+import { Route as AuthenticatedFinanceReceivablesRouteImport } from './routes/_authenticated/finance.receivables'
 import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticated/kb.admin'
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
@@ -189,6 +197,54 @@ const ReportTokenRoute = ReportTokenRouteImport.update({
   path: '/report/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedFinanceIndexRoute =
+  AuthenticatedFinanceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinanceAnalyticsRoute =
+  AuthenticatedFinanceAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinanceBankingRoute =
+  AuthenticatedFinanceBankingRouteImport.update({
+    id: '/banking',
+    path: '/banking',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinanceCashFlowRoute =
+  AuthenticatedFinanceCashFlowRouteImport.update({
+    id: '/cash-flow',
+    path: '/cash-flow',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinanceClosingRoute =
+  AuthenticatedFinanceClosingRouteImport.update({
+    id: '/closing',
+    path: '/closing',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinancePayablesRoute =
+  AuthenticatedFinancePayablesRouteImport.update({
+    id: '/payables',
+    path: '/payables',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinancePlanningRoute =
+  AuthenticatedFinancePlanningRouteImport.update({
+    id: '/planning',
+    path: '/planning',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedFinanceReceivablesRoute =
+  AuthenticatedFinanceReceivablesRouteImport.update({
+    id: '/receivables',
+    path: '/receivables',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
 const AuthenticatedKbAdminRoute = AuthenticatedKbAdminRouteImport.update({
   id: '/kb/admin',
   path: '/kb/admin',
@@ -257,7 +313,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/email-pending': typeof AuthenticatedEmailPendingRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
-  '/finance': typeof AuthenticatedFinanceRoute
+  '/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -273,9 +329,17 @@ export interface FileRoutesByFullPath {
   '/report/$token': typeof ReportTokenRoute
   '/demo/': typeof DemoIndexRoute
   '/kb/': typeof KbIndexRoute
+  '/finance/analytics': typeof AuthenticatedFinanceAnalyticsRoute
+  '/finance/banking': typeof AuthenticatedFinanceBankingRoute
+  '/finance/cash-flow': typeof AuthenticatedFinanceCashFlowRoute
+  '/finance/closing': typeof AuthenticatedFinanceClosingRoute
+  '/finance/payables': typeof AuthenticatedFinancePayablesRoute
+  '/finance/planning': typeof AuthenticatedFinancePlanningRoute
+  '/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
+  '/finance/': typeof AuthenticatedFinanceIndexRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
@@ -294,7 +358,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/email-pending': typeof AuthenticatedEmailPendingRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
-  '/finance': typeof AuthenticatedFinanceRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -310,9 +373,17 @@ export interface FileRoutesByTo {
   '/report/$token': typeof ReportTokenRoute
   '/demo': typeof DemoIndexRoute
   '/kb': typeof KbIndexRoute
+  '/finance/analytics': typeof AuthenticatedFinanceAnalyticsRoute
+  '/finance/banking': typeof AuthenticatedFinanceBankingRoute
+  '/finance/cash-flow': typeof AuthenticatedFinanceCashFlowRoute
+  '/finance/closing': typeof AuthenticatedFinanceClosingRoute
+  '/finance/payables': typeof AuthenticatedFinancePayablesRoute
+  '/finance/planning': typeof AuthenticatedFinancePlanningRoute
+  '/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
+  '/finance': typeof AuthenticatedFinanceIndexRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
@@ -335,7 +406,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/email-pending': typeof AuthenticatedEmailPendingRoute
   '/_authenticated/equipments': typeof AuthenticatedEquipmentsRoute
-  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -351,9 +422,17 @@ export interface FileRoutesById {
   '/report/$token': typeof ReportTokenRoute
   '/demo/': typeof DemoIndexRoute
   '/kb/': typeof KbIndexRoute
+  '/_authenticated/finance/analytics': typeof AuthenticatedFinanceAnalyticsRoute
+  '/_authenticated/finance/banking': typeof AuthenticatedFinanceBankingRoute
+  '/_authenticated/finance/cash-flow': typeof AuthenticatedFinanceCashFlowRoute
+  '/_authenticated/finance/closing': typeof AuthenticatedFinanceClosingRoute
+  '/_authenticated/finance/payables': typeof AuthenticatedFinancePayablesRoute
+  '/_authenticated/finance/planning': typeof AuthenticatedFinancePlanningRoute
+  '/_authenticated/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
   '/_authenticated/kb/admin': typeof AuthenticatedKbAdminRoute
   '/_authenticated/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
+  '/_authenticated/finance/': typeof AuthenticatedFinanceIndexRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
@@ -392,9 +471,17 @@ export interface FileRouteTypes {
     | '/report/$token'
     | '/demo/'
     | '/kb/'
+    | '/finance/analytics'
+    | '/finance/banking'
+    | '/finance/cash-flow'
+    | '/finance/closing'
+    | '/finance/payables'
+    | '/finance/planning'
+    | '/finance/receivables'
     | '/kb/admin'
     | '/tickets/$id'
     | '/demo/Tickets/$id'
+    | '/finance/'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
@@ -413,7 +500,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/email-pending'
     | '/equipments'
-    | '/finance'
     | '/reports'
     | '/settings'
     | '/tickets'
@@ -429,9 +515,17 @@ export interface FileRouteTypes {
     | '/report/$token'
     | '/demo'
     | '/kb'
+    | '/finance/analytics'
+    | '/finance/banking'
+    | '/finance/cash-flow'
+    | '/finance/closing'
+    | '/finance/payables'
+    | '/finance/planning'
+    | '/finance/receivables'
     | '/kb/admin'
     | '/tickets/$id'
     | '/demo/Tickets/$id'
+    | '/finance'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
@@ -469,9 +563,17 @@ export interface FileRouteTypes {
     | '/report/$token'
     | '/demo/'
     | '/kb/'
+    | '/_authenticated/finance/analytics'
+    | '/_authenticated/finance/banking'
+    | '/_authenticated/finance/cash-flow'
+    | '/_authenticated/finance/closing'
+    | '/_authenticated/finance/payables'
+    | '/_authenticated/finance/planning'
+    | '/_authenticated/finance/receivables'
     | '/_authenticated/kb/admin'
     | '/_authenticated/tickets/$id'
     | '/demo/Tickets/$id'
+    | '/_authenticated/finance/'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
@@ -699,6 +801,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/finance/': {
+      id: '/_authenticated/finance/'
+      path: '/'
+      fullPath: '/finance/'
+      preLoaderRoute: typeof AuthenticatedFinanceIndexRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/analytics': {
+      id: '/_authenticated/finance/analytics'
+      path: '/analytics'
+      fullPath: '/finance/analytics'
+      preLoaderRoute: typeof AuthenticatedFinanceAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/banking': {
+      id: '/_authenticated/finance/banking'
+      path: '/banking'
+      fullPath: '/finance/banking'
+      preLoaderRoute: typeof AuthenticatedFinanceBankingRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/cash-flow': {
+      id: '/_authenticated/finance/cash-flow'
+      path: '/cash-flow'
+      fullPath: '/finance/cash-flow'
+      preLoaderRoute: typeof AuthenticatedFinanceCashFlowRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/closing': {
+      id: '/_authenticated/finance/closing'
+      path: '/closing'
+      fullPath: '/finance/closing'
+      preLoaderRoute: typeof AuthenticatedFinanceClosingRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/payables': {
+      id: '/_authenticated/finance/payables'
+      path: '/payables'
+      fullPath: '/finance/payables'
+      preLoaderRoute: typeof AuthenticatedFinancePayablesRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/planning': {
+      id: '/_authenticated/finance/planning'
+      path: '/planning'
+      fullPath: '/finance/planning'
+      preLoaderRoute: typeof AuthenticatedFinancePlanningRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/finance/receivables': {
+      id: '/_authenticated/finance/receivables'
+      path: '/receivables'
+      fullPath: '/finance/receivables'
+      preLoaderRoute: typeof AuthenticatedFinanceReceivablesRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
     '/_authenticated/kb/admin': {
       id: '/_authenticated/kb/admin'
       path: '/kb/admin'
@@ -772,6 +930,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedFinanceRouteChildren {
+  AuthenticatedFinanceAnalyticsRoute: typeof AuthenticatedFinanceAnalyticsRoute
+  AuthenticatedFinanceBankingRoute: typeof AuthenticatedFinanceBankingRoute
+  AuthenticatedFinanceCashFlowRoute: typeof AuthenticatedFinanceCashFlowRoute
+  AuthenticatedFinanceClosingRoute: typeof AuthenticatedFinanceClosingRoute
+  AuthenticatedFinancePayablesRoute: typeof AuthenticatedFinancePayablesRoute
+  AuthenticatedFinancePlanningRoute: typeof AuthenticatedFinancePlanningRoute
+  AuthenticatedFinanceReceivablesRoute: typeof AuthenticatedFinanceReceivablesRoute
+  AuthenticatedFinanceIndexRoute: typeof AuthenticatedFinanceIndexRoute
+}
+
+const AuthenticatedFinanceRouteChildren: AuthenticatedFinanceRouteChildren = {
+  AuthenticatedFinanceAnalyticsRoute: AuthenticatedFinanceAnalyticsRoute,
+  AuthenticatedFinanceBankingRoute: AuthenticatedFinanceBankingRoute,
+  AuthenticatedFinanceCashFlowRoute: AuthenticatedFinanceCashFlowRoute,
+  AuthenticatedFinanceClosingRoute: AuthenticatedFinanceClosingRoute,
+  AuthenticatedFinancePayablesRoute: AuthenticatedFinancePayablesRoute,
+  AuthenticatedFinancePlanningRoute: AuthenticatedFinancePlanningRoute,
+  AuthenticatedFinanceReceivablesRoute: AuthenticatedFinanceReceivablesRoute,
+  AuthenticatedFinanceIndexRoute: AuthenticatedFinanceIndexRoute,
+}
+
+const AuthenticatedFinanceRouteWithChildren =
+  AuthenticatedFinanceRoute._addFileChildren(AuthenticatedFinanceRouteChildren)
+
 interface AuthenticatedTicketsRouteChildren {
   AuthenticatedTicketsIdRoute: typeof AuthenticatedTicketsIdRoute
 }
@@ -790,7 +973,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmailPendingRoute: typeof AuthenticatedEmailPendingRoute
   AuthenticatedEquipmentsRoute: typeof AuthenticatedEquipmentsRoute
-  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRouteWithChildren
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTicketsRoute: typeof AuthenticatedTicketsRouteWithChildren
@@ -805,7 +988,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmailPendingRoute: AuthenticatedEmailPendingRoute,
   AuthenticatedEquipmentsRoute: AuthenticatedEquipmentsRoute,
-  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRouteWithChildren,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTicketsRoute: AuthenticatedTicketsRouteWithChildren,

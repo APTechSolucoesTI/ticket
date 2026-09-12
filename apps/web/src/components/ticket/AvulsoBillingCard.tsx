@@ -97,7 +97,7 @@ export function AvulsoBillingCard({ ticketId }: { ticketId: string }) {
             </div>
             {finance.view && (
               <Button asChild size="sm" variant="outline" className="h-7 w-full">
-                <Link to="/finance">Abrir no financeiro</Link>
+                <Link to="/finance/receivables">Abrir no financeiro</Link>
               </Button>
             )}
           </>

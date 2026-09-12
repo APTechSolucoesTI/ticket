@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   BarChart3,
+  BanknoteArrowDown,
   BookOpen,
   BriefcaseBusiness,
   Building2,
@@ -11,6 +12,7 @@ import {
   Headset,
   Inbox,
   LayoutDashboard,
+  Landmark,
   Mail,
   Menu,
   MessageCircle,
@@ -19,7 +21,9 @@ import {
   PanelLeftOpen,
   Settings,
   ShieldCheck,
+  Target,
   Users,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,6 +45,7 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   module: string | null;
+  children?: Array<{ to: string; label: string; icon: LucideIcon }>;
 };
 
 type NavSection = {
@@ -92,7 +97,21 @@ const NAV_SECTIONS: NavSection[] = [
         module: "base_conhecimento",
       },
       { to: "/reports", label: "Relatórios", icon: BarChart3, module: "relatorios" },
-      { to: "/finance", label: "Financeiro", icon: CircleDollarSign, module: "financeiro" },
+      {
+        to: "/finance",
+        label: "Financeiro",
+        icon: CircleDollarSign,
+        module: "financeiro",
+        children: [
+          { to: "/finance/receivables", label: "Contas a receber", icon: BanknoteArrowDown },
+          { to: "/finance/payables", label: "Contas a pagar", icon: CircleDollarSign },
+          { to: "/finance/banking", label: "Banco e conciliação", icon: Landmark },
+          { to: "/finance/cash-flow", label: "Fluxo de caixa", icon: WalletCards },
+          { to: "/finance/planning", label: "Planejamento", icon: Target },
+          { to: "/finance/analytics", label: "Resultados", icon: BarChart3 },
+          { to: "/finance/closing", label: "Fechamento", icon: FileText },
+        ],
+      },
     ],
   },
   {
@@ -300,12 +319,40 @@ function NavItems({
             {!collapsed && <span className="truncate">{item.label}</span>}
           </Link>
         );
-        return closeOnNavigate ? (
-          <SheetClose key={item.to} asChild>
-            {link}
-          </SheetClose>
-        ) : (
-          <div key={item.to}>{link}</div>
+        return (
+          <div key={item.to}>
+            {closeOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link}
+            {!collapsed && (active || closeOnNavigate) && item.children?.length ? (
+              <div className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
+                {item.children.map((child) => {
+                  const ChildIcon = child.icon;
+                  const childActive = pathname === child.to || pathname.startsWith(`${child.to}/`);
+                  const childLink = (
+                    <Link
+                      to={child.to}
+                      aria-current={childActive ? "page" : undefined}
+                      className={cn(
+                        "flex min-h-8 items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                        childActive
+                          ? "bg-primary/10 font-semibold text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <ChildIcon className="size-3.5 shrink-0" />
+                      <span>{child.label}</span>
+                    </Link>
+                  );
+                  return closeOnNavigate ? (
+                    <SheetClose key={child.to} asChild>
+                      {childLink}
+                    </SheetClose>
+                  ) : (
+                    <div key={child.to}>{childLink}</div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         );
       })}
     </div>
