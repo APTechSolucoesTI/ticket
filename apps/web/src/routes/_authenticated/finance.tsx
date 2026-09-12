@@ -5,6 +5,7 @@ import {
   Banknote,
   BellRing,
   CalendarClock,
+  ChartNoAxesCombined,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
@@ -56,6 +57,7 @@ import { CollectionRulesDialog } from "@/components/collection-rules-dialog";
 import { PayableSuppliers } from "@/components/payable-suppliers";
 import { CashFlowDashboard } from "@/components/cash-flow-dashboard";
 import { FinancialBudgetDashboard } from "@/components/financial-budget-dashboard";
+import { FinancialManagementStatement } from "@/components/financial-management-statement";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -219,6 +221,17 @@ function FinancePage() {
               variant="outline"
               className="gap-2"
               onClick={() =>
+                document
+                  .getElementById("financial-statement")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <ChartNoAxesCombined className="size-4" /> Resultado
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
                 document.getElementById("payables-title")?.scrollIntoView({ behavior: "smooth" })
               }
             >
@@ -246,6 +259,7 @@ function FinancePage() {
 
       <CashFlowDashboard canEdit={access.edit} />
       <FinancialBudgetDashboard canEdit={access.edit} />
+      <FinancialManagementStatement />
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>

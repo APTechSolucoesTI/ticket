@@ -129,7 +129,10 @@ export function FinancialBudgetDialog({
     },
     onSuccess: async () => {
       toast.success(entry ? "Orçamento revisado." : "Item incluído no orçamento.");
-      await queryClient.invalidateQueries({ queryKey: ["financial-budget"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-statement"] }),
+      ]);
       onClose();
     },
     onError: (error) => toast.error(getUserFacingError(error, "salvar o orçamento")),
@@ -144,7 +147,10 @@ export function FinancialBudgetDialog({
     },
     onSuccess: async () => {
       toast.success("Item removido do orçamento vigente.");
-      await queryClient.invalidateQueries({ queryKey: ["financial-budget"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-statement"] }),
+      ]);
       onClose();
     },
     onError: (error) => toast.error(getUserFacingError(error, "remover o item do orçamento")),

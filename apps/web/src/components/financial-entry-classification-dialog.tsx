@@ -104,6 +104,7 @@ export function FinancialEntryClassificationDialog({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-statement"] }),
       ]);
       onSaved();
     },
@@ -122,6 +123,7 @@ export function FinancialEntryClassificationDialog({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-statement"] }),
       ]);
       onSaved();
     },
