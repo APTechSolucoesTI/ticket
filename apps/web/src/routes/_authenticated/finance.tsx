@@ -12,6 +12,7 @@ import {
   Landmark,
   PackageSearch,
   Settings2,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/empty-stub";
@@ -54,6 +55,7 @@ import { InterBindingDialog } from "@/components/inter-binding-dialog";
 import { CollectionRulesDialog } from "@/components/collection-rules-dialog";
 import { PayableSuppliers } from "@/components/payable-suppliers";
 import { CashFlowDashboard } from "@/components/cash-flow-dashboard";
+import { FinancialBudgetDashboard } from "@/components/financial-budget-dashboard";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -208,6 +210,15 @@ function FinancePage() {
               variant="outline"
               className="gap-2"
               onClick={() =>
+                document.getElementById("financial-budget")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <Target className="size-4" /> Orçamento
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
                 document.getElementById("payables-title")?.scrollIntoView({ behavior: "smooth" })
               }
             >
@@ -234,6 +245,7 @@ function FinancePage() {
       {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
 
       <CashFlowDashboard canEdit={access.edit} />
+      <FinancialBudgetDashboard canEdit={access.edit} />
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>

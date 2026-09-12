@@ -101,7 +101,10 @@ export function FinancialEntryClassificationDialog({
     },
     onSuccess: async () => {
       toast.success("Movimento classificado.");
-      await queryClient.invalidateQueries({ queryKey: ["cash-flow"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
+      ]);
       onSaved();
     },
     onError: (error) => toast.error(getUserFacingError(error, "classificar o movimento")),
@@ -116,7 +119,10 @@ export function FinancialEntryClassificationDialog({
     },
     onSuccess: async () => {
       toast.success("Classificação removida.");
-      await queryClient.invalidateQueries({ queryKey: ["cash-flow"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
+      ]);
       onSaved();
     },
     onError: (error) => toast.error(getUserFacingError(error, "remover a classificação")),
