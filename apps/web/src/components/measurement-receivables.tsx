@@ -40,6 +40,7 @@ import { InterChargeDialog } from "@/components/inter-charge-dialog";
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
 type Receivable = Tables<"contas_receber"> & {
   billing_cycle_id: string | null;
+  operating_company_id: string | null;
   medicoes_contrato: { report_token: string } | null;
 };
 

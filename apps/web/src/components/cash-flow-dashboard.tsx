@@ -131,18 +131,15 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
     },
   });
   useEffect(() => {
-    if (!companyId && companies.data?.[0]) setCompanyId(companies.data[0].id);
+    if (!companyId && companies.data?.[0]) setCompanyId("all");
   }, [companies.data, companyId]);
   const query = useQuery({
     queryKey: ["cash-flow", companyId],
     enabled: Boolean(companyId),
     queryFn: async () => {
-      const { data, error } = await db
-        .from("cash_flow_entries")
-        .select("*")
-        .eq("operating_company_id", companyId)
-        .order("planned_date")
-        .limit(5000);
+      let request = db.from("cash_flow_entries").select("*").order("planned_date").limit(5000);
+      if (companyId !== "all") request = request.eq("operating_company_id", companyId);
+      const { data, error } = await request;
       if (error) throw error;
       return (data ?? []) as CashEntry[];
     },
@@ -267,6 +264,7 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
               <SelectValue placeholder="Empresa operadora" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Todas as empresas permitidas</SelectItem>
               {companies.data?.map((company) => (
                 <SelectItem key={company.id} value={company.id}>
                   {company.legal_name}
@@ -280,7 +278,12 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}
           />
-          <Button variant="outline" className="gap-2" onClick={() => setDimensionsOpen(true)}>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={companyId === "all"}
+            onClick={() => setDimensionsOpen(true)}
+          >
             <Settings2 className="size-4" />
             Classificações
           </Button>
@@ -508,7 +511,16 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
                             {item.description}
                           </p>
                         </TableCell>
-                        <TableCell>{item.counterparty_name}</TableCell>
+                        <TableCell>
+                          {item.counterparty_name}
+                          {companyId === "all" ? (
+                            <p className="text-xs text-muted-foreground">
+                              {companies.data?.find(
+                                (company) => company.id === item.operating_company_id,
+                              )?.legal_name ?? "Empresa operadora"}
+                            </p>
+                          ) : null}
+                        </TableCell>
                         <TableCell>
                           <CashStatusBadge status={item.cash_status} />
                           {item.reconciliation_status === "difference" ? (

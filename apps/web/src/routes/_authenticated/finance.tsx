@@ -61,6 +61,7 @@ import { FinancialBudgetDashboard } from "@/components/financial-budget-dashboar
 import { FinancialManagementStatement } from "@/components/financial-management-statement";
 import { FinancialPeriodClosure } from "@/components/financial-period-closure";
 import { BankReconciliationDashboard } from "@/components/bank-reconciliation-dashboard";
+import { FinancialContractAnalytics } from "@/components/financial-contract-analytics";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -207,6 +208,17 @@ function FinancePage() {
               className="gap-2"
               onClick={() =>
                 document
+                  .getElementById("contract-analytics")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <ChartNoAxesCombined className="size-4" /> Rentabilidade
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                document
                   .getElementById("bank-reconciliation")
                   ?.scrollIntoView({ behavior: "smooth" })
               }
@@ -283,6 +295,7 @@ function FinancePage() {
       {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
 
       <BankReconciliationDashboard canEdit={access.edit} />
+      <FinancialContractAnalytics />
       <CashFlowDashboard canEdit={access.edit} />
       <FinancialBudgetDashboard canEdit={access.edit} />
       <FinancialPeriodClosure canEdit={access.edit} />
