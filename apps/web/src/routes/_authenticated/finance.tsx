@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Clock3,
   Loader2,
+  Landmark,
   PackageSearch,
   Settings2,
 } from "lucide-react";
@@ -52,6 +53,7 @@ import { MeasurementReceivables } from "@/components/measurement-receivables";
 import { InterBindingDialog } from "@/components/inter-binding-dialog";
 import { CollectionRulesDialog } from "@/components/collection-rules-dialog";
 import { PayableSuppliers } from "@/components/payable-suppliers";
+import { CashFlowDashboard } from "@/components/cash-flow-dashboard";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -197,6 +199,15 @@ function FinancePage() {
               variant="outline"
               className="gap-2"
               onClick={() =>
+                document.getElementById("cash-flow")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <Landmark className="size-4" /> Fluxo de caixa
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
                 document.getElementById("payables-title")?.scrollIntoView({ behavior: "smooth" })
               }
             >
@@ -221,6 +232,8 @@ function FinancePage() {
 
       {operatorOpen && <InterBindingDialog onClose={() => setOperatorOpen(false)} />}
       {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
+
+      <CashFlowDashboard />
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>
