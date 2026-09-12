@@ -1,7 +1,16 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AlertTriangle, ChartNoAxesCombined, CircleDollarSign, Percent, Scale } from "lucide-react";
+import {
+  AlertTriangle,
+  ChartNoAxesCombined,
+  CircleDollarSign,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  Percent,
+  Scale,
+} from "lucide-react";
 import {
   Bar,
   CartesianGrid,
@@ -13,7 +22,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -32,6 +43,12 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  exportFinancialStatementPdf,
+  exportFinancialStatementXlsx,
+  type FinancialStatementExportContext,
+  type FinancialStatementExportRow,
+} from "@/lib/financial-statement-export";
 
 type Company = { id: string; legal_name: string };
 type StatementEntry = {
@@ -61,7 +78,6 @@ type DetailRow = {
   accumulated: number;
   budget: number;
 };
-
 const db = supabase as unknown as SupabaseClient;
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const compactMoney = new Intl.NumberFormat("pt-BR", {
@@ -78,6 +94,7 @@ export function FinancialManagementStatement() {
   const [year, setYear] = useState(currentYear);
   const [costCenterId, setCostCenterId] = useState("all");
   const [groupBy, setGroupBy] = useState<"category" | "cost_center">("category");
+  const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
   const companies = useQuery({
     queryKey: ["financial-statement-companies"],
     queryFn: async () => {
@@ -135,6 +152,10 @@ export function FinancialManagementStatement() {
     [costCenterId, rows],
   );
   const detailRows = useMemo(() => buildDetailRows(filteredRows, groupBy), [filteredRows, groupBy]);
+  const exportRows = useMemo(
+    () => buildExportRows(filteredRows, detailRows),
+    [detailRows, filteredRows],
+  );
   const revenue = sumDirection(filteredRows, "realized_result_amount", "inflow");
   const expense = -sumDirection(filteredRows, "realized_result_amount", "outflow");
   const result = revenue - expense;
@@ -160,6 +181,42 @@ export function FinancialManagementStatement() {
       }),
     [filteredRows],
   );
+  const companyName = companies.data?.find((company) => company.id === companyId)?.legal_name ?? "";
+  const centerLabel =
+    costCenterId === "all"
+      ? "Todos os centros de custo"
+      : costCenterId === "unclassified"
+        ? "Não classificados"
+        : (centerOptions.find(([id]) => id === costCenterId)?.[1] ?? "Centro de custo");
+  const exportContext: FinancialStatementExportContext = {
+    companyName,
+    year,
+    centerLabel,
+    groupingLabel: groupBy === "category" ? "Categoria financeira" : "Centro de custo",
+    rows: exportRows,
+  };
+  const exportXlsx = async () => {
+    setExporting("xlsx");
+    try {
+      await exportFinancialStatementXlsx(exportContext);
+      toast.success("Demonstrativo exportado para Excel.");
+    } catch {
+      toast.error("Não foi possível exportar o demonstrativo para Excel.");
+    } finally {
+      setExporting(null);
+    }
+  };
+  const exportPdf = async () => {
+    setExporting("pdf");
+    try {
+      await exportFinancialStatementPdf(exportContext);
+      toast.success("Demonstrativo exportado para PDF.");
+    } catch {
+      toast.error("Não foi possível exportar o demonstrativo para PDF.");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <Card id="financial-statement" className="overflow-hidden border-primary/20">
@@ -223,6 +280,34 @@ export function FinancialManagementStatement() {
               <SelectItem value="cost_center">Agrupar por centro</SelectItem>
             </SelectContent>
           </Select>
+          <div className="flex gap-2 sm:col-span-2 xl:col-span-4 xl:justify-end">
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 xl:flex-none"
+              disabled={!filteredRows.length || exporting !== null}
+              onClick={() => void exportXlsx()}
+            >
+              {exporting === "xlsx" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="size-4" />
+              )}
+              Excel XLSX
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 xl:flex-none"
+              disabled={!filteredRows.length || exporting !== null}
+              onClick={() => void exportPdf()}
+            >
+              {exporting === "pdf" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FileText className="size-4" />
+              )}
+              PDF
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5 p-4">
@@ -472,6 +557,48 @@ function buildDetailRows(rows: StatementEntry[], groupBy: "category" | "cost_cen
   return [...grouped.values()].sort(
     (a, b) => a.direction.localeCompare(b.direction) || a.code.localeCompare(b.code),
   );
+}
+
+function buildExportRows(
+  rows: StatementEntry[],
+  details: DetailRow[],
+): FinancialStatementExportRow[] {
+  const revenueMonths = monthlyTotals(rows, "inflow");
+  const expenseMonths = monthlyTotals(rows, "outflow");
+  const resultMonths = revenueMonths.map((value, index) => value + expenseMonths[index]);
+  const revenueBudget = sumDirection(rows, "budgeted_result_amount", "inflow");
+  const expenseBudget = sumDirection(rows, "budgeted_result_amount", "outflow");
+  const section = (
+    label: string,
+    values: number[],
+    budget: number,
+    kind: FinancialStatementExportRow["kind"],
+  ): FinancialStatementExportRow => {
+    const accumulated = sumValues(values);
+    return {
+      label,
+      months: values,
+      accumulated,
+      budget,
+      deviation: accumulated - budget,
+      kind,
+    };
+  };
+  const detail = (row: DetailRow): FinancialStatementExportRow => ({
+    label: `${row.code} | ${row.name}`,
+    months: row.months,
+    accumulated: row.accumulated,
+    budget: row.budget,
+    deviation: row.accumulated - row.budget,
+    kind: "detail",
+  });
+  return [
+    section("Receita operacional", revenueMonths, revenueBudget, "section"),
+    ...details.filter((item) => item.direction === "inflow").map(detail),
+    section("Despesas operacionais", expenseMonths, expenseBudget, "section"),
+    ...details.filter((item) => item.direction === "outflow").map(detail),
+    section("Resultado operacional", resultMonths, revenueBudget + expenseBudget, "result"),
+  ];
 }
 
 function monthlyTotals(rows: StatementEntry[], direction: StatementEntry["direction"]) {
