@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ArrowDownToLine, ArrowUpFromLine, CalendarRange, Landmark, Scale } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  CalendarRange,
+  Landmark,
+  Pencil,
+  Scale,
+  Settings2,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -13,6 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +41,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { supabase } from "@/integrations/supabase/client";
+import { FinancialDimensionsDialog } from "@/components/financial-dimensions-dialog";
+import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 
 type Company = { id: string; legal_name: string };
 type CashEntry = {
@@ -53,6 +64,13 @@ type CashEntry = {
   source_status: string;
   reconciliation_status: "pending" | "matched" | "difference" | null;
   difference_amount: number | null;
+  classification_id: string | null;
+  financial_category_id: string | null;
+  financial_category_code: string | null;
+  financial_category_name: string | null;
+  cost_center_id: string | null;
+  cost_center_code: string | null;
+  cost_center_name: string | null;
 };
 
 const db = supabase as unknown as SupabaseClient;
@@ -88,7 +106,7 @@ function defaultPeriod() {
   };
 }
 
-export function CashFlowDashboard() {
+export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
   const initial = defaultPeriod();
   const [companyId, setCompanyId] = useState("");
   const [startDate, setStartDate] = useState(initial.start);
@@ -96,6 +114,10 @@ export function CashFlowDashboard() {
   const [direction, setDirection] = useState<"all" | CashEntry["direction"]>("all");
   const [status, setStatus] = useState<"all" | CashEntry["cash_status"]>("all");
   const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState("all");
+  const [costCenterId, setCostCenterId] = useState("all");
+  const [dimensionsOpen, setDimensionsOpen] = useState(false);
+  const [classifying, setClassifying] = useState<CashEntry>();
   const companies = useQuery({
     queryKey: ["cash-flow-companies"],
     queryFn: async () => {
@@ -189,12 +211,41 @@ export function CashFlowDashboard() {
     return (
       (direction === "all" || item.direction === direction) &&
       (status === "all" || item.cash_status === status) &&
+      (categoryId === "all" ||
+        (categoryId === "unclassified"
+          ? !item.financial_category_id
+          : item.financial_category_id === categoryId)) &&
+      (costCenterId === "all" ||
+        (costCenterId === "unclassified"
+          ? !item.cost_center_id
+          : item.cost_center_id === costCenterId)) &&
       (!term ||
         `${item.document_number} ${item.counterparty_name} ${item.description}`
           .toLocaleLowerCase("pt-BR")
           .includes(term))
     );
   });
+  const categoryOptions = Array.from(
+    new Map(
+      (query.data ?? [])
+        .filter((item) => item.financial_category_id)
+        .map((item) => [
+          item.financial_category_id!,
+          `${item.financial_category_code} · ${item.financial_category_name}`,
+        ]),
+    ),
+  );
+  const costCenterOptions = Array.from(
+    new Map(
+      (query.data ?? [])
+        .filter((item) => item.cost_center_id)
+        .map((item) => [
+          item.cost_center_id!,
+          `${item.cost_center_code} · ${item.cost_center_name}`,
+        ]),
+    ),
+  );
+  const classifiedCount = periodRows.filter((item) => item.classification_id).length;
 
   return (
     <Card id="cash-flow" className="overflow-hidden border-primary/20">
@@ -210,7 +261,7 @@ export function CashFlowDashboard() {
             </p>
           </div>
         </div>
-        <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto">
+        <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-4">
           <Select value={companyId} onValueChange={setCompanyId}>
             <SelectTrigger className="sm:min-w-52" aria-label="Empresa operadora">
               <SelectValue placeholder="Empresa operadora" />
@@ -229,6 +280,10 @@ export function CashFlowDashboard() {
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}
           />
+          <Button variant="outline" className="gap-2" onClick={() => setDimensionsOpen(true)}>
+            <Settings2 className="size-4" />
+            Classificações
+          </Button>
           <Input
             aria-label="Data final"
             type="date"
@@ -274,6 +329,22 @@ export function CashFlowDashboard() {
                 value={realizedIn - realizedOut}
                 tone={realizedIn - realizedOut >= 0 ? "neutral" : "red"}
               />
+            </div>
+            <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">Cobertura de classificação</p>
+                <p className="text-xs text-muted-foreground">
+                  {classifiedCount} de {periodRows.length} movimentos classificados no período.
+                </p>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted sm:w-56">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{
+                    width: `${periodRows.length ? (classifiedCount / periodRows.length) * 100 : 0}%`,
+                  }}
+                />
+              </div>
             </div>
             {chart.length ? (
               <div className="rounded-xl border bg-muted/10 p-3">
@@ -325,9 +396,9 @@ export function CashFlowDashboard() {
                 </div>
               </div>
             ) : null}
-            <div className="flex flex-col gap-2 lg:flex-row">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_11rem_11rem_13rem_13rem]">
               <Input
-                className="lg:flex-1"
+                className="sm:col-span-2 xl:col-span-1"
                 placeholder="Buscar documento, cliente, fornecedor ou descrição"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -357,6 +428,34 @@ export function CashFlowDashboard() {
                   <SelectItem value="cancelled">Cancelados</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="unclassified">Sem categoria</SelectItem>
+                  {categoryOptions.map(([id, label]) => (
+                    <SelectItem key={id} value={id}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={costCenterId} onValueChange={setCostCenterId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Centro de custo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os centros</SelectItem>
+                  <SelectItem value="unclassified">Sem centro de custo</SelectItem>
+                  {costCenterOptions.map(([id, label]) => (
+                    <SelectItem key={id} value={id}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {!visibleRows.length ? (
               <EmptyState
@@ -373,8 +472,14 @@ export function CashFlowDashboard() {
                       <TableHead>Documento</TableHead>
                       <TableHead>Cliente/fornecedor</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Classificação</TableHead>
                       <TableHead className="text-right">Previsto</TableHead>
                       <TableHead className="text-right">Realizado</TableHead>
+                      {canEdit ? (
+                        <TableHead className="w-12">
+                          <span className="sr-only">Ações</span>
+                        </TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -412,12 +517,38 @@ export function CashFlowDashboard() {
                             </p>
                           ) : null}
                         </TableCell>
+                        <TableCell>
+                          {item.classification_id ? (
+                            <div>
+                              <p className="text-sm font-medium">
+                                {item.financial_category_code} · {item.financial_category_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.cost_center_code} · {item.cost_center_name}
+                              </p>
+                            </div>
+                          ) : (
+                            <Badge variant="outline">Não classificado</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-medium">
                           {money.format(Number(item.planned_amount))}
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           {item.realized_amount ? money.format(Number(item.realized_amount)) : "-"}
                         </TableCell>
+                        {canEdit ? (
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Classificar ${item.document_number}`}
+                              onClick={() => setClassifying(item)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -427,6 +558,20 @@ export function CashFlowDashboard() {
           </>
         )}
       </CardContent>
+      {dimensionsOpen ? (
+        <FinancialDimensionsDialog
+          companyId={companyId}
+          canEdit={canEdit}
+          onClose={() => setDimensionsOpen(false)}
+        />
+      ) : null}
+      {classifying ? (
+        <FinancialEntryClassificationDialog
+          entry={classifying}
+          onClose={() => setClassifying(undefined)}
+          onSaved={() => setClassifying(undefined)}
+        />
+      ) : null}
     </Card>
   );
 }

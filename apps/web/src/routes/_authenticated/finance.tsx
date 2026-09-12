@@ -233,7 +233,7 @@ function FinancePage() {
       {operatorOpen && <InterBindingDialog onClose={() => setOperatorOpen(false)} />}
       {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
 
-      <CashFlowDashboard />
+      <CashFlowDashboard canEdit={access.edit} />
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>
