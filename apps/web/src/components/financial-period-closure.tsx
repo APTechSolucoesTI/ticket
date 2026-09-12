@@ -5,6 +5,8 @@ import {
   CalendarCheck2,
   CalendarClock,
   CheckCircle2,
+  FileSpreadsheet,
+  FileText,
   History,
   Loader2,
   LockKeyhole,
@@ -41,6 +43,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, LoadingState } from "@/components/data-state";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  exportClosureHistoryPdf,
+  exportClosureHistoryXlsx,
+  type ClosureHistoryExportContext,
+  type ClosureHistoryExportRow,
+} from "@/lib/financial-closure-history-export";
 import { getUserFacingError } from "@/lib/user-facing-error";
 
 type Company = { id: string; legal_name: string };
@@ -91,6 +99,8 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
   const [companyId, setCompanyId] = useState("");
   const [year, setYear] = useState(currentYear);
   const [confirmation, setConfirmation] = useState<Confirmation>();
+  const [historyPeriod, setHistoryPeriod] = useState<PeriodRow>();
+  const [exportingHistory, setExportingHistory] = useState<"xlsx" | "pdf" | null>(null);
   const [notes, setNotes] = useState("");
   const companies = useQuery({
     queryKey: ["financial-closure-companies"],
@@ -146,6 +156,47 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
     0,
   );
   const reopenedCount = (closures.data ?? []).filter((item) => item.status === "reopened").length;
+  const companyName = companies.data?.find((company) => company.id === companyId)?.legal_name ?? "";
+  const historyRows = useMemo<ClosureHistoryExportRow[]>(() => {
+    if (!historyPeriod) return [];
+    const revisions = (closures.data ?? [])
+      .filter((item) => item.period_month === historyPeriod.period)
+      .sort((a, b) => a.revision - b.revision);
+    return revisions.map((item, index) => ({
+      revision: item.revision,
+      status: item.status,
+      revenue: Number(item.revenue_realized),
+      expense: Number(item.expense_realized),
+      result: Number(item.result_realized),
+      budgetResult: Number(item.result_budgeted),
+      resultDelta:
+        index === 0
+          ? null
+          : Number(item.result_realized) - Number(revisions[index - 1].result_realized),
+      lineCount: item.snapshot_line_count,
+      closedBy: item.closed_by_name,
+      closedAt: item.closed_at,
+      reopenedBy: item.reopened_by_name,
+      reopenedAt: item.reopened_at,
+      reopenReason: item.reopen_reason,
+    }));
+  }, [closures.data, historyPeriod]);
+  const historyContext: ClosureHistoryExportContext | null = historyPeriod
+    ? { companyName, periodLabel: historyPeriod.label, rows: historyRows }
+    : null;
+  const exportHistory = async (format: "xlsx" | "pdf") => {
+    if (!historyContext) return;
+    setExportingHistory(format);
+    try {
+      if (format === "xlsx") await exportClosureHistoryXlsx(historyContext);
+      else await exportClosureHistoryPdf(historyContext);
+      toast.success(`Histórico exportado para ${format === "xlsx" ? "Excel" : "PDF"}.`);
+    } catch {
+      toast.error("Não foi possível exportar o histórico do fechamento.");
+    } finally {
+      setExportingHistory(null);
+    }
+  };
   const mutation = useMutation({
     mutationFn: async ({ action, row, reason }: Confirmation & { reason: string }) => {
       if (action === "close") {
@@ -347,24 +398,36 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
                             : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {canEdit && row.active ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            onClick={() => openConfirmation("reopen", row)}
-                          >
-                            <RotateCcw className="size-3.5" /> Reabrir
-                          </Button>
-                        ) : canEdit && !row.future ? (
-                          <Button
-                            size="sm"
-                            className="gap-1.5"
-                            onClick={() => openConfirmation("close", row)}
-                          >
-                            <LockKeyhole className="size-3.5" /> Encerrar
-                          </Button>
-                        ) : null}
+                        <div className="flex justify-end gap-1.5">
+                          {row.latest ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Histórico de ${row.label}`}
+                              onClick={() => setHistoryPeriod(row)}
+                            >
+                              <History className="size-4" />
+                            </Button>
+                          ) : null}
+                          {canEdit && row.active ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              onClick={() => openConfirmation("reopen", row)}
+                            >
+                              <RotateCcw className="size-3.5" /> Reabrir
+                            </Button>
+                          ) : canEdit && !row.future ? (
+                            <Button
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() => openConfirmation("close", row)}
+                            >
+                              <LockKeyhole className="size-3.5" /> Encerrar
+                            </Button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -434,6 +497,117 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
                 {confirmation.action === "close" ? "Confirmar fechamento" : "Confirmar reabertura"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {historyPeriod ? (
+        <Dialog open onOpenChange={(open) => !open && setHistoryPeriod(undefined)}>
+          <DialogContent className="max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Histórico do fechamento</DialogTitle>
+              <DialogDescription>
+                {companyName} · {historyPeriod.label}. Cada revisão permanece preservada para
+                auditoria.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={exportingHistory !== null}
+                onClick={() => void exportHistory("xlsx")}
+              >
+                {exportingHistory === "xlsx" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="size-4" />
+                )}
+                Excel XLSX
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={exportingHistory !== null}
+                onClick={() => void exportHistory("pdf")}
+              >
+                {exportingHistory === "pdf" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+                PDF
+              </Button>
+            </div>
+            <div className="max-h-[60dvh] overflow-auto rounded-xl border">
+              <Table className="min-w-[850px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Revisão</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="text-right">Receitas</TableHead>
+                    <TableHead className="text-right">Despesas</TableHead>
+                    <TableHead className="text-right">Resultado</TableHead>
+                    <TableHead className="text-right">Diferença</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Registro</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...historyRows].reverse().map((row) => (
+                    <TableRow key={row.revision}>
+                      <TableCell className="font-semibold">#{row.revision}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            row.status === "closed"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                              : "border-amber-500/30 bg-amber-500/10 text-amber-700"
+                          }
+                        >
+                          {row.status === "closed" ? "Encerrada" : "Reaberta"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money.format(row.revenue)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money.format(row.expense)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {money.format(row.result)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {row.resultDelta === null ? "Base" : money.format(row.resultDelta)}
+                      </TableCell>
+                      <TableCell>
+                        {row.closedBy}
+                        {row.reopenedBy ? (
+                          <p className="text-xs text-muted-foreground">
+                            Reaberta por {row.reopenedBy}
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {dateTimeFormat.format(new Date(row.closedAt))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {[...historyRows]
+              .reverse()
+              .filter((row) => row.reopenReason)
+              .map((row) => (
+                <div
+                  key={`reason-${row.revision}`}
+                  className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">Reabertura da revisão {row.revision}: </span>
+                  <span className="text-muted-foreground">{row.reopenReason}</span>
+                </div>
+              ))}
           </DialogContent>
         </Dialog>
       ) : null}
