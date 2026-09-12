@@ -60,6 +60,7 @@ import { CashFlowDashboard } from "@/components/cash-flow-dashboard";
 import { FinancialBudgetDashboard } from "@/components/financial-budget-dashboard";
 import { FinancialManagementStatement } from "@/components/financial-management-statement";
 import { FinancialPeriodClosure } from "@/components/financial-period-closure";
+import { BankReconciliationDashboard } from "@/components/bank-reconciliation-dashboard";
 
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({ meta: [{ title: "Financeiro - APTicket" }] }),
@@ -205,6 +206,17 @@ function FinancePage() {
               variant="outline"
               className="gap-2"
               onClick={() =>
+                document
+                  .getElementById("bank-reconciliation")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              <Landmark className="size-4" /> Conciliação
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
                 document.getElementById("cash-flow")?.scrollIntoView({ behavior: "smooth" })
               }
             >
@@ -270,6 +282,7 @@ function FinancePage() {
       {operatorOpen && <InterBindingDialog onClose={() => setOperatorOpen(false)} />}
       {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
 
+      <BankReconciliationDashboard canEdit={access.edit} />
       <CashFlowDashboard canEdit={access.edit} />
       <FinancialBudgetDashboard canEdit={access.edit} />
       <FinancialPeriodClosure canEdit={access.edit} />
