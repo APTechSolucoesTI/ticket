@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleDollarSign, Loader2 } from "lucide-react";
+import { CircleDollarSign, Headset, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/session";
@@ -40,6 +40,7 @@ import { TicketInboxList, TicketPagination } from "@/components/ticket/inbox/Tic
 import { TicketInboxKanban } from "@/components/ticket/inbox/TicketInboxKanban";
 import { useTicketsInboxData } from "@/hooks/use-tickets-inbox";
 import { calculateTicketSummary } from "@/lib/ticket-inbox";
+import { PageHeader } from "@/components/empty-stub";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
   head: () => ({ meta: [{ title: "Tickets - APTicket" }] }),
@@ -155,10 +156,22 @@ function TicketsInbox() {
 
   return (
     <div className="flex h-full flex-col">
+      <div className="shrink-0 px-3 pt-3">
+        <PageHeader
+          title="Visão geral dos atendimentos"
+          titleId="ticket-overview-title"
+          subtitle="Volume atual, tendência recente e filas que precisam de ação."
+          icon={Headset}
+          actions={
+            ticketsQuery.isError ? (
+              <span className="text-xs text-destructive">Dados indisponíveis</span>
+            ) : null
+          }
+        />
+      </div>
       <TicketOverview
         summary={summary}
         loading={ticketsQuery.isLoading}
-        hasError={ticketsQuery.isError}
         queueSummary={queueSummaryQuery.data}
         queueLoading={queueSummaryQuery.isLoading}
         canViewEmailQueue={emailQueueAccess.view}

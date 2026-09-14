@@ -16,7 +16,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex min-h-[76px] flex-col gap-3 rounded-xl border bg-card px-4 py-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+    <header className="sticky top-0 z-30 flex min-h-[76px] flex-col gap-3 rounded-xl border bg-card px-4 py-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           {Icon ? <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" /> : null}

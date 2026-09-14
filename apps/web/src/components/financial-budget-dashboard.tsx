@@ -142,8 +142,8 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
   });
 
   return (
-    <Card id="financial-budget" className="overflow-hidden">
-      <CardHeader className="gap-4 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="financial-budget">
+      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
           <div className="pt-0.5 text-primary">
             <Target className="size-5" />

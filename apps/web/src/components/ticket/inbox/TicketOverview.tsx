@@ -4,14 +4,12 @@ import {
   CheckCircle2,
   CircleDot,
   Clock3,
-  Headset,
   Mail,
   MessageCircle,
   Timer,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/empty-stub";
 import {
   formatDecimal,
   formatResolutionTime,
@@ -28,7 +26,6 @@ type QueueSummary = {
 export function TicketOverview({
   summary,
   loading,
-  hasError,
   queueSummary,
   queueLoading,
   canViewEmailQueue,
@@ -36,7 +33,6 @@ export function TicketOverview({
 }: {
   summary: TicketSummary;
   loading: boolean;
-  hasError: boolean;
   queueSummary?: QueueSummary;
   queueLoading: boolean;
   canViewEmailQueue: boolean;
@@ -47,18 +43,8 @@ export function TicketOverview({
   return (
     <section
       aria-labelledby="ticket-overview-title"
-      className="shrink-0 space-y-2.5 border-b bg-background px-3 py-3"
+      className="shrink-0 border-b bg-background px-3 py-3"
     >
-      <PageHeader
-        title="Visão geral dos atendimentos"
-        titleId="ticket-overview-title"
-        subtitle="Volume atual, tendência recente e filas que precisam de ação."
-        icon={Headset}
-        actions={
-          hasError ? <span className="text-xs text-destructive">Dados indisponíveis</span> : null
-        }
-      />
-
       <div className="grid auto-cols-[minmax(168px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 xl:grid-flow-row xl:grid-cols-5 xl:overflow-visible xl:pb-0">
         <MetricCard
           label="Em atendimento"

@@ -245,8 +245,8 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
   const classifiedCount = periodRows.filter((item) => item.classification_id).length;
 
   return (
-    <Card id="cash-flow" className="overflow-hidden">
-      <CardHeader className="gap-4 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="cash-flow">
+      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
           <div className="pt-0.5 text-primary">
             <Landmark className="size-5" />

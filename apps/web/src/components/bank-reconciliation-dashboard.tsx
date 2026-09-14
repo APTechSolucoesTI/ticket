@@ -332,7 +332,7 @@ export function BankReconciliationDashboard({
 
   return (
     <Card id="bank-reconciliation">
-      <CardHeader className="gap-4 border-b bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
             <Landmark className="size-5 text-primary" /> Conciliação bancária

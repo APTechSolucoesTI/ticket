@@ -171,8 +171,8 @@ export function FinancialContractAnalytics() {
   ).size;
 
   return (
-    <Card id="contract-analytics" className="overflow-hidden">
-      <CardHeader className="gap-4 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="contract-analytics">
+      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
             <ChartNoAxesCombined className="size-5 text-primary" /> Rentabilidade e MRR
