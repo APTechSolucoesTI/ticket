@@ -112,6 +112,12 @@ export function CurrencyInput(props: Omit<DecimalInputProps, "decimalScale" | "m
   return <DecimalInput {...props} decimalScale={4} maxIntegerDigits={9} />;
 }
 
+export function FinancialCurrencyInput(
+  props: Omit<DecimalInputProps, "decimalScale" | "maxIntegerDigits">,
+) {
+  return <DecimalInput {...props} decimalScale={2} maxIntegerDigits={9} />;
+}
+
 export function QuantityInput(props: Omit<DecimalInputProps, "decimalScale" | "maxIntegerDigits">) {
   return <DecimalInput {...props} decimalScale={2} maxIntegerDigits={6} />;
 }

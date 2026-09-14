@@ -21,8 +21,8 @@ export type ClosureHistoryExportContext = {
 };
 
 const money = new Intl.NumberFormat("pt-BR", {
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 export async function exportClosureHistoryXlsx(context: ClosureHistoryExportContext) {

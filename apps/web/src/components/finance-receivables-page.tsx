@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput } from "@/components/ui/decimal-input";
+import { FinancialCurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -99,8 +99,8 @@ const STATUS: Array<{ value: BillingStatus; label: string }> = [
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 function effectiveStatus(charge: Charge): BillingStatus {
@@ -477,7 +477,7 @@ function ChargeDialog({
             </div>
             <div>
               <Label htmlFor="charge-final">Valor final</Label>
-              <CurrencyInput
+              <FinancialCurrencyInput
                 id="charge-final"
                 disabled={!canEdit}
                 value={form.valor_final}
@@ -634,7 +634,7 @@ function PriceDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="price-fixed">Valor fixo</Label>
-              <CurrencyInput
+              <FinancialCurrencyInput
                 id="price-fixed"
                 value={form.fixo}
                 onValueChange={(value) => setForm({ ...form, fixo: Number(value || 0) })}
@@ -642,7 +642,7 @@ function PriceDialog({
             </div>
             <div>
               <Label htmlFor="price-hour">Valor da hora técnica</Label>
-              <CurrencyInput
+              <FinancialCurrencyInput
                 id="price-hour"
                 value={form.hora}
                 onValueChange={(value) => setForm({ ...form, hora: Number(value || 0) })}

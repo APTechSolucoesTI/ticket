@@ -27,8 +27,8 @@ import { ErrorState, LoadingState } from "@/components/data-state";
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 const missingLabels: Record<Review["missing_fields"][number], string> = {
   name: "Nome / razão social",

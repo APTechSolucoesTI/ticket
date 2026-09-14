@@ -29,7 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput } from "@/components/ui/decimal-input";
+import { FinancialCurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -91,8 +91,8 @@ const db = supabase as unknown as SupabaseClient;
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 const categories: Array<{ value: SupplierCategory; label: string }> = [
   { value: "software_licensing", label: "Licenciamento de software" },
@@ -896,7 +896,7 @@ function ContractDialog({
             <Label htmlFor="contract-price">
               {unit === "fixed" ? "Valor do período" : "Valor por unidade"}
             </Label>
-            <CurrencyInput
+            <FinancialCurrencyInput
               id="contract-price"
               disabled={!canEdit}
               value={form.watch(unit === "fixed" ? "base_amount" : "unit_price")}

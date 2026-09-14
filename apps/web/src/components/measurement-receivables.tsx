@@ -55,8 +55,8 @@ const STATUS: Array<{ value: BillingStatus; label: string }> = [
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 function effectiveStatus(receivable: Receivable): BillingStatus {

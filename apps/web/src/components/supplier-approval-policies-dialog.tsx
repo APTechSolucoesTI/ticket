@@ -33,7 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput } from "@/components/ui/decimal-input";
+import { FinancialCurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -59,8 +59,8 @@ const db = supabase as unknown as SupabaseClient;
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 export function SupplierApprovalPoliciesDialog({
@@ -233,11 +233,15 @@ export function SupplierApprovalPoliciesDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="approval-minimum">Valor mínimo</Label>
-                  <CurrencyInput id="approval-minimum" value={minimum} onValueChange={setMinimum} />
+                  <FinancialCurrencyInput
+                    id="approval-minimum"
+                    value={minimum}
+                    onValueChange={setMinimum}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="approval-maximum">Valor máximo</Label>
-                  <CurrencyInput
+                  <FinancialCurrencyInput
                     id="approval-maximum"
                     value={maximum}
                     placeholder="Sem limite"

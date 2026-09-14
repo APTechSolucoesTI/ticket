@@ -15,8 +15,8 @@ import { LoadingState, ErrorState } from "@/components/data-state";
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 const quantity = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 2,
@@ -25,8 +25,8 @@ const quantity = new Intl.NumberFormat("pt-BR", {
 const unitPrice = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 function date(value: string, exclusiveEnd = false) {
   const day = new Date(`${value}T12:00:00Z`);

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput } from "@/components/ui/decimal-input";
+import { FinancialCurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -44,8 +44,8 @@ const db = supabase as unknown as SupabaseClient;
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 const methods = { pix: "PIX", bank_transfer: "Transferência", boleto: "Boleto", other: "Outro" };
 const accepted = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
@@ -299,7 +299,7 @@ export function SupplierPaymentSection({
                   </div>
                   <div>
                     <Label htmlFor="paid-amount">Valor pago</Label>
-                    <CurrencyInput
+                    <FinancialCurrencyInput
                       id="paid-amount"
                       value={paidAmount}
                       onValueChange={setPaidAmount}

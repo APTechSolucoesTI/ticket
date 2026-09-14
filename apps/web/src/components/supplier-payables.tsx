@@ -118,8 +118,8 @@ const db = supabase as unknown as SupabaseClient;
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 const number = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 2,

@@ -55,15 +55,10 @@ const db = supabase as unknown as SupabaseClient;
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
-const compactMoney = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
+const compactMoney = money;
 const monthFormat = new Intl.DateTimeFormat("pt-BR", {
   month: "short",
   year: "numeric",
