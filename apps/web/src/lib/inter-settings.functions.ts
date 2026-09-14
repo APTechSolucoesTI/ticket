@@ -9,6 +9,7 @@ export const testInterConnection = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
+        operatingCompanyId: z.string().uuid(),
         environment: z.enum(["sandbox", "production"]),
         version: z.number().int().positive(),
       })
@@ -17,7 +18,13 @@ export const testInterConnection = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: result, error } = await supabaseAdmin.functions.invoke("testar-conexao-inter", {
-      body: { actor: context.userId, tenant: context.claims.tenantId, ...data },
+      body: {
+        actor: context.userId,
+        tenant: context.claims.tenantId,
+        company: data.operatingCompanyId,
+        environment: data.environment,
+        version: data.version,
+      },
     });
     if (error) {
       // Only the internal function's sanitized message is allowed through.
@@ -35,7 +42,10 @@ export const testInterConnection = createServerFn({ method: "POST" })
 
 export const listInterSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<InterSettingsMetadata[]> => {
+  .inputValidator((input: unknown) =>
+    z.object({ operatingCompanyId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data: input, context }): Promise<InterSettingsMetadata[]> => {
     const { data: allowed } = await context.supabase.rpc("has_permission", {
       _user_id: context.userId,
       _module: "empresa_operadora",
@@ -46,16 +56,30 @@ export const listInterSettings = createServerFn({ method: "GET" })
       _module: "configuracoes",
       _action: "view",
     });
-    if (!allowed || !settingsAllowed)
+    const { data: financeAllowed } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _module: "financeiro",
+      _action: "view",
+    });
+    if (!allowed || !settingsAllowed || !financeAllowed)
       throw new Error("Sem permissão para consultar a configuração bancária.");
+    const { data: company } = await context.supabase
+      .from("operating_companies")
+      .select("id")
+      .eq("id", input.operatingCompanyId)
+      .eq("tenant_id", context.claims.tenantId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!company) throw new Error("Empresa operadora indisponível para este usuário.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as unknown as SupabaseClient;
     const { data, error } = await db
       .from("tenant_inter_configurations")
       .select(
-        "environment,account,is_active,certificate_expires_at,certificate_fingerprint,version,updated_at,webhook_status,webhook_callback_base_url,webhook_registered_at,webhook_updated_at,webhook_last_error_code,webhook_last_error_message",
+        "operating_company_id,environment,account,is_active,certificate_expires_at,certificate_fingerprint,version,updated_at,webhook_status,webhook_callback_base_url,webhook_registered_at,webhook_updated_at,webhook_last_error_code,webhook_last_error_message",
       )
-      .eq("tenant_id", context.claims.tenantId);
+      .eq("tenant_id", context.claims.tenantId)
+      .eq("operating_company_id", input.operatingCompanyId);
     if (error) throw new Error("Não foi possível consultar as configurações do Inter.");
     return data as InterSettingsMetadata[];
   });
@@ -76,6 +100,7 @@ export const saveInterSettings = createServerFn({ method: "POST" })
     const { error } = await db.rpc("save_tenant_inter_configuration", {
       p_actor: context.userId,
       p_tenant: context.claims.tenantId,
+      p_company: data.operatingCompanyId,
       p_environment: data.environment,
       p_account: data.account,
       p_credentials: {
@@ -115,6 +140,7 @@ export const configureInterWebhook = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
+        operatingCompanyId: z.string().uuid(),
         environment: z.enum(["sandbox", "production"]),
         version: z.number().int().positive(),
       })
@@ -137,6 +163,7 @@ export const configureInterWebhook = createServerFn({ method: "POST" })
         body: {
           actor: context.userId,
           tenant: context.claims.tenantId,
+          company: data.operatingCompanyId,
           environment: data.environment,
           version: data.version,
           callback_base_url: callbackBaseUrl,

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const interSettingsSchema = z
   .object({
+    operatingCompanyId: z.string().uuid("Selecione uma empresa operadora."),
     environment: z.enum(["sandbox", "production"]),
     account: z
       .string()
@@ -54,6 +55,7 @@ export const interSettingsSchema = z
 
 export type InterSettingsInput = z.input<typeof interSettingsSchema>;
 export type InterSettingsMetadata = {
+  operating_company_id: string;
   environment: "sandbox" | "production";
   account: string;
   is_active: boolean;

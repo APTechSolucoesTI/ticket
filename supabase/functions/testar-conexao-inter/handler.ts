@@ -35,9 +35,9 @@ export function createHandler(deps: Dependencies) {
       body = await request.json();
       if (
         !body || Object.keys(body).some((k) =>
-          !["actor", "tenant", "environment", "version"].includes(k)
+          !["actor", "tenant", "company", "environment", "version"].includes(k)
         ) ||
-        !uuid.test(body.actor) || !uuid.test(body.tenant) ||
+        !uuid.test(body.actor) || !uuid.test(body.tenant) || !uuid.test(body.company) ||
         !["sandbox", "production"].includes(body.environment) ||
         !Number.isInteger(body.version) || body.version < 1
       ) {
@@ -61,6 +61,7 @@ export function createHandler(deps: Dependencies) {
           body: JSON.stringify({
             p_actor: body.actor,
             p_tenant: body.tenant,
+            p_company: body.company,
             p_environment: body.environment,
             p_version: body.version,
           }),

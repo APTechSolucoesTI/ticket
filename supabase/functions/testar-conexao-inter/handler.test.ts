@@ -3,6 +3,7 @@ import { createHandler } from "./handler.ts";
 const payload = {
   actor: "d2000000-0000-0000-0000-000000000001",
   tenant: "d1000000-0000-0000-0000-000000000001",
+  company: "d3000000-0000-4000-8000-000000000001",
   environment: "sandbox",
   version: 1,
 };

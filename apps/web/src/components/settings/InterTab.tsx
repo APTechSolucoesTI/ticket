@@ -20,6 +20,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import { useModulePermissions } from "@/lib/permission-ui";
 import {
   configureInterWebhook,
@@ -36,8 +44,27 @@ import {
 export function InterTab() {
   const access = useModulePermissions("empresa_operadora");
   const list = useServerFn(listInterSettings);
+  const companies = useQuery({
+    queryKey: ["operating-companies", "inter-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("operating_companies")
+        .select("id,legal_name,trade_name")
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("legal_name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const [operatingCompanyId, setOperatingCompanyId] = useState("");
   const [environment, setEnvironment] = useState<"sandbox" | "production">("sandbox");
-  const query = useQuery({ queryKey: ["inter-settings"], queryFn: () => list() });
+  const selectedCompanyId = operatingCompanyId || companies.data?.[0]?.id || "";
+  const query = useQuery({
+    queryKey: ["inter-settings", selectedCompanyId],
+    enabled: !!selectedCompanyId,
+    queryFn: () => list({ data: { operatingCompanyId: selectedCompanyId } }),
+  });
   const current = query.data?.find((item) => item.environment === environment);
   return (
     <div className="max-w-4xl space-y-4">
@@ -48,12 +75,31 @@ export function InterTab() {
             <div>
               <CardTitle>Banco Inter</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Credenciais bancárias exclusivas deste tenant.
+                Credenciais bancárias separadas por empresa operadora.
               </p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <Label>Empresa operadora</Label>
+            <Select
+              value={selectedCompanyId}
+              onValueChange={setOperatingCompanyId}
+              disabled={companies.isPending || companies.isError || !companies.data?.length}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Selecione a empresa operadora" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.data?.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.trade_name || company.legal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="rounded-lg border bg-muted/40 p-3 text-sm">
             <ShieldCheck className="mr-2 inline size-4 text-primary" />
             Segredos criptografados no servidor. Salvar ou selecionar um ambiente não emite boletos
@@ -68,7 +114,23 @@ export function InterTab() {
               <TabsTrigger value="production">Produção / Oficial</TabsTrigger>
             </TabsList>
           </Tabs>
-          {query.isPending ? (
+          {companies.isPending ? (
+            <p role="status" className="flex gap-2 text-sm">
+              <Loader2 className="size-4 animate-spin" />
+              Carregando empresas operadoras…
+            </p>
+          ) : companies.isError ? (
+            <div role="alert" className="space-y-2 text-sm">
+              <p>Não foi possível carregar as empresas operadoras.</p>
+              <Button variant="outline" onClick={() => void companies.refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          ) : !selectedCompanyId ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              Cadastre e ative uma Empresa Operadora para configurar a integração bancária.
+            </p>
+          ) : query.isPending ? (
             <p role="status" className="flex gap-2 text-sm">
               <Loader2 className="size-4 animate-spin" />
               Carregando configuração…
@@ -82,7 +144,8 @@ export function InterTab() {
             </div>
           ) : (
             <InterForm
-              key={`${environment}-${current?.version ?? 0}`}
+              key={`${selectedCompanyId}-${environment}-${current?.version ?? 0}`}
+              operatingCompanyId={selectedCompanyId}
               environment={environment}
               current={current}
               canEdit={access.edit}
@@ -95,10 +158,12 @@ export function InterTab() {
 }
 
 function InterForm({
+  operatingCompanyId,
   environment,
   current,
   canEdit,
 }: {
+  operatingCompanyId: string;
   environment: "sandbox" | "production";
   current?: InterSettingsMetadata;
   canEdit: boolean;
@@ -108,13 +173,15 @@ function InterForm({
   const testConnection = useServerFn(testInterConnection);
   const configureWebhook = useServerFn(configureInterWebhook);
   const connection = useMutation({
-    mutationFn: () => testConnection({ data: { environment, version: current!.version } }),
+    mutationFn: () =>
+      testConnection({ data: { operatingCompanyId, environment, version: current!.version } }),
   });
   const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const [reading, setReading] = useState(false);
   const form = useForm<InterSettingsInput>({
     resolver: zodResolver(interSettingsSchema),
     defaultValues: {
+      operatingCompanyId,
       environment,
       account: current?.account ?? "",
       clientId: "",
@@ -145,7 +212,8 @@ function InterForm({
     onError: (error: Error) => toast.error(error.message || "Não foi possível salvar."),
   });
   const webhook = useMutation({
-    mutationFn: () => configureWebhook({ data: { environment, version: current!.version } }),
+    mutationFn: () =>
+      configureWebhook({ data: { operatingCompanyId, environment, version: current!.version } }),
     onSuccess: async (result) => {
       toast.success(result.message);
       await queryClient.invalidateQueries({ queryKey: ["inter-settings"] });

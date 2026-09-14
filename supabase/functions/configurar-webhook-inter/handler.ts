@@ -84,6 +84,7 @@ export function createHandler(deps: Dependencies) {
     let body: {
       actor: string;
       tenant: string;
+      company: string;
       environment: "sandbox" | "production";
       version: number;
       callback_base_url: string;
@@ -94,11 +95,12 @@ export function createHandler(deps: Dependencies) {
         !body ||
         Object.keys(body).some(
           (key) =>
-            !["actor", "tenant", "environment", "version", "callback_base_url"]
+            !["actor", "tenant", "company", "environment", "version", "callback_base_url"]
               .includes(key),
         ) ||
         !uuid.test(body.actor) ||
         !uuid.test(body.tenant) ||
+        !uuid.test(body.company) ||
         !["sandbox", "production"].includes(body.environment) ||
         !Number.isInteger(body.version) ||
         body.version < 1 ||
@@ -120,6 +122,7 @@ export function createHandler(deps: Dependencies) {
       const preparedResponse = await rpc("prepare_inter_webhook_registration", {
         p_actor: body.actor,
         p_tenant: body.tenant,
+        p_company: body.company,
         p_environment: body.environment,
         p_version: body.version,
         p_callback_base_url: body.callback_base_url,

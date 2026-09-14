@@ -3,6 +3,7 @@ import { createHandler } from "./handler.ts";
 
 const actor = "fa200000-0000-4000-8000-000000000001";
 const tenant = "fa300000-0000-4000-8000-000000000001";
+const company = "fa500000-0000-4000-8000-000000000001";
 const attempt = "fa400000-0000-4000-8000-000000000001";
 const candidate = "a".repeat(64);
 
@@ -63,6 +64,7 @@ function setup(options: { oauthStatus?: number; bankStatus?: number } = {}) {
       body: JSON.stringify({
         actor,
         tenant,
+        company,
         environment: "sandbox",
         version: 1,
         callback_base_url: "https://app.test/backend/webhooks/inter/sandbox",
