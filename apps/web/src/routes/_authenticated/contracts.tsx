@@ -9,6 +9,7 @@ import { PageHeader, EmptyStub } from "@/components/empty-stub";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput, QuantityInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -45,6 +46,7 @@ import {
 import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
+import { formatCurrency } from "@/lib/number-format";
 
 export const Route = createFileRoute("/_authenticated/contracts")({
   head: () => ({ meta: [{ title: "Contratos - APTicket" }] }),
@@ -129,7 +131,7 @@ const schema = z.object({
     .number()
     .int()
     .min(1, "O dia deve ser no mínimo 1")
-    .max(30, "O dia deve ser no máximo 30"),
+    .max(31, "O dia deve ser no máximo 31"),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
 });
@@ -280,6 +282,7 @@ function ContractsPage() {
                   key: "company",
                   label: "Cliente",
                   className: "font-medium",
+                  accessor: (c) => c.companies?.name ?? "",
                   cell: (c) => (
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
@@ -291,12 +294,14 @@ function ContractsPage() {
                   key: "type",
                   label: "Tipo",
                   className: "text-sm",
+                  accessor: (c) => c.contract_types?.name ?? "",
                   cell: (c) => c.contract_types?.name || "-",
                 },
                 {
                   key: "billing",
                   label: "Cobrança",
                   className: "text-sm",
+                  accessor: (c) => billingLabel[c.billing_model],
                   cell: (c) => billingLabel[c.billing_model],
                 },
                 {
@@ -310,6 +315,7 @@ function ContractsPage() {
                   key: "sla",
                   label: "SLA",
                   className: "text-sm",
+                  accessor: (c) => c.sla_policies?.name ?? "",
                   cell: (c) => c.sla_policies?.name || "-",
                 },
                 {
@@ -331,12 +337,15 @@ function ContractsPage() {
                   key: "starts_at",
                   label: "Início",
                   className: "text-sm",
+                  accessor: (c) => c.starts_at,
                   cell: (c) => c.starts_at,
                 },
                 {
                   key: "hours",
                   label: "Horas/mês",
                   className: "text-sm",
+                  accessor: (c) =>
+                    c.billing_model === "hours_package" ? c.hours_monthly_quota : null,
                   cell: (c) =>
                     c.billing_model === "hours_package" ? `${c.hours_monthly_quota}h` : "-",
                 },
@@ -344,24 +353,27 @@ function ContractsPage() {
                   key: "extra",
                   label: "Hora extra",
                   className: "text-sm",
-                  cell: (c) => `R$ ${Number(c.extra_hour_price).toFixed(2)}`,
+                  accessor: (c) => Number(c.extra_hour_price),
+                  cell: (c) => formatCurrency(c.extra_hour_price),
                 },
                 {
                   key: "value",
                   label: "Valor",
                   className: "text-sm",
+                  accessor: (c) =>
+                    c.billing_model === "per_equipment"
+                      ? (c.equipment_tiers?.[0]?.price ?? 0)
+                      : Number(c.monthly_value),
                   cell: (c) => {
-                    if (c.billing_model === "hours_package")
-                      return `R$ ${Number(c.monthly_value).toFixed(2)}`;
-                    if (c.billing_model === "per_service")
-                      return `R$ ${Number(c.monthly_value).toFixed(2)}`;
+                    if (c.billing_model === "hours_package") return formatCurrency(c.monthly_value);
+                    if (c.billing_model === "per_service") return formatCurrency(c.monthly_value);
                     if (!c.equipment_tiers?.length) return "-";
 
                     return (
                       <div className="space-y-0.5">
                         {c.equipment_tiers.map((t, i) => (
                           <div key={i} className="text-[11px]">
-                            {t.min}–{t.max}: R$ {Number(t.price).toFixed(2)}
+                            {t.min}-{t.max}: {formatCurrency(t.price)}
                           </div>
                         ))}
                       </div>
@@ -371,6 +383,14 @@ function ContractsPage() {
                 {
                   key: "includes",
                   label: "Inclui",
+                  accessor: (c) =>
+                    [
+                      c.includes_remote ? "Remoto" : "",
+                      c.includes_lab ? "Laboratório" : "",
+                      c.includes_onsite ? "Visita" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" "),
                   cell: (c) => (
                     <div className="flex flex-wrap gap-1">
                       {c.includes_remote && (
@@ -395,6 +415,7 @@ function ContractsPage() {
                   key: "renew",
                   label: "Renovação",
                   className: "text-sm",
+                  accessor: (c) => (c.auto_renew ? "Automática" : "Manual"),
                   cell: (c) => (c.auto_renew ? "Automática" : "Manual"),
                 },
                 {
@@ -873,7 +894,7 @@ function ContractDialog({
                   <Input
                     type="number"
                     min={1}
-                    max={30}
+                    max={31}
                     value={form.dia_vencimento}
                     onChange={(event) =>
                       setForm({ ...form, dia_vencimento: Number(event.target.value) })
@@ -1039,12 +1060,11 @@ function ContractDialog({
                 </div>
                 <div>
                   <Label>Valor hora extra (R$)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                  <CurrencyInput
                     value={form.extra_hour_price}
-                    onChange={(e) => setForm({ ...form, extra_hour_price: Number(e.target.value) })}
+                    onValueChange={(value) =>
+                      setForm({ ...form, extra_hour_price: Number(value || 0) })
+                    }
                   />
                 </div>
                 <div className="flex h-[52px] items-center justify-between rounded-md border px-3">
@@ -1073,13 +1093,10 @@ function ContractDialog({
                     </div>
                     <div className="sm:col-span-2 lg:col-span-3">
                       <Label>Valor mensal (R$)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
+                      <CurrencyInput
                         value={form.monthly_value}
-                        onChange={(e) =>
-                          setForm({ ...form, monthly_value: Number(e.target.value) })
+                        onValueChange={(value) =>
+                          setForm({ ...form, monthly_value: Number(value || 0) })
                         }
                       />
                     </div>
@@ -1094,7 +1111,7 @@ function ContractDialog({
                         <span className="text-[11px] text-muted-foreground">
                           Valor mensal:{" "}
                           <span className="font-medium text-foreground">
-                            R$ {computedMonthly.toFixed(2)}
+                            {formatCurrency(computedMonthly)}
                           </span>
                         </span>
                         {!readOnly && (
@@ -1130,22 +1147,20 @@ function ContractDialog({
                         </div>
                         <div>
                           <Label>Quantidade</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                          <QuantityInput
                             value={s.quantity}
-                            onChange={(e) => updateService(i, { quantity: Number(e.target.value) })}
+                            onValueChange={(value) =>
+                              updateService(i, { quantity: Number(value || 0) })
+                            }
                           />
                         </div>
                         <div>
                           <Label>Valor unitário (R$)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                          <CurrencyInput
                             value={s.price}
-                            onChange={(e) => updateService(i, { price: Number(e.target.value) })}
+                            onValueChange={(value) =>
+                              updateService(i, { price: Number(value || 0) })
+                            }
                           />
                         </div>
                         {!readOnly && (
@@ -1203,12 +1218,9 @@ function ContractDialog({
                         </div>
                         <div>
                           <Label>Valor (R$)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                          <CurrencyInput
                             value={t.price}
-                            onChange={(e) => updateTier(i, { price: Number(e.target.value) })}
+                            onValueChange={(value) => updateTier(i, { price: Number(value || 0) })}
                           />
                         </div>
                         {!readOnly && (
@@ -1236,7 +1248,7 @@ function ContractDialog({
                       <div className="text-[11px] text-muted-foreground">
                         {selectedEquipIds.length} selecionado(s) · Valor mensal:{" "}
                         <span className="font-medium text-foreground">
-                          R$ {computedMonthly.toFixed(2)}
+                          {formatCurrency(computedMonthly)}
                         </span>
                       </div>
                     </div>

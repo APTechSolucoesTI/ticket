@@ -23,6 +23,7 @@ import { PageHeader, EmptyStub } from "@/components/empty-stub";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput, QuantityInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,7 @@ import { InterTab } from "@/components/settings/InterTab";
 import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
+import { formatCurrency } from "@/lib/number-format";
 import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
 import { inviteUser, resendInvite } from "@/lib/users.functions";
 import { usePermissions } from "@/lib/use-permissions";
@@ -2049,31 +2051,24 @@ function ContractTypesTab() {
                     </TableCell>
                     <TableCell className="text-sm">
                       {t.billing_model === "hours_package" ? (
-                        Number(t.default_monthly_value).toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })
+                        formatCurrency(t.default_monthly_value)
                       ) : t.billing_model === "per_service" ? (
-                        Number(
+                        formatCurrency(
                           (t.service_items ?? []).reduce(
                             (s, it) => s + Number(it.quantity || 0) * Number(it.price || 0),
                             0,
                           ),
-                        ).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                        )
                       ) : t.equipment_tiers?.length ? (
                         <div className="space-y-0.5">
                           {t.equipment_tiers.map((f, i) => (
                             <div key={i} className="text-xs">
-                              {f.min}–{f.max}:{" "}
-                              {Number(f.price).toLocaleString("pt-BR", {
-                                style: "currency",
-                                currency: "BRL",
-                              })}
+                              {f.min}-{f.max}: {formatCurrency(f.price)}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        `${Number(t.price_per_equipment ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / equip.`
+                        `${formatCurrency(t.price_per_equipment ?? 0)} / equip.`
                       )}
                     </TableCell>
 
@@ -2328,12 +2323,9 @@ function ContractTypeDialog({
               </div>
               <div>
                 <Label>Valor do pacote (R$)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                <CurrencyInput
                   value={form.default_monthly_value}
-                  onChange={(e) => setForm({ ...form, default_monthly_value: e.target.value })}
+                  onValueChange={(value) => setForm({ ...form, default_monthly_value: value })}
                 />
               </div>
             </>
@@ -2375,19 +2367,13 @@ function ContractTypeDialog({
                       value={s.description}
                       onChange={(e) => updateService(i, { description: e.target.value })}
                     />
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
+                    <QuantityInput
                       value={s.quantity}
-                      onChange={(e) => updateService(i, { quantity: e.target.value })}
+                      onValueChange={(value) => updateService(i, { quantity: value })}
                     />
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
+                    <CurrencyInput
                       value={s.price}
-                      onChange={(e) => updateService(i, { price: e.target.value })}
+                      onValueChange={(value) => updateService(i, { price: value })}
                     />
                     <Button
                       type="button"
@@ -2401,10 +2387,7 @@ function ContractTypeDialog({
                   </div>
                 ))}
                 <div className="text-right text-xs">
-                  Total:{" "}
-                  <span className="font-medium">
-                    {servicesTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </span>
+                  Total: <span className="font-medium">{formatCurrency(servicesTotal)}</span>
                 </div>
               </div>
             </div>
@@ -2446,12 +2429,9 @@ function ContractTypeDialog({
                       value={t.max}
                       onChange={(e) => updateTier(i, { max: e.target.value })}
                     />
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
+                    <CurrencyInput
                       value={t.price}
-                      onChange={(e) => updateTier(i, { price: e.target.value })}
+                      onValueChange={(value) => updateTier(i, { price: value })}
                     />
                     <Button
                       type="button"

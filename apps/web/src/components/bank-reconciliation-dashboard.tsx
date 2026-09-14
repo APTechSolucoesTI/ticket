@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -79,7 +80,12 @@ type Candidate = {
 };
 
 const db = supabase as unknown as SupabaseClient;
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 const statusLabels = {
   pending_review: "Revisar",
@@ -603,12 +609,16 @@ export function BankReconciliationDashboard({
                 </SelectContent>
               </Select>
             </div>
-            <Field
-              label="Saldo inicial"
-              value={accountForm.openingBalance}
-              type="number"
-              onChange={(value) => setAccountForm((old) => ({ ...old, openingBalance: value }))}
-            />
+            <div className="space-y-2">
+              <Label>Saldo inicial</Label>
+              <CurrencyInput
+                allowNegative
+                value={accountForm.openingBalance}
+                onValueChange={(value) =>
+                  setAccountForm((old) => ({ ...old, openingBalance: value }))
+                }
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAccountOpen(false)}>

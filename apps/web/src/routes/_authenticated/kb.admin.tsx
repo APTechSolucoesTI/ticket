@@ -200,6 +200,7 @@ function CategoriesTab() {
                   key: "parent",
                   label: "Pai",
                   className: "text-sm",
+                  accessor: (c) => data.find((p) => p.id === c.parent_id)?.name ?? "",
                   cell: (c) => data.find((p) => p.id === c.parent_id)?.name || "-",
                 },
               ] as ListColumn<Category>[]
@@ -492,11 +493,13 @@ function ArticlesTab() {
                   key: "category",
                   label: "Categoria",
                   className: "text-sm",
+                  accessor: (a) => categories?.find((c) => c.id === a.category_id)?.name ?? "",
                   cell: (a) => categories?.find((c) => c.id === a.category_id)?.name || "-",
                 },
                 {
                   key: "visibility",
                   label: "Visibilidade",
+                  accessor: (a) => (a.is_public ? "Pública" : "Restrita"),
                   cell: (a) => (
                     <Badge variant={a.is_public ? "default" : "secondary"}>
                       {a.is_public ? "Pública" : "Restrita"}

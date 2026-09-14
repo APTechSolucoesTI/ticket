@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -87,7 +88,12 @@ type SupplierCategory =
   "software_licensing" | "datacenter" | "connectivity" | "professional_services" | "other";
 
 const db = supabase as unknown as SupabaseClient;
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 const categories: Array<{ value: SupplierCategory; label: string }> = [
   { value: "software_licensing", label: "Licenciamento de software" },
   { value: "datacenter", label: "Datacenter e cloud" },
@@ -890,13 +896,16 @@ function ContractDialog({
             <Label htmlFor="contract-price">
               {unit === "fixed" ? "Valor do período" : "Valor por unidade"}
             </Label>
-            <Input
+            <CurrencyInput
               id="contract-price"
-              type="number"
-              min="0"
-              step={unit === "fixed" ? "0.01" : "0.0001"}
               disabled={!canEdit}
-              {...form.register(unit === "fixed" ? "base_amount" : "unit_price")}
+              value={form.watch(unit === "fixed" ? "base_amount" : "unit_price")}
+              onValueChange={(value) =>
+                form.setValue(unit === "fixed" ? "base_amount" : "unit_price", Number(value || 0), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
             />
             <FieldError
               message={unit === "fixed" ? errors.base_amount?.message : errors.unit_price?.message}

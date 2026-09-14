@@ -62,7 +62,12 @@ type GenerationResult = {
   detalhes?: Array<{ resultado?: string; mensagem?: string }>;
 };
 
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 
 const statusLabel: Record<Measurement["status"], string> = {
   gerada: "Gerada",
@@ -327,7 +332,10 @@ export function ContractMeasurements({
                               )}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {Number(item.quantidade).toFixed(2)}
+                              {Number(item.quantidade).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {money.format(Number(item.valor_unitario))}

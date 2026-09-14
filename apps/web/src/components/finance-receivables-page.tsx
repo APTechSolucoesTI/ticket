@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -95,7 +96,12 @@ const STATUS: Array<{ value: BillingStatus; label: string }> = [
   { value: "cancelado", label: "Cancelado" },
 ];
 
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 
 function effectiveStatus(charge: Charge): BillingStatus {
   if (
@@ -471,14 +477,11 @@ function ChargeDialog({
             </div>
             <div>
               <Label htmlFor="charge-final">Valor final</Label>
-              <Input
+              <CurrencyInput
                 id="charge-final"
-                type="number"
-                min="0"
-                step="0.01"
                 disabled={!canEdit}
                 value={form.valor_final}
-                onChange={(e) => setForm({ ...form, valor_final: Number(e.target.value) })}
+                onValueChange={(value) => setForm({ ...form, valor_final: Number(value || 0) })}
               />
             </div>
             <div>
@@ -631,24 +634,18 @@ function PriceDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="price-fixed">Valor fixo</Label>
-              <Input
+              <CurrencyInput
                 id="price-fixed"
-                type="number"
-                min="0"
-                step="0.01"
                 value={form.fixo}
-                onChange={(e) => setForm({ ...form, fixo: Number(e.target.value) })}
+                onValueChange={(value) => setForm({ ...form, fixo: Number(value || 0) })}
               />
             </div>
             <div>
               <Label htmlFor="price-hour">Valor da hora técnica</Label>
-              <Input
+              <CurrencyInput
                 id="price-hour"
-                type="number"
-                min="0"
-                step="0.01"
                 value={form.hora}
-                onChange={(e) => setForm({ ...form, hora: Number(e.target.value) })}
+                onValueChange={(value) => setForm({ ...form, hora: Number(value || 0) })}
               />
             </div>
           </div>

@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -55,7 +56,12 @@ type Policy = {
 type Approver = { id: string; name: string; email: string };
 
 const db = supabase as unknown as SupabaseClient;
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 
 export function SupplierApprovalPoliciesDialog({
   companyId,
@@ -227,25 +233,15 @@ export function SupplierApprovalPoliciesDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="approval-minimum">Valor mínimo</Label>
-                  <Input
-                    id="approval-minimum"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={minimum}
-                    onChange={(event) => setMinimum(event.target.value)}
-                  />
+                  <CurrencyInput id="approval-minimum" value={minimum} onValueChange={setMinimum} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="approval-maximum">Valor máximo</Label>
-                  <Input
+                  <CurrencyInput
                     id="approval-maximum"
-                    type="number"
-                    min="0"
-                    step="0.01"
                     value={maximum}
                     placeholder="Sem limite"
-                    onChange={(event) => setMaximum(event.target.value)}
+                    onValueChange={setMaximum}
                   />
                 </div>
               </div>

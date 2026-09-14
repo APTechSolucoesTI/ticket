@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -229,16 +230,7 @@ export function FinancialBudgetDialog({
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="budget-amount">Valor orçado</Label>
-            <Input
-              id="budget-amount"
-              type="number"
-              min="0.01"
-              max="999999999999.99"
-              step="0.01"
-              inputMode="decimal"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-            />
+            <CurrencyInput id="budget-amount" value={amount} onValueChange={setAmount} />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="budget-notes">Observações</Label>

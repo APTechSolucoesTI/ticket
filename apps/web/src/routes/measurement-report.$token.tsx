@@ -43,7 +43,12 @@ type MeasurementReport = {
   items: MeasurementReportItem[];
 };
 
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 
 const billingModelLabel: Record<string, string> = {
   hours_package: "Pacote de horas",

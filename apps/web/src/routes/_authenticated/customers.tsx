@@ -194,6 +194,7 @@ function CustomersPage() {
                   key: "name",
                   label: "Nome",
                   className: "font-medium",
+                  accessor: (c) => `${c.name} ${c.fantasy_name ?? ""}`,
                   cell: (c) => (
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -216,6 +217,10 @@ function CustomersPage() {
                   key: "cnae",
                   label: "CNAE principal",
                   className: "text-sm",
+                  accessor: (company) => {
+                    const primary = company.cnaes.find((cnae) => cnae.is_primary);
+                    return primary ? `${primary.code} ${primary.description}` : "";
+                  },
                   cell: (company) => {
                     const primary = company.cnaes.find((cnae) => cnae.is_primary);
                     return primary ? (
@@ -248,17 +253,20 @@ function CustomersPage() {
                   key: "city",
                   label: "Cidade",
                   className: "text-sm",
+                  accessor: (c) => c.address_city ?? "",
                   cell: (c) => c.address_city || "-",
                 },
                 {
                   key: "state",
                   label: "UF",
                   className: "text-sm",
+                  accessor: (c) => c.address_state ?? "",
                   cell: (c) => c.address_state || "-",
                 },
                 {
                   key: "vip",
                   label: "VIP",
+                  accessor: (c) => (c.is_vip ? "VIP" : "Não VIP"),
                   cell: (c) => (c.is_vip ? <Badge variant="secondary">VIP</Badge> : null),
                 },
               ] as ListColumn<Company>[]

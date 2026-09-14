@@ -51,7 +51,12 @@ type Projection = {
 };
 
 const db = supabase as unknown as SupabaseClient;
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 const compactMoney = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",

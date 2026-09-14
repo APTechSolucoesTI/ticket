@@ -1,17 +1,40 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, apticket, pg_catalog;
-select plan(34);
+select plan(36);
 
 select is(
   apticket.calcular_vencimento_medicao(
     '2028-02-01',
     'fixo',
-    30::smallint,
+    31::smallint,
     '11000000-0000-0000-0000-000000000001'
   ),
   '2028-02-29'::date,
   'vencimento fixo limita o dia ao último dia de fevereiro'
+);
+
+select is(
+  apticket.calcular_vencimento_medicao(
+    '2026-01-01',
+    'fixo',
+    31::smallint,
+    '11000000-0000-0000-0000-000000000001'
+  ),
+  '2026-01-31'::date,
+  'vencimento fixo aceita o dia 31'
+);
+
+select throws_ok(
+  $$select apticket.calcular_vencimento_medicao(
+    '2026-01-01',
+    'fixo',
+    32::smallint,
+    '11000000-0000-0000-0000-000000000001'
+  )$$,
+  '22023',
+  'O dia de vencimento deve estar entre 1 e 31.',
+  'vencimento rejeita dias acima de 31'
 );
 
 select is(

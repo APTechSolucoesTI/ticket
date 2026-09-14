@@ -17,8 +17,8 @@ export type FinancialStatementExportContext = {
 
 const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const pdfNumber = new Intl.NumberFormat("pt-BR", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
 });
 
 export async function exportFinancialStatementXlsx(context: FinancialStatementExportContext) {

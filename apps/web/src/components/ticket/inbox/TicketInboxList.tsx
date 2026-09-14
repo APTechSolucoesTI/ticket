@@ -40,6 +40,7 @@ const columns: ListColumn<TicketRow>[] = [
   {
     key: "customer",
     label: "Cliente",
+    accessor: (ticket) => `${ticket.contacts?.name ?? ""} ${ticket.companies?.name ?? ""}`,
     cell: (ticket) => (
       <div className="flex flex-col">
         <span>{ticket.contacts?.name ?? "-"}</span>
@@ -47,12 +48,23 @@ const columns: ListColumn<TicketRow>[] = [
       </div>
     ),
   },
-  { key: "company", label: "Empresa", cell: (ticket) => ticket.companies?.name ?? "-" },
-  { key: "contact", label: "Contato", cell: (ticket) => ticket.contacts?.name ?? "-" },
+  {
+    key: "company",
+    label: "Empresa",
+    accessor: (ticket) => ticket.companies?.name ?? "",
+    cell: (ticket) => ticket.companies?.name ?? "-",
+  },
+  {
+    key: "contact",
+    label: "Contato",
+    accessor: (ticket) => ticket.contacts?.name ?? "",
+    cell: (ticket) => ticket.contacts?.name ?? "-",
+  },
   {
     key: "assignee",
     label: "Técnico",
     className: "text-muted-foreground",
+    accessor: (ticket) => ticket.assigneeName ?? "",
     cell: (ticket) => ticket.assigneeName ?? "-",
   },
   {
@@ -63,6 +75,7 @@ const columns: ListColumn<TicketRow>[] = [
   {
     key: "sla",
     label: "SLA",
+    accessor: (ticket) => dueFor(ticket) ?? "",
     cell: (ticket) =>
       ticket.tipo_atendimento === "avulso" ? (
         <span className="text-xs text-muted-foreground">Sem SLA contratual</span>
@@ -77,6 +90,7 @@ const columns: ListColumn<TicketRow>[] = [
   {
     key: "status",
     label: "Status",
+    accessor: (ticket) => `${ticket.status} ${ticket.pending_type ?? ""}`,
     cell: (ticket) => (
       <div className="flex flex-col items-start gap-1">
         <TicketBadge status={ticket.status} />
@@ -88,6 +102,7 @@ const columns: ListColumn<TicketRow>[] = [
     key: "channel",
     label: "Canal",
     className: "w-10",
+    accessor: (ticket) => ticket.channel,
     cell: (ticket) => <ChannelIcon channel={ticket.channel} />,
   },
   {

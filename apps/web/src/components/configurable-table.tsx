@@ -3,7 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Settings2, ArrowUp, ArrowDown, ChevronsUpDown, Filter, X } from "lucide-react";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ColumnSettingsDialog } from "@/components/column-settings-dialog";
@@ -42,8 +47,22 @@ function toComparable(v: unknown): string | number {
   return String(v).toLowerCase();
 }
 
+function normalizeSearch(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
 export function ConfigurableTable<T>({
-  listKey, columns, defaultColumns, rows, rowKey, rowClassName, rowActions,
+  listKey,
+  columns,
+  defaultColumns,
+  rows,
+  rowKey,
+  rowClassName,
+  rowActions,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [sort, setSort] = useState<SortState>(null);
@@ -66,7 +85,7 @@ export function ConfigurableTable<T>({
     const active = Object.entries(filters).filter(([, v]) => v.trim());
     if (active.length) {
       out = out.filter((r) =>
-        active.every(([k, q]) => String(getValue(r, k) ?? "").toLowerCase().includes(q.toLowerCase())),
+        active.every(([k, q]) => normalizeSearch(getValue(r, k)).includes(normalizeSearch(q))),
       );
     }
     if (sort) {
@@ -74,9 +93,13 @@ export function ConfigurableTable<T>({
       out = [...out].sort((a, b) => {
         const av = toComparable(getValue(a, sort.key));
         const bv = toComparable(getValue(b, sort.key));
-        if (av < bv) return -1 * dir;
-        if (av > bv) return 1 * dir;
-        return 0;
+        if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+        return (
+          String(av).localeCompare(String(bv), "pt-BR", {
+            numeric: true,
+            sensitivity: "base",
+          }) * dir
+        );
       });
     }
     return out;
@@ -91,9 +114,16 @@ export function ConfigurableTable<T>({
     });
   };
 
+  const activeFilterCount = Object.values(filters).filter((value) => value.trim()).length;
+
   return (
     <>
-      <div className="flex justify-end mb-2">
+      <div className="mb-2 flex items-center justify-end gap-2">
+        {activeFilterCount > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => setFilters({})}>
+            <X className="mr-1 h-4 w-4" /> Limpar filtros ({activeFilterCount})
+          </Button>
+        )}
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
           <Settings2 className="h-4 w-4 mr-1" /> Colunas
         </Button>
@@ -108,7 +138,10 @@ export function ConfigurableTable<T>({
               const isSorted = sort?.key === k;
               const hasFilter = !!filters[k]?.trim();
               return (
-                <TableHead key={k} className={`text-primary font-semibold uppercase tracking-wide text-xs bg-primary/5 ${c?.className ?? ""}`}>
+                <TableHead
+                  key={k}
+                  className={`text-primary font-semibold uppercase tracking-wide text-xs bg-primary/5 ${c?.className ?? ""}`}
+                >
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -117,17 +150,23 @@ export function ConfigurableTable<T>({
                       className={`inline-flex items-center gap-1 text-left ${sortable ? "hover:text-foreground cursor-pointer" : "cursor-default"}`}
                     >
                       <span>{c?.label ?? k}</span>
-                      {sortable && (
-                        isSorted
-                          ? (sort!.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
-                          : <ChevronsUpDown className="h-3 w-3 opacity-40" />
-                      )}
+                      {sortable &&
+                        (isSorted ? (
+                          sort!.dir === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          )
+                        ) : (
+                          <ChevronsUpDown className="h-3 w-3 opacity-40" />
+                        ))}
                     </button>
                     {filterable && (
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             type="button"
+                            aria-label={`Filtrar ${c?.label ?? k}`}
                             variant="ghost"
                             size="icon"
                             className={`h-5 w-5 ${hasFilter ? "text-primary" : "opacity-60 hover:opacity-100"}`}
@@ -150,7 +189,13 @@ export function ConfigurableTable<T>({
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7"
-                                onClick={() => setFilters((f) => { const n = { ...f }; delete n[k]; return n; })}
+                                onClick={() =>
+                                  setFilters((f) => {
+                                    const n = { ...f };
+                                    delete n[k];
+                                    return n;
+                                  })
+                                }
                               >
                                 <X className="h-3 w-3" />
                               </Button>
@@ -180,6 +225,16 @@ export function ConfigurableTable<T>({
               {rowActions && <TableCell className="text-right">{rowActions(row)}</TableCell>}
             </TableRow>
           ))}
+          {processed.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={visibleOrder.length + (rowActions ? 1 : 0)}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Nenhum registro corresponde aos filtros informados.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
       <ColumnSettingsDialog

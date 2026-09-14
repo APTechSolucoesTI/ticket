@@ -158,6 +158,7 @@ function ContactsPage() {
                   key: "name",
                   label: "Nome",
                   className: "font-medium",
+                  accessor: (c) => `${c.name} ${c.job_title ?? ""}`,
                   cell: (c) => (
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
@@ -174,6 +175,7 @@ function ContactsPage() {
                   key: "company",
                   label: "Cliente",
                   className: "text-sm",
+                  accessor: (c) => c.companies?.name ?? "",
                   cell: (c) => c.companies?.name || "-",
                 },
                 { key: "email", label: "E-mail", className: "text-sm", cell: (c) => c.email },
@@ -191,7 +193,9 @@ function ContactsPage() {
                 },
                 {
                   key: "flags",
-                  label: "",
+                  label: "Situação",
+                  accessor: (c) =>
+                    `${c.is_active ? "Ativo" : "Inativo"} ${c.can_open_tickets ? "Com abertura" : "Sem abertura"}`,
                   cell: (c) => (
                     <div className="space-x-1">
                       {!c.is_active && <Badge variant="outline">Inativo</Badge>}

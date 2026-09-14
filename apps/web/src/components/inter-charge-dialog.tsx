@@ -16,7 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState, ErrorState } from "@/components/data-state";
 import { InterPayerReview } from "@/components/inter-payer-review";
 
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 const date = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR");
 const requestStatus = {
   blocked_homologation: { label: "Aguardando emissão", icon: LockKeyhole },

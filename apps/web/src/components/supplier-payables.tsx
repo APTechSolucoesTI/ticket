@@ -115,8 +115,16 @@ type ApprovalStep = {
 };
 
 const db = supabase as unknown as SupabaseClient;
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const number = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 6 });
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+const number = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const date = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 const unitLabels = {
   fixed: "Fixo",
