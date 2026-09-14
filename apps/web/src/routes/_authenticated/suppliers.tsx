@@ -83,7 +83,6 @@ type SupplierCategory =
 type OperatingCompany = { id: string; legal_name: string };
 type Supplier = {
   id: string;
-  operating_company_id: string;
   legal_name: string;
   trade_name: string | null;
   tax_id: string | null;
@@ -187,15 +186,13 @@ function SuppliersPage() {
   }, [companyId, companies.data]);
 
   const suppliers = useQuery({
-    queryKey: ["supplier-directory", companyId],
-    enabled: Boolean(companyId),
+    queryKey: ["supplier-directory"],
     queryFn: async () => {
       const { data, error } = await db
         .from("suppliers")
         .select(
-          "id,operating_company_id,legal_name,trade_name,tax_id,category,contact_name,email,phone,website,address_zip,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,cnaes,notes,is_active",
+          "id,legal_name,trade_name,tax_id,category,contact_name,email,phone,website,address_zip,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,cnaes,notes,is_active",
         )
-        .eq("operating_company_id", companyId)
         .is("deleted_at", null)
         .order("legal_name");
       if (error) throw error;
@@ -232,7 +229,7 @@ function SuppliersPage() {
     onSuccess: () => {
       toast.success("Fornecedor arquivado.");
       setToArchive(null);
-      void queryClient.invalidateQueries({ queryKey: ["supplier-directory", companyId] });
+      void queryClient.invalidateQueries({ queryKey: ["supplier-directory"] });
       void queryClient.invalidateQueries({ queryKey: ["payable-suppliers", companyId] });
     },
     onError: (error: Error) =>
@@ -329,7 +326,7 @@ function SuppliersPage() {
         subtitle="Empresas fornecedoras, atividades econômicas e dados para contas a pagar."
         icon={Truck}
         actions={
-          access.edit && companyId ? (
+          access.edit ? (
             <Button
               size="sm"
               onClick={() => {
@@ -360,7 +357,7 @@ function SuppliersPage() {
         <>
           <Card className="grid gap-3 p-3 lg:grid-cols-[minmax(220px,320px)_1fr_auto] lg:items-end">
             <div>
-              <Label>Empresa operadora</Label>
+              <Label>Empresa operadora para dados bancários</Label>
               <Select value={companyId} onValueChange={setCompanyId}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -422,7 +419,7 @@ function SuppliersPage() {
               description={
                 search || category !== "all"
                   ? "Ajuste os filtros da listagem."
-                  : "Cadastre o primeiro fornecedor desta empresa."
+                  : "Cadastre o primeiro fornecedor do grupo empresarial."
               }
             />
           ) : (
@@ -438,6 +435,7 @@ function SuppliersPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      disabled={!companyId}
                       title="Dados bancários"
                       aria-label={`Dados bancários de ${supplier.legal_name}`}
                       onClick={() => setBankTarget(supplier)}
@@ -477,7 +475,6 @@ function SuppliersPage() {
         open={open}
         onOpenChange={setOpen}
         editing={editing}
-        companyId={companyId}
         readOnly={!access.edit}
       />
 
@@ -485,6 +482,7 @@ function SuppliersPage() {
         <SupplierBankAccountsDialog
           supplierId={bankTarget.id}
           supplierName={bankTarget.trade_name || bankTarget.legal_name}
+          operatingCompanyId={companyId}
           canEdit={access.edit}
           onClose={() => setBankTarget(null)}
         />
@@ -518,13 +516,11 @@ function SupplierDialog({
   open,
   onOpenChange,
   editing,
-  companyId,
   readOnly,
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
   editing: Supplier | null;
-  companyId: string;
   readOnly: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -579,7 +575,6 @@ function SupplierDialog({
     mutationFn: async (payload: z.infer<typeof schema>) => {
       const tenantId = await getMyTenantId();
       if (!tenantId) throw new Error("Tenant não encontrado.");
-      if (!companyId) throw new Error("Empresa operadora não encontrada.");
       const values = {
         legal_name: payload.legal_name,
         trade_name: payload.trade_name || null,
@@ -608,15 +603,14 @@ function SupplierDialog({
         const { error } = await db.from("suppliers").insert({
           ...values,
           tenant_id: tenantId,
-          operating_company_id: companyId,
         });
         if (error) throw error;
       }
     },
     onSuccess: () => {
       toast.success(editing ? "Fornecedor atualizado." : "Fornecedor criado.");
-      void queryClient.invalidateQueries({ queryKey: ["supplier-directory", companyId] });
-      void queryClient.invalidateQueries({ queryKey: ["payable-suppliers", companyId] });
+      void queryClient.invalidateQueries({ queryKey: ["supplier-directory"] });
+      void queryClient.invalidateQueries({ queryKey: ["payable-suppliers"] });
       onOpenChange(false);
     },
     onError: (error: Error) =>

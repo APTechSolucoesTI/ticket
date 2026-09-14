@@ -28,6 +28,12 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
   { key: "configuracoes", label: "Configurações", actions: ["view", "edit"] },
   { key: "empresa", label: "Empresa", actions: ["view", "edit"], parent: "configuracoes" },
   {
+    key: "empresa_operadora",
+    label: "Empresa Operadora",
+    actions: ["view", "create", "edit", "delete"],
+    parent: "configuracoes",
+  },
+  {
     key: "usuarios",
     label: "Usuários",
     actions: ["view", "create", "edit", "delete"],

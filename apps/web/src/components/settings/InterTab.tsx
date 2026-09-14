@@ -34,7 +34,7 @@ import {
 } from "@/lib/inter-settings.schema";
 
 export function InterTab() {
-  const access = useModulePermissions("empresa");
+  const access = useModulePermissions("empresa_operadora");
   const list = useServerFn(listInterSettings);
   const [environment, setEnvironment] = useState<"sandbox" | "production">("sandbox");
   const query = useQuery({ queryKey: ["inter-settings"], queryFn: () => list() });

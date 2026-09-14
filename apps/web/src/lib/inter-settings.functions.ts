@@ -38,7 +38,7 @@ export const listInterSettings = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<InterSettingsMetadata[]> => {
     const { data: allowed } = await context.supabase.rpc("has_permission", {
       _user_id: context.userId,
-      _module: "empresa",
+      _module: "empresa_operadora",
       _action: "view",
     });
     const { data: settingsAllowed } = await context.supabase.rpc("has_permission", {

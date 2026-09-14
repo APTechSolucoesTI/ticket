@@ -74,11 +74,13 @@ const blank: BankAccountForm = {
 export function SupplierBankAccountsDialog({
   supplierId,
   supplierName,
+  operatingCompanyId,
   canEdit,
   onClose,
 }: {
   supplierId: string;
   supplierName: string;
+  operatingCompanyId: string;
   canEdit: boolean;
   onClose: () => void;
 }) {
@@ -86,7 +88,7 @@ export function SupplierBankAccountsDialog({
   const [editing, setEditing] = useState<SupplierBankAccount | null>();
   const [form, setForm] = useState(blank);
   const query = useQuery({
-    queryKey: ["supplier-bank-accounts", supplierId],
+    queryKey: ["supplier-bank-accounts", supplierId, operatingCompanyId],
     queryFn: async () => {
       const { data, error } = await db
         .from("supplier_bank_accounts")
@@ -94,6 +96,7 @@ export function SupplierBankAccountsDialog({
           "id,label,holder_name,holder_tax_id,bank_code,bank_name,branch,account_number,account_digit,account_type,pix_key_type,pix_key,is_default",
         )
         .eq("supplier_id", supplierId)
+        .eq("operating_company_id", operatingCompanyId)
         .is("deleted_at", null)
         .order("is_default", { ascending: false })
         .order("label");
@@ -129,6 +132,7 @@ export function SupplierBankAccountsDialog({
       const { error } = await db.rpc("save_supplier_bank_account", {
         p_bank_account_id: editing?.id ?? null,
         p_supplier_id: supplierId,
+        p_operating_company_id: operatingCompanyId,
         p_label: form.label,
         p_holder_name: form.holder_name,
         p_holder_tax_id: form.holder_tax_id,
@@ -147,7 +151,9 @@ export function SupplierBankAccountsDialog({
     onSuccess: async () => {
       toast.success("Dados bancários salvos.");
       setEditing(undefined);
-      await queryClient.invalidateQueries({ queryKey: ["supplier-bank-accounts", supplierId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["supplier-bank-accounts", supplierId, operatingCompanyId],
+      });
     },
     onError: (error) => toast.error(getUserFacingError(error, "salvar os dados bancários")),
   });
@@ -158,7 +164,9 @@ export function SupplierBankAccountsDialog({
     },
     onSuccess: async () => {
       toast.success("Dado bancário arquivado.");
-      await queryClient.invalidateQueries({ queryKey: ["supplier-bank-accounts", supplierId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["supplier-bank-accounts", supplierId, operatingCompanyId],
+      });
     },
     onError: (error) => toast.error(getUserFacingError(error, "arquivar o dado bancário")),
   });

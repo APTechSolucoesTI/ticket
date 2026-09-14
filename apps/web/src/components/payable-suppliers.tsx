@@ -62,7 +62,6 @@ type SupplierContract = {
 };
 type Supplier = {
   id: string;
-  operating_company_id: string;
   legal_name: string;
   trade_name: string | null;
   tax_id: string | null;
@@ -171,9 +170,8 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
         db
           .from("suppliers")
           .select(
-            "id,operating_company_id,legal_name,trade_name,tax_id,category,contact_name,email,phone,notes,is_active",
+            "id,legal_name,trade_name,tax_id,category,contact_name,email,phone,notes,is_active",
           )
-          .eq("operating_company_id", companyId)
           .is("deleted_at", null)
           .order("legal_name"),
         db

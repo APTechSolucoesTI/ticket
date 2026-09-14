@@ -61,6 +61,7 @@ type ServiceItem = { reference: string; description: string; quantity: number; p
 
 type Contract = {
   id: string;
+  operating_company_id: string;
   company_id: string;
   contract_type_id: string | null;
   sla_policy_id: string | null;
@@ -86,6 +87,7 @@ type Contract = {
   description: string | null;
   notes: string | null;
   companies?: { name: string } | null;
+  operating_companies?: { legal_name: string; trade_name: string | null } | null;
   contract_types?: { name: string } | null;
   sla_policies?: { name: string } | null;
 };
@@ -107,6 +109,7 @@ const equipmentTiersSchema = z.array(tierSchema);
 const serviceItemsSchema = z.array(serviceSchema);
 
 const schema = z.object({
+  operating_company_id: z.string().uuid("Selecione uma empresa operadora"),
   company_id: z.string().uuid("Selecione um cliente"),
   contract_type_id: z.string().uuid().nullable(),
   sla_policy_id: z.string().uuid().nullable(),
@@ -195,7 +198,9 @@ function ContractsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contracts")
-        .select("*, companies(name), contract_types(name), sla_policies(name)")
+        .select(
+          "*, companies(name), operating_companies(legal_name,trade_name), contract_types(name), sla_policies(name)",
+        )
         .order("starts_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map((contract) => {
@@ -260,6 +265,7 @@ function ContractsPage() {
             rowKey={(c) => c.id}
             defaultColumns={[
               "number",
+              "operator",
               "company",
               "type",
               "billing",
@@ -277,6 +283,15 @@ function ContractsPage() {
                   className: "whitespace-nowrap font-mono text-xs font-semibold",
                   accessor: (c) => c.numero_contrato,
                   cell: (c) => c.numero_contrato,
+                },
+                {
+                  key: "operator",
+                  label: "Empresa operadora",
+                  className: "text-sm",
+                  accessor: (c) =>
+                    c.operating_companies?.trade_name || c.operating_companies?.legal_name || "",
+                  cell: (c) =>
+                    c.operating_companies?.trade_name || c.operating_companies?.legal_name || "-",
                 },
                 {
                   key: "company",
@@ -483,6 +498,7 @@ const NONE = "__none__";
 
 type FormState = {
   numero_contrato: string;
+  operating_company_id: string;
   company_id: string;
   contract_type_id: string;
   sla_policy_id: string;
@@ -523,6 +539,7 @@ function ContractDialog({
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState>({
     numero_contrato: "",
+    operating_company_id: "",
     company_id: "",
     contract_type_id: "",
     sla_policy_id: "",
@@ -555,6 +572,19 @@ function ContractDialog({
     queryKey: ["companies", "options"],
     queryFn: async () =>
       (await supabase.from("companies").select("id, name").order("name")).data ?? [],
+  });
+  const { data: operatingCompanies } = useQuery({
+    queryKey: ["operating-companies", "contract-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("operating_companies")
+        .select("id, legal_name, trade_name")
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("legal_name");
+      if (error) throw error;
+      return data ?? [];
+    },
   });
   const { data: types } = useQuery({
     queryKey: ["contract_types", "options-full"],
@@ -624,6 +654,7 @@ function ContractDialog({
             ? servicesTotal(payload.service_items)
             : payload.monthly_value;
       const values = {
+        operating_company_id: payload.operating_company_id,
         company_id: payload.company_id,
         contract_type_id: payload.contract_type_id,
         sla_policy_id: payload.sla_policy_id,
@@ -700,6 +731,7 @@ function ContractDialog({
     if (!open) return;
     setForm({
       numero_contrato: editing?.numero_contrato ?? "",
+      operating_company_id: editing?.operating_company_id ?? operatingCompanies?.[0]?.id ?? "",
       company_id: editing?.company_id ?? "",
       contract_type_id: editing?.contract_type_id ?? "",
       sla_policy_id: editing?.sla_policy_id ?? "",
@@ -734,7 +766,7 @@ function ContractDialog({
       : undefined;
     setSelectedEquipIds(cachedLinks ?? []);
     hydratedEquipmentLinksFor.current = cachedLinks ? editingId : null;
-  }, [open, editing, qc]);
+  }, [open, editing, operatingCompanies, qc]);
 
   useEffect(() => {
     if (
@@ -950,6 +982,25 @@ function ContractDialog({
                     onCheckedChange={(checked) => setForm({ ...form, emite_boleto: checked })}
                   />
                 </label>
+
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <Label>Empresa operadora *</Label>
+                  <Select
+                    value={form.operating_company_id}
+                    onValueChange={(v) => setForm({ ...form, operating_company_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma empresa operadora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {operatingCompanies?.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.trade_name || company.legal_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="sm:col-span-2 lg:col-span-4">
                   <Label>Cliente *</Label>

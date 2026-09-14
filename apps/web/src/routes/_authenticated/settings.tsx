@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CompanyTab } from "@/components/settings/CompanyTab";
+import { OperatingCompaniesTab } from "@/components/settings/OperatingCompaniesTab";
 import { InterTab } from "@/components/settings/InterTab";
 import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
@@ -117,7 +118,8 @@ async function getTenantId() {
 
 const SETTINGS_TABS = [
   { value: "company", module: "empresa", label: "Empresa" },
-  { value: "inter", module: "empresa", label: "Banco Inter" },
+  { value: "operating-companies", module: "empresa_operadora", label: "Empresa Operadora" },
+  { value: "inter", module: "empresa_operadora", label: "Banco Inter" },
   { value: "users", module: "usuarios", label: "Usuários" },
   { value: "roles", module: "papeis", label: "Papéis" },
   { value: "user-permissions", module: "permissoes", label: "Permissões" },
@@ -167,7 +169,14 @@ function SettingsPage() {
             </ModulePermissionProvider>
           </TabsContent>
         )}
-        {perms.has("empresa", "view") && (
+        {perms.has("empresa_operadora", "view") && (
+          <TabsContent value="operating-companies" className="mt-4">
+            <ModulePermissionProvider module="empresa_operadora">
+              <OperatingCompaniesTab />
+            </ModulePermissionProvider>
+          </TabsContent>
+        )}
+        {perms.has("empresa_operadora", "view") && (
           <TabsContent value="inter" className="mt-4">
             <InterTab />
           </TabsContent>
