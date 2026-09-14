@@ -22,6 +22,7 @@ import {
   Settings,
   ShieldCheck,
   Target,
+  Truck,
   Users,
   WalletCards,
   type LucideIcon,
@@ -88,6 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { to: "/customers", label: "Clientes", icon: Building2, module: "clientes" },
+      { to: "/suppliers", label: "Fornecedores", icon: Truck, module: "financeiro" },
       { to: "/equipments", label: "Equipamentos", icon: Monitor, module: "equipamentos" },
       { to: "/contracts", label: "Contratos", icon: FileText, module: "contratos" },
       {

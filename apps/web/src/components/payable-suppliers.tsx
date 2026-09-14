@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  Building2,
-  Landmark,
-  FilePlus2,
-  Loader2,
-  PackageSearch,
-  Pencil,
-  Percent,
-  Plus,
-  Search,
-} from "lucide-react";
+import { FilePlus2, Loader2, PackageSearch, Percent, Search, Truck } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -53,7 +44,6 @@ import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierPayables, type PayableContractOption } from "@/components/supplier-payables";
 import { FixedAllocationDialog } from "@/components/fixed-allocation-dialog";
-import { SupplierBankAccountsDialog } from "@/components/supplier-bank-accounts-dialog";
 
 type Company = { id: string; legal_name: string };
 type SupplierContract = {
@@ -113,25 +103,6 @@ const intervals = [
   { value: "12", label: "Anual" },
 ];
 
-const supplierSchema = z.object({
-  legal_name: z.string().trim().min(2, "Informe a razão social.").max(250),
-  trade_name: z.string().trim().max(250),
-  tax_id: z.string().max(20),
-  category: z.enum([
-    "software_licensing",
-    "datacenter",
-    "connectivity",
-    "professional_services",
-    "other",
-  ]),
-  contact_name: z.string().trim().max(150),
-  email: z.union([z.literal(""), z.email("Informe um e-mail válido.")]),
-  phone: z.string().max(30),
-  notes: z.string().max(4000),
-  is_active: z.boolean(),
-});
-type SupplierForm = z.infer<typeof supplierSchema>;
-
 const contractSchema = z
   .object({
     description: z.string().trim().min(2, "Informe uma descrição.").max(250),
@@ -169,7 +140,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
   const [companyId, setCompanyId] = useState("");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<"all" | SupplierCategory>("all");
-  const [editing, setEditing] = useState<Supplier | null | undefined>();
   const [contractTarget, setContractTarget] = useState<{
     supplier: Supplier;
     contract?: SupplierContract;
@@ -178,7 +148,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
     supplier: Supplier;
     contract: SupplierContract;
   }>();
-  const [bankTarget, setBankTarget] = useState<Supplier>();
   const companies = useQuery({
     queryKey: ["payable-operating-companies"],
     queryFn: async () => {
@@ -265,15 +234,15 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
       <PageHeader
         title="Contas a pagar"
         titleId="payables-title"
-        subtitle="Fornecedores recorrentes e contratos que alimentarão o rateio de custos."
+        subtitle="Contratos recorrentes, rateios, aprovações e pagamentos."
         icon={PackageSearch}
         actions={
-          canEdit && companyId ? (
-            <Button className="gap-2" onClick={() => setEditing(null)}>
-              <Plus className="size-4" />
-              Novo fornecedor
-            </Button>
-          ) : null
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/suppliers">
+              <Truck className="size-4" />
+              Gerenciar fornecedores
+            </Link>
+          </Button>
         }
       />
       {companies.isLoading ? (
@@ -319,7 +288,7 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
           <Card>
             <CardHeader className="gap-3 border-b lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <CardTitle className="text-base">Fornecedores</CardTitle>
+                <CardTitle className="text-base">Contratos de fornecimento</CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Consulte o compromisso recorrente por empresa e unidade de cobrança.
                 </p>
@@ -459,23 +428,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
                                   <FilePlus2 className="size-4" />
                                 </Button>
                               ) : null}
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Dados bancários de ${supplier.legal_name}`}
-                                title="Dados bancários"
-                                onClick={() => setBankTarget(supplier)}
-                              >
-                                <Landmark className="size-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Editar ${supplier.legal_name}`}
-                                onClick={() => setEditing(supplier)}
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -489,15 +441,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
           <SupplierPayables companyId={companyId} contracts={payableContracts} canEdit={canEdit} />
         </>
       )}
-      {editing !== undefined ? (
-        <SupplierDialog
-          companyId={companyId}
-          supplier={editing}
-          canEdit={canEdit}
-          onClose={() => setEditing(undefined)}
-          onSaved={refresh}
-        />
-      ) : null}
       {contractTarget ? (
         <ContractDialog
           companyId={companyId}
@@ -516,14 +459,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
           contract={allocationTarget.contract}
           onClose={() => setAllocationTarget(undefined)}
           onSaved={refresh}
-        />
-      ) : null}
-      {bankTarget ? (
-        <SupplierBankAccountsDialog
-          supplierId={bankTarget.id}
-          supplierName={bankTarget.trade_name || bankTarget.legal_name}
-          canEdit={canEdit}
-          onClose={() => setBankTarget(undefined)}
         />
       ) : null}
     </section>
@@ -546,197 +481,6 @@ function FieldError({ message }: { message?: string }) {
       {message}
     </p>
   ) : null;
-}
-
-function SupplierDialog({
-  companyId,
-  supplier,
-  canEdit,
-  onClose,
-  onSaved,
-}: {
-  companyId: string;
-  supplier: Supplier | null;
-  canEdit: boolean;
-  onClose(): void;
-  onSaved(): void;
-}) {
-  const form = useForm<SupplierForm>({
-    resolver: zodResolver(supplierSchema),
-    defaultValues: {
-      legal_name: supplier?.legal_name ?? "",
-      trade_name: supplier?.trade_name ?? "",
-      tax_id: supplier?.tax_id ?? "",
-      category: supplier?.category ?? "software_licensing",
-      contact_name: supplier?.contact_name ?? "",
-      email: supplier?.email ?? "",
-      phone: supplier?.phone ?? "",
-      notes: supplier?.notes ?? "",
-      is_active: supplier?.is_active ?? true,
-    },
-  });
-  const save = useMutation({
-    mutationFn: async (value: SupplierForm) => {
-      const payload = {
-        ...value,
-        trade_name: value.trade_name || null,
-        tax_id: value.tax_id || null,
-        contact_name: value.contact_name || null,
-        email: value.email || null,
-        phone: value.phone || null,
-        notes: value.notes || null,
-      };
-      if (supplier) {
-        const { data, error } = await db
-          .from("suppliers")
-          .update(payload)
-          .eq("id", supplier.id)
-          .eq("operating_company_id", companyId)
-          .select("id")
-          .maybeSingle();
-        if (error || !data) throw error ?? new Error("Fornecedor não encontrado ou sem permissão.");
-      } else {
-        const tenantId = await getMyTenantId();
-        if (!tenantId) throw new Error("Tenant não encontrada.");
-        const { error } = await db
-          .from("suppliers")
-          .insert({ ...payload, tenant_id: tenantId, operating_company_id: companyId });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      toast.success(supplier ? "Fornecedor atualizado" : "Fornecedor cadastrado");
-      onSaved();
-      onClose();
-    },
-    onError: (error: Error) =>
-      toast.error(getUserFacingError(error, "Não foi possível salvar o fornecedor.")),
-  });
-  const archive = useMutation({
-    mutationFn: async () => {
-      if (!supplier) return;
-      const { data, error } = await db
-        .from("suppliers")
-        .update({ is_active: false, deleted_at: new Date().toISOString() })
-        .eq("id", supplier.id)
-        .select("id")
-        .maybeSingle();
-      if (error || !data) throw error ?? new Error("Fornecedor não encontrado.");
-    },
-    onSuccess: () => {
-      toast.success("Fornecedor arquivado");
-      onSaved();
-      onClose();
-    },
-    onError: (error: Error) =>
-      toast.error(
-        getUserFacingError(error, "Arquive primeiro os contratos ativos deste fornecedor."),
-      ),
-  });
-  const errors = form.formState.errors;
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Building2 className="size-5" />
-            {supplier ? "Editar fornecedor" : "Novo fornecedor"}
-          </DialogTitle>
-        </DialogHeader>
-        <form
-          className="grid gap-4 sm:grid-cols-2"
-          onSubmit={form.handleSubmit((v) => save.mutate(v))}
-        >
-          <div className="sm:col-span-2">
-            <Label htmlFor="supplier-legal">Razão social</Label>
-            <Input id="supplier-legal" disabled={!canEdit} {...form.register("legal_name")} />
-            <FieldError message={errors.legal_name?.message} />
-          </div>
-          <div>
-            <Label htmlFor="supplier-trade">Nome fantasia</Label>
-            <Input id="supplier-trade" disabled={!canEdit} {...form.register("trade_name")} />
-          </div>
-          <div>
-            <Label htmlFor="supplier-tax">CPF ou CNPJ</Label>
-            <Input id="supplier-tax" disabled={!canEdit} {...form.register("tax_id")} />
-          </div>
-          <div>
-            <Label>Categoria</Label>
-            <Select
-              disabled={!canEdit}
-              value={form.watch("category")}
-              onValueChange={(v) => form.setValue("category", v as SupplierCategory)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="supplier-contact">Contato</Label>
-            <Input id="supplier-contact" disabled={!canEdit} {...form.register("contact_name")} />
-          </div>
-          <div>
-            <Label htmlFor="supplier-email">E-mail</Label>
-            <Input
-              id="supplier-email"
-              type="email"
-              disabled={!canEdit}
-              {...form.register("email")}
-            />
-            <FieldError message={errors.email?.message} />
-          </div>
-          <div>
-            <Label htmlFor="supplier-phone">Telefone</Label>
-            <Input id="supplier-phone" disabled={!canEdit} {...form.register("phone")} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="supplier-notes">Observações</Label>
-            <Textarea id="supplier-notes" disabled={!canEdit} {...form.register("notes")} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              disabled={!canEdit}
-              checked={form.watch("is_active")}
-              onCheckedChange={(v) => form.setValue("is_active", v)}
-            />
-            Fornecedor ativo
-          </label>
-          <DialogFooter className="sm:col-span-2 sm:justify-between">
-            <div>
-              {supplier && canEdit ? (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={archive.isPending}
-                  onClick={() => archive.mutate()}
-                >
-                  Arquivar
-                </Button>
-              ) : null}
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Fechar
-              </Button>
-              {canEdit ? (
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Salvar
-                </Button>
-              ) : null}
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 function ContractDialog({

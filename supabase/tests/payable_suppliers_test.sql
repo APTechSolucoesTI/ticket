@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public,apticket,pg_catalog;
-select plan(24);
+select plan(29);
 
 insert into apticket.tenants(id,name,slug) values
  ('a1000000-0000-0000-0000-000000000001','Payables A','payables-a'),
@@ -24,11 +24,16 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"a2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
-select lives_ok($$insert into apticket.suppliers(id,tenant_id,operating_company_id,legal_name,trade_name,tax_id,category,email,phone)
- values('a4000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','a3000000-0000-0000-0000-000000000001','  Software Vendor SA  ',' Vendor ','12.345.678/0001-90','software_licensing','BILLING@EXAMPLE.TEST','(19) 3333-4444')$$,'financeiro inclui fornecedor');
+select lives_ok($$insert into apticket.suppliers(id,tenant_id,operating_company_id,legal_name,trade_name,tax_id,category,email,phone,website,address_zip,address_city,address_state,cnaes)
+ values('a4000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','a3000000-0000-0000-0000-000000000001','  Software Vendor SA  ',' Vendor ','12.345.678/0001-90','software_licensing','BILLING@EXAMPLE.TEST','(19) 3333-4444',' https://vendor.example.test ','13.468-410',' Americana ','sp','[{"code":"6201501","description":"Desenvolvimento de programas","is_primary":true}]')$$,'financeiro inclui fornecedor com perfil empresarial');
 select is((select legal_name from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'Software Vendor SA','razao social e normalizada');
 select is((select tax_id from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'12345678000190','documento e normalizado');
 select is((select email from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'billing@example.test','email e normalizado');
+select is((select website from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'https://vendor.example.test','website e normalizado');
+select is((select address_zip from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'13468410','cep e normalizado');
+select is((select address_city from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'Americana','cidade e normalizada');
+select is((select address_state from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'SP','uf e normalizada');
+select is((select cnaes->0->>'code' from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'6201501','cnae principal e preservado');
 select is((select created_by from apticket.suppliers where id='a4000000-0000-0000-0000-000000000001'),'a2000000-0000-0000-0000-000000000001'::uuid,'autor vem da sessao');
 select lives_ok($$insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at)
  values('a5000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','a3000000-0000-0000-0000-000000000001','a4000000-0000-0000-0000-000000000001','Licenca base','fixed',1,1200,0,10,'2026-01-01')$$,'inclui contrato fixo');

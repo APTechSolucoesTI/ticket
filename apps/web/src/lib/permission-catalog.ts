@@ -105,6 +105,7 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/whatsapp-pending", module: "fila_whatsapp" },
   { prefix: "/email-pending", module: "fila_email" },
   { prefix: "/customers", module: "clientes" },
+  { prefix: "/suppliers", module: "financeiro" },
   { prefix: "/contacts", module: "contatos" },
   { prefix: "/equipments", module: "equipamentos" },
   { prefix: "/contracts", module: "contratos" },
