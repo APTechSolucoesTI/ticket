@@ -171,11 +171,11 @@ export function FinancialContractAnalytics() {
   ).size;
 
   return (
-    <Card id="contract-analytics" className="overflow-hidden border-primary/20">
-      <CardHeader className="gap-4 border-b bg-gradient-to-r from-primary/5 via-background to-emerald-500/5 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="contract-analytics" className="overflow-hidden">
+      <CardHeader className="gap-4 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <ChartNoAxesCombined className="size-5" /> Rentabilidade e MRR
+            <ChartNoAxesCombined className="size-5 text-primary" /> Rentabilidade e MRR
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Margem por contrato e projeção consolidada dos próximos doze meses.

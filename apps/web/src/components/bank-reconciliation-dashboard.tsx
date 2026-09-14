@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FileUp, Landmark, Loader2, Plus, RefreshCcw, Search, Unlink } from "lucide-react";
+import {
+  Building2,
+  FileUp,
+  Landmark,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Search,
+  Unlink,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,7 +94,13 @@ function errorMessage(error: unknown) {
   return getUserFacingError(error);
 }
 
-export function BankReconciliationDashboard({ canEdit }: { canEdit: boolean }) {
+export function BankReconciliationDashboard({
+  canEdit,
+  onConfigureOperator,
+}: {
+  canEdit: boolean;
+  onConfigureOperator?: () => void;
+}) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [companyId, setCompanyId] = useState("");
@@ -317,16 +332,22 @@ export function BankReconciliationDashboard({ canEdit }: { canEdit: boolean }) {
 
   return (
     <Card id="bank-reconciliation">
-      <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="gap-4 border-b bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <Landmark className="size-5" /> Conciliação bancária
+            <Landmark className="size-5 text-primary" /> Conciliação bancária
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Importe extratos OFX e revise os movimentos sem correspondência única.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {onConfigureOperator ? (
+            <Button variant="outline" onClick={onConfigureOperator}>
+              <Building2 className="mr-2 size-4" />
+              Empresa operadora
+            </Button>
+          ) : null}
           <input
             ref={fileRef}
             type="file"

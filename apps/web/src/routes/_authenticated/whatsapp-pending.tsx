@@ -26,6 +26,7 @@ import { useModulePermissions } from "@/lib/permission-ui";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { AttachmentPreview, type Attachment } from "@/components/ticket/AttachmentPreview";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { PageHeader } from "@/components/empty-stub";
 
 export const Route = createFileRoute("/_authenticated/whatsapp-pending")({
   component: WhatsAppPendingPage,
@@ -115,13 +116,11 @@ function WhatsAppPendingPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Fila do WhatsApp</h1>
-        <p className="text-sm text-muted-foreground">
-          Números desconhecidos que enviaram mensagens. Vincule cada um a um cliente e contrato para
-          liberar a abertura automática de tickets.
-        </p>
-      </div>
+      <PageHeader
+        title="Fila do WhatsApp"
+        subtitle="Números desconhecidos aguardando vínculo com cliente e contrato."
+        icon={MessageCircle}
+      />
 
       {isLoading ? (
         <LoadingState label="Carregando fila do WhatsApp…" />

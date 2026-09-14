@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { PageHeader } from "@/components/empty-stub";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -255,25 +256,20 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
 
   return (
     <section className="scroll-mt-4 space-y-3" aria-labelledby="payables-title">
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <PackageSearch className="size-5 text-primary" />
-            <h2 id="payables-title" className="font-semibold">
-              Contas a pagar
-            </h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Fornecedores recorrentes e contratos que alimentarão o rateio de custos.
-          </p>
-        </div>
-        {canEdit && companyId ? (
-          <Button className="gap-2" onClick={() => setEditing(null)}>
-            <Plus className="size-4" />
-            Novo fornecedor
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Contas a pagar"
+        titleId="payables-title"
+        subtitle="Fornecedores recorrentes e contratos que alimentarão o rateio de custos."
+        icon={PackageSearch}
+        actions={
+          canEdit && companyId ? (
+            <Button className="gap-2" onClick={() => setEditing(null)}>
+              <Plus className="size-4" />
+              Novo fornecedor
+            </Button>
+          ) : null
+        }
+      />
       {companies.isLoading ? (
         <LoadingState label="Carregando empresas…" />
       ) : companies.isError ? (

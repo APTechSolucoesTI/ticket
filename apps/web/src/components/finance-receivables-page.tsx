@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Banknote,
+  BanknoteArrowDown,
   BellRing,
   CalendarClock,
   CheckCircle2,
@@ -181,6 +182,7 @@ export function FinanceReceivablesPage() {
       <PageHeader
         title="Contas a receber"
         subtitle="Atendimentos avulsos, medições contratuais e revisão das cobranças."
+        icon={BanknoteArrowDown}
         actions={
           <div className="flex flex-wrap gap-2">
             {access.edit ? (

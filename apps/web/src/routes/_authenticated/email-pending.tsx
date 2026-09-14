@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { Link2, Mail, Trash2, Ban, RefreshCw, Paperclip, Eye, Download } from "lucide-react";
 import { useModulePermissions } from "@/lib/permission-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { PageHeader } from "@/components/empty-stub";
 
 // Supabase/Postgrest/Storage errors are plain objects ({message, details,
 // hint, code}), not real Error instances - `e instanceof Error` silently
@@ -210,21 +211,19 @@ function EmailPendingPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Fila de E-mail</h1>
-          <p className="text-sm text-muted-foreground">
-            E-mails desconhecidos que enviaram mensagens. Vincule cada um a um cliente e contrato
-            para liberar a abertura automática de tickets, ou bloqueie/exclua o remetente.
-          </p>
-        </div>
-        {access.create && (
-          <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando…" : "Sincronizar agora"}
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Fila de E-mail"
+        subtitle="E-mails desconhecidos aguardando vínculo com cliente e contrato ou bloqueio do remetente."
+        icon={Mail}
+        actions={
+          access.create ? (
+            <Button size="sm" onClick={handleSync} disabled={syncing}>
+              <RefreshCw className={`mr-1.5 size-3.5 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando…" : "Sincronizar agora"}
+            </Button>
+          ) : null
+        }
+      />
 
       {isLoading ? (
         <LoadingState label="Carregando fila de e-mail…" />

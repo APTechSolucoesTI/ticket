@@ -117,6 +117,7 @@ function ContactsPage() {
       <PageHeader
         title="Contatos"
         subtitle="Pessoas vinculadas aos clientes. E-mail e telefone identificam mensagens recebidas."
+        icon={User}
         actions={
           access.create ? (
             <div className="flex gap-2">

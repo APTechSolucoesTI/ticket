@@ -4,12 +4,14 @@ import {
   CheckCircle2,
   CircleDot,
   Clock3,
+  Headset,
   Mail,
   MessageCircle,
   Timer,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/empty-stub";
 import {
   formatDecimal,
   formatResolutionTime,
@@ -45,19 +47,17 @@ export function TicketOverview({
   return (
     <section
       aria-labelledby="ticket-overview-title"
-      className="shrink-0 border-b bg-gradient-to-br from-background via-background to-primary/[0.04] px-3 py-3"
+      className="shrink-0 space-y-2.5 border-b bg-background px-3 py-3"
     >
-      <div className="mb-2.5 flex items-end justify-between gap-3">
-        <div>
-          <h1 id="ticket-overview-title" className="text-base font-semibold tracking-tight">
-            Visão geral dos atendimentos
-          </h1>
-          <p className="text-[11px] text-muted-foreground">
-            Volume atual, tendência recente e filas que precisam de ação.
-          </p>
-        </div>
-        {hasError && <span className="text-[11px] text-destructive">Dados indisponíveis</span>}
-      </div>
+      <PageHeader
+        title="Visão geral dos atendimentos"
+        titleId="ticket-overview-title"
+        subtitle="Volume atual, tendência recente e filas que precisam de ação."
+        icon={Headset}
+        actions={
+          hasError ? <span className="text-xs text-destructive">Dados indisponíveis</span> : null
+        }
+      />
 
       <div className="grid auto-cols-[minmax(168px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 xl:grid-flow-row xl:grid-cols-5 xl:overflow-visible xl:pb-0">
         <MetricCard

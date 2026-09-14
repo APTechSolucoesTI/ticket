@@ -246,10 +246,10 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
   };
 
   return (
-    <Card id="financial-period-closure" className="overflow-hidden border-primary/20">
-      <CardHeader className="gap-4 border-b bg-gradient-to-r from-amber-500/5 via-background to-sky-500/5 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="financial-period-closure" className="overflow-hidden">
+      <CardHeader className="gap-4 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-amber-500/10 p-2.5 text-amber-700 dark:text-amber-300">
+          <div className="pt-0.5 text-primary">
             <LockKeyhole className="size-5" />
           </div>
           <div>

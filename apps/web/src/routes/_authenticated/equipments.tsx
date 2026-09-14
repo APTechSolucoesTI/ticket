@@ -271,6 +271,7 @@ function EquipmentsPage() {
       <PageHeader
         title="Equipamentos"
         subtitle="Ativos vinculados a clientes e contatos, rastreados nos atendimentos."
+        icon={Monitor}
         actions={
           access.create ? (
             <div className="flex gap-2">

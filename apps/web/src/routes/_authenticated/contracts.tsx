@@ -227,6 +227,7 @@ function ContractsPage() {
       <PageHeader
         title="Contratos"
         subtitle="Modelo de cobrança, inclusões técnicas, SLA e vigência."
+        icon={FileText}
         actions={
           access.create ? (
             <Button

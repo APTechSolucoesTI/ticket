@@ -98,6 +98,7 @@ function KbAdminPage() {
       <PageHeader
         title="Base de Conhecimento"
         subtitle="Categorias e artigos públicos ou restritos."
+        icon={FileText}
       />
       <Tabs defaultValue="articles">
         <TabsList>

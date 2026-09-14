@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeDollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/empty-stub";
 import { financeNavigation } from "@/lib/finance-navigation";
 
 export const Route = createFileRoute("/_authenticated/finance/")({
@@ -11,20 +12,11 @@ function FinanceOverview() {
   const areas = financeNavigation.filter((item) => item.to !== "/finance");
   return (
     <section className="space-y-4">
-      <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-emerald-500/10 p-5 sm:p-7">
-        <div className="flex items-start gap-4">
-          <span className="rounded-2xl bg-primary p-3 text-primary-foreground shadow-sm">
-            <BadgeDollarSign className="size-6" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold">Central financeira</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Escolha uma função para trabalhar. Cada área mantém seus próprios filtros e carrega
-              apenas os dados necessários para a operação.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Central financeira"
+        subtitle="Escolha uma função. Cada área mantém seus próprios filtros e carrega apenas os dados necessários."
+        icon={BadgeDollarSign}
+      />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {areas.map((item) => {
           const Icon = item.icon;

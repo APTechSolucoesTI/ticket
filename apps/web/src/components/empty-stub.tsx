@@ -1,15 +1,37 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  icon: Icon,
+  titleId,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: LucideIcon;
+  titleId?: string;
+  actions?: ReactNode;
+}) {
   return (
-    <div className="flex items-start justify-between gap-4 border-l-4 border-primary bg-primary/5 rounded-lg px-4 py-3">
-      <div>
-        <h2 className="text-lg font-bold text-primary uppercase tracking-wide">{title}</h2>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    <header className="flex min-h-[76px] flex-col gap-3 rounded-xl border bg-card px-4 py-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          {Icon ? <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" /> : null}
+          <h1 id={titleId} className="text-base font-semibold leading-tight text-foreground">
+            {title}
+          </h1>
+        </div>
+        {subtitle ? <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p> : null}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </div>
+      {actions ? (
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          {actions}
+        </div>
+      ) : null}
+    </header>
   );
 }
 

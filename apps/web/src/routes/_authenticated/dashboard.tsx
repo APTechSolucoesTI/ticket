@@ -12,6 +12,7 @@ import {
   Clock3,
   FileCheck2,
   Inbox,
+  LayoutDashboard,
   RefreshCw,
   Sparkles,
   type LucideIcon,
@@ -36,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketBadge, type TicketStatus } from "@/components/ticket/TicketBadge";
+import { PageHeader } from "@/components/empty-stub";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard - APTicket" }] }),
@@ -225,45 +227,44 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1680px] space-y-5 p-4 sm:p-6">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h1 className="text-xl font-bold text-foreground sm:text-2xl">Olá, {displayName}!</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Painel de controle da operação de suporte
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2" aria-label="Período do dashboard">
-          <div className="inline-flex rounded-lg border bg-card p-1 shadow-card">
-            {PERIOD_OPTIONS.map((days) => (
-              <button
-                key={days}
-                type="button"
-                aria-pressed={periodDays === days}
-                onClick={() => setPeriodDays(days)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  periodDays === days
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                {days} dias
-              </button>
-            ))}
+      <PageHeader
+        title={`Olá, ${displayName}!`}
+        subtitle="Painel de controle da operação de suporte."
+        icon={LayoutDashboard}
+        actions={
+          <div className="flex flex-wrap items-center gap-2" aria-label="Período do dashboard">
+            <div className="inline-flex rounded-lg border bg-background p-1 shadow-sm">
+              {PERIOD_OPTIONS.map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  aria-pressed={periodDays === days}
+                  onClick={() => setPeriodDays(days)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    periodDays === days
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {days} dias
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void ticketsQuery.refetch();
+                void contractsQuery.refetch();
+              }}
+            >
+              <RefreshCw className={cn("size-3.5", ticketsQuery.isFetching && "animate-spin")} />
+              Atualizar
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void ticketsQuery.refetch();
-              void contractsQuery.refetch();
-            }}
-          >
-            <RefreshCw className={cn("size-3.5", ticketsQuery.isFetching && "animate-spin")} />
-            Atualizar
-          </Button>
-        </div>
-      </header>
+        }
+      />
 
       {canTickets && (
         <section

@@ -219,10 +219,10 @@ export function FinancialManagementStatement() {
   };
 
   return (
-    <Card id="financial-statement" className="overflow-hidden border-primary/20">
-      <CardHeader className="gap-4 border-b bg-gradient-to-r from-sky-500/5 via-background to-emerald-500/5 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="financial-statement" className="overflow-hidden">
+      <CardHeader className="gap-4 border-b bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-sky-500/10 p-2.5 text-sky-700 dark:text-sky-300">
+          <div className="pt-0.5 text-primary">
             <ChartNoAxesCombined className="size-5" />
           </div>
           <div>

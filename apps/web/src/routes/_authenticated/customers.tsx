@@ -158,6 +158,7 @@ function CustomersPage() {
       <PageHeader
         title="Clientes"
         subtitle="Empresas atendidas, contratos e franquia de horas."
+        icon={Building2}
         actions={
           access.create ? (
             <Button

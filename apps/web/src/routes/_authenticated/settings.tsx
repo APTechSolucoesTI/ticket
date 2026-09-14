@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Globe,
   Hand,
+  Settings,
   Upload,
   Eye,
 } from "lucide-react";
@@ -147,6 +148,7 @@ function SettingsPage() {
       <PageHeader
         title="Configurações"
         subtitle="Usuários, departamentos, SLAs, tipos de contrato, canais e respostas padrão."
+        icon={Settings}
       />
       <Tabs defaultValue={firstTab}>
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
@@ -163,7 +165,11 @@ function SettingsPage() {
             </ModulePermissionProvider>
           </TabsContent>
         )}
-        {perms.has("empresa", "view") && <TabsContent value="inter" className="mt-4"><InterTab /></TabsContent>}
+        {perms.has("empresa", "view") && (
+          <TabsContent value="inter" className="mt-4">
+            <InterTab />
+          </TabsContent>
+        )}
         {perms.has("usuarios", "view") && (
           <TabsContent value="users" className="mt-4">
             <ModulePermissionProvider module="usuarios">
