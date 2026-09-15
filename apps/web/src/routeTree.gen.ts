@@ -24,6 +24,7 @@ import { Route as AuthenticatedEquipmentsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSupplierContractsRouteImport } from './routes/_authenticated/supplier-contracts'
 import { Route as AuthenticatedSuppliersRouteImport } from './routes/_authenticated/suppliers'
 import { Route as AuthenticatedTicketsRouteImport } from './routes/_authenticated/tickets'
 import { Route as AuthenticatedWhatsappPendingRouteImport } from './routes/_authenticated/whatsapp-pending'
@@ -132,6 +133,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSupplierContractsRoute =
+  AuthenticatedSupplierContractsRouteImport.update({
+    id: '/supplier-contracts',
+    path: '/supplier-contracts',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
@@ -322,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
   '/whatsapp-pending': typeof AuthenticatedWhatsappPendingRoute
@@ -367,6 +375,7 @@ export interface FileRoutesByTo {
   '/equipments': typeof AuthenticatedEquipmentsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
   '/whatsapp-pending': typeof AuthenticatedWhatsappPendingRoute
@@ -417,6 +426,7 @@ export interface FileRoutesById {
   '/_authenticated/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
   '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
   '/_authenticated/tickets': typeof AuthenticatedTicketsRouteWithChildren
   '/_authenticated/whatsapp-pending': typeof AuthenticatedWhatsappPendingRoute
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/reports'
     | '/settings'
+    | '/supplier-contracts'
     | '/suppliers'
     | '/tickets'
     | '/whatsapp-pending'
@@ -512,6 +523,7 @@ export interface FileRouteTypes {
     | '/equipments'
     | '/reports'
     | '/settings'
+    | '/supplier-contracts'
     | '/suppliers'
     | '/tickets'
     | '/whatsapp-pending'
@@ -561,6 +573,7 @@ export interface FileRouteTypes {
     | '/_authenticated/finance'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/supplier-contracts'
     | '/_authenticated/suppliers'
     | '/_authenticated/tickets'
     | '/_authenticated/whatsapp-pending'
@@ -720,6 +733,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/supplier-contracts': {
+      id: '/_authenticated/supplier-contracts'
+      path: '/supplier-contracts'
+      fullPath: '/supplier-contracts'
+      preLoaderRoute: typeof AuthenticatedSupplierContractsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/suppliers': {
@@ -995,6 +1015,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRouteWithChildren
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSupplierContractsRoute: typeof AuthenticatedSupplierContractsRoute
   AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
   AuthenticatedTicketsRoute: typeof AuthenticatedTicketsRouteWithChildren
   AuthenticatedWhatsappPendingRoute: typeof AuthenticatedWhatsappPendingRoute
@@ -1011,6 +1032,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceRoute: AuthenticatedFinanceRouteWithChildren,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSupplierContractsRoute: AuthenticatedSupplierContractsRoute,
   AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
   AuthenticatedTicketsRoute: AuthenticatedTicketsRouteWithChildren,
   AuthenticatedWhatsappPendingRoute: AuthenticatedWhatsappPendingRoute,

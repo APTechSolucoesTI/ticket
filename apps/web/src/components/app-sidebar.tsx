@@ -91,7 +91,21 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/customers", label: "Clientes", icon: Building2, module: "clientes" },
       { to: "/suppliers", label: "Fornecedores", icon: Truck, module: "fornecedores" },
       { to: "/equipments", label: "Equipamentos", icon: Monitor, module: "equipamentos" },
-      { to: "/contracts", label: "Contratos", icon: FileText, module: "contratos" },
+      {
+        to: "/contracts",
+        label: "Contratos",
+        icon: FileText,
+        module: "contratos",
+        children: [
+          { to: "/contracts", label: "Clientes", icon: Building2, module: "contratos" },
+          {
+            to: "/supplier-contracts",
+            label: "Fornecedores",
+            icon: Truck,
+            module: "financeiro_contas_pagar",
+          },
+        ],
+      },
       {
         to: "/kb/admin",
         label: "Base de Conhecimento",
@@ -340,7 +354,14 @@ function NavItems({
   return (
     <div className="space-y-0.5">
       {items.map((item) => {
-        const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
+        const active =
+          pathname === item.to ||
+          pathname.startsWith(`${item.to}/`) ||
+          Boolean(
+            item.children?.some(
+              (child) => pathname === child.to || pathname.startsWith(`${child.to}/`),
+            ),
+          );
         const Icon = item.icon;
         const link = (
           <Link

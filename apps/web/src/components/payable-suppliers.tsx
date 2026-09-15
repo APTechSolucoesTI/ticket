@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FilePlus2, Loader2, PackageSearch, Percent, Search, Truck } from "lucide-react";
+import { FilePlus2, Loader2, PackageSearch, Percent, Search } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -42,8 +41,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
-import { SupplierPayables, type PayableContractOption } from "@/components/supplier-payables";
 import { FixedAllocationDialog } from "@/components/fixed-allocation-dialog";
+import { SupplierContractMeasurements } from "@/components/supplier-contract-measurements";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Company = { id: string; legal_name: string };
 type SupplierContract = {
@@ -212,36 +212,16 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
   const monthlyFixed = contracts
     .filter((c) => c.billing_unit === "fixed")
     .reduce((sum, c) => sum + Number(c.base_amount) / c.billing_interval_months, 0);
-  const payableContracts: PayableContractOption[] = (query.data ?? []).flatMap((supplier) =>
-    supplier.supplier_contracts.map((contract) => ({
-      id: contract.id,
-      supplierName: supplier.trade_name || supplier.legal_name,
-      description: contract.description,
-      billingUnit: contract.billing_unit,
-      intervalMonths: contract.billing_interval_months,
-      startsAt: contract.starts_at,
-      endsAt: contract.ends_at,
-      active: supplier.is_active && contract.is_active,
-    })),
-  );
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: ["payable-suppliers", companyId] });
 
   return (
-    <section className="scroll-mt-4 space-y-3" aria-labelledby="payables-title">
+    <section className="scroll-mt-4 space-y-3" aria-labelledby="supplier-contracts-title">
       <PageHeader
-        title="Contas a pagar"
-        titleId="payables-title"
-        subtitle="Contratos recorrentes, rateios, aprovações e pagamentos."
+        title="Contratos de fornecedores"
+        titleId="supplier-contracts-title"
+        subtitle="Condições de fornecimento, medições e rateio de custos por cliente e contrato."
         icon={PackageSearch}
-        actions={
-          <Button asChild variant="outline" className="gap-2">
-            <Link to="/suppliers">
-              <Truck className="size-4" />
-              Gerenciar fornecedores
-            </Link>
-          </Button>
-        }
       />
       {companies.isLoading ? (
         <LoadingState label="Carregando empresas…" />
@@ -366,20 +346,32 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
                           <TableCell>
                             <div className="space-y-1">
                               {supplier.supplier_contracts.length ? (
-                                supplier.supplier_contracts.slice(0, 2).map((contract) => (
+                                supplier.supplier_contracts.map((contract) => (
                                   <div
                                     key={contract.id}
-                                    className="flex max-w-80 items-center gap-1"
+                                    className="flex max-w-xl items-center gap-2 rounded-md border bg-background px-2 py-1.5"
                                   >
                                     <button
-                                      className="min-w-0 flex-1 truncate text-left text-xs text-primary hover:underline"
+                                      className="min-w-0 flex-1 text-left text-xs hover:text-primary"
                                       onClick={() => setContractTarget({ supplier, contract })}
+                                      title="Abrir cadastro e histórico de medições"
                                     >
-                                      {contract.description} ·{" "}
-                                      {contract.billing_unit === "fixed"
-                                        ? money.format(contract.base_amount)
-                                        : `${money.format(contract.unit_price)}/un.`}
+                                      <span className="block truncate font-medium text-primary">
+                                        {contract.description}
+                                      </span>
+                                      <span className="block text-muted-foreground">
+                                        {contract.billing_unit === "fixed"
+                                          ? money.format(contract.base_amount)
+                                          : `${money.format(contract.unit_price)}/un.`}
+                                        {" · "}
+                                        {contract.ends_at
+                                          ? `até ${new Date(`${contract.ends_at}T00:00:00`).toLocaleDateString("pt-BR")}`
+                                          : "sem data final"}
+                                      </span>
                                     </button>
+                                    <Badge variant={contract.is_active ? "secondary" : "outline"}>
+                                      {contract.is_active ? "Ativo" : "Inativo"}
+                                    </Badge>
                                     {canEdit && contract.billing_unit === "fixed" ? (
                                       <Button
                                         size="icon"
@@ -436,7 +428,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
               )}
             </CardContent>
           </Card>
-          <SupplierPayables companyId={companyId} contracts={payableContracts} canEdit={canEdit} />
         </>
       )}
       {contractTarget ? (
@@ -572,7 +563,7 @@ function ContractDialog({
   const errors = form.formState.errors;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {contract ? "Editar contrato de fornecimento" : "Novo contrato de fornecimento"}
@@ -581,147 +572,172 @@ function ContractDialog({
             Fornecedor: {target.supplier.trade_name || target.supplier.legal_name}
           </p>
         </DialogHeader>
-        <form
-          className="grid gap-4 sm:grid-cols-2"
-          onSubmit={form.handleSubmit((v) => save.mutate(v))}
-        >
-          <div className="sm:col-span-2">
-            <Label htmlFor="contract-description">Descrição</Label>
-            <Input
-              id="contract-description"
-              disabled={!canEdit}
-              {...form.register("description")}
-            />
-            <FieldError message={errors.description?.message} />
-          </div>
-          <div>
-            <Label>Unidade de cobrança</Label>
-            <Select
-              disabled={!canEdit}
-              value={unit}
-              onValueChange={(v) =>
-                form.setValue("billing_unit", v as ContractForm["billing_unit"])
-              }
+        <Tabs defaultValue="registration">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="registration">Cadastro</TabsTrigger>
+            <TabsTrigger value="measurements" disabled={!contract}>
+              Histórico de medições
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="registration" className="pt-4">
+            <form
+              className="grid gap-4 sm:grid-cols-2"
+              onSubmit={form.handleSubmit((v) => save.mutate(v))}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {units.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Periodicidade</Label>
-            <Select
-              disabled={!canEdit}
-              value={String(form.watch("billing_interval_months"))}
-              onValueChange={(v) => form.setValue("billing_interval_months", Number(v))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {intervals.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="contract-price">
-              {unit === "fixed" ? "Valor do período" : "Valor por unidade"}
-            </Label>
-            <FinancialCurrencyInput
-              id="contract-price"
-              disabled={!canEdit}
-              value={form.watch(unit === "fixed" ? "base_amount" : "unit_price")}
-              onValueChange={(value) =>
-                form.setValue(unit === "fixed" ? "base_amount" : "unit_price", Number(value || 0), {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-            <FieldError
-              message={unit === "fixed" ? errors.base_amount?.message : errors.unit_price?.message}
-            />
-          </div>
-          <div>
-            <Label htmlFor="contract-due">Dia do vencimento</Label>
-            <Input
-              id="contract-due"
-              type="number"
-              min="1"
-              max="31"
-              disabled={!canEdit}
-              {...form.register("due_day")}
-            />
-            <FieldError message={errors.due_day?.message} />
-          </div>
-          <div>
-            <Label htmlFor="contract-start">Início</Label>
-            <Input
-              id="contract-start"
-              type="date"
-              disabled={!canEdit}
-              {...form.register("starts_at")}
-            />
-          </div>
-          <div>
-            <Label htmlFor="contract-end">Fim opcional</Label>
-            <Input
-              id="contract-end"
-              type="date"
-              disabled={!canEdit}
-              {...form.register("ends_at")}
-            />
-            <FieldError message={errors.ends_at?.message} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="contract-notes">Observações</Label>
-            <Textarea id="contract-notes" disabled={!canEdit} {...form.register("notes")} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              disabled={!canEdit}
-              checked={form.watch("is_active")}
-              onCheckedChange={(v) => form.setValue("is_active", v)}
-            />
-            Contrato ativo
-          </label>
-          <DialogFooter className="sm:col-span-2 sm:justify-between">
-            <div>
-              {contract && canEdit ? (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={archive.isPending}
-                  onClick={() => archive.mutate()}
+              <div className="sm:col-span-2">
+                <Label htmlFor="contract-description">Descrição</Label>
+                <Input
+                  id="contract-description"
+                  disabled={!canEdit}
+                  {...form.register("description")}
+                />
+                <FieldError message={errors.description?.message} />
+              </div>
+              <div>
+                <Label>Unidade de cobrança</Label>
+                <Select
+                  disabled={!canEdit}
+                  value={unit}
+                  onValueChange={(v) =>
+                    form.setValue("billing_unit", v as ContractForm["billing_unit"])
+                  }
                 >
-                  Arquivar
-                </Button>
-              ) : null}
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Fechar
-              </Button>
-              {canEdit ? (
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Salvar
-                  contrato
-                </Button>
-              ) : null}
-            </div>
-          </DialogFooter>
-        </form>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Periodicidade</Label>
+                <Select
+                  disabled={!canEdit}
+                  value={String(form.watch("billing_interval_months"))}
+                  onValueChange={(v) => form.setValue("billing_interval_months", Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intervals.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="contract-price">
+                  {unit === "fixed" ? "Valor do período" : "Valor por unidade"}
+                </Label>
+                <FinancialCurrencyInput
+                  id="contract-price"
+                  disabled={!canEdit}
+                  value={form.watch(unit === "fixed" ? "base_amount" : "unit_price")}
+                  onValueChange={(value) =>
+                    form.setValue(
+                      unit === "fixed" ? "base_amount" : "unit_price",
+                      Number(value || 0),
+                      {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      },
+                    )
+                  }
+                />
+                <FieldError
+                  message={
+                    unit === "fixed" ? errors.base_amount?.message : errors.unit_price?.message
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="contract-due">Dia do vencimento</Label>
+                <Input
+                  id="contract-due"
+                  type="number"
+                  min="1"
+                  max="31"
+                  disabled={!canEdit}
+                  {...form.register("due_day")}
+                />
+                <FieldError message={errors.due_day?.message} />
+              </div>
+              <div>
+                <Label htmlFor="contract-start">Início</Label>
+                <Input
+                  id="contract-start"
+                  type="date"
+                  disabled={!canEdit}
+                  {...form.register("starts_at")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="contract-end">Fim opcional</Label>
+                <Input
+                  id="contract-end"
+                  type="date"
+                  disabled={!canEdit}
+                  {...form.register("ends_at")}
+                />
+                <FieldError message={errors.ends_at?.message} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="contract-notes">Observações</Label>
+                <Textarea id="contract-notes" disabled={!canEdit} {...form.register("notes")} />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  disabled={!canEdit}
+                  checked={form.watch("is_active")}
+                  onCheckedChange={(v) => form.setValue("is_active", v)}
+                />
+                Contrato ativo
+              </label>
+              <DialogFooter className="sm:col-span-2 sm:justify-between">
+                <div>
+                  {contract && canEdit ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={archive.isPending}
+                      onClick={() => archive.mutate()}
+                    >
+                      Arquivar
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" onClick={onClose}>
+                    Fechar
+                  </Button>
+                  {canEdit ? (
+                    <Button type="submit" disabled={save.isPending}>
+                      {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Salvar
+                      contrato
+                    </Button>
+                  ) : null}
+                </div>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+          <TabsContent value="measurements" className="pt-4">
+            {contract ? (
+              <SupplierContractMeasurements
+                contract={contract}
+                supplierName={target.supplier.trade_name || target.supplier.legal_name}
+                canGenerate={canEdit && target.supplier.is_active && contract.is_active}
+              />
+            ) : null}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

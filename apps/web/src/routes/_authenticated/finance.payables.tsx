@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PayableSuppliers } from "@/components/payable-suppliers";
+import { AccountsPayablePage } from "@/components/accounts-payable-page";
 import { useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/finance/payables")({
@@ -8,5 +8,5 @@ export const Route = createFileRoute("/_authenticated/finance/payables")({
 
 function PayablesPage() {
   const access = useModulePermissions("financeiro_contas_pagar");
-  return <PayableSuppliers canEdit={access.edit} />;
+  return <AccountsPayablePage canEdit={access.edit} />;
 }

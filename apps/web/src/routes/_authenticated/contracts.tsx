@@ -232,7 +232,7 @@ function ContractsPage() {
   return (
     <div className="p-6 space-y-4">
       <PageHeader
-        title="Contratos"
+        title="Contratos de clientes"
         subtitle="Modelo de cobrança, inclusões técnicas, SLA e vigência."
         icon={FileText}
         actions={
