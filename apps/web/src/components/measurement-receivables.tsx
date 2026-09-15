@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileCheck2, Loader2, Plus } from "lucide-react";
+import { ExternalLink, FileCheck2, FileCog, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@apticket/shared-types/database";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -37,6 +37,8 @@ import { getUserFacingError } from "@/lib/user-facing-error";
 import { BillingCycleDialog } from "@/components/billing-cycle-dialog";
 import { InterChargeDialog } from "@/components/inter-charge-dialog";
 import { ManualReceivableDialog } from "@/components/manual-financial-entry-dialogs";
+import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
+import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
 type Receivable = Omit<Tables<"contas_receber">, "contrato_id" | "medicao_id"> & {
@@ -45,6 +47,9 @@ type Receivable = Omit<Tables<"contas_receber">, "contrato_id" | "medicao_id"> &
   billing_cycle_id: string | null;
   operating_company_id: string | null;
   origin_type: "measurement" | "recurring" | "manual";
+  document_type_id: string | null;
+  installment_number: number | null;
+  installment_count: number | null;
   medicoes_contrato: { report_token: string } | null;
 };
 
@@ -100,6 +105,12 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   const [interId, setInterId] = useState<string | null>(null);
   const [origin, setOrigin] = useState("todos");
   const [manualOpen, setManualOpen] = useState(false);
+  const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
+  const documentTypes = useFinancialDocumentTypes();
+  const documentTypeById = useMemo(
+    () => new Map((documentTypes.data ?? []).map((item) => [item.id, item])),
+    [documentTypes.data],
+  );
 
   const query = useQuery({
     queryKey: ["measurement-receivables"],
@@ -140,9 +151,18 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {canEdit ? (
-            <Button className="w-full gap-2 sm:w-auto" onClick={() => setManualOpen(true)}>
-              <Plus className="size-4" /> Nova conta
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="w-full gap-2 sm:w-auto"
+                onClick={() => setDocumentTypesOpen(true)}
+              >
+                <FileCog className="size-4" /> Tipos de documento
+              </Button>
+              <Button className="w-full gap-2 sm:w-auto" onClick={() => setManualOpen(true)}>
+                <Plus className="size-4" /> Nova conta
+              </Button>
+            </>
           ) : null}
           <Select value={origin} onValueChange={setOrigin}>
             <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar origem">
@@ -186,10 +206,11 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
           />
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[840px]">
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Documento</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Competência</TableHead>
                   <TableHead>Valor</TableHead>
@@ -199,85 +220,116 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((receivable) => (
-                  <TableRow key={receivable.id}>
-                    <TableCell>
-                      <div className="font-medium">{receivable.documento_referencia}</div>
-                      <Badge variant="outline" className="my-1">
-                        {receivable.origin_type === "recurring"
-                          ? "Ciclo recorrente"
-                          : receivable.origin_type === "measurement"
-                            ? "Medição"
-                            : "Manual"}
-                      </Badge>
-                      <div className="max-w-64 truncate text-[11px] text-muted-foreground">
-                        {receivable.descricao}
-                      </div>
-                    </TableCell>
-                    <TableCell>{receivable.cliente_nome}</TableCell>
-                    <TableCell>
-                      {new Date(`${receivable.competencia}T12:00:00`).toLocaleDateString("pt-BR", {
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
-                    </TableCell>
-                    <TableCell className="font-semibold tabular-nums">
-                      {money.format(Number(receivable.valor_aberto))}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(`${receivable.vencimento_em}T12:00:00`).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={effectiveStatus(receivable)} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {receivable.operating_company_id && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setInterId(receivable.id)}
-                          >
-                            Cobrança Inter
-                          </Button>
+                {filtered.map((receivable) => {
+                  const documentType = receivable.document_type_id
+                    ? documentTypeById.get(receivable.document_type_id)
+                    : undefined;
+                  return (
+                    <TableRow key={receivable.id}>
+                      <TableCell>
+                        <div className="font-medium">{receivable.documento_referencia}</div>
+                        <Badge variant="outline" className="my-1">
+                          {receivable.origin_type === "recurring"
+                            ? "Ciclo recorrente"
+                            : receivable.origin_type === "measurement"
+                              ? "Medição"
+                              : "Manual"}
+                        </Badge>
+                        <div className="max-w-64 truncate text-[11px] text-muted-foreground">
+                          {receivable.descricao}
+                        </div>
+                        {receivable.installment_count && receivable.installment_count > 1 ? (
+                          <div className="mt-1 text-[11px] font-medium text-primary">
+                            Parcela {receivable.installment_number}/{receivable.installment_count}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {documentType ? (
+                          <div>
+                            <div className="font-medium">{documentType.code}</div>
+                            <div className="max-w-40 truncate text-xs text-muted-foreground">
+                              {documentType.name}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Não informado</span>
                         )}
-                        {receivable.medicao_id && !receivable.operating_company_id && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled
-                            title="Defina a empresa operadora do contrato para emitir pelo Inter."
-                          >
-                            Empresa operadora pendente
-                          </Button>
+                      </TableCell>
+                      <TableCell>{receivable.cliente_nome}</TableCell>
+                      <TableCell>
+                        {new Date(`${receivable.competencia}T12:00:00`).toLocaleDateString(
+                          "pt-BR",
+                          {
+                            month: "2-digit",
+                            year: "numeric",
+                          },
                         )}
-                        {receivable.billing_cycle_id && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setCycleId(receivable.billing_cycle_id)}
-                          >
-                            Detalhar fatura
-                          </Button>
+                      </TableCell>
+                      <TableCell className="font-semibold tabular-nums">
+                        {money.format(Number(receivable.valor_aberto))}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(`${receivable.vencimento_em}T12:00:00`).toLocaleDateString(
+                          "pt-BR",
                         )}
-                        {receivable.medicoes_contrato?.report_token && (
-                          <Button asChild size="sm" variant="ghost">
-                            <a
-                              href={`/measurement-report/${receivable.medicoes_contrato.report_token}`}
-                              target="_blank"
-                              rel="noreferrer"
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={effectiveStatus(receivable)} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {receivable.operating_company_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setInterId(receivable.id)}
                             >
-                              <ExternalLink className="size-4" /> Boletim
-                            </a>
+                              Cobrança Inter
+                            </Button>
+                          )}
+                          {receivable.medicao_id && !receivable.operating_company_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled
+                              title="Defina a empresa operadora do contrato para emitir pelo Inter."
+                            >
+                              Empresa operadora pendente
+                            </Button>
+                          )}
+                          {receivable.billing_cycle_id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setCycleId(receivable.billing_cycle_id)}
+                            >
+                              Detalhar fatura
+                            </Button>
+                          )}
+                          {receivable.medicoes_contrato?.report_token && (
+                            <Button asChild size="sm" variant="ghost">
+                              <a
+                                href={`/measurement-report/${receivable.medicoes_contrato.report_token}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <ExternalLink className="size-4" /> Boletim
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditing(receivable)}
+                          >
+                            {canEdit ? "Revisar" : "Visualizar"}
                           </Button>
-                        )}
-                        <Button size="sm" variant="outline" onClick={() => setEditing(receivable)}>
-                          {canEdit ? "Revisar" : "Visualizar"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -301,6 +353,10 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
         onCreated={() =>
           void queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] })
         }
+      />
+      <FinancialDocumentTypesDialog
+        open={documentTypesOpen}
+        onClose={() => setDocumentTypesOpen(false)}
       />
     </Card>
   );

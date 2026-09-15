@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   Clock3,
   Eye,
+  FileCog,
   Loader2,
   Plus,
   RefreshCw,
@@ -51,6 +52,8 @@ import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-policies-dialog";
 import { SupplierPaymentSection } from "@/components/supplier-payment-section";
 import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
+import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
+import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 
 export type PayableContractOption = {
   id: string;
@@ -72,6 +75,9 @@ type Payable = {
   supplier_id: string;
   supplier_contract_id: string | null;
   origin_type: "contract" | "manual";
+  document_type_id: string | null;
+  installment_number: number | null;
+  installment_count: number | null;
   document_number: string;
   description: string;
   cycle_start: string;
@@ -188,8 +194,14 @@ export function SupplierPayables({
   const [statusFilter, setStatusFilter] = useState<"all" | PayableStatus>("all");
   const [generateOpen, setGenerateOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const [selected, setSelected] = useState<Payable>();
+  const documentTypes = useFinancialDocumentTypes(Boolean(companyId));
+  const documentTypeById = useMemo(
+    () => new Map((documentTypes.data ?? []).map((item) => [item.id, item])),
+    [documentTypes.data],
+  );
   const query = useQuery({
     queryKey: ["supplier-payables", companyId],
     enabled: Boolean(companyId),
@@ -197,7 +209,7 @@ export function SupplierPayables({
       const { data, error } = await db
         .from("supplier_payables")
         .select(
-          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
+          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_type_id,installment_number,installment_count,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
         )
         .eq("operating_company_id", companyId)
         .is("deleted_at", null)
@@ -213,11 +225,11 @@ export function SupplierPayables({
         (allocationFilter === "all" || item.allocation_status === allocationFilter) &&
         (statusFilter === "all" || effectiveStatus(item) === statusFilter) &&
         (!term ||
-          `${item.document_number} ${item.description} ${item.terms_snapshot.supplier_name ?? ""}`
+          `${item.document_number} ${item.description} ${item.terms_snapshot.supplier_name ?? ""} ${item.document_type_id ? (documentTypeById.get(item.document_type_id)?.code ?? "") : ""}`
             .toLocaleLowerCase("pt-BR")
             .includes(term)),
     );
-  }, [allocationFilter, query.data, search, statusFilter]);
+  }, [allocationFilter, documentTypeById, query.data, search, statusFilter]);
   const total = (query.data ?? []).reduce((sum, item) => sum + Number(item.total_amount), 0);
   const pending = (query.data ?? []).filter((item) => item.allocation_status === "pending_rule");
 
@@ -238,6 +250,10 @@ export function SupplierPayables({
             <Button variant="outline" className="gap-2" onClick={() => setPoliciesOpen(true)}>
               <Settings2 className="size-4" />
               Alçadas
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => setDocumentTypesOpen(true)}>
+              <FileCog className="size-4" />
+              Tipos de documento
             </Button>
             <Button
               variant="outline"
@@ -337,6 +353,7 @@ export function SupplierPayables({
               <TableHeader>
                 <TableRow>
                   <TableHead>Documento</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead>Competência</TableHead>
                   <TableHead>Rateio</TableHead>
@@ -351,6 +368,9 @@ export function SupplierPayables({
               <TableBody>
                 {rows.map((item) => {
                   const status = effectiveStatus(item);
+                  const documentType = item.document_type_id
+                    ? documentTypeById.get(item.document_type_id)
+                    : undefined;
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
@@ -361,6 +381,23 @@ export function SupplierPayables({
                         <div className="max-w-56 truncate text-xs text-muted-foreground">
                           {item.description}
                         </div>
+                        {item.installment_count && item.installment_count > 1 ? (
+                          <div className="mt-1 text-[11px] font-medium text-primary">
+                            Parcela {item.installment_number}/{item.installment_count}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {documentType ? (
+                          <div>
+                            <div className="font-medium">{documentType.code}</div>
+                            <div className="max-w-40 truncate text-xs text-muted-foreground">
+                              {documentType.name}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Não informado</span>
+                        )}
                       </TableCell>
                       <TableCell>{item.terms_snapshot.supplier_name ?? "Fornecedor"}</TableCell>
                       <TableCell>
@@ -421,6 +458,10 @@ export function SupplierPayables({
         onCreated={() =>
           void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
         }
+      />
+      <FinancialDocumentTypesDialog
+        open={documentTypesOpen}
+        onClose={() => setDocumentTypesOpen(false)}
       />
       {policiesOpen ? (
         <SupplierApprovalPoliciesDialog
