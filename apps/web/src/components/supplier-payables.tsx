@@ -14,6 +14,7 @@ import {
   Search,
   Send,
   Settings2,
+  Tags,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ import { SupplierPaymentSection } from "@/components/supplier-payment-section";
 import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
 import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
+import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 
 export type PayableContractOption = {
   id: string;
@@ -90,6 +92,10 @@ type Payable = {
   allocation_status: "pending_rule" | "complete";
   status: PayableStatus;
   terms_snapshot: { supplier_name?: string; contract_description?: string };
+  financial_category_id: string | null;
+  cost_center_id: string | null;
+  financial_category_name: string | null;
+  cost_center_name: string | null;
 };
 
 type Allocation = {
@@ -197,6 +203,7 @@ export function SupplierPayables({
   const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const [selected, setSelected] = useState<Payable>();
+  const [classifying, setClassifying] = useState<Payable>();
   const documentTypes = useFinancialDocumentTypes(Boolean(companyId));
   const documentTypeById = useMemo(
     () => new Map((documentTypes.data ?? []).map((item) => [item.id, item])),
@@ -215,7 +222,38 @@ export function SupplierPayables({
         .is("deleted_at", null)
         .order("due_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Payable[];
+      const rows = (data ?? []) as Payable[];
+      if (!rows.length) return rows;
+      const { data: classifications, error: classificationError } = await db
+        .from("financial_entry_classifications")
+        .select(
+          "source_id,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
+        )
+        .eq("source_type", "supplier_payable")
+        .in(
+          "source_id",
+          rows.map((item) => item.id),
+        )
+        .is("deleted_at", null);
+      if (classificationError) throw classificationError;
+      const bySource = new Map(
+        (classifications ?? []).map((item: Record<string, unknown>) => [
+          String(item.source_id),
+          item,
+        ]),
+      );
+      return rows.map((item) => {
+        const classification = bySource.get(item.id);
+        const category = classification?.financial_categories as { name?: string } | null;
+        const center = classification?.financial_cost_centers as { name?: string } | null;
+        return {
+          ...item,
+          financial_category_id: String(classification?.financial_category_id ?? "") || null,
+          cost_center_id: String(classification?.cost_center_id ?? "") || null,
+          financial_category_name: category?.name ?? null,
+          cost_center_name: center?.name ?? null,
+        };
+      });
     },
   });
   const rows = useMemo(() => {
@@ -359,6 +397,7 @@ export function SupplierPayables({
                   <TableHead>Rateio</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Classificação</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="w-12">
                     <span className="sr-only">Ações</span>
@@ -420,18 +459,40 @@ export function SupplierPayables({
                           {statusLabels[status]}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <div className="text-xs font-medium">
+                          {item.financial_category_name ?? "Não classificado"}
+                        </div>
+                        {item.cost_center_name ? (
+                          <div className="text-[11px] text-muted-foreground">
+                            {item.cost_center_name}
+                          </div>
+                        ) : null}
+                      </TableCell>
                       <TableCell className="text-right font-semibold">
                         {money.format(item.total_amount)}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Detalhar ${item.document_number}`}
-                          onClick={() => setSelected(item)}
-                        >
-                          <Eye className="size-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          {canEdit ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Classificar ${item.document_number}`}
+                              onClick={() => setClassifying(item)}
+                            >
+                              <Tags className="size-4" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Detalhar ${item.document_number}`}
+                            onClick={() => setSelected(item)}
+                          >
+                            <Eye className="size-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -480,6 +541,25 @@ export function SupplierPayables({
           onApplied={() =>
             void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
           }
+        />
+      ) : null}
+      {classifying ? (
+        <FinancialEntryClassificationDialog
+          entry={{
+            source_type: "supplier_payable",
+            source_id: classifying.id,
+            direction: "outflow",
+            document_number: classifying.document_number,
+            counterparty_name: classifying.terms_snapshot.supplier_name ?? "Fornecedor",
+            operating_company_id: classifying.operating_company_id,
+            financial_category_id: classifying.financial_category_id,
+            cost_center_id: classifying.cost_center_id,
+          }}
+          onClose={() => setClassifying(undefined)}
+          onSaved={() => {
+            setClassifying(undefined);
+            void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] });
+          }}
         />
       ) : null}
     </Card>

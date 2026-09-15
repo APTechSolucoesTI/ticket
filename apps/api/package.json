@@ -38,7 +38,7 @@
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "mailparser": "^3.9.15",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "^9.1.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",

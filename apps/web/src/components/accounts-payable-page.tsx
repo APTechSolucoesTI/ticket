@@ -60,7 +60,7 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
         .is("deleted_at", null)
         .order("description");
       if (error) throw error;
-      return (data ?? []) as ContractRow[];
+      return (data ?? []) as unknown as ContractRow[];
     },
   });
   const options = useMemo<PayableContractOption[]>(

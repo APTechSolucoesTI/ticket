@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileCheck2, FileCog, Loader2, Plus } from "lucide-react";
+import { ExternalLink, FileCheck2, FileCog, Loader2, Plus, Tags } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@apticket/shared-types/database";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,10 @@ import { InterChargeDialog } from "@/components/inter-charge-dialog";
 import { ManualReceivableDialog } from "@/components/manual-financial-entry-dialogs";
 import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
+import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
+const db = supabase as unknown as SupabaseClient;
 type Receivable = Omit<Tables<"contas_receber">, "contrato_id" | "medicao_id"> & {
   contrato_id: string | null;
   medicao_id: string | null;
@@ -51,6 +54,10 @@ type Receivable = Omit<Tables<"contas_receber">, "contrato_id" | "medicao_id"> &
   installment_number: number | null;
   installment_count: number | null;
   medicoes_contrato: { report_token: string } | null;
+  financial_category_id: string | null;
+  cost_center_id: string | null;
+  financial_category_name: string | null;
+  cost_center_name: string | null;
 };
 
 const STATUS: Array<{ value: BillingStatus; label: string }> = [
@@ -106,6 +113,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   const [origin, setOrigin] = useState("todos");
   const [manualOpen, setManualOpen] = useState(false);
   const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
+  const [classifying, setClassifying] = useState<Receivable | null>(null);
   const documentTypes = useFinancialDocumentTypes();
   const documentTypeById = useMemo(
     () => new Map((documentTypes.data ?? []).map((item) => [item.id, item])),
@@ -121,7 +129,38 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Receivable[];
+      const rows = (data ?? []) as Receivable[];
+      if (!rows.length) return rows;
+      const { data: classifications, error: classificationError } = await db
+        .from("financial_entry_classifications")
+        .select(
+          "source_id,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
+        )
+        .in("source_type", ["measurement_receivable", "recurring_receivable", "manual_receivable"])
+        .in(
+          "source_id",
+          rows.map((item) => item.id),
+        )
+        .is("deleted_at", null);
+      if (classificationError) throw classificationError;
+      const bySource = new Map(
+        (classifications ?? []).map((item: Record<string, unknown>) => [
+          String(item.source_id),
+          item,
+        ]),
+      );
+      return rows.map((item) => {
+        const classification = bySource.get(item.id);
+        const category = classification?.financial_categories as { name?: string } | null;
+        const center = classification?.financial_cost_centers as { name?: string } | null;
+        return {
+          ...item,
+          financial_category_id: String(classification?.financial_category_id ?? "") || null,
+          cost_center_id: String(classification?.cost_center_id ?? "") || null,
+          financial_category_name: category?.name ?? null,
+          cost_center_name: center?.name ?? null,
+        };
+      });
     },
   });
 
@@ -216,6 +255,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                   <TableHead>Valor</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Classificação</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -277,8 +317,27 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                       <TableCell>
                         <StatusBadge status={effectiveStatus(receivable)} />
                       </TableCell>
+                      <TableCell>
+                        <div className="text-xs font-medium">
+                          {receivable.financial_category_name ?? "Não classificado"}
+                        </div>
+                        {receivable.cost_center_name ? (
+                          <div className="text-[11px] text-muted-foreground">
+                            {receivable.cost_center_name}
+                          </div>
+                        ) : null}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">
+                          {canEdit && receivable.operating_company_id ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setClassifying(receivable)}
+                            >
+                              <Tags className="size-4" /> Classificar
+                            </Button>
+                          ) : null}
                           {receivable.operating_company_id && (
                             <Button
                               size="sm"
@@ -358,6 +417,30 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
         open={documentTypesOpen}
         onClose={() => setDocumentTypesOpen(false)}
       />
+      {classifying?.operating_company_id ? (
+        <FinancialEntryClassificationDialog
+          entry={{
+            source_type:
+              classifying.origin_type === "measurement"
+                ? "measurement_receivable"
+                : classifying.origin_type === "recurring"
+                  ? "recurring_receivable"
+                  : "manual_receivable",
+            source_id: classifying.id,
+            direction: "inflow",
+            document_number: classifying.documento_referencia,
+            counterparty_name: classifying.cliente_nome,
+            operating_company_id: classifying.operating_company_id,
+            financial_category_id: classifying.financial_category_id,
+            cost_center_id: classifying.cost_center_id,
+          }}
+          onClose={() => setClassifying(null)}
+          onSaved={() => {
+            setClassifying(null);
+            void queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] });
+          }}
+        />
+      ) : null}
     </Card>
   );
 }

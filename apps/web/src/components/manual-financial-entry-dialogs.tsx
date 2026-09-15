@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { FinancialDimensionFields } from "@/components/financial-dimension-fields";
 
 const db = supabase as unknown as SupabaseClient;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -61,8 +62,16 @@ const schema = z
       }),
     ),
     notes: z.string().trim().max(4000, "Use no máximo 4.000 caracteres."),
+    financialCategoryId: z.string(),
+    costCenterId: z.string(),
   })
   .superRefine((value, context) => {
+    if (Boolean(value.financialCategoryId) !== Boolean(value.costCenterId))
+      context.addIssue({
+        code: "custom",
+        path: ["financialCategoryId"],
+        message: "Selecione a categoria financeira e o centro de custo em conjunto.",
+      });
     const competenceStart = `${value.competence}-01`;
     if (value.entryMode === "installments" && value.document.trim().length > 70) {
       context.addIssue({
@@ -146,6 +155,8 @@ function ManualEntryDialog({
       firstDueDate: today(),
       installments: [],
       notes: "",
+      financialCategoryId: "",
+      costCenterId: "",
     },
   });
   const { fields, replace } = useFieldArray({ control: form.control, name: "installments" });
@@ -157,6 +168,9 @@ function ManualEntryDialog({
   const installmentCount = useWatch({ control: form.control, name: "installmentCount" });
   const intervalDays = useWatch({ control: form.control, name: "intervalDays" });
   const firstDueDate = useWatch({ control: form.control, name: "firstDueDate" });
+  const selectedCompanyId = useWatch({ control: form.control, name: "operatingCompanyId" });
+  const selectedCategoryId = useWatch({ control: form.control, name: "financialCategoryId" });
+  const selectedCostCenterId = useWatch({ control: form.control, name: "costCenterId" });
   const installmentValues = useWatch({ control: form.control, name: "installments" }) ?? [];
   const currentSignature = `${totalAmount}|${installmentCount}|${intervalDays}|${firstDueDate}|${competence}`;
   const distributedCents = installmentValues.reduce((sum, item) => sum + toCents(item.amount), 0);
@@ -304,14 +318,16 @@ function ManualEntryDialog({
         p_installment_interval_days:
           parsed.entryMode === "installments" ? Number(parsed.intervalDays) : 0,
         p_notes: parsed.notes || null,
+        p_category_id: parsed.financialCategoryId || null,
+        p_cost_center_id: parsed.costCenterId || null,
       };
       const { data, error } = isReceivable
-        ? await db.rpc("create_manual_receivable", {
+        ? await db.rpc("create_manual_receivable_classified", {
             ...common,
             p_company_id: parsed.counterpartyId,
             p_document_reference: parsed.document,
           })
-        : await db.rpc("create_manual_supplier_payable", {
+        : await db.rpc("create_manual_supplier_payable_classified", {
             ...common,
             p_supplier_id: parsed.counterpartyId,
             p_document_number: parsed.document,
@@ -376,7 +392,14 @@ function ManualEntryDialog({
                     control={form.control}
                     name="operatingCompanyId"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue("financialCategoryId", "");
+                          form.setValue("costCenterId", "");
+                        }}
+                      >
                         <SelectTrigger
                           id="manual-entry-operator"
                           aria-invalid={Boolean(form.formState.errors.operatingCompanyId)}
@@ -477,6 +500,24 @@ function ManualEntryDialog({
                 Não foi possível carregar as opções do lançamento. Feche e tente novamente.
               </p>
             ) : null}
+          </section>
+
+          <section className="space-y-4 rounded-xl border p-4">
+            <div>
+              <h3 className="text-sm font-semibold">Classificação financeira</h3>
+              <p className="text-xs text-muted-foreground">
+                A categoria e o centro de custo serão replicados em todas as parcelas.
+              </p>
+            </div>
+            <FinancialDimensionFields
+              companyId={selectedCompanyId}
+              direction={isReceivable ? "inflow" : "outflow"}
+              categoryId={selectedCategoryId}
+              costCenterId={selectedCostCenterId}
+              onCategoryChange={(value) => form.setValue("financialCategoryId", value)}
+              onCostCenterChange={(value) => form.setValue("costCenterId", value)}
+            />
+            <FieldError message={form.formState.errors.financialCategoryId?.message} />
           </section>
 
           <section className="space-y-4 rounded-xl border p-4">

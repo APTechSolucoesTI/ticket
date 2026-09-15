@@ -9,6 +9,7 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  Tags,
   Unlink,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -46,6 +47,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { supabase } from "@/integrations/supabase/client";
 import { readOfxFile } from "@/lib/ofx-parser";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 
 type Company = { id: string; legal_name: string };
 type BankAccount = {
@@ -74,6 +76,10 @@ type Transaction = {
   match_counterparty_name: string | null;
   difference_amount: number | null;
   resolution_notes: string | null;
+  financial_category_id: string | null;
+  cost_center_id: string | null;
+  financial_category_name: string | null;
+  cost_center_name: string | null;
 };
 type Candidate = {
   id: string;
@@ -123,6 +129,7 @@ export function BankReconciliationDashboard({
   const [search, setSearch] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [reviewing, setReviewing] = useState<Transaction>();
+  const [classifying, setClassifying] = useState<Transaction>();
   const [candidateId, setCandidateId] = useState("");
   const [notes, setNotes] = useState("");
   const [accountForm, setAccountForm] = useState({
@@ -185,7 +192,38 @@ export function BankReconciliationDashboard({
         .order("posted_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      return (data ?? []) as Transaction[];
+      const rows = (data ?? []) as Transaction[];
+      if (!rows.length) return rows;
+      const { data: classifications, error: classificationError } = await db
+        .from("financial_entry_classifications")
+        .select(
+          "source_id,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
+        )
+        .eq("source_type", "bank_transaction")
+        .in(
+          "source_id",
+          rows.map((item) => item.id),
+        )
+        .is("deleted_at", null);
+      if (classificationError) throw classificationError;
+      const bySource = new Map(
+        (classifications ?? []).map((item: Record<string, unknown>) => [
+          String(item.source_id),
+          item,
+        ]),
+      );
+      return rows.map((item) => {
+        const classification = bySource.get(item.id);
+        const category = classification?.financial_categories as { name?: string } | null;
+        const center = classification?.financial_cost_centers as { name?: string } | null;
+        return {
+          ...item,
+          financial_category_id: String(classification?.financial_category_id ?? "") || null,
+          cost_center_id: String(classification?.cost_center_id ?? "") || null,
+          financial_category_name: category?.name ?? null,
+          cost_center_name: center?.name ?? null,
+        };
+      });
     },
   });
 
@@ -497,6 +535,7 @@ export function BankReconciliationDashboard({
                       <TableHead className="text-right">Valor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Correspondência</TableHead>
+                      <TableHead>Classificação</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -544,21 +583,43 @@ export function BankReconciliationDashboard({
                               </p>
                             )}
                         </TableCell>
+                        <TableCell>
+                          <p className="text-xs font-medium">
+                            {item.financial_category_name ?? "Não classificado"}
+                          </p>
+                          {item.cost_center_name ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              {item.cost_center_name}
+                            </p>
+                          ) : null}
+                        </TableCell>
                         <TableCell className="text-right">
-                          {item.reconciliation_status === "pending_review" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!canEdit}
-                              onClick={() => {
-                                setReviewing(item);
-                                setCandidateId("");
-                                setNotes("");
-                              }}
-                            >
-                              Revisar
-                            </Button>
-                          )}
+                          <div className="flex justify-end gap-1">
+                            {canEdit ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Classificar movimento ${item.memo}`}
+                                onClick={() => setClassifying(item)}
+                              >
+                                <Tags className="size-4" />
+                              </Button>
+                            ) : null}
+                            {item.reconciliation_status === "pending_review" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!canEdit}
+                                onClick={() => {
+                                  setReviewing(item);
+                                  setCandidateId("");
+                                  setNotes("");
+                                }}
+                              >
+                                Revisar
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -713,6 +774,27 @@ export function BankReconciliationDashboard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {classifying ? (
+        <FinancialEntryClassificationDialog
+          entry={{
+            source_type: "bank_transaction",
+            source_id: classifying.id,
+            direction: classifying.amount >= 0 ? "inflow" : "outflow",
+            document_number: classifying.document_number || classifying.posted_at,
+            counterparty_name: classifying.memo,
+            operating_company_id: companyId,
+            financial_category_id: classifying.financial_category_id,
+            cost_center_id: classifying.cost_center_id,
+          }}
+          onClose={() => setClassifying(undefined)}
+          onSaved={() => {
+            setClassifying(undefined);
+            void queryClient.invalidateQueries({
+              queryKey: ["bank-statement-transactions", companyId, accountId],
+            });
+          }}
+        />
+      ) : null}
     </Card>
   );
 }

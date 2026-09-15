@@ -105,6 +105,9 @@ export function FinancialEntryClassificationDialog({
         queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-statement"] }),
+        queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] }),
+        queryClient.invalidateQueries({ queryKey: ["supplier-payables"] }),
+        queryClient.invalidateQueries({ queryKey: ["bank-statement-transactions"] }),
       ]);
       onSaved();
     },
@@ -124,6 +127,9 @@ export function FinancialEntryClassificationDialog({
         queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-budget"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-statement"] }),
+        queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] }),
+        queryClient.invalidateQueries({ queryKey: ["supplier-payables"] }),
+        queryClient.invalidateQueries({ queryKey: ["bank-statement-transactions"] }),
       ]);
       onSaved();
     },

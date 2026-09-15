@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Eye, FileText, Pencil, Plus } from "lucide-react";
+import { Eye, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,17 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { FinancialDimensionFields } from "@/components/financial-dimension-fields";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type BillingUnit = "fixed" | "active_users" | "devices";
 type ContractStatus = "active" | "suspended" | "expired" | "cancelled";
@@ -65,14 +76,28 @@ type Contract = {
   emite_boleto: boolean;
   auto_renew: boolean;
   notes: string | null;
+  financial_category_id: string | null;
+  cost_center_id: string | null;
+  financial_categories?: { code: string; name: string } | null;
+  financial_cost_centers?: { code: string; name: string } | null;
   supplier_name: string;
   operator_name: string;
 };
 
 type FormState = Omit<
   Contract,
-  "id" | "tenant_id" | "supplier_name" | "operator_name" | "is_active" | "ends_at" | "notes"
-> & { ends_at: string; notes: string };
+  | "id"
+  | "tenant_id"
+  | "supplier_name"
+  | "operator_name"
+  | "is_active"
+  | "ends_at"
+  | "notes"
+  | "financial_category_id"
+  | "cost_center_id"
+  | "financial_categories"
+  | "financial_cost_centers"
+> & { ends_at: string; notes: string; financial_category_id: string; cost_center_id: string };
 
 const db = supabase as unknown as SupabaseClient;
 const DAY = 86_400_000;
@@ -111,6 +136,8 @@ const schema = z
     emite_boleto: z.boolean(),
     auto_renew: z.boolean(),
     notes: z.string().max(4000),
+    financial_category_id: z.string().uuid().nullable(),
+    cost_center_id: z.string().uuid().nullable(),
   })
   .superRefine((value, context) => {
     if (value.ends_at < value.starts_at)
@@ -131,6 +158,12 @@ const schema = z
         path: ["unit_price"],
         message: "Informe o valor unitário.",
       });
+    if (Boolean(value.financial_category_id) !== Boolean(value.cost_center_id))
+      context.addIssue({
+        code: "custom",
+        path: ["financial_category_id"],
+        message: "Selecione a categoria financeira e o centro de custo em conjunto.",
+      });
   });
 
 function endingSoon(value: string | null) {
@@ -150,6 +183,7 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Contract | null>(null);
+  const [toDelete, setToDelete] = useState<Contract | null>(null);
   const options = useQuery({
     queryKey: ["supplier-contract-options"],
     queryFn: async () => {
@@ -180,7 +214,7 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
       const { data, error } = await db
         .from("supplier_contracts")
         .select(
-          "id,tenant_id,operating_company_id,supplier_id,numero_contrato,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,is_active,status,tipo_medicao,tipo_vencimento,emite_nf,emite_boleto,auto_renew,notes",
+          "id,tenant_id,operating_company_id,supplier_id,numero_contrato,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,is_active,status,tipo_medicao,tipo_vencimento,emite_nf,emite_boleto,auto_renew,notes,financial_category_id,cost_center_id,financial_categories(code,name),financial_cost_centers(code,name)",
         )
         .is("deleted_at", null)
         .order("starts_at", { ascending: false });
@@ -202,9 +236,22 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
         supplier_name: supplierNames.get(item.supplier_id as string) ?? "Fornecedor",
         operator_name:
           operatorNames.get(item.operating_company_id as string) ?? "Empresa operadora",
-      })) as Contract[];
+      })) as unknown as Contract[];
     },
     enabled: options.isSuccess,
+  });
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db.rpc("archive_supplier_contract", { p_contract_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Contrato removido");
+      setToDelete(null);
+      void queryClient.invalidateQueries({ queryKey: ["supplier-contracts"] });
+    },
+    onError: (error: Error) =>
+      toast.error(getUserFacingError(error, "Não foi possível remover o contrato.")),
   });
   const columns: ListColumn<Contract>[] = [
     {
@@ -237,6 +284,24 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
       label: "Medição",
       accessor: (row) => row.tipo_medicao,
       cell: (row) => row.tipo_medicao[0].toUpperCase() + row.tipo_medicao.slice(1),
+    },
+    {
+      key: "category",
+      label: "Categoria financeira",
+      accessor: (row) => row.financial_categories?.name ?? "",
+      cell: (row) =>
+        row.financial_categories
+          ? `${row.financial_categories.code} - ${row.financial_categories.name}`
+          : "-",
+    },
+    {
+      key: "cost_center",
+      label: "Centro de custo",
+      accessor: (row) => row.financial_cost_centers?.name ?? "",
+      cell: (row) =>
+        row.financial_cost_centers
+          ? `${row.financial_cost_centers.code} - ${row.financial_cost_centers.name}`
+          : "-",
     },
     {
       key: "end",
@@ -272,17 +337,27 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
       cell: (row) => (
         <div className="flex justify-end gap-1">
           {canEdit ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={`Editar contrato ${row.numero_contrato}`}
-              onClick={() => {
-                setEditing(row);
-                setOpen(true);
-              }}
-            >
-              <Pencil className="size-4" />
-            </Button>
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Editar contrato ${row.numero_contrato}`}
+                onClick={() => {
+                  setEditing(row);
+                  setOpen(true);
+                }}
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Remover contrato ${row.numero_contrato}`}
+                onClick={() => setToDelete(row)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </>
           ) : (
             <Button
               size="icon"
@@ -346,6 +421,8 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
               "supplier",
               "billing",
               "measurement",
+              "category",
+              "cost_center",
               "end",
               "value",
               "status",
@@ -364,6 +441,26 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
         suppliers={options.data?.suppliers ?? []}
         onSaved={() => void queryClient.invalidateQueries({ queryKey: ["supplier-contracts"] })}
       />
+      <AlertDialog open={Boolean(toDelete)} onOpenChange={(value) => !value && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover contrato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O contrato será removido somente se ainda não possuir medições. Esta ação não pode ser
+              desfeita pela interface.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={remove.isPending}
+              onClick={() => toDelete && remove.mutate(toDelete.id)}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -404,6 +501,8 @@ function SupplierContractDialog({
     emite_boleto: false,
     auto_renew: false,
     notes: "",
+    financial_category_id: "",
+    cost_center_id: "",
   });
   useEffect(() => {
     if (!open) return;
@@ -429,11 +528,17 @@ function SupplierContractDialog({
       emite_boleto: editing?.emite_boleto ?? false,
       auto_renew: editing?.auto_renew ?? false,
       notes: editing?.notes ?? "",
+      financial_category_id: editing?.financial_category_id ?? "",
+      cost_center_id: editing?.cost_center_id ?? "",
     });
   }, [companies, editing, open]);
   const save = useMutation({
     mutationFn: async () => {
-      const parsed = schema.safeParse(form);
+      const parsed = schema.safeParse({
+        ...form,
+        financial_category_id: form.financial_category_id || null,
+        cost_center_id: form.cost_center_id || null,
+      });
       if (!parsed.success) throw new Error(getValidationErrorMessage(parsed.error));
       const frequency =
         parsed.data.tipo_medicao === "unica" ? 1 : frequencyMonths[parsed.data.tipo_medicao];
@@ -585,7 +690,14 @@ function SupplierContractDialog({
                 <Label>Empresa operadora *</Label>
                 <Select
                   value={form.operating_company_id}
-                  onValueChange={(value) => setForm({ ...form, operating_company_id: value })}
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      operating_company_id: value,
+                      financial_category_id: "",
+                      cost_center_id: "",
+                    })
+                  }
                   disabled={readOnly || Boolean(editing)}
                 >
                   <SelectTrigger>
@@ -599,6 +711,21 @@ function SupplierContractDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="lg:col-span-4">
+                <FinancialDimensionFields
+                  companyId={form.operating_company_id}
+                  direction="outflow"
+                  categoryId={form.financial_category_id}
+                  costCenterId={form.cost_center_id}
+                  onCategoryChange={(value) =>
+                    setForm((current) => ({ ...current, financial_category_id: value }))
+                  }
+                  onCostCenterChange={(value) =>
+                    setForm((current) => ({ ...current, cost_center_id: value }))
+                  }
+                  disabled={readOnly}
+                />
               </div>
               <div className="lg:col-span-4">
                 <Label>Fornecedor *</Label>

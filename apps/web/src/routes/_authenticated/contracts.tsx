@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, FileText, Eye } from "lucide-react";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { PageHeader, EmptyStub } from "@/components/empty-stub";
@@ -47,11 +48,13 @@ import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import { formatCurrency } from "@/lib/number-format";
+import { FinancialDimensionFields } from "@/components/financial-dimension-fields";
 
 export const Route = createFileRoute("/_authenticated/contracts")({
   head: () => ({ meta: [{ title: "Contratos - APTicket" }] }),
   component: ContractsPage,
 });
+const db = supabase as unknown as SupabaseClient;
 
 type BillingModel = "hours_package" | "per_equipment" | "per_service";
 type MeasurementFrequency = "mensal" | "trimestral" | "semestral" | "anual" | "unica";
@@ -86,10 +89,14 @@ type Contract = {
   dia_vencimento: number;
   description: string | null;
   notes: string | null;
+  financial_category_id: string | null;
+  cost_center_id: string | null;
   companies?: { name: string } | null;
   operating_companies?: { legal_name: string; trade_name: string | null } | null;
   contract_types?: { name: string } | null;
   sla_policies?: { name: string } | null;
+  financial_categories?: { code: string; name: string } | null;
+  financial_cost_centers?: { code: string; name: string } | null;
 };
 
 const tierSchema = z.object({
@@ -108,36 +115,48 @@ const serviceSchema = z.object({
 const equipmentTiersSchema = z.array(tierSchema);
 const serviceItemsSchema = z.array(serviceSchema);
 
-const schema = z.object({
-  operating_company_id: z.string().uuid("Selecione uma empresa operadora"),
-  company_id: z.string().uuid("Selecione um cliente"),
-  contract_type_id: z.string().uuid().nullable(),
-  sla_policy_id: z.string().uuid().nullable(),
-  status: z.enum(["active", "suspended", "expired", "cancelled"]),
-  starts_at: z.string().min(1, "Início obrigatório"),
-  ends_at: z.string().min(1, "Fim obrigatório"),
-  billing_model: z.enum(["hours_package", "per_equipment", "per_service"]),
-  hours_monthly_quota: z.number().int().min(0),
-  extra_hour_price: z.number().min(0),
-  monthly_value: z.number().min(0),
-  equipment_tiers: equipmentTiersSchema,
-  service_items: serviceItemsSchema,
-  includes_remote: z.boolean(),
-  includes_lab: z.boolean(),
-  includes_onsite: z.boolean(),
-  auto_renew: z.boolean(),
-  tipo_medicao: z.enum(["mensal", "trimestral", "semestral", "anual", "unica"]),
-  emite_nf: z.boolean(),
-  emite_boleto: z.boolean(),
-  tipo_vencimento: z.enum(["fixo", "util"]),
-  dia_vencimento: z
-    .number()
-    .int()
-    .min(1, "O dia deve ser no mínimo 1")
-    .max(31, "O dia deve ser no máximo 31"),
-  description: z.string().trim().max(4000).optional().or(z.literal("")),
-  notes: z.string().trim().max(2000).optional().or(z.literal("")),
-});
+const schema = z
+  .object({
+    operating_company_id: z.string().uuid("Selecione uma empresa operadora"),
+    company_id: z.string().uuid("Selecione um cliente"),
+    contract_type_id: z.string().uuid().nullable(),
+    sla_policy_id: z.string().uuid().nullable(),
+    status: z.enum(["active", "suspended", "expired", "cancelled"]),
+    starts_at: z.string().min(1, "Início obrigatório"),
+    ends_at: z.string().min(1, "Fim obrigatório"),
+    billing_model: z.enum(["hours_package", "per_equipment", "per_service"]),
+    hours_monthly_quota: z.number().int().min(0),
+    extra_hour_price: z.number().min(0),
+    monthly_value: z.number().min(0),
+    equipment_tiers: equipmentTiersSchema,
+    service_items: serviceItemsSchema,
+    includes_remote: z.boolean(),
+    includes_lab: z.boolean(),
+    includes_onsite: z.boolean(),
+    auto_renew: z.boolean(),
+    tipo_medicao: z.enum(["mensal", "trimestral", "semestral", "anual", "unica"]),
+    emite_nf: z.boolean(),
+    emite_boleto: z.boolean(),
+    tipo_vencimento: z.enum(["fixo", "util"]),
+    dia_vencimento: z
+      .number()
+      .int()
+      .min(1, "O dia deve ser no mínimo 1")
+      .max(31, "O dia deve ser no máximo 31"),
+    description: z.string().trim().max(4000).optional().or(z.literal("")),
+    notes: z.string().trim().max(2000).optional().or(z.literal("")),
+    financial_category_id: z.string().uuid().nullable(),
+    cost_center_id: z.string().uuid().nullable(),
+  })
+  .superRefine((value, context) => {
+    if (Boolean(value.financial_category_id) !== Boolean(value.cost_center_id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["financial_category_id"],
+        message: "Selecione a categoria financeira e o centro de custo em conjunto.",
+      });
+    }
+  });
 
 const statusLabel: Record<Contract["status"], string> = {
   active: "Ativo",
@@ -196,11 +215,12 @@ function ContractsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["contracts"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("contracts")
         .select(
-          "*, companies(name), operating_companies(legal_name,trade_name), contract_types(name), sla_policies(name)",
+          "*, companies(name), operating_companies(legal_name,trade_name), contract_types(name), sla_policies(name), financial_categories(code,name), financial_cost_centers(code,name)",
         )
+        .is("deleted_at", null)
         .order("starts_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map((contract) => {
@@ -210,14 +230,14 @@ function ContractsPage() {
           ...contract,
           equipment_tiers: equipmentTiers.success ? equipmentTiers.data : [],
           service_items: serviceItems.success ? serviceItems.data : [],
-        } as Contract;
+        } as unknown as Contract;
       });
     },
   });
 
   const del = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("contracts").delete().eq("id", id);
+      const { error } = await db.rpc("archive_customer_contract", { p_contract_id: id });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -269,6 +289,8 @@ function ContractsPage() {
               "company",
               "type",
               "billing",
+              "category",
+              "cost_center",
               "sla",
               "period",
               "value",
@@ -325,6 +347,24 @@ function ContractsPage() {
                   className: "text-sm",
                   accessor: (c) => c.tipo_medicao,
                   cell: (c) => measurementFrequencyLabel[c.tipo_medicao],
+                },
+                {
+                  key: "category",
+                  label: "Categoria financeira",
+                  accessor: (c) => c.financial_categories?.name ?? "",
+                  cell: (c) =>
+                    c.financial_categories
+                      ? `${c.financial_categories.code} - ${c.financial_categories.name}`
+                      : "-",
+                },
+                {
+                  key: "cost_center",
+                  label: "Centro de custo",
+                  accessor: (c) => c.financial_cost_centers?.name ?? "",
+                  cell: (c) =>
+                    c.financial_cost_centers
+                      ? `${c.financial_cost_centers.code} - ${c.financial_cost_centers.name}`
+                      : "-",
                 },
                 {
                   key: "sla",
@@ -479,7 +519,10 @@ function ContractsPage() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Remover contrato?</AlertDialogTitle>
-              <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+              <AlertDialogDescription>
+                O contrato será removido somente se ainda não possuir medições. Esta ação não pode
+                ser desfeita pela interface.
+              </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -523,6 +566,8 @@ type FormState = {
   dia_vencimento: number;
   description: string;
   notes: string;
+  financial_category_id: string;
+  cost_center_id: string;
 };
 
 function ContractDialog({
@@ -564,6 +609,8 @@ function ContractDialog({
     dia_vencimento: 1,
     description: "",
     notes: "",
+    financial_category_id: "",
+    cost_center_id: "",
   });
   const [selectedEquipIds, setSelectedEquipIds] = useState<string[]>([]);
   const hydratedEquipmentLinksFor = useRef<string | null>(null);
@@ -576,7 +623,7 @@ function ContractDialog({
   const { data: operatingCompanies } = useQuery({
     queryKey: ["operating-companies", "contract-options"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("operating_companies")
         .select("id, legal_name, trade_name")
         .eq("is_active", true)
@@ -680,14 +727,16 @@ function ContractDialog({
         auto_renew: payload.auto_renew,
         description: payload.description || null,
         notes: payload.notes || null,
+        financial_category_id: payload.financial_category_id,
+        cost_center_id: payload.cost_center_id,
       };
       let contractId: string;
       if (editing) {
-        const { error } = await supabase.from("contracts").update(values).eq("id", editing.id);
+        const { error } = await db.from("contracts").update(values).eq("id", editing.id);
         if (error) throw error;
         contractId = editing.id;
       } else {
-        const { data: ins, error } = await supabase
+        const { data: ins, error } = await db
           .from("contracts")
           .insert({ ...values, tenant_id: prof.tenant_id })
           .select("id")
@@ -759,6 +808,8 @@ function ContractDialog({
       dia_vencimento: editing?.dia_vencimento ?? 1,
       description: editing?.description ?? "",
       notes: editing?.notes ?? "",
+      financial_category_id: editing?.financial_category_id ?? "",
+      cost_center_id: editing?.cost_center_id ?? "",
     });
     const editingId = editing?.id ?? null;
     const cachedLinks = editingId
@@ -872,6 +923,8 @@ function ContractDialog({
                     ...form,
                     contract_type_id: form.contract_type_id || null,
                     sla_policy_id: form.sla_policy_id || null,
+                    financial_category_id: form.financial_category_id || null,
+                    cost_center_id: form.cost_center_id || null,
                   });
                   if (!r.success) {
                     toast.error(getValidationErrorMessage(r.error));
@@ -987,7 +1040,14 @@ function ContractDialog({
                   <Label>Empresa operadora *</Label>
                   <Select
                     value={form.operating_company_id}
-                    onValueChange={(v) => setForm({ ...form, operating_company_id: v })}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        operating_company_id: v,
+                        financial_category_id: "",
+                        cost_center_id: "",
+                      })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma empresa operadora" />
@@ -1000,6 +1060,22 @@ function ContractDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <FinancialDimensionFields
+                    companyId={form.operating_company_id}
+                    direction="inflow"
+                    categoryId={form.financial_category_id}
+                    costCenterId={form.cost_center_id}
+                    onCategoryChange={(value) =>
+                      setForm((current) => ({ ...current, financial_category_id: value }))
+                    }
+                    onCostCenterChange={(value) =>
+                      setForm((current) => ({ ...current, cost_center_id: value }))
+                    }
+                    disabled={readOnly}
+                  />
                 </div>
 
                 <div className="sm:col-span-2 lg:col-span-4">

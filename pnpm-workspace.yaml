@@ -1,6 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+overrides:
+  deepmerge-ts: 8.0.2
+  fast-uri: 3.1.6
+  js-yaml: 4.3.2
+  multer: 2.4.0
+  nodemailer: 9.1.1
+  qs: 6.16.0
 allowBuilds:
   # bullmq's anonymous-usage telemetry postinstall ping - no functional need, denied.
   '@scarf/scarf': false
