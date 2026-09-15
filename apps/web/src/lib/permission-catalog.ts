@@ -166,6 +166,7 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/reports", module: "relatorios" },
   { prefix: "/finance/receivables", module: "financeiro_contas_receber" },
   { prefix: "/finance/payables", module: "financeiro_contas_pagar" },
+  { prefix: "/supplier-contracts", module: "financeiro_contas_pagar" },
   { prefix: "/finance/banking", module: "financeiro_bancos" },
   { prefix: "/finance/cash-flow", module: "financeiro_fluxo_caixa" },
   { prefix: "/finance/planning", module: "financeiro_planejamento" },
