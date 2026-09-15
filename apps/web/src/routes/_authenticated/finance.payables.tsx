@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_authenticated/finance/payables")({
 });
 
 function PayablesPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("financeiro_contas_pagar");
   return <PayableSuppliers canEdit={access.edit} />;
 }

@@ -3,6 +3,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function requireReceivablesPermission(
+  db: SupabaseClient,
+  userId: string,
+  action: "view" | "edit",
+) {
+  const { data, error } = await db.rpc("has_permission", {
+    _user_id: userId,
+    _module: "financeiro_contas_receber",
+    _action: action,
+  });
+  if (error || !data) throw new Error("Sem permissão para acessar contas a receber.");
+}
+
 const idSchema = z.object({ id: z.string().uuid() });
 const payerReviewSchema = z.object({
   state: z.enum([
@@ -101,6 +114,7 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => idSchema.parse(input))
   .handler(async ({ data, context }): Promise<InterChargeReview> => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireReceivablesPermission(db, context.userId, "view");
     const { data: receivable, error } = await db
       .from("contas_receber")
       .select(
@@ -117,23 +131,31 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
       throw new Error(
         "Defina a empresa operadora deste contrato antes de emitir a cobrança Inter.",
       );
-    const [{ data: requests, error: requestError }, { data: canPrepare, error: scopeError }] =
-      await Promise.all([
-        db
-          .from("inter_charge_requests")
-          .select(
-            "id,environment,amount,due_date,status,created_at,deleted_at,dispatch_attempts,dispatch_started_at,bank_request_id,bank_status,bank_status_at,bank_accepted_at,bank_our_number,bank_digitable_line,bank_received_amount,bank_receipt_origin,bank_synced_at,last_error_code,last_error_message,last_sync_error_code,last_sync_error_message,updated_at",
-          )
-          .eq("receivable_id", data.id)
-          .eq("tenant_id", context.claims.tenantId)
-          .order("created_at"),
-        db.rpc("has_financial_scope", {
-          _tenant_id: context.claims.tenantId,
-          _company_id: receivable.operating_company_id,
-          _write: true,
-        }),
-      ]);
-    if (requestError || scopeError)
+    const [
+      { data: requests, error: requestError },
+      { data: canPrepare, error: scopeError },
+      { data: canEditReceivables, error: permissionError },
+    ] = await Promise.all([
+      db
+        .from("inter_charge_requests")
+        .select(
+          "id,environment,amount,due_date,status,created_at,deleted_at,dispatch_attempts,dispatch_started_at,bank_request_id,bank_status,bank_status_at,bank_accepted_at,bank_our_number,bank_digitable_line,bank_received_amount,bank_receipt_origin,bank_synced_at,last_error_code,last_error_message,last_sync_error_code,last_sync_error_message,updated_at",
+        )
+        .eq("receivable_id", data.id)
+        .eq("tenant_id", context.claims.tenantId)
+        .order("created_at"),
+      db.rpc("has_financial_scope", {
+        _tenant_id: context.claims.tenantId,
+        _company_id: receivable.operating_company_id,
+        _write: true,
+      }),
+      db.rpc("has_permission", {
+        _user_id: context.userId,
+        _module: "financeiro_contas_receber",
+        _action: "edit",
+      }),
+    ]);
+    if (requestError || scopeError || permissionError)
       throw new Error("Não foi possível consultar as solicitações e permissões. Tente novamente.");
     return {
       receivable: {
@@ -141,7 +163,7 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
         origin: receivable.medicao_id ? "measurement" : "recurring",
       },
       requests: requests ?? [],
-      canPrepare: canPrepare === true,
+      canPrepare: canPrepare === true && canEditReceivables === true,
     } as InterChargeReview;
   });
 
@@ -153,6 +175,11 @@ export const prepareInterCharge = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    await requireReceivablesPermission(
+      context.supabase as unknown as SupabaseClient,
+      context.userId,
+      "edit",
+    );
     // User-scoped client forwards the verified bearer, never a service-role key.
     const { data: result, error } = await context.supabase.functions.invoke(
       "preparar-cobranca-inter",
@@ -185,6 +212,7 @@ export const getInterPayerReview = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => idSchema.parse(input))
   .handler(async ({ data, context }): Promise<InterPayerReview> => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireReceivablesPermission(db, context.userId, "view");
     const [review, request, roles] = await Promise.all([
       db.rpc("review_inter_payer_display", { p_request: data.id }),
       db
@@ -210,12 +238,22 @@ export const getInterPayerReview = createServerFn({ method: "GET" })
       throw new Error(
         "Não foi possível consultar o perfil do usuário. Atualize a página e tente novamente.",
       );
-    const { data: canWrite, error: scopeError } = await db.rpc("has_financial_scope", {
-      _tenant_id: context.claims.tenantId,
-      _company_id: request.data.operating_company_id,
-      _write: true,
-    });
-    if (scopeError)
+    const [
+      { data: canWrite, error: scopeError },
+      { data: canEditReceivables, error: permissionError },
+    ] = await Promise.all([
+      db.rpc("has_financial_scope", {
+        _tenant_id: context.claims.tenantId,
+        _company_id: request.data.operating_company_id,
+        _write: true,
+      }),
+      db.rpc("has_permission", {
+        _user_id: context.userId,
+        _module: "financeiro_contas_receber",
+        _action: "edit",
+      }),
+    ]);
+    if (scopeError || permissionError)
       throw new Error("Não foi possível validar a permissão financeira para esta empresa.");
     const assigned = z
       .array(z.object({ roles: z.object({ name: z.string() }).nullable() }))
@@ -224,6 +262,7 @@ export const getInterPayerReview = createServerFn({ method: "GET" })
       ...payerReviewSchema.parse(review.data),
       canConfirm:
         canWrite === true &&
+        canEditReceivables === true &&
         assigned.some((role) => ["Admin", "Financeiro"].includes(role.roles?.name ?? "")),
     };
   });
@@ -242,6 +281,7 @@ export const confirmInterPayer = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireReceivablesPermission(db, context.userId, "edit");
     const result = await db.rpc("confirm_inter_payer", {
       p_request: data.id,
       p_source_fingerprint: data.sourceFingerprint,
@@ -275,6 +315,11 @@ export const emitInterCharge = createServerFn({ method: "POST" })
     idSchema.extend({ confirmed: z.literal(true), productionConfirmed: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    await requireReceivablesPermission(
+      context.supabase as unknown as SupabaseClient,
+      context.userId,
+      "edit",
+    );
     const { data: result, error } = await context.supabase.functions.invoke(
       "emitir-cobranca-inter",
       {
@@ -309,6 +354,11 @@ export const syncInterCharge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => idSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await requireReceivablesPermission(
+      context.supabase as unknown as SupabaseClient,
+      context.userId,
+      "edit",
+    );
     const { data: result, error } = await context.supabase.functions.invoke(
       "consultar-cobranca-inter",
       { body: { request_id: data.id } },

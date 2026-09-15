@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_authenticated/finance/planning")({
 });
 
 function PlanningPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("financeiro_planejamento");
   return <FinancialBudgetDashboard canEdit={access.edit} />;
 }

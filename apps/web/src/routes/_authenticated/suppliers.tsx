@@ -158,7 +158,7 @@ const schema = z.object({
 });
 
 function SuppliersPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("fornecedores");
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState("");
   const [search, setSearch] = useState("");

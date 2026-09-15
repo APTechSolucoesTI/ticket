@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_authenticated/finance/closing")({
 });
 
 function ClosingPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("financeiro_fechamento");
   return <FinancialPeriodClosure canEdit={access.edit} />;
 }

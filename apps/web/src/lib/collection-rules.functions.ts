@@ -3,6 +3,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function requireReceivablesPermission(
+  db: SupabaseClient,
+  userId: string,
+  action: "view" | "edit",
+) {
+  const { data, error } = await db.rpc("has_permission", {
+    _user_id: userId,
+    _module: "financeiro_contas_receber",
+    _action: action,
+  });
+  if (error || !data) throw new Error("Sem permissão para acessar contas a receber.");
+}
+
 const channel = z.enum(["email", "whatsapp", "sms"]);
 const step = z.object({
   id: z.string().uuid().optional(),
@@ -34,6 +47,7 @@ export const getCollectionPolicy = createServerFn({ method: "GET" })
   .inputValidator((value: unknown) => companyInput.parse(value))
   .handler(async ({ context, data }) => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireReceivablesPermission(db, context.userId, "view");
     const result = await db.rpc("get_collection_policy", { p_company: data.company });
     if (result.error) throw new Error("Não foi possível consultar a régua de cobrança.");
     return policy.parse(result.data);
@@ -52,6 +66,7 @@ export const saveCollectionPolicy = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireReceivablesPermission(db, context.userId, "edit");
     const result = await db.rpc("save_collection_policy", {
       p_company: data.company,
       p_enabled: data.enabled,
@@ -71,6 +86,7 @@ export const evaluateCollectionPolicy = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => companyInput.parse(value))
   .handler(async ({ context, data }) => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireReceivablesPermission(db, context.userId, "edit");
     const result = await db.rpc("evaluate_collection_policy", {
       p_company: data.company,
     });

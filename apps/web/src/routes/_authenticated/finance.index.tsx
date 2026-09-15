@@ -1,15 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeDollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader } from "@/components/empty-stub";
+import { EmptyStub, PageHeader } from "@/components/empty-stub";
 import { financeNavigation } from "@/lib/finance-navigation";
+import { usePermissions } from "@/lib/use-permissions";
 
 export const Route = createFileRoute("/_authenticated/finance/")({
   component: FinanceOverview,
 });
 
 function FinanceOverview() {
-  const areas = financeNavigation.filter((item) => item.to !== "/finance");
+  const permissions = usePermissions();
+  const areas = financeNavigation.filter(
+    (item) => item.to !== "/finance" && permissions.has(item.module, "view"),
+  );
   return (
     <section className="space-y-4">
       <PageHeader
@@ -17,33 +21,40 @@ function FinanceOverview() {
         subtitle="Escolha uma função. Cada área mantém seus próprios filtros e carrega apenas os dados necessários."
         icon={BadgeDollarSign}
       />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {areas.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <Card className="h-full transition-all group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
-                <CardContent className="flex h-full items-start gap-3 p-5">
-                  <span className="rounded-xl bg-primary/10 p-2.5 text-primary">
-                    <Icon className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold">{item.label}</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {areaDescription[item.to]}
-                    </p>
-                  </div>
-                  <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      {areas.length === 0 ? (
+        <EmptyStub
+          title="Nenhuma área financeira liberada"
+          message="Solicite ao administrador acesso a pelo menos uma função do módulo financeiro."
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {areas.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Card className="h-full transition-all group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
+                  <CardContent className="flex h-full items-start gap-3 p-5">
+                    <span className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                      <Icon className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold">{item.label}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {areaDescription[item.to]}
+                      </p>
+                    </div>
+                    <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

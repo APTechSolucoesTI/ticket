@@ -46,7 +46,7 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   module: string | null;
-  children?: Array<{ to: string; label: string; icon: LucideIcon }>;
+  children?: Array<{ to: string; label: string; icon: LucideIcon; module: string }>;
 };
 
 type NavSection = {
@@ -89,7 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { to: "/customers", label: "Clientes", icon: Building2, module: "clientes" },
-      { to: "/suppliers", label: "Fornecedores", icon: Truck, module: "financeiro" },
+      { to: "/suppliers", label: "Fornecedores", icon: Truck, module: "fornecedores" },
       { to: "/equipments", label: "Equipamentos", icon: Monitor, module: "equipamentos" },
       { to: "/contracts", label: "Contratos", icon: FileText, module: "contratos" },
       {
@@ -105,13 +105,48 @@ const NAV_SECTIONS: NavSection[] = [
         icon: CircleDollarSign,
         module: "financeiro",
         children: [
-          { to: "/finance/receivables", label: "Contas a receber", icon: BanknoteArrowDown },
-          { to: "/finance/payables", label: "Contas a pagar", icon: CircleDollarSign },
-          { to: "/finance/banking", label: "Banco e conciliação", icon: Landmark },
-          { to: "/finance/cash-flow", label: "Fluxo de caixa", icon: WalletCards },
-          { to: "/finance/planning", label: "Planejamento", icon: Target },
-          { to: "/finance/analytics", label: "Resultados", icon: BarChart3 },
-          { to: "/finance/closing", label: "Fechamento", icon: FileText },
+          {
+            to: "/finance/receivables",
+            label: "Contas a receber",
+            icon: BanknoteArrowDown,
+            module: "financeiro_contas_receber",
+          },
+          {
+            to: "/finance/payables",
+            label: "Contas a pagar",
+            icon: CircleDollarSign,
+            module: "financeiro_contas_pagar",
+          },
+          {
+            to: "/finance/banking",
+            label: "Banco e conciliação",
+            icon: Landmark,
+            module: "financeiro_bancos",
+          },
+          {
+            to: "/finance/cash-flow",
+            label: "Fluxo de caixa",
+            icon: WalletCards,
+            module: "financeiro_fluxo_caixa",
+          },
+          {
+            to: "/finance/planning",
+            label: "Planejamento",
+            icon: Target,
+            module: "financeiro_planejamento",
+          },
+          {
+            to: "/finance/analytics",
+            label: "Resultados",
+            icon: BarChart3,
+            module: "financeiro_resultados",
+          },
+          {
+            to: "/finance/closing",
+            label: "Fechamento",
+            icon: FileText,
+            module: "financeiro_fechamento",
+          },
         ],
       },
     ],
@@ -204,9 +239,12 @@ function SidebarNavigation({
       aria-label="Menu principal"
     >
       {NAV_SECTIONS.map((section) => {
-        const items = section.items.filter(
-          (item) => item.module === null || permissions.has(item.module, "view"),
-        );
+        const items = section.items
+          .filter((item) => item.module === null || permissions.has(item.module, "view"))
+          .map((item) => ({
+            ...item,
+            children: item.children?.filter((child) => permissions.has(child.module, "view")),
+          }));
         if (items.length === 0) return null;
 
         if (!section.collapsible) {

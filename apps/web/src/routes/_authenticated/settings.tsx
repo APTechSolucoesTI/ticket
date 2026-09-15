@@ -119,7 +119,7 @@ async function getTenantId() {
 const SETTINGS_TABS = [
   { value: "company", module: "empresa", label: "Empresa" },
   { value: "operating-companies", module: "empresa_operadora", label: "Empresa Operadora" },
-  { value: "inter", module: "empresa_operadora", label: "Banco Inter" },
+  { value: "inter", module: "financeiro_bancos", label: "Banco Inter" },
   { value: "users", module: "usuarios", label: "Usuários" },
   { value: "roles", module: "papeis", label: "Papéis" },
   { value: "user-permissions", module: "permissoes", label: "Permissões" },
@@ -145,7 +145,11 @@ function SettingsPage() {
       </div>
     );
   }
-  const visibleTabs = SETTINGS_TABS.filter((t) => perms.has(t.module, "view"));
+  const visibleTabs = SETTINGS_TABS.filter(
+    (t) =>
+      perms.has(t.module, "view") &&
+      !isModuleLocked(t.module, (module) => perms.has(module, "view")),
+  );
   const firstTab = visibleTabs[0]?.value ?? "company";
   return (
     <div className="p-6 space-y-4">
@@ -169,7 +173,7 @@ function SettingsPage() {
             </ModulePermissionProvider>
           </TabsContent>
         )}
-        {perms.has("empresa_operadora", "view") && (
+        {perms.has("financeiro", "view") && perms.has("financeiro_bancos", "view") && (
           <TabsContent value="operating-companies" className="mt-4">
             <ModulePermissionProvider module="empresa_operadora">
               <OperatingCompaniesTab />

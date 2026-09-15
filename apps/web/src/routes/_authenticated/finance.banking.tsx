@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/finance/banking")({
 });
 
 function BankingPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("financeiro_bancos");
   const [operatorOpen, setOperatorOpen] = useState(false);
   return (
     <div className="space-y-4">

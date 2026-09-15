@@ -42,7 +42,8 @@ import {
 } from "@/lib/inter-settings.schema";
 
 export function InterTab() {
-  const access = useModulePermissions("empresa_operadora");
+  const operatorAccess = useModulePermissions("empresa_operadora");
+  const bankAccess = useModulePermissions("financeiro_bancos");
   const list = useServerFn(listInterSettings);
   const companies = useQuery({
     queryKey: ["operating-companies", "inter-options"],
@@ -148,7 +149,7 @@ export function InterTab() {
               operatingCompanyId={selectedCompanyId}
               environment={environment}
               current={current}
-              canEdit={access.edit}
+              canEdit={operatorAccess.edit && bankAccess.edit}
             />
           )}
         </CardContent>

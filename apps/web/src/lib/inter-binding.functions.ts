@@ -3,6 +3,32 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function requireBankPermission(db: SupabaseClient, userId: string, action: "view" | "edit") {
+  const { data, error } = await db.rpc("has_permission", {
+    _user_id: userId,
+    _module: "financeiro_bancos",
+    _action: action,
+  });
+  if (error || !data) throw new Error("Sem permissão para acessar a integração bancária.");
+}
+
+async function requireFinancialCompanyList(db: SupabaseClient, userId: string) {
+  const [bank, receivables] = await Promise.all([
+    db.rpc("has_permission", {
+      _user_id: userId,
+      _module: "financeiro_bancos",
+      _action: "view",
+    }),
+    db.rpc("has_permission", {
+      _user_id: userId,
+      _module: "financeiro_contas_receber",
+      _action: "view",
+    }),
+  ]);
+  if ((bank.error && receivables.error) || (!bank.data && !receivables.data))
+    throw new Error("Sem permissão para consultar empresas operadoras financeiras.");
+}
+
 const input = z.object({
   company: z.string().uuid(),
   environment: z.enum(["sandbox", "production"]),
@@ -28,6 +54,7 @@ export const listInterOperatingCompanies = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireFinancialCompanyList(db, context.userId);
     const { data, error } = await db
       .from("operating_companies")
       .select("id,legal_name,tax_id")
@@ -52,12 +79,18 @@ export const getInterBindingReview = createServerFn({ method: "GET" })
   .inputValidator((value: unknown) => input.parse(value))
   .handler(async ({ context, data }) => {
     const db = context.supabase as unknown as SupabaseClient;
-    const [review, scope, roles] = await Promise.all([
+    await requireBankPermission(db, context.userId, "view");
+    const [review, scope, permission, roles] = await Promise.all([
       db.rpc("review_inter_binding", { p_company: data.company, p_environment: data.environment }),
       db.rpc("has_financial_scope", {
         _tenant_id: context.claims.tenantId,
         _company_id: data.company,
         _write: true,
+      }),
+      db.rpc("has_permission", {
+        _user_id: context.userId,
+        _module: "financeiro_bancos",
+        _action: "edit",
       }),
       db
         .from("user_roles")
@@ -70,7 +103,7 @@ export const getInterBindingReview = createServerFn({ method: "GET" })
       throw new Error(
         "Não foi possível consultar o perfil do usuário. Atualize a página e tente novamente.",
       );
-    if (review.error || scope.error)
+    if (review.error || scope.error || permission.error)
       throw new Error(
         "Vínculo indisponível. Verifique seu acesso financeiro à empresa e tente novamente.",
       );
@@ -81,6 +114,7 @@ export const getInterBindingReview = createServerFn({ method: "GET" })
       ...reviewSchema.parse(review.data),
       canConfirm:
         scope.data === true &&
+        permission.data === true &&
         assigned.some((r) => ["Admin", "Financeiro"].includes(r.roles?.name ?? "")),
     };
   });
@@ -98,6 +132,7 @@ export const confirmInterBinding = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const db = context.supabase as unknown as SupabaseClient;
+    await requireBankPermission(db, context.userId, "edit");
     const result = await db.rpc("confirm_inter_binding", {
       p_company: data.company,
       p_environment: data.environment,

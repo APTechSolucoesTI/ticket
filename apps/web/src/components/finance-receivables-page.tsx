@@ -134,7 +134,7 @@ function BillingStatusBadge({ status }: { status: BillingStatus }) {
 }
 
 export function FinanceReceivablesPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("financeiro_contas_receber");
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"todos" | BillingStatus>("todos");
   const [editing, setEditing] = useState<Charge | null>(null);

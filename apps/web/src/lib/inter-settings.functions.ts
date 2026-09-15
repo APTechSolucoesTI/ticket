@@ -16,6 +16,13 @@ export const testInterConnection = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
+    const { data: bankAllowed } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _module: "financeiro_bancos",
+      _action: "edit",
+    });
+    if (!bankAllowed)
+      return { ok: false, message: "Sem permissão para testar a integração bancária." };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: result, error } = await supabaseAdmin.functions.invoke("testar-conexao-inter", {
       body: {
@@ -58,7 +65,7 @@ export const listInterSettings = createServerFn({ method: "GET" })
     });
     const { data: financeAllowed } = await context.supabase.rpc("has_permission", {
       _user_id: context.userId,
-      _module: "financeiro",
+      _module: "financeiro_bancos",
       _action: "view",
     });
     if (!allowed || !settingsAllowed || !financeAllowed)
@@ -88,6 +95,12 @@ export const saveInterSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => interSettingsSchema.parse(input))
   .handler(async ({ data, context }) => {
+    const { data: bankAllowed } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _module: "financeiro_bancos",
+      _action: "edit",
+    });
+    if (!bankAllowed) throw new Error("Sem permissão para alterar a configuração bancária.");
     // Certificado é analisado no servidor; o par nunca é devolvido ao navegador.
     let expiresAt: string | null = null;
     let fingerprint: string | null = null;
@@ -148,6 +161,12 @@ export const configureInterWebhook = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: true; message: string }> => {
+    const { data: bankAllowed } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _module: "financeiro_bancos",
+      _action: "edit",
+    });
+    if (!bankAllowed) throw new Error("Sem permissão para configurar o webhook bancário.");
     const siteUrl = process.env.PUBLIC_SITE_URL;
     if (!siteUrl || !siteUrl.startsWith("https://")) {
       throw new Error("Configure a URL pública HTTPS do APTicket antes de ativar o webhook.");

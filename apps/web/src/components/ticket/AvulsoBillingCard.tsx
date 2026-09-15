@@ -22,7 +22,7 @@ const labels: Record<string, string> = {
 };
 
 export function AvulsoBillingCard({ ticketId }: { ticketId: string }) {
-  const finance = useModulePermissions("financeiro");
+  const finance = useModulePermissions("financeiro_contas_receber");
   const { data, isLoading } = useQuery({
     queryKey: ["avulso-charge", ticketId],
     queryFn: async () => {

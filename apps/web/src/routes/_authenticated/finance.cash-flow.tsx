@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_authenticated/finance/cash-flow")({
 });
 
 function CashFlowPage() {
-  const access = useModulePermissions("financeiro");
+  const access = useModulePermissions("financeiro_fluxo_caixa");
   return <CashFlowDashboard canEdit={access.edit} />;
 }

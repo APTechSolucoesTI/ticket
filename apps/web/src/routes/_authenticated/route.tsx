@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { usePermissions } from "@/lib/use-permissions";
-import { moduleForRoute } from "@/lib/permission-catalog";
+import { isModuleLocked, moduleForRoute } from "@/lib/permission-catalog";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { EmptyStub } from "@/components/empty-stub";
@@ -44,7 +44,11 @@ function AuthenticatedLayout() {
     );
   }
   const requiredModule = moduleForRoute(pathname);
-  if (requiredModule && !perms.has(requiredModule, "view")) {
+  if (
+    requiredModule &&
+    (!perms.has(requiredModule, "view") ||
+      isModuleLocked(requiredModule, (module) => perms.has(module, "view")))
+  ) {
     return (
       <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
         <AppSidebar />
