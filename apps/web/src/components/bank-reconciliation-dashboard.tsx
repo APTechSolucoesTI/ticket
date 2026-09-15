@@ -63,7 +63,12 @@ type Transaction = {
   memo: string;
   document_number: string | null;
   reconciliation_status: "pending_review" | "matched_auto" | "matched_manual" | "ignored";
-  match_source_type: "measurement_receivable" | "recurring_receivable" | "supplier_payment" | null;
+  match_source_type:
+    | "measurement_receivable"
+    | "recurring_receivable"
+    | "manual_receivable"
+    | "supplier_payment"
+    | null;
   match_source_id: string | null;
   match_document_number: string | null;
   match_counterparty_name: string | null;
@@ -72,7 +77,8 @@ type Transaction = {
 };
 type Candidate = {
   id: string;
-  sourceType: "measurement_receivable" | "recurring_receivable" | "supplier_payment";
+  sourceType:
+    "measurement_receivable" | "recurring_receivable" | "manual_receivable" | "supplier_payment";
   document: string;
   counterparty: string;
   date: string;
@@ -191,7 +197,7 @@ export function BankReconciliationDashboard({
       if (reviewing.amount > 0) {
         const { data, error } = await db
           .from("contas_receber")
-          .select("id,documento_referencia,cliente_nome,vencimento_em,valor_aberto,medicao_id")
+          .select("id,documento_referencia,cliente_nome,vencimento_em,valor_aberto,origin_type")
           .eq("operating_company_id", companyId)
           .gt("valor_aberto", 0)
           .is("deleted_at", null)
@@ -200,7 +206,12 @@ export function BankReconciliationDashboard({
         if (error) throw error;
         return (data ?? []).map((item: Record<string, unknown>) => ({
           id: String(item.id),
-          sourceType: item.medicao_id ? "measurement_receivable" : "recurring_receivable",
+          sourceType:
+            item.origin_type === "measurement"
+              ? "measurement_receivable"
+              : item.origin_type === "manual"
+                ? "manual_receivable"
+                : "recurring_receivable",
           document: String(item.documento_referencia),
           counterparty: String(item.cliente_nome),
           date: String(item.vencimento_em),

@@ -103,7 +103,7 @@ export type InterChargeReview = {
     valor_aberto: number;
     vencimento_em: string;
     status_cobranca: string;
-    origin: "measurement" | "recurring";
+    origin: "measurement" | "recurring" | "manual";
   };
   canPrepare: boolean;
   requests: InterChargeRequest[];
@@ -125,8 +125,7 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
       .is("deleted_at", null)
       .maybeSingle();
     if (error) throw new Error("Não foi possível carregar a cobrança. Tente novamente.");
-    if (!receivable || Boolean(receivable.billing_cycle_id) === Boolean(receivable.medicao_id))
-      throw new Error("Conta a receber contratual indisponível.");
+    if (!receivable) throw new Error("Conta a receber indisponível.");
     if (!receivable.operating_company_id)
       throw new Error(
         "Defina a empresa operadora deste contrato antes de emitir a cobrança Inter.",
@@ -160,7 +159,11 @@ export const getInterChargeReview = createServerFn({ method: "GET" })
     return {
       receivable: {
         ...receivable,
-        origin: receivable.medicao_id ? "measurement" : "recurring",
+        origin: receivable.medicao_id
+          ? "measurement"
+          : receivable.billing_cycle_id
+            ? "recurring"
+            : "manual",
       },
       requests: requests ?? [],
       canPrepare: canPrepare === true && canEditReceivables === true,

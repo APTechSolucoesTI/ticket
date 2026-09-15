@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileCheck2, Loader2 } from "lucide-react";
+import { ExternalLink, FileCheck2, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@apticket/shared-types/database";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -36,11 +36,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { BillingCycleDialog } from "@/components/billing-cycle-dialog";
 import { InterChargeDialog } from "@/components/inter-charge-dialog";
+import { ManualReceivableDialog } from "@/components/manual-financial-entry-dialogs";
 
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
-type Receivable = Tables<"contas_receber"> & {
+type Receivable = Omit<Tables<"contas_receber">, "contrato_id" | "medicao_id"> & {
+  contrato_id: string | null;
+  medicao_id: string | null;
   billing_cycle_id: string | null;
   operating_company_id: string | null;
+  origin_type: "measurement" | "recurring" | "manual";
   medicoes_contrato: { report_token: string } | null;
 };
 
@@ -95,6 +99,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [interId, setInterId] = useState<string | null>(null);
   const [origin, setOrigin] = useState("todos");
+  const [manualOpen, setManualOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ["measurement-receivables"],
@@ -113,8 +118,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   const filtered = receivables.filter(
     (receivable) =>
       (filter === "todos" || effectiveStatus(receivable) === filter) &&
-      (origin === "todos" ||
-        (origin === "recorrente" ? !!receivable.billing_cycle_id : !receivable.billing_cycle_id)),
+      (origin === "todos" || receivable.origin_type === origin),
   );
   const pendingTotal = receivables
     .filter((receivable) => !["recebido", "cancelado"].includes(effectiveStatus(receivable)))
@@ -128,21 +132,27 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
             <FileCheck2 className="size-5" />
           </div>
           <div>
-            <CardTitle className="text-base">Contas a receber de contratos</CardTitle>
+            <CardTitle className="text-base">Contas a receber</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               {receivables.length} lançamento(s) · {money.format(pendingTotal)} em aberto
             </p>
           </div>
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          {canEdit ? (
+            <Button className="w-full gap-2 sm:w-auto" onClick={() => setManualOpen(true)}>
+              <Plus className="size-4" /> Nova conta
+            </Button>
+          ) : null}
           <Select value={origin} onValueChange={setOrigin}>
             <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar origem">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todas as origens</SelectItem>
-              <SelectItem value="medicao">Medições</SelectItem>
-              <SelectItem value="recorrente">Ciclos recorrentes</SelectItem>
+              <SelectItem value="measurement">Medições</SelectItem>
+              <SelectItem value="recurring">Ciclos recorrentes</SelectItem>
+              <SelectItem value="manual">Lançamentos manuais</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filter} onValueChange={(value) => setFilter(value as typeof filter)}>
@@ -172,7 +182,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
         ) : filtered.length === 0 ? (
           <EmptyState
             title="Nenhuma conta a receber nos filtros selecionados"
-            description="Medições aprovadas e ciclos fechados aparecerão aqui, conforme seu acesso à empresa."
+            description="Medições aprovadas, ciclos fechados e lançamentos manuais aparecerão aqui."
           />
         ) : (
           <div className="overflow-x-auto">
@@ -194,7 +204,11 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                     <TableCell>
                       <div className="font-medium">{receivable.documento_referencia}</div>
                       <Badge variant="outline" className="my-1">
-                        {receivable.billing_cycle_id ? "Ciclo recorrente" : "Medição"}
+                        {receivable.origin_type === "recurring"
+                          ? "Ciclo recorrente"
+                          : receivable.origin_type === "measurement"
+                            ? "Medição"
+                            : "Manual"}
                       </Badge>
                       <div className="max-w-64 truncate text-[11px] text-muted-foreground">
                         {receivable.descricao}
@@ -218,16 +232,15 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-wrap justify-end gap-2">
-                        {(receivable.billing_cycle_id || receivable.medicao_id) &&
-                          receivable.operating_company_id && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setInterId(receivable.id)}
-                            >
-                              Cobrança Inter
-                            </Button>
-                          )}
+                        {receivable.operating_company_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setInterId(receivable.id)}
+                          >
+                            Cobrança Inter
+                          </Button>
+                        )}
                         {receivable.medicao_id && !receivable.operating_company_id && (
                           <Button
                             size="sm"
@@ -282,6 +295,13 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
       />
       <BillingCycleDialog id={cycleId} onClose={() => setCycleId(null)} />
       {interId && <InterChargeDialog key={interId} id={interId} onClose={() => setInterId(null)} />}
+      <ManualReceivableDialog
+        open={manualOpen}
+        onClose={() => setManualOpen(false)}
+        onCreated={() =>
+          void queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] })
+        }
+      />
     </Card>
   );
 }

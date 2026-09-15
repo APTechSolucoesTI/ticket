@@ -8,6 +8,7 @@ import {
   Clock3,
   Eye,
   Loader2,
+  Plus,
   RefreshCw,
   Search,
   Send,
@@ -49,6 +50,7 @@ import { getCurrentUserId } from "@/lib/session";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-policies-dialog";
 import { SupplierPaymentSection } from "@/components/supplier-payment-section";
+import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
 
 export type PayableContractOption = {
   id: string;
@@ -68,7 +70,8 @@ type Payable = {
   tenant_id: string;
   operating_company_id: string;
   supplier_id: string;
-  supplier_contract_id: string;
+  supplier_contract_id: string | null;
+  origin_type: "contract" | "manual";
   document_number: string;
   description: string;
   cycle_start: string;
@@ -184,6 +187,7 @@ export function SupplierPayables({
   );
   const [statusFilter, setStatusFilter] = useState<"all" | PayableStatus>("all");
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const [selected, setSelected] = useState<Payable>();
   const query = useQuery({
@@ -193,7 +197,7 @@ export function SupplierPayables({
       const { data, error } = await db
         .from("supplier_payables")
         .select(
-          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
+          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
         )
         .eq("operating_company_id", companyId)
         .is("deleted_at", null)
@@ -226,7 +230,7 @@ export function SupplierPayables({
             <CardTitle className="text-base">Lançamentos de fornecedores</CardTitle>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Contas geradas por competência, com custo variável rateado pela apuração dos clientes.
+            Contas contratuais e lançamentos manuais da empresa operadora selecionada.
           </p>
         </div>
         {canEdit ? (
@@ -236,12 +240,17 @@ export function SupplierPayables({
               Alçadas
             </Button>
             <Button
+              variant="outline"
               className="gap-2"
               onClick={() => setGenerateOpen(true)}
               disabled={!contracts.length}
             >
               <CalendarPlus className="size-4" />
               Gerar lançamento
+            </Button>
+            <Button className="gap-2" onClick={() => setManualOpen(true)}>
+              <Plus className="size-4" />
+              Nova conta
             </Button>
           </div>
         ) : null}
@@ -346,6 +355,9 @@ export function SupplierPayables({
                     <TableRow key={item.id}>
                       <TableCell>
                         <div className="font-medium">{item.document_number}</div>
+                        <Badge variant="outline" className="my-1">
+                          {item.origin_type === "manual" ? "Manual" : "Contrato"}
+                        </Badge>
                         <div className="max-w-56 truncate text-xs text-muted-foreground">
                           {item.description}
                         </div>
@@ -358,7 +370,11 @@ export function SupplierPayables({
                         <Badge
                           variant={item.allocation_status === "complete" ? "secondary" : "outline"}
                         >
-                          {item.allocation_status === "complete" ? "Concluído" : "Pendente"}
+                          {item.origin_type === "manual"
+                            ? "Não aplicável"
+                            : item.allocation_status === "complete"
+                              ? "Concluído"
+                              : "Pendente"}
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDate(item.due_date)}</TableCell>
@@ -398,6 +414,14 @@ export function SupplierPayables({
           }
         />
       ) : null}
+      <ManualPayableDialog
+        open={manualOpen}
+        operatingCompanyId={companyId}
+        onClose={() => setManualOpen(false)}
+        onCreated={() =>
+          void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
+        }
+      />
       {policiesOpen ? (
         <SupplierApprovalPoliciesDialog
           companyId={companyId}

@@ -49,7 +49,8 @@ type CashEntry = {
   tenant_id: string;
   operating_company_id: string;
   direction: "inflow" | "outflow";
-  source_type: "measurement_receivable" | "recurring_receivable" | "supplier_payable";
+  source_type:
+    "measurement_receivable" | "recurring_receivable" | "manual_receivable" | "supplier_payable";
   source_id: string;
   document_number: string;
   counterparty_name: string;
@@ -85,6 +86,7 @@ const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 const sourceLabels = {
   measurement_receivable: "Medição",
   recurring_receivable: "Recorrente",
+  manual_receivable: "Manual",
   supplier_payable: "Fornecedor",
 };
 const statusLabels = {
