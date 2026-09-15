@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PayableSuppliers } from "@/components/payable-suppliers";
+import { SupplierContractsPage as SupplierContractsContent } from "@/components/supplier-contracts-page";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 
 export const Route = createFileRoute("/_authenticated/supplier-contracts")({
@@ -12,10 +12,8 @@ function SupplierContractsPage() {
 
   return (
     <ReadOnlyProvider readOnly={!access.edit}>
-      <div className="space-y-4 p-6">
-        <ReadOnlyNotice />
-        <PayableSuppliers canEdit={access.edit} />
-      </div>
+      <ReadOnlyNotice show={!access.edit} />
+      <SupplierContractsContent canEdit={access.edit} />
     </ReadOnlyProvider>
   );
 }

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { FixedAllocationDialog } from "@/components/fixed-allocation-dialog";
 
 type SupplierContract = {
   id: string;
@@ -73,6 +74,7 @@ export function SupplierContractMeasurements({
   const queryClient = useQueryClient();
   const queryKey = ["supplier-contract-measurements", contract.id];
   const [competence, setCompetence] = useState(currentCompetence);
+  const [allocationOpen, setAllocationOpen] = useState(false);
   const measurements = useQuery({
     queryKey,
     queryFn: async () => {
@@ -90,7 +92,7 @@ export function SupplierContractMeasurements({
   });
   const generate = useMutation({
     mutationFn: async () => {
-      const { data, error } = await db.rpc("generate_supplier_payable", {
+      const { data, error } = await db.rpc("generate_supplier_measurement", {
         p_supplier_contract_id: contract.id,
         p_competence: `${competence}-01`,
       });
@@ -132,7 +134,7 @@ export function SupplierContractMeasurements({
               type="button"
               className="gap-2"
               disabled={!competence || generate.isPending}
-              onClick={() => generate.mutate()}
+              onClick={() => setAllocationOpen(true)}
             >
               {generate.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -192,6 +194,20 @@ export function SupplierContractMeasurements({
           ))}
         </div>
       )}
+      {allocationOpen ? (
+        <FixedAllocationDialog
+          companyId={
+            (contract as SupplierContract & { operating_company_id?: string })
+              .operating_company_id ?? ""
+          }
+          supplierName={supplierName}
+          contract={contract}
+          initialMonth={competence}
+          saveLabel="Confirmar rateio e gerar medição"
+          onClose={() => setAllocationOpen(false)}
+          onSaved={() => generate.mutate()}
+        />
+      ) : null}
     </div>
   );
 }

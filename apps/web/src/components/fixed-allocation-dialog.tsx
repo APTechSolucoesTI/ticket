@@ -47,17 +47,21 @@ export function FixedAllocationDialog({
   companyId,
   supplierName,
   contract,
+  initialMonth,
+  saveLabel = "Salvar rateio",
   onClose,
   onSaved,
 }: {
   companyId: string;
   supplierName: string;
   contract: SupplierContract;
+  initialMonth?: string;
+  saveLabel?: string;
   onClose(): void;
   onSaved(): void;
 }) {
   const queryClient = useQueryClient();
-  const [effectiveMonth, setEffectiveMonth] = useState(currentMonth());
+  const [effectiveMonth, setEffectiveMonth] = useState(initialMonth ?? currentMonth());
   const [selectedContract, setSelectedContract] = useState("");
   const [rows, setRows] = useState<AllocationRow[]>([]);
 
@@ -195,7 +199,7 @@ export function FixedAllocationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PieChart className="size-5 text-primary" />
-            Rateio do custo fixo
+            Rateio da medição
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-5">
@@ -326,7 +330,7 @@ export function FixedAllocationDialog({
             disabled={!rows.length || !validTotal || mutation.isPending}
           >
             {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-            Salvar rateio
+            {saveLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
