@@ -20,6 +20,7 @@ import { Route as AuthenticatedContractsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEmailPendingRouteImport } from './routes/_authenticated/email-pending'
+import { Route as AuthenticatedEmployeesRouteImport } from './routes/_authenticated/employees'
 import { Route as AuthenticatedEquipmentsRouteImport } from './routes/_authenticated/equipments'
 import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
@@ -113,6 +114,11 @@ const AuthenticatedEmailPendingRoute =
     path: '/email-pending',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployeesRoute = AuthenticatedEmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedEquipmentsRoute = AuthenticatedEquipmentsRouteImport.update({
   id: '/equipments',
   path: '/equipments',
@@ -325,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/email-pending': typeof AuthenticatedEmailPendingRoute
+  '/employees': typeof AuthenticatedEmployeesRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
   '/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/reports': typeof AuthenticatedReportsRoute
@@ -372,6 +379,7 @@ export interface FileRoutesByTo {
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/email-pending': typeof AuthenticatedEmailPendingRoute
+  '/employees': typeof AuthenticatedEmployeesRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -422,6 +430,7 @@ export interface FileRoutesById {
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/email-pending': typeof AuthenticatedEmailPendingRoute
+  '/_authenticated/employees': typeof AuthenticatedEmployeesRoute
   '/_authenticated/equipments': typeof AuthenticatedEquipmentsRoute
   '/_authenticated/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
@@ -473,6 +482,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/email-pending'
+    | '/employees'
     | '/equipments'
     | '/finance'
     | '/reports'
@@ -520,6 +530,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/email-pending'
+    | '/employees'
     | '/equipments'
     | '/reports'
     | '/settings'
@@ -569,6 +580,7 @@ export interface FileRouteTypes {
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
     | '/_authenticated/email-pending'
+    | '/_authenticated/employees'
     | '/_authenticated/equipments'
     | '/_authenticated/finance'
     | '/_authenticated/reports'
@@ -705,6 +717,13 @@ declare module '@tanstack/react-router' {
       path: '/email-pending'
       fullPath: '/email-pending'
       preLoaderRoute: typeof AuthenticatedEmailPendingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employees': {
+      id: '/_authenticated/employees'
+      path: '/employees'
+      fullPath: '/employees'
+      preLoaderRoute: typeof AuthenticatedEmployeesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/equipments': {
@@ -1011,6 +1030,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmailPendingRoute: typeof AuthenticatedEmailPendingRoute
+  AuthenticatedEmployeesRoute: typeof AuthenticatedEmployeesRoute
   AuthenticatedEquipmentsRoute: typeof AuthenticatedEquipmentsRoute
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRouteWithChildren
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
@@ -1028,6 +1048,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmailPendingRoute: AuthenticatedEmailPendingRoute,
+  AuthenticatedEmployeesRoute: AuthenticatedEmployeesRoute,
   AuthenticatedEquipmentsRoute: AuthenticatedEquipmentsRoute,
   AuthenticatedFinanceRoute: AuthenticatedFinanceRouteWithChildren,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,

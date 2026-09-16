@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { PageHeader, EmptyStub } from "@/components/empty-stub";
+import { ErrorState } from "@/components/data-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -212,24 +213,55 @@ function ContractsPage() {
   const [editing, setEditing] = useState<Contract | null>(null);
   const [toDelete, setToDelete] = useState<Contract | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["contracts"],
     queryFn: async () => {
       const { data, error } = await db
         .from("contracts")
         .select(
-          "*, companies(name), operating_companies(legal_name,trade_name), contract_types(name), sla_policies(name), financial_categories(code,name), financial_cost_centers(code,name)",
+          "*, companies(name), operating_companies(legal_name,trade_name), contract_types(name), sla_policies(name)",
         )
         .is("deleted_at", null)
         .order("starts_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []).map((contract) => {
+      const contracts = data ?? [];
+      const categoryIds = [
+        ...new Set(contracts.map((item) => item.financial_category_id).filter(Boolean)),
+      ];
+      const centerIds = [...new Set(contracts.map((item) => item.cost_center_id).filter(Boolean))];
+      const [categoriesResult, centersResult] = await Promise.all([
+        categoryIds.length
+          ? db.from("financial_categories").select("id,code,name").in("id", categoryIds)
+          : Promise.resolve({ data: [], error: null }),
+        centerIds.length
+          ? db.from("financial_cost_centers").select("id,code,name").in("id", centerIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      const categories = new Map(
+        (categoriesResult.data ?? []).map((item: { id: string; code: string; name: string }) => [
+          item.id,
+          item,
+        ]),
+      );
+      const centers = new Map(
+        (centersResult.data ?? []).map((item: { id: string; code: string; name: string }) => [
+          item.id,
+          item,
+        ]),
+      );
+      return contracts.map((contract) => {
         const equipmentTiers = equipmentTiersSchema.safeParse(contract.equipment_tiers);
         const serviceItems = serviceItemsSchema.safeParse(contract.service_items);
         return {
           ...contract,
           equipment_tiers: equipmentTiers.success ? equipmentTiers.data : [],
           service_items: serviceItems.success ? serviceItems.data : [],
+          financial_categories: contract.financial_category_id
+            ? (categories.get(contract.financial_category_id) ?? null)
+            : null,
+          financial_cost_centers: contract.cost_center_id
+            ? (centers.get(contract.cost_center_id) ?? null)
+            : null,
         } as unknown as Contract;
       });
     },
@@ -272,6 +304,12 @@ function ContractsPage() {
 
       {isLoading ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar os contratos"
+          description="Os contratos permanecem cadastrados. Atualize a consulta para tentar novamente."
+          action={{ label: "Atualizar", onClick: () => void refetch() }}
+        />
       ) : !data?.length ? (
         <EmptyStub
           title="Nenhum contrato registrado"

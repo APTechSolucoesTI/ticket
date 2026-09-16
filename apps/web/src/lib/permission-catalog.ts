@@ -20,6 +20,11 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
     label: "Fornecedores",
     actions: ["view", "create", "edit", "delete"],
   },
+  {
+    key: "funcionarios",
+    label: "Funcionários",
+    actions: ["view", "create", "edit", "delete", "sensitive", "payroll"],
+  },
   { key: "contatos", label: "Contatos", actions: ["view", "create", "edit", "delete"] },
   { key: "equipamentos", label: "Equipamentos", actions: ["view", "create", "edit", "delete"] },
   { key: "contratos", label: "Contratos", actions: ["view", "create", "edit", "delete"] },
@@ -148,6 +153,8 @@ export const ACTION_LABELS: Record<string, string> = {
   create: "Cria",
   edit: "Edita",
   delete: "Exclui",
+  sensitive: "Dados sensíveis",
+  payroll: "Folha e financeiro",
 };
 
 /** Prefixo de rota -> módulo que precisa de `view` pra acessar. Usado no
@@ -159,6 +166,7 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/email-pending", module: "fila_email" },
   { prefix: "/customers", module: "clientes" },
   { prefix: "/suppliers", module: "fornecedores" },
+  { prefix: "/employees", module: "funcionarios" },
   { prefix: "/contacts", module: "contatos" },
   { prefix: "/equipments", module: "equipamentos" },
   { prefix: "/contracts", module: "contratos" },

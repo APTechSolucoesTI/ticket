@@ -24,6 +24,7 @@ import {
   Target,
   Truck,
   Users,
+  UserRoundCog,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -90,6 +91,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/customers", label: "Clientes", icon: Building2, module: "clientes" },
       { to: "/suppliers", label: "Fornecedores", icon: Truck, module: "fornecedores" },
+      { to: "/employees", label: "Funcionários", icon: UserRoundCog, module: "funcionarios" },
       { to: "/equipments", label: "Equipamentos", icon: Monitor, module: "equipamentos" },
       {
         to: "/contracts",
