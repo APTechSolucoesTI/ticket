@@ -10,10 +10,12 @@ import {
   FileUp,
   Loader2,
   MapPin,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
   UserRound,
   Users,
   WalletCards,
@@ -84,10 +86,10 @@ type Employee = {
   naturalidade_uf: string | null;
   nome_mae: string | null;
   nome_pai: string | null;
-  pis_pasep: string;
+  pis_pasep: string | null;
   ctps_numero: string;
   ctps_serie: string;
-  ctps_uf: string;
+  ctps_uf: string | null;
   titulo_eleitor: string | null;
   certificado_reservista: string | null;
   email_pessoal: string | null;
@@ -219,10 +221,10 @@ const employeeSchema = z.object({
   pis_pasep: z
     .string()
     .transform(digits)
-    .refine((v) => v.length === 11, "PIS/PASEP deve ter 11 dígitos."),
+    .refine((v) => v.length === 0 || v.length === 11, "PIS/PASEP deve ter 11 dígitos."),
   ctps_numero: z.string().trim().min(1, "Informe a CTPS."),
   ctps_serie: z.string().trim().min(1, "Informe a série."),
-  ctps_uf: z.string().regex(/^[A-Z]{2}$/, "Informe a UF da CTPS."),
+  ctps_uf: z.string().refine((v) => !v || /^[A-Z]{2}$/.test(v), "Informe uma UF válida."),
   data_admissao: z.string().min(1),
   tipo_contrato: z.enum(["clt", "pj", "estagio", "aprendiz", "temporario"]),
   regime_jornada: z.enum(["integral", "meio_periodo", "home_office", "hibrido"]),
@@ -607,7 +609,12 @@ function EmployeeCreateDialog({
       if (!parsed.success) throw new Error(getValidationErrorMessage(parsed.error));
       const { cargo, nivel, salario, ...data } = form;
       const { error } = await db.rpc("create_employee_with_position", {
-        p_data: { ...data, cpf: digits(data.cpf), pis_pasep: digits(data.pis_pasep) },
+        p_data: {
+          ...data,
+          cpf: digits(data.cpf),
+          pis_pasep: digits(data.pis_pasep) || null,
+          ctps_uf: data.ctps_uf.trim().toUpperCase() || null,
+        },
         p_cargo: cargo,
         p_nivel: nivel || null,
         p_salario: Number(salario),
@@ -711,8 +718,8 @@ function EmployeeCreateDialog({
           {field("naturalidade_uf", "UF de naturalidade")} {field("nome_mae", "Nome da mãe")}
           {field("nome_pai", "Nome do pai")} {field("titulo_eleitor", "Título de eleitor")}
           {field("certificado_reservista", "Certificado de reservista")}
-          {field("pis_pasep", "PIS/PASEP *")} {field("ctps_numero", "CTPS número *")}{" "}
-          {field("ctps_serie", "CTPS série *")} {field("ctps_uf", "CTPS UF *")}
+          {field("pis_pasep", "PIS/PASEP")} {field("ctps_numero", "CTPS número *")}{" "}
+          {field("ctps_serie", "CTPS série *")} {field("ctps_uf", "CTPS UF")}
           {field("email_pessoal", "E-mail pessoal", "email")}{" "}
           {field("email_corporativo", "E-mail corporativo", "email")}{" "}
           {field("telefone_principal", "Telefone principal")}{" "}
@@ -862,6 +869,7 @@ function EmployeeDetailDialog({
   const qc = useQueryClient();
   const [tab, setTab] = useState("profile");
   const [adding, setAdding] = useState<string | null>(null);
+  const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const detail = useQuery({
     queryKey: ["employee-detail", employee.id, canSensitive],
     queryFn: async () => {
@@ -966,6 +974,26 @@ function EmployeeDetailDialog({
     onError: (error) =>
       toast.error(getUserFacingError(error, "Não foi possível gerar a conta a pagar.")),
   });
+  const removePosition = useMutation({
+    mutationFn: async (position: Position) => {
+      if (
+        !window.confirm(
+          `Excluir o registro de ${position.cargo}? O histórico de auditoria será preservado.`,
+        )
+      )
+        return false;
+      const { error } = await db.rpc("archive_employee_position", { p_position_id: position.id });
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: (removed) => {
+      if (removed) {
+        toast.success("Cargo e salário excluídos.");
+        refresh();
+      }
+    },
+    onError: (error) => toast.error(getUserFacingError(error)),
+  });
   return (
     <Dialog open onOpenChange={(value) => !value && onClose()}>
       <DialogContent className="max-h-[94vh] overflow-y-auto sm:max-w-6xl">
@@ -1031,12 +1059,49 @@ function EmployeeDetailDialog({
                   empty={!detail.data?.positions.length}
                 >
                   {detail.data?.positions.map((item) => (
-                    <HistoryCard
+                    <div
                       key={item.id}
-                      title={`${item.cargo}${item.nivel ? ` · ${item.nivel}` : ""}`}
-                      subtitle={`${formatCurrency(item.salario_base)} · ${item.tipo_alteracao.replaceAll("_", " ")}`}
-                      meta={`${date(item.vigente_de)} até ${date(item.vigente_ate)}`}
-                    />
+                      className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {item.cargo}
+                          {item.nivel ? ` · ${item.nivel}` : ""}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(item.salario_base)} ·{" "}
+                          {item.tipo_alteracao.replaceAll("_", " ")}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {date(item.vigente_de)} até{" "}
+                          {item.vigente_ate ? date(item.vigente_ate) : "atual"}
+                        </p>
+                      </div>
+                      {canEdit ? (
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Editar cargo e salário"
+                            onClick={() => setEditingPosition(item)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          {canDelete ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive"
+                              aria-label="Excluir cargo e salário"
+                              onClick={() => removePosition.mutate(item)}
+                              disabled={removePosition.isPending}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   ))}
                 </HistorySection>
               </TabsContent>
@@ -1145,6 +1210,18 @@ function EmployeeDetailDialog({
             onSaved={refresh}
           />
         ) : null}
+        {editingPosition ? (
+          <SubrecordDialog
+            kind="position"
+            employee={employee}
+            initialPosition={editingPosition}
+            onClose={() => setEditingPosition(null)}
+            onSaved={() => {
+              setEditingPosition(null);
+              refresh();
+            }}
+          />
+        ) : null}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Fechar
@@ -1158,18 +1235,17 @@ function EmployeeDetailDialog({
 function Profile({
   employee,
   canEdit,
-  canManageTypes,
   canDelete,
   onChanged,
   onArchived,
 }: {
   employee: Employee;
   canEdit: boolean;
-  canManageTypes: boolean;
   canDelete: boolean;
   onChanged(): void;
   onArchived(): void;
 }) {
+  const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState(employee.status);
   const [observations, setObservations] = useState(employee.observacoes ?? "");
   const save = useMutation({
@@ -1209,7 +1285,10 @@ function Profile({
     ["RG", employee.rg],
     ["Nascimento", date(employee.data_nascimento)],
     ["PIS/PASEP", employee.pis_pasep],
-    ["CTPS", `${employee.ctps_numero} / ${employee.ctps_serie}-${employee.ctps_uf}`],
+    [
+      "CTPS",
+      `${employee.ctps_numero} / ${employee.ctps_serie}${employee.ctps_uf ? `-${employee.ctps_uf}` : ""}`,
+    ],
     ["Contrato", employee.tipo_contrato.toUpperCase()],
     ["Jornada", employee.regime_jornada.replaceAll("_", " ")],
     ["E-mail", employee.email_corporativo || employee.email_pessoal],
@@ -1219,7 +1298,15 @@ function Profile({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Dados cadastrais</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base">Dados cadastrais</CardTitle>
+          {canEdit ? (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              <Pencil className="mr-1 size-4" />
+              Editar cadastro
+            </Button>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1275,7 +1362,258 @@ function Profile({
           </div>
         ) : null}
       </CardContent>
+      {editing ? (
+        <EmployeeEditDialog
+          employee={employee}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            onChanged();
+            onArchived();
+          }}
+        />
+      ) : null}
     </Card>
+  );
+}
+
+function EmployeeEditDialog({
+  employee,
+  onClose,
+  onSaved,
+}: {
+  employee: Employee;
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [form, setForm] = useState({
+    nome_completo: employee.nome_completo,
+    nome_social: employee.nome_social ?? "",
+    cpf: employee.cpf,
+    rg: employee.rg ?? "",
+    rg_orgao_emissor: employee.rg_orgao_emissor ?? "",
+    data_nascimento: employee.data_nascimento,
+    sexo: employee.sexo ?? "",
+    estado_civil: employee.estado_civil ?? "",
+    nacionalidade: employee.nacionalidade ?? "Brasileira",
+    naturalidade_cidade: employee.naturalidade_cidade ?? "",
+    naturalidade_uf: employee.naturalidade_uf ?? "",
+    nome_mae: employee.nome_mae ?? "",
+    nome_pai: employee.nome_pai ?? "",
+    pis_pasep: employee.pis_pasep ?? "",
+    ctps_numero: employee.ctps_numero,
+    ctps_serie: employee.ctps_serie,
+    ctps_uf: employee.ctps_uf ?? "",
+    titulo_eleitor: employee.titulo_eleitor ?? "",
+    certificado_reservista: employee.certificado_reservista ?? "",
+    email_pessoal: employee.email_pessoal ?? "",
+    email_corporativo: employee.email_corporativo ?? "",
+    telefone_principal: employee.telefone_principal ?? "",
+    telefone_secundario: employee.telefone_secundario ?? "",
+    matricula: employee.matricula,
+    departamento: employee.departamento ?? "",
+    data_admissao: employee.data_admissao,
+    tipo_contrato: employee.tipo_contrato,
+    regime_jornada: employee.regime_jornada,
+    carga_horaria_semanal: String(employee.carga_horaria_semanal ?? ""),
+    observacoes: employee.observacoes ?? "",
+  });
+  const set = (key: keyof typeof form, value: string) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const field = (key: keyof typeof form, label: string, type = "text") => (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <Input type={type} value={form[key]} onChange={(event) => set(key, event.target.value)} />
+    </div>
+  );
+  const save = useMutation({
+    mutationFn: async () => {
+      const pis = digits(form.pis_pasep);
+      if (pis && pis.length !== 11) throw new Error("PIS/PASEP deve ter 11 dígitos.");
+      if (form.ctps_uf && !/^[A-Z]{2}$/.test(form.ctps_uf.toUpperCase()))
+        throw new Error("Informe uma UF válida para a CTPS.");
+      const nullable = (value: string) => value.trim() || null;
+      const { error } = await db
+        .from("funcionarios")
+        .update({
+          nome_completo: form.nome_completo.trim(),
+          nome_social: nullable(form.nome_social),
+          cpf: digits(form.cpf),
+          rg: nullable(form.rg),
+          rg_orgao_emissor: nullable(form.rg_orgao_emissor),
+          data_nascimento: form.data_nascimento,
+          sexo: nullable(form.sexo),
+          estado_civil: nullable(form.estado_civil),
+          nacionalidade: form.nacionalidade.trim() || "Brasileira",
+          naturalidade_cidade: nullable(form.naturalidade_cidade),
+          naturalidade_uf: nullable(form.naturalidade_uf)?.toUpperCase() ?? null,
+          nome_mae: nullable(form.nome_mae),
+          nome_pai: nullable(form.nome_pai),
+          pis_pasep: pis || null,
+          ctps_numero: form.ctps_numero.trim(),
+          ctps_serie: form.ctps_serie.trim(),
+          ctps_uf: nullable(form.ctps_uf)?.toUpperCase() ?? null,
+          titulo_eleitor: nullable(form.titulo_eleitor),
+          certificado_reservista: nullable(form.certificado_reservista),
+          email_pessoal: nullable(form.email_pessoal),
+          email_corporativo: nullable(form.email_corporativo),
+          telefone_principal: nullable(form.telefone_principal),
+          telefone_secundario: nullable(form.telefone_secundario),
+          matricula: form.matricula.trim(),
+          departamento: nullable(form.departamento),
+          data_admissao: form.data_admissao,
+          tipo_contrato: form.tipo_contrato,
+          regime_jornada: form.regime_jornada,
+          carga_horaria_semanal: form.carga_horaria_semanal
+            ? Number(form.carga_horaria_semanal)
+            : null,
+          observacoes: nullable(form.observacoes),
+          updated_by: getCurrentUserId(),
+        })
+        .eq("id", employee.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Cadastro do funcionário atualizado.");
+      onSaved();
+    },
+    onError: (error) => toast.error(getUserFacingError(error)),
+  });
+  return (
+    <Dialog open onOpenChange={(value) => !value && onClose()}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Editar funcionário</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {field("nome_completo", "Nome completo *")}
+          {field("nome_social", "Nome social")}
+          {field("cpf", "CPF *")}
+          {field("data_nascimento", "Nascimento *", "date")}
+          {field("rg", "RG")}
+          {field("rg_orgao_emissor", "Órgão emissor")}
+          {field("nacionalidade", "Nacionalidade")}
+          {field("naturalidade_cidade", "Naturalidade")}
+          {field("naturalidade_uf", "UF de naturalidade")}
+          {field("nome_mae", "Nome da mãe")}
+          {field("nome_pai", "Nome do pai")}
+          {field("pis_pasep", "PIS/PASEP")}
+          {field("ctps_numero", "CTPS número *")}
+          {field("ctps_serie", "CTPS série *")}
+          {field("ctps_uf", "CTPS UF")}
+          {field("titulo_eleitor", "Título de eleitor")}
+          {field("certificado_reservista", "Certificado de reservista")}
+          {field("email_pessoal", "E-mail pessoal", "email")}
+          {field("email_corporativo", "E-mail corporativo", "email")}
+          {field("telefone_principal", "Telefone principal")}
+          {field("telefone_secundario", "Telefone secundário")}
+          {field("matricula", "Matrícula *")}
+          {field("departamento", "Departamento")}
+          {field("data_admissao", "Admissão *", "date")}
+          {field("carga_horaria_semanal", "Carga semanal", "number")}
+          <div>
+            <Label>Tipo de contrato</Label>
+            <Select
+              value={form.tipo_contrato}
+              onValueChange={(value) => set("tipo_contrato", value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  ["clt", "CLT"],
+                  ["pj", "PJ"],
+                  ["estagio", "Estágio"],
+                  ["aprendiz", "Aprendiz"],
+                  ["temporario", "Temporário"],
+                ].map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Regime</Label>
+            <Select
+              value={form.regime_jornada}
+              onValueChange={(value) => set("regime_jornada", value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  ["integral", "Integral"],
+                  ["meio_periodo", "Meio período"],
+                  ["home_office", "Home office"],
+                  ["hibrido", "Híbrido"],
+                ].map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Sexo</Label>
+            <Select
+              value={form.sexo || NONE}
+              onValueChange={(value) => set("sexo", value === NONE ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Não informado</SelectItem>
+                <SelectItem value="feminino">Feminino</SelectItem>
+                <SelectItem value="masculino">Masculino</SelectItem>
+                <SelectItem value="nao_binario">Não binário</SelectItem>
+                <SelectItem value="nao_informado">Prefere não informar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Estado civil</Label>
+            <Select
+              value={form.estado_civil || NONE}
+              onValueChange={(value) => set("estado_civil", value === NONE ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Não informado</SelectItem>
+                <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                <SelectItem value="casado">Casado(a)</SelectItem>
+                <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                <SelectItem value="uniao_estavel">União estável</SelectItem>
+                <SelectItem value="outro">Outro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-4">
+            <Label>Observações</Label>
+            <Textarea
+              value={form.observacoes}
+              onChange={(event) => set("observacoes", event.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Salvar alterações
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1331,11 +1669,13 @@ function HistoryCard({ title, subtitle, meta }: { title: string; subtitle: strin
 function SubrecordDialog({
   kind,
   employee,
+  initialPosition,
   onClose,
   onSaved,
 }: {
   kind: string;
   employee: Employee;
+  initialPosition?: Position;
   onClose(): void;
   onSaved(): void;
 }) {
@@ -1348,12 +1688,13 @@ function SubrecordDialog({
     bairro: "",
     cidade: "",
     uf: "",
-    cargo: "",
-    nivel: "",
-    salario_base: 0,
-    tipo_alteracao: "promocao",
-    motivo: "",
-    vigente_de: today(),
+    cargo: initialPosition?.cargo ?? "",
+    nivel: initialPosition?.nivel ?? "",
+    salario_base: initialPosition?.salario_base ?? 0,
+    tipo_alteracao: initialPosition?.tipo_alteracao ?? "promocao",
+    motivo: initialPosition?.motivo ?? "",
+    vigente_de: initialPosition?.vigente_de ?? today(),
+    vigente_ate: initialPosition?.vigente_ate ?? "",
     periodo_aquisitivo_inicio: employee.data_admissao,
     dias_direito: 30,
     dias_vendidos: 0,
@@ -1394,7 +1735,7 @@ function SubrecordDialog({
         ...current,
         logradouro: data.logradouro,
         bairro: data.bairro,
-        cidade: data.localidade,
+        cidade: data.cidade,
         uf: data.uf,
       })),
     onError: (error) => toast.error(getUserFacingError(error, "Não foi possível consultar o CEP.")),
@@ -1421,18 +1762,32 @@ function SubrecordDialog({
         if (error) throw error;
       }
       if (kind === "position") {
-        const { error } = await db.from("funcionario_cargos_salarios").insert({
-          tenant_id: tenantId,
-          funcionario_id: employee.id,
-          cargo: form.cargo,
-          nivel: form.nivel || null,
-          salario_base: Number(form.salario_base),
-          tipo_alteracao: form.tipo_alteracao,
-          motivo: form.motivo || null,
-          vigente_de: form.vigente_de,
-          created_by: getCurrentUserId(),
-        });
-        if (error) throw error;
+        if (initialPosition) {
+          const { error } = await db.rpc("update_employee_position", {
+            p_position_id: initialPosition.id,
+            p_cargo: form.cargo,
+            p_nivel: form.nivel || "",
+            p_salario: Number(form.salario_base),
+            p_tipo_alteracao: form.tipo_alteracao,
+            p_motivo: form.motivo || "",
+            p_vigente_de: form.vigente_de,
+            p_vigente_ate: form.vigente_ate || null,
+          });
+          if (error) throw error;
+        } else {
+          const { error } = await db.from("funcionario_cargos_salarios").insert({
+            tenant_id: tenantId,
+            funcionario_id: employee.id,
+            cargo: form.cargo,
+            nivel: form.nivel || null,
+            salario_base: Number(form.salario_base),
+            tipo_alteracao: form.tipo_alteracao,
+            motivo: form.motivo || null,
+            vigente_de: form.vigente_de,
+            created_by: getCurrentUserId(),
+          });
+          if (error) throw error;
+        }
       }
       if (kind === "vacation") {
         const start = new Date(`${form.periodo_aquisitivo_inicio}T00:00:00Z`);
@@ -1503,7 +1858,7 @@ function SubrecordDialog({
       }
     },
     onSuccess: () => {
-      toast.success("Registro incluído.");
+      toast.success(initialPosition ? "Cargo e salário atualizados." : "Registro incluído.");
       onSaved();
     },
     onError: (error) =>
@@ -1524,7 +1879,7 @@ function SubrecordDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            Adicionar{" "}
+            {initialPosition ? "Editar " : "Adicionar "}
             {kind === "address"
               ? "endereço"
               : kind === "position"
@@ -1593,6 +1948,7 @@ function SubrecordDialog({
                 </Select>
               </div>
               {input("vigente_de", "Vigente desde", "date")}
+              {initialPosition ? input("vigente_ate", "Vigente até", "date") : null}
               {input("motivo", "Motivo")}
             </>
           ) : null}
@@ -1715,12 +2071,14 @@ function Documents({
   documents,
   types,
   canEdit,
+  canManageTypes,
   onChanged,
 }: {
   employee: Employee;
   documents: Document[];
   types: DocType[];
   canEdit: boolean;
+  canManageTypes: boolean;
   onChanged(): void;
 }) {
   const [typeId, setTypeId] = useState("");
