@@ -66,6 +66,7 @@ const NONE = "__none__";
 const today = () => new Date().toISOString().slice(0, 10);
 const month = () => today().slice(0, 7);
 const digits = (value: string) => value.replace(/\D/g, "");
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
 const date = (value?: string | null) =>
   value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "-";
 
@@ -225,6 +226,17 @@ const employeeSchema = z.object({
   ctps_numero: z.string().trim().min(1, "Informe a CTPS."),
   ctps_serie: z.string().trim().min(1, "Informe a série."),
   ctps_uf: z.string().refine((v) => !v || /^[A-Z]{2}$/.test(v), "Informe uma UF válida."),
+  email_pessoal: z
+    .string()
+    .trim()
+    .refine((value) => !value || z.email().safeParse(value).success, "E-mail pessoal inválido."),
+  email_corporativo: z
+    .string()
+    .trim()
+    .refine(
+      (value) => !value || z.email().safeParse(value).success,
+      "E-mail corporativo inválido.",
+    ),
   data_admissao: z.string().min(1),
   tipo_contrato: z.enum(["clt", "pj", "estagio", "aprendiz", "temporario"]),
   regime_jornada: z.enum(["integral", "meio_periodo", "home_office", "hibrido"]),
@@ -614,6 +626,8 @@ function EmployeeCreateDialog({
           cpf: digits(data.cpf),
           pis_pasep: digits(data.pis_pasep) || null,
           ctps_uf: data.ctps_uf.trim().toUpperCase() || null,
+          email_pessoal: normalizeEmail(data.email_pessoal) || null,
+          email_corporativo: normalizeEmail(data.email_corporativo) || null,
         },
         p_cargo: cargo,
         p_nivel: nivel || null,
@@ -634,7 +648,12 @@ function EmployeeCreateDialog({
       <Input
         type={type}
         value={String(form[key] ?? "")}
-        onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
+        onChange={(event) =>
+          setForm((current) => ({
+            ...current,
+            [key]: type === "email" ? event.target.value.toLowerCase() : event.target.value,
+          }))
+        }
       />
     </div>
   );
@@ -1313,7 +1332,13 @@ function Profile({
           {items.map(([label, value]) => (
             <div key={label}>
               <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="font-medium capitalize">{value || "-"}</p>
+              <p
+                className={`font-medium ${
+                  label === "E-mail" ? "break-all lowercase" : "break-words capitalize"
+                }`}
+              >
+                {value || "-"}
+              </p>
             </div>
           ))}
         </div>
@@ -1423,7 +1448,13 @@ function EmployeeEditDialog({
   const field = (key: keyof typeof form, label: string, type = "text") => (
     <div className="space-y-1">
       <Label>{label}</Label>
-      <Input type={type} value={form[key]} onChange={(event) => set(key, event.target.value)} />
+      <Input
+        type={type}
+        value={form[key]}
+        onChange={(event) =>
+          set(key, type === "email" ? event.target.value.toLowerCase() : event.target.value)
+        }
+      />
     </div>
   );
   const save = useMutation({
@@ -1432,6 +1463,13 @@ function EmployeeEditDialog({
       if (pis && pis.length !== 11) throw new Error("PIS/PASEP deve ter 11 dígitos.");
       if (form.ctps_uf && !/^[A-Z]{2}$/.test(form.ctps_uf.toUpperCase()))
         throw new Error("Informe uma UF válida para a CTPS.");
+      for (const [label, value] of [
+        ["pessoal", form.email_pessoal],
+        ["corporativo", form.email_corporativo],
+      ] as const) {
+        if (value.trim() && !z.email().safeParse(value.trim()).success)
+          throw new Error(`Informe um e-mail ${label} válido.`);
+      }
       const nullable = (value: string) => value.trim() || null;
       const { error } = await db
         .from("funcionarios")
@@ -1455,8 +1493,8 @@ function EmployeeEditDialog({
           ctps_uf: nullable(form.ctps_uf)?.toUpperCase() ?? null,
           titulo_eleitor: nullable(form.titulo_eleitor),
           certificado_reservista: nullable(form.certificado_reservista),
-          email_pessoal: nullable(form.email_pessoal),
-          email_corporativo: nullable(form.email_corporativo),
+          email_pessoal: nullable(normalizeEmail(form.email_pessoal)),
+          email_corporativo: nullable(normalizeEmail(form.email_corporativo)),
           telefone_principal: nullable(form.telefone_principal),
           telefone_secundario: nullable(form.telefone_secundario),
           matricula: form.matricula.trim(),
