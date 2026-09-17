@@ -89,6 +89,18 @@ const modelLabel: Record<string, string> = {
   per_service: "Serviço vinculado",
 };
 
+const billingTypeLabel: Record<string, string> = {
+  service_invoice: "Nota fiscal de serviço",
+  invoice: "Fatura",
+  simple_receipt: "Recibo simples",
+};
+
+const collectionTypeLabel: Record<string, string> = {
+  boleto_pf: "Boleto PF",
+  boleto_inter_pj: "Boleto Inter PJ",
+  carteira: "Em carteira",
+};
+
 function formatDate(value: string) {
   const [year, month, day] = value.split("-");
   return year && month && day ? `${day}/${month}/${year}` : value;
@@ -293,13 +305,16 @@ export function ContractMeasurements({
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Nota fiscal</dt>
-                      <dd className="mt-0.5 font-medium">{measurement.emite_nf ? "Sim" : "Não"}</dd>
+                      <dt className="text-muted-foreground">Tipo de faturamento</dt>
+                      <dd className="mt-0.5 font-medium">
+                        {billingTypeLabel[measurement.billing_type] ?? measurement.billing_type}
+                      </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Boleto</dt>
+                      <dt className="text-muted-foreground">Tipo de cobrança</dt>
                       <dd className="mt-0.5 font-medium">
-                        {measurement.emite_boleto ? "Sim" : "Não"}
+                        {collectionTypeLabel[measurement.collection_type] ??
+                          measurement.collection_type}
                       </dd>
                     </div>
                     <div>

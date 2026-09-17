@@ -1,7 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, User, Upload, Eye } from "lucide-react";
+import {
+  ExternalLink,
+  Eye,
+  Loader2,
+  Pencil,
+  Plus,
+  Tickets,
+  Trash2,
+  Upload,
+  User,
+} from "lucide-react";
 import { ContactImportDialog } from "@/components/contact-import-dialog";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,10 +34,12 @@ import { ConfigurableTable, type ListColumn } from "@/components/configurable-ta
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TicketBadge, type TicketStatus } from "@/components/ticket/TicketBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +73,14 @@ type Contact = {
   companies?: { name: string } | null;
 };
 
+type ContactTicket = {
+  id: string;
+  number: number;
+  subject: string;
+  status: TicketStatus;
+  created_at: string;
+};
+
 const schema = z.object({
   company_id: z.string().uuid("Selecione um cliente"),
   name: z.string().trim().min(1, "Nome obrigatório").max(120),
@@ -80,11 +100,13 @@ const schema = z.object({
 
 function ContactsPage() {
   const access = useModulePermissions("contatos");
+  const ticketsAccess = useModulePermissions("tickets");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [toDelete, setToDelete] = useState<Contact | null>(null);
+  const [ticketsContact, setTicketsContact] = useState<Contact | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["contacts"],
@@ -210,6 +232,20 @@ function ContactsPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`Ver tickets abertos por ${c.name}`}
+                  title={
+                    ticketsAccess.view
+                      ? `Ver tickets abertos por ${c.name}`
+                      : "Sem permissão para visualizar tickets"
+                  }
+                  disabled={!ticketsAccess.view}
+                  onClick={() => setTicketsContact(c)}
+                >
+                  <Tickets className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     setEditing(c);
                     setOpen(true);
@@ -234,6 +270,10 @@ function ContactsPage() {
         editing={editing}
         readOnly={editing ? !access.edit : !access.create}
       />
+      <ContactTicketsDialog
+        contact={ticketsContact}
+        onOpenChange={(dialogOpen) => !dialogOpen && setTicketsContact(null)}
+      />
       {access.create && <ContactImportDialog open={importOpen} onOpenChange={setImportOpen} />}
 
       {access.delete && (
@@ -255,6 +295,92 @@ function ContactsPage() {
         </AlertDialog>
       )}
     </div>
+  );
+}
+
+function ContactTicketsDialog({
+  contact,
+  onOpenChange,
+}: {
+  contact: Contact | null;
+  onOpenChange(open: boolean): void;
+}) {
+  const tickets = useQuery({
+    queryKey: ["contact-tickets", contact?.id],
+    enabled: Boolean(contact),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tickets")
+        .select("id,number,subject,status,created_at")
+        .eq("contact_id", contact!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ContactTicket[];
+    },
+  });
+
+  return (
+    <Dialog open={Boolean(contact)} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Tickets abertos por {contact?.name}</DialogTitle>
+          <DialogDescription>
+            Histórico completo de tickets associados a este contato, do mais recente ao mais antigo.
+          </DialogDescription>
+        </DialogHeader>
+
+        {tickets.isLoading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando tickets…
+          </div>
+        ) : tickets.isError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            Não foi possível consultar os tickets deste contato.
+          </div>
+        ) : !tickets.data?.length ? (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <Tickets className="mx-auto h-8 w-8 text-muted-foreground/60" />
+            <p className="mt-3 font-medium">Nenhum ticket encontrado</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Este contato ainda não abriu tickets.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tickets.data.map((ticket) => (
+              <article
+                key={ticket.id}
+                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-primary">
+                      #{ticket.number}
+                    </span>
+                    <TicketBadge status={ticket.status} />
+                  </div>
+                  <p className="mt-1 truncate text-sm font-medium">{ticket.subject}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Aberto em {new Date(ticket.created_at).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link to="/tickets/$id" params={{ id: ticket.id }}>
+                    Abrir ticket <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

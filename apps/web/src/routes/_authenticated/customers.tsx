@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Building2, Search, Loader2, Eye } from "lucide-react";
+import { Building2, Eye, Loader2, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
@@ -18,6 +18,7 @@ import { ConfigurableTable, type ListColumn } from "@/components/configurable-ta
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -78,6 +79,16 @@ type Company = {
   notes: string | null;
 };
 
+type CustomerContact = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  job_title: string | null;
+  can_open_tickets: boolean;
+  is_active: boolean;
+};
+
 const schema = z.object({
   name: z.string().trim().min(1, "Nome obrigatório").max(150),
   fantasy_name: z.string().trim().max(150).optional().or(z.literal("")),
@@ -122,10 +133,12 @@ const schema = z.object({
 
 function CustomersPage() {
   const access = useModulePermissions("clientes");
+  const contactsAccess = useModulePermissions("contatos");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [toDelete, setToDelete] = useState<Company | null>(null);
+  const [contactsCompany, setContactsCompany] = useState<Company | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["companies"],
@@ -276,6 +289,20 @@ function CustomersPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`Ver contatos vinculados a ${c.name}`}
+                  title={
+                    contactsAccess.view
+                      ? `Ver contatos vinculados a ${c.name}`
+                      : "Sem permissão para visualizar contatos"
+                  }
+                  disabled={!contactsAccess.view}
+                  onClick={() => setContactsCompany(c)}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     setEditing(c);
                     setOpen(true);
@@ -300,6 +327,10 @@ function CustomersPage() {
         editing={editing}
         readOnly={editing ? !access.edit : !access.create}
       />
+      <CustomerContactsDialog
+        company={contactsCompany}
+        onOpenChange={(dialogOpen) => !dialogOpen && setContactsCompany(null)}
+      />
 
       {access.delete && (
         <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
@@ -321,6 +352,93 @@ function CustomersPage() {
         </AlertDialog>
       )}
     </div>
+  );
+}
+
+function CustomerContactsDialog({
+  company,
+  onOpenChange,
+}: {
+  company: Company | null;
+  onOpenChange(open: boolean): void;
+}) {
+  const contacts = useQuery({
+    queryKey: ["customer-contacts", company?.id],
+    enabled: Boolean(company),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id,name,email,phone,job_title,can_open_tickets,is_active")
+        .eq("company_id", company!.id)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as CustomerContact[];
+    },
+  });
+
+  return (
+    <Dialog open={Boolean(company)} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Contatos de {company?.name}</DialogTitle>
+          <DialogDescription>
+            Pessoas vinculadas ao cliente, incluindo contatos ativos e inativos.
+          </DialogDescription>
+        </DialogHeader>
+
+        {contacts.isLoading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando contatos…
+          </div>
+        ) : contacts.isError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            Não foi possível consultar os contatos deste cliente.
+          </div>
+        ) : !contacts.data?.length ? (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <Users className="mx-auto h-8 w-8 text-muted-foreground/60" />
+            <p className="mt-3 font-medium">Nenhum contato vinculado</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Cadastre um contato e selecione este cliente no vínculo.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y overflow-hidden rounded-lg border">
+            {contacts.data.map((contact) => (
+              <article
+                key={contact.id}
+                className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{contact.name}</span>
+                    {!contact.is_active && <Badge variant="outline">Inativo</Badge>}
+                    {!contact.can_open_tickets && (
+                      <Badge variant="secondary">Sem abertura de tickets</Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {contact.job_title || "Cargo não informado"}
+                  </p>
+                </div>
+                <div className="min-w-0 text-left text-xs sm:text-right">
+                  <p className="truncate font-medium">{contact.email || "E-mail não informado"}</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {contact.phone ? maskPhone(contact.phone) : "Telefone não informado"}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

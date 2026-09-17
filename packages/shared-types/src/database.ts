@@ -385,7 +385,9 @@ export type Database = {
       contracts: {
         Row: {
           auto_renew: boolean;
+          billing_type: string;
           billing_model: string;
+          collection_type: string;
           company_id: string;
           contract_type_id: string | null;
           created_at: string;
@@ -415,7 +417,9 @@ export type Database = {
         };
         Insert: {
           auto_renew?: boolean;
+          billing_type?: string;
           billing_model?: string;
+          collection_type?: string;
           company_id: string;
           contract_type_id?: string | null;
           created_at?: string;
@@ -445,7 +449,9 @@ export type Database = {
         };
         Update: {
           auto_renew?: boolean;
+          billing_type?: string;
           billing_model?: string;
+          collection_type?: string;
           company_id?: string;
           contract_type_id?: string | null;
           created_at?: string;
@@ -959,7 +965,9 @@ export type Database = {
           cancelada_em: string | null;
           cancelada_por: string | null;
           cancelada_por_nome: string | null;
+          billing_type: string;
           cliente_nome: string;
+          collection_type: string;
           competencia: string;
           contrato_id: string;
           created_at: string;
@@ -985,7 +993,9 @@ export type Database = {
           cancelada_em?: string | null;
           cancelada_por?: string | null;
           cancelada_por_nome?: string | null;
+          billing_type: string;
           cliente_nome: string;
+          collection_type: string;
           competencia: string;
           contrato_id: string;
           created_at?: string;
@@ -1011,7 +1021,9 @@ export type Database = {
           cancelada_em?: string | null;
           cancelada_por?: string | null;
           cancelada_por_nome?: string | null;
+          billing_type?: string;
           cliente_nome?: string;
+          collection_type?: string;
           competencia?: string;
           contrato_id?: string;
           created_at?: string;

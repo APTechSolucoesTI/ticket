@@ -58,6 +58,8 @@ export const Route = createFileRoute("/_authenticated/contracts")({
 const db = supabase as unknown as SupabaseClient;
 
 type BillingModel = "hours_package" | "per_equipment" | "per_service";
+type BillingType = "service_invoice" | "invoice" | "simple_receipt";
+type CollectionType = "boleto_pf" | "boleto_inter_pj" | "carteira";
 type MeasurementFrequency = "mensal" | "trimestral" | "semestral" | "anual" | "unica";
 type DueType = "fixo" | "util";
 type EquipmentTier = { min: number; max: number; price: number };
@@ -84,6 +86,8 @@ type Contract = {
   auto_renew: boolean;
   numero_contrato: string;
   tipo_medicao: MeasurementFrequency;
+  billing_type: BillingType;
+  collection_type: CollectionType;
   emite_nf: boolean;
   emite_boleto: boolean;
   tipo_vencimento: DueType;
@@ -136,8 +140,8 @@ const schema = z
     includes_onsite: z.boolean(),
     auto_renew: z.boolean(),
     tipo_medicao: z.enum(["mensal", "trimestral", "semestral", "anual", "unica"]),
-    emite_nf: z.boolean(),
-    emite_boleto: z.boolean(),
+    billing_type: z.enum(["service_invoice", "invoice", "simple_receipt"]),
+    collection_type: z.enum(["boleto_pf", "boleto_inter_pj", "carteira"]),
     tipo_vencimento: z.enum(["fixo", "util"]),
     dia_vencimento: z
       .number()
@@ -178,6 +182,18 @@ const measurementFrequencyLabel: Record<MeasurementFrequency, string> = {
   semestral: "Semestral",
   anual: "Anual",
   unica: "Única",
+};
+
+const billingTypeLabel: Record<BillingType, string> = {
+  service_invoice: "Emitir nota fiscal de serviço",
+  invoice: "Emitir fatura",
+  simple_receipt: "Emitir recibo simples",
+};
+
+const collectionTypeLabel: Record<CollectionType, string> = {
+  boleto_pf: "Boleto PF",
+  boleto_inter_pj: "Boleto Inter PJ",
+  carteira: "Em carteira",
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -598,8 +614,8 @@ type FormState = {
   includes_onsite: boolean;
   auto_renew: boolean;
   tipo_medicao: MeasurementFrequency;
-  emite_nf: boolean;
-  emite_boleto: boolean;
+  billing_type: BillingType;
+  collection_type: CollectionType;
   tipo_vencimento: DueType;
   dia_vencimento: number;
   description: string;
@@ -639,10 +655,10 @@ function ContractDialog({
     includes_remote: false,
     includes_lab: false,
     includes_onsite: false,
-    auto_renew: false,
+    auto_renew: true,
     tipo_medicao: "mensal",
-    emite_nf: false,
-    emite_boleto: false,
+    billing_type: "invoice",
+    collection_type: "carteira",
     tipo_vencimento: "fixo",
     dia_vencimento: 1,
     description: "",
@@ -747,8 +763,10 @@ function ContractDialog({
         starts_at: payload.starts_at,
         ends_at: payload.ends_at,
         tipo_medicao: payload.tipo_medicao,
-        emite_nf: payload.emite_nf,
-        emite_boleto: payload.emite_boleto,
+        billing_type: payload.billing_type,
+        collection_type: payload.collection_type,
+        emite_nf: payload.billing_type === "service_invoice",
+        emite_boleto: payload.collection_type !== "carteira",
         tipo_vencimento: payload.tipo_vencimento,
         dia_vencimento: payload.dia_vencimento,
         billing_model: payload.billing_model,
@@ -838,10 +856,11 @@ function ContractDialog({
       includes_remote: editing?.includes_remote ?? false,
       includes_lab: editing?.includes_lab ?? false,
       includes_onsite: editing?.includes_onsite ?? false,
-      auto_renew: editing?.auto_renew ?? false,
+      auto_renew: editing?.auto_renew ?? true,
       tipo_medicao: editing?.tipo_medicao ?? "mensal",
-      emite_nf: editing?.emite_nf ?? false,
-      emite_boleto: editing?.emite_boleto ?? false,
+      billing_type: editing?.billing_type ?? (editing?.emite_nf ? "service_invoice" : "invoice"),
+      collection_type:
+        editing?.collection_type ?? (editing?.emite_boleto ? "boleto_inter_pj" : "carteira"),
       tipo_vencimento: editing?.tipo_vencimento ?? "fixo",
       dia_vencimento: editing?.dia_vencimento ?? 1,
       description: editing?.description ?? "",
@@ -1049,30 +1068,48 @@ function ContractDialog({
                     : "Útil: vence no N-ésimo dia útil contado desde o início do mês da competência, desconsiderando fins de semana e feriados."}
                 </p>
 
-                <label className="flex items-center justify-between rounded-md border px-3 py-2 sm:col-span-1 lg:col-span-2">
-                  <span>
-                    <span className="block font-medium">Emitir nota fiscal</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      Registra a solicitação na medição.
-                    </span>
-                  </span>
-                  <Switch
-                    checked={form.emite_nf}
-                    onCheckedChange={(checked) => setForm({ ...form, emite_nf: checked })}
-                  />
-                </label>
-                <label className="flex items-center justify-between rounded-md border px-3 py-2 sm:col-span-1 lg:col-span-2">
-                  <span>
-                    <span className="block font-medium">Emitir boleto</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      Registra a solicitação na medição.
-                    </span>
-                  </span>
-                  <Switch
-                    checked={form.emite_boleto}
-                    onCheckedChange={(checked) => setForm({ ...form, emite_boleto: checked })}
-                  />
-                </label>
+                <div className="sm:col-span-1 lg:col-span-2">
+                  <Label>Tipo de faturamento *</Label>
+                  <Select
+                    value={form.billing_type}
+                    onValueChange={(value) =>
+                      setForm({ ...form, billing_type: value as BillingType })
+                    }
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de faturamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(billingTypeLabel).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="sm:col-span-1 lg:col-span-2">
+                  <Label>Tipo de cobrança *</Label>
+                  <Select
+                    value={form.collection_type}
+                    onValueChange={(value) =>
+                      setForm({ ...form, collection_type: value as CollectionType })
+                    }
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de cobrança" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(collectionTypeLabel).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="sm:col-span-2 lg:col-span-4">
                   <Label>Empresa operadora *</Label>

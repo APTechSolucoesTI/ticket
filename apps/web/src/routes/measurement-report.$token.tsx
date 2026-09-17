@@ -35,6 +35,8 @@ type MeasurementReport = {
   client_name: string;
   contract_type_name: string | null;
   billing_model: string;
+  billing_type: string;
+  collection_type: string;
   status: string;
   issues_invoice: boolean;
   issues_bank_slip: boolean;
@@ -54,6 +56,18 @@ const billingModelLabel: Record<string, string> = {
   hours_package: "Pacote de horas",
   per_equipment: "Por equipamento",
   per_service: "Por serviço",
+};
+
+const billingTypeLabel: Record<string, string> = {
+  service_invoice: "Nota fiscal de serviço",
+  invoice: "Fatura",
+  simple_receipt: "Recibo simples",
+};
+
+const collectionTypeLabel: Record<string, string> = {
+  boleto_pf: "Boleto PF",
+  boleto_inter_pj: "Boleto Inter PJ",
+  carteira: "Em carteira",
 };
 
 const statusLabel: Record<string, string> = {
@@ -224,10 +238,13 @@ function MeasurementReportPage() {
                 value={billingModelLabel[data.billing_model] ?? data.billing_model}
               />
               <InfoLine
-                label="Emissão de nota fiscal"
-                value={data.issues_invoice ? "Sim" : "Não"}
+                label="Tipo de faturamento"
+                value={billingTypeLabel[data.billing_type] ?? data.billing_type}
               />
-              <InfoLine label="Emissão de boleto" value={data.issues_bank_slip ? "Sim" : "Não"} />
+              <InfoLine
+                label="Tipo de cobrança"
+                value={collectionTypeLabel[data.collection_type] ?? data.collection_type}
+              />
             </div>
           </Section>
 
