@@ -480,6 +480,7 @@ export function EmployeesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-20">Ação</TableHead>
                       <TableHead>Funcionário</TableHead>
                       <TableHead>Matrícula</TableHead>
                       <TableHead>Cargo</TableHead>
@@ -487,12 +488,21 @@ export function EmployeesPage() {
                       <TableHead>Admissão</TableHead>
                       {canSensitive ? <TableHead>Documentos</TableHead> : null}
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rows.map((employee) => (
                       <TableRow key={employee.id}>
+                        <TableCell>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Abrir ficha de ${employee.nome_completo}`}
+                            onClick={() => setSelected(employee)}
+                          >
+                            <Eye className="size-4" />
+                          </Button>
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium">
                             {employee.nome_social || employee.nome_completo}
@@ -530,16 +540,6 @@ export function EmployeesPage() {
                           <Badge variant={employee.status === "ativo" ? "secondary" : "outline"}>
                             {statusLabels[employee.status]}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Abrir ficha de ${employee.nome_completo}`}
-                            onClick={() => setSelected(employee)}
-                          >
-                            <Eye className="size-4" />
-                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

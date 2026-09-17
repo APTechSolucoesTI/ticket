@@ -319,17 +319,31 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-20">Ações</TableHead>
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Contratos</TableHead>
                         <TableHead>Contato</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {rows.map((supplier) => (
                         <TableRow key={supplier.id}>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {canEdit ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label={`Adicionar contrato para ${supplier.legal_name}`}
+                                  onClick={() => setContractTarget({ supplier })}
+                                >
+                                  <FilePlus2 className="size-4" />
+                                </Button>
+                              ) : null}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="font-medium">
                               {supplier.trade_name || supplier.legal_name}
@@ -405,20 +419,6 @@ export function PayableSuppliers({ canEdit }: { canEdit: boolean }) {
                             <Badge variant={supplier.is_active ? "secondary" : "outline"}>
                               {supplier.is_active ? "Ativo" : "Inativo"}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex justify-end gap-1">
-                              {canEdit ? (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  aria-label={`Adicionar contrato para ${supplier.legal_name}`}
-                                  onClick={() => setContractTarget({ supplier })}
-                                >
-                                  <FilePlus2 className="size-4" />
-                                </Button>
-                              ) : null}
-                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -248,6 +248,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
             <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-48">Ações</TableHead>
                   <TableHead>Documento</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Cliente</TableHead>
@@ -256,7 +257,6 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Classificação</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -266,6 +266,65 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                     : undefined;
                   return (
                     <TableRow key={receivable.id}>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          {canEdit && receivable.operating_company_id ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setClassifying(receivable)}
+                            >
+                              <Tags className="size-4" /> Classificar
+                            </Button>
+                          ) : null}
+                          {receivable.operating_company_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setInterId(receivable.id)}
+                            >
+                              Cobrança Inter
+                            </Button>
+                          )}
+                          {receivable.medicao_id && !receivable.operating_company_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled
+                              title="Defina a empresa operadora do contrato para emitir pelo Inter."
+                            >
+                              Empresa operadora pendente
+                            </Button>
+                          )}
+                          {receivable.billing_cycle_id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setCycleId(receivable.billing_cycle_id)}
+                            >
+                              Detalhar fatura
+                            </Button>
+                          )}
+                          {receivable.medicoes_contrato?.report_token && (
+                            <Button asChild size="sm" variant="ghost">
+                              <a
+                                href={`/measurement-report/${receivable.medicoes_contrato.report_token}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <ExternalLink className="size-4" /> Boletim
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditing(receivable)}
+                          >
+                            {canEdit ? "Revisar" : "Visualizar"}
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium">{receivable.documento_referencia}</div>
                         <Badge variant="outline" className="my-1">
@@ -326,65 +385,6 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                             {receivable.cost_center_name}
                           </div>
                         ) : null}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          {canEdit && receivable.operating_company_id ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setClassifying(receivable)}
-                            >
-                              <Tags className="size-4" /> Classificar
-                            </Button>
-                          ) : null}
-                          {receivable.operating_company_id && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setInterId(receivable.id)}
-                            >
-                              Cobrança Inter
-                            </Button>
-                          )}
-                          {receivable.medicao_id && !receivable.operating_company_id && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled
-                              title="Defina a empresa operadora do contrato para emitir pelo Inter."
-                            >
-                              Empresa operadora pendente
-                            </Button>
-                          )}
-                          {receivable.billing_cycle_id && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setCycleId(receivable.billing_cycle_id)}
-                            >
-                              Detalhar fatura
-                            </Button>
-                          )}
-                          {receivable.medicoes_contrato?.report_token && (
-                            <Button asChild size="sm" variant="ghost">
-                              <a
-                                href={`/measurement-report/${receivable.medicoes_contrato.report_token}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ExternalLink className="size-4" /> Boletim
-                              </a>
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditing(receivable)}
-                          >
-                            {canEdit ? "Revisar" : "Visualizar"}
-                          </Button>
-                        </div>
                       </TableCell>
                     </TableRow>
                   );

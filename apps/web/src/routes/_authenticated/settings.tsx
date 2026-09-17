@@ -1261,18 +1261,14 @@ function DepartmentsTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-20">Ações</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Descrição</TableHead>
-                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {d.description || "-"}
-                  </TableCell>
                   <TableCell>
                     <RowActions
                       row={d}
@@ -1282,6 +1278,10 @@ function DepartmentsTab() {
                       }}
                       onDelete={setToDelete}
                     />
+                  </TableCell>
+                  <TableCell className="font-medium">{d.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {d.description || "-"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -1447,22 +1447,15 @@ function ServiceFamiliesTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-20">Ações</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="w-20">Status</TableHead>
-                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((f) => (
                 <TableRow key={f.id}>
-                  <TableCell className="font-mono text-xs">{f.code}</TableCell>
-                  <TableCell className="font-medium">{f.description}</TableCell>
-                  <TableCell>
-                    <Badge variant={f.is_active ? "default" : "outline"}>
-                      {f.is_active ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
                   <TableCell>
                     <RowActions
                       row={f}
@@ -1472,6 +1465,13 @@ function ServiceFamiliesTab() {
                       }}
                       onDelete={setToDelete}
                     />
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{f.code}</TableCell>
+                  <TableCell className="font-medium">{f.description}</TableCell>
+                  <TableCell>
+                    <Badge variant={f.is_active ? "default" : "outline"}>
+                      {f.is_active ? "Ativo" : "Inativo"}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1706,12 +1706,12 @@ function ProvidedServicesTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-20">Ações</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Família</TableHead>
                 <TableHead>Execução</TableHead>
                 <TableHead className="w-20">Status</TableHead>
-                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1725,6 +1725,16 @@ function ProvidedServicesTab() {
                   .join(" · ");
                 return (
                   <TableRow key={s.id}>
+                    <TableCell>
+                      <RowActions
+                        row={s}
+                        onEdit={(r) => {
+                          setEditing(r);
+                          setOpen(true);
+                        }}
+                        onDelete={setToDelete}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{s.code}</TableCell>
                     <TableCell className="font-medium">{s.description}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -1735,16 +1745,6 @@ function ProvidedServicesTab() {
                       <Badge variant={s.is_active ? "default" : "outline"}>
                         {s.is_active ? "Ativo" : "Inativo"}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <RowActions
-                        row={s}
-                        onEdit={(r) => {
-                          setEditing(r);
-                          setOpen(true);
-                        }}
-                        onDelete={setToDelete}
-                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -2024,12 +2024,12 @@ function ContractTypesTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-20">Ações</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Modelo</TableHead>
                 <TableHead>Detalhes</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Inclui</TableHead>
-                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2044,6 +2044,16 @@ function ContractTypesTab() {
                     .join(" · ") || "-";
                 return (
                   <TableRow key={t.id}>
+                    <TableCell>
+                      <RowActions
+                        row={t}
+                        onEdit={(r) => {
+                          setEditing(r);
+                          setOpen(true);
+                        }}
+                        onDelete={setToDelete}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div>{t.name}</div>
                       {t.description && (
@@ -2086,16 +2096,6 @@ function ContractTypesTab() {
                     </TableCell>
 
                     <TableCell className="text-xs text-muted-foreground">{inclui}</TableCell>
-                    <TableCell>
-                      <RowActions
-                        row={t}
-                        onEdit={(r) => {
-                          setEditing(r);
-                          setOpen(true);
-                        }}
-                        onDelete={setToDelete}
-                      />
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -2590,26 +2590,16 @@ function SlasTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-20">Ações</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Prioridade</TableHead>
                 <TableHead>1ª resposta</TableHead>
                 <TableHead>Resolução</TableHead>
-                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((s) => (
                 <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell>
-                    {s.priority ? (
-                      <Badge variant="outline">{PRIORITY_LABEL[s.priority]}</Badge>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>{formatMinutes(s.first_response_minutes)}</TableCell>
-                  <TableCell>{formatMinutes(s.resolution_minutes)}</TableCell>
                   <TableCell>
                     <RowActions
                       row={s}
@@ -2620,6 +2610,16 @@ function SlasTab() {
                       onDelete={setToDelete}
                     />
                   </TableCell>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell>
+                    {s.priority ? (
+                      <Badge variant="outline">{PRIORITY_LABEL[s.priority]}</Badge>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell>{formatMinutes(s.first_response_minutes)}</TableCell>
+                  <TableCell>{formatMinutes(s.resolution_minutes)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -2838,19 +2838,14 @@ function CannedTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-20">Ações</TableHead>
                 <TableHead>Título</TableHead>
                 <TableHead>Prévia</TableHead>
-                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.title}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground truncate max-w-md">
-                    {c.body.slice(0, 120)}
-                    {c.body.length > 120 ? "…" : ""}
-                  </TableCell>
                   <TableCell>
                     <RowActions
                       row={c}
@@ -2860,6 +2855,11 @@ function CannedTab() {
                       }}
                       onDelete={setToDelete}
                     />
+                  </TableCell>
+                  <TableCell className="font-medium">{c.title}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground truncate max-w-md">
+                    {c.body.slice(0, 120)}
+                    {c.body.length > 120 ? "…" : ""}
                   </TableCell>
                 </TableRow>
               ))}

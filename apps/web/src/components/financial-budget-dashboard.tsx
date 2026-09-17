@@ -310,6 +310,7 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canEdit ? <TableHead className="w-20">Ações</TableHead> : null}
                       <TableHead>Competência</TableHead>
                       <TableHead>Natureza</TableHead>
                       <TableHead>Categoria</TableHead>
@@ -318,11 +319,6 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
                       <TableHead className="text-right">Previsto</TableHead>
                       <TableHead className="text-right">Realizado</TableHead>
                       <TableHead className="text-right">Desvio</TableHead>
-                      {canEdit ? (
-                        <TableHead className="w-12">
-                          <span className="sr-only">Ações</span>
-                        </TableHead>
-                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -330,6 +326,20 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
                       <TableRow
                         key={`${item.period_month}-${item.direction}-${item.financial_category_id}-${item.cost_center_id}-${index}`}
                       >
+                        {canEdit ? (
+                          <TableCell>
+                            {item.budget_entry_id ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Revisar orçamento de ${item.financial_category_name}`}
+                                onClick={() => setEditor(item)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                            ) : null}
+                          </TableCell>
+                        ) : null}
                         <TableCell className="whitespace-nowrap font-medium">
                           {monthFormat.format(new Date(`${item.period_month}T00:00:00Z`))}
                         </TableCell>
@@ -386,20 +396,6 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
                             </p>
                           )}
                         </TableCell>
-                        {canEdit ? (
-                          <TableCell>
-                            {item.budget_entry_id ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Revisar orçamento de ${item.financial_category_name}`}
-                                onClick={() => setEditor(item)}
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
-                            ) : null}
-                          </TableCell>
-                        ) : null}
                       </TableRow>
                     ))}
                   </TableBody>

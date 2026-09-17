@@ -281,6 +281,7 @@ export function FinanceReceivablesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-24">Ação</TableHead>
                   <TableHead>Ticket</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Tempo</TableHead>
@@ -288,12 +289,16 @@ export function FinanceReceivablesPage() {
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Revisão</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((charge) => (
                   <TableRow key={charge.id}>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => setEditing(charge)}>
+                        {access.edit ? "Revisar" : "Visualizar"}
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <Link
                         to="/tickets/$id"
@@ -329,11 +334,6 @@ export function FinanceReceivablesPage() {
                       ) : (
                         <span className="text-amber-600">Pendente</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => setEditing(charge)}>
-                        {access.edit ? "Revisar" : "Visualizar"}
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

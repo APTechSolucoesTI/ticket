@@ -36,7 +36,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TicketOverview } from "@/components/ticket/inbox/TicketOverview";
 import { TicketFilters, type TicketFilterState } from "@/components/ticket/inbox/TicketFilters";
-import { TicketInboxList, TicketPagination } from "@/components/ticket/inbox/TicketInboxList";
+import { TicketInboxList } from "@/components/ticket/inbox/TicketInboxList";
 import { TicketInboxKanban } from "@/components/ticket/inbox/TicketInboxKanban";
 import { useTicketsInboxData } from "@/hooks/use-tickets-inbox";
 import { calculateTicketSummary } from "@/lib/ticket-inbox";
@@ -69,8 +69,6 @@ function TicketsInbox() {
     department: [],
     search: "",
   });
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
   const [openNew, setOpenNew] = useState(false);
   const filterRef = useRef<HTMLButtonElement>(null);
 
@@ -131,17 +129,6 @@ function TicketsInbox() {
     filters.department.length > 0 ||
     filters.search.trim().length > 0;
   const hasFilteredOutTickets = tickets.length > 0 && hasActiveFilters;
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginatedTickets = useMemo(
-    () => filtered.slice((page - 1) * pageSize, page * pageSize),
-    [filtered, page, pageSize],
-  );
-
-  useEffect(() => setPage(1), [filters, pageSize]);
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
   const resetFilters = () => {
     setFilters({
       attendanceType: [],
@@ -236,23 +223,11 @@ function TicketsInbox() {
             className="mt-6"
           />
         ) : view === "list" ? (
-          <TicketInboxList tickets={paginatedTickets} />
+          <TicketInboxList tickets={filtered} />
         ) : (
           <TicketInboxKanban tickets={filtered} />
         )}
       </div>
-      {view === "list" &&
-        !ticketsQuery.isLoading &&
-        !ticketsQuery.isError &&
-        filtered.length > 0 && (
-          <TicketPagination
-            page={page}
-            pageSize={pageSize}
-            total={filtered.length}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
-        )}
       <div
         className="border-t bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground"
         aria-live="polite"

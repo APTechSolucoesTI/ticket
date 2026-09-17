@@ -390,6 +390,7 @@ export function SupplierPayables({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-20">Ações</TableHead>
                   <TableHead>Documento</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Fornecedor</TableHead>
@@ -399,9 +400,6 @@ export function SupplierPayables({
                   <TableHead>Status</TableHead>
                   <TableHead>Classificação</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="w-12">
-                    <span className="sr-only">Ações</span>
-                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -412,6 +410,28 @@ export function SupplierPayables({
                     : undefined;
                   return (
                     <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {canEdit ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Classificar ${item.document_number}`}
+                              onClick={() => setClassifying(item)}
+                            >
+                              <Tags className="size-4" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Detalhar ${item.document_number}`}
+                            onClick={() => setSelected(item)}
+                          >
+                            <Eye className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium">{item.document_number}</div>
                         <Badge variant="outline" className="my-1">
@@ -471,28 +491,6 @@ export function SupplierPayables({
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {money.format(item.total_amount)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          {canEdit ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Classificar ${item.document_number}`}
-                              onClick={() => setClassifying(item)}
-                            >
-                              <Tags className="size-4" />
-                            </Button>
-                          ) : null}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Detalhar ${item.document_number}`}
-                            onClick={() => setSelected(item)}
-                          >
-                            <Eye className="size-4" />
-                          </Button>
-                        </div>
                       </TableCell>
                     </TableRow>
                   );

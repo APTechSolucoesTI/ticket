@@ -530,18 +530,46 @@ export function BankReconciliationDashboard({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-28">Ações</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead>Histórico</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Correspondência</TableHead>
                       <TableHead>Classificação</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((item) => (
                       <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {canEdit ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Classificar movimento ${item.memo}`}
+                                onClick={() => setClassifying(item)}
+                              >
+                                <Tags className="size-4" />
+                              </Button>
+                            ) : null}
+                            {item.reconciliation_status === "pending_review" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!canEdit}
+                                onClick={() => {
+                                  setReviewing(item);
+                                  setCandidateId("");
+                                  setNotes("");
+                                }}
+                              >
+                                Revisar
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {dateFormat.format(new Date(`${item.posted_at}T00:00:00Z`))}
                         </TableCell>
@@ -592,34 +620,6 @@ export function BankReconciliationDashboard({
                               {item.cost_center_name}
                             </p>
                           ) : null}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {canEdit ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Classificar movimento ${item.memo}`}
-                                onClick={() => setClassifying(item)}
-                              >
-                                <Tags className="size-4" />
-                              </Button>
-                            ) : null}
-                            {item.reconciliation_status === "pending_review" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={!canEdit}
-                                onClick={() => {
-                                  setReviewing(item);
-                                  setCandidateId("");
-                                  setNotes("");
-                                }}
-                              >
-                                Revisar
-                              </Button>
-                            )}
-                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

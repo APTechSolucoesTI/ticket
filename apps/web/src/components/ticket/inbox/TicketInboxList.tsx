@@ -7,14 +7,6 @@ import { SlaTimer, slaBorderClass, slaState } from "@/components/ticket/SlaTimer
 import { TicketBadge } from "@/components/ticket/TicketBadge";
 import { AttendanceBadge } from "@/components/ticket/AttendanceBadge";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SLA_DEFAULT_MIN, dueFor, type TicketRow } from "@/lib/ticket-inbox";
 import { cn } from "@/lib/utils";
 
@@ -147,84 +139,3 @@ export const TicketInboxList = memo(function TicketInboxList({
     </div>
   );
 });
-
-export function TicketPagination({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
-}) {
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end = Math.min(page * pageSize, total);
-
-  return (
-    <nav
-      aria-label="Paginação dos tickets"
-      className="flex flex-wrap items-center justify-between gap-2 border-t bg-background px-3 py-2 text-xs"
-    >
-      <span className="text-muted-foreground" aria-live="polite">
-        Mostrando {start}–{end} de {total}
-      </span>
-      <div className="flex items-center gap-2">
-        <LabelledPageSize value={pageSize} onChange={onPageSizeChange} />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          Anterior
-        </Button>
-        <span className="min-w-20 text-center">
-          Página {page} de {pageCount}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7"
-          disabled={page >= pageCount}
-          onClick={() => onPageChange(page + 1)}
-        >
-          Próxima
-        </Button>
-      </div>
-    </nav>
-  );
-}
-
-function LabelledPageSize({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="whitespace-nowrap text-muted-foreground">Por página</span>
-      <Select value={String(value)} onValueChange={(next) => onChange(Number(next))}>
-        <SelectTrigger className="h-7 w-16 text-xs" aria-label="Tickets por página">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {[25, 50, 100].map((size) => (
-            <SelectItem key={size} value={String(size)}>
-              {size}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}

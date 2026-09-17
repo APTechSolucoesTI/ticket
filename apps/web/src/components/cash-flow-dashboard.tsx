@@ -472,6 +472,7 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canEdit ? <TableHead className="w-20">Ações</TableHead> : null}
                       <TableHead>Data</TableHead>
                       <TableHead>Movimento</TableHead>
                       <TableHead>Documento</TableHead>
@@ -480,16 +481,23 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
                       <TableHead>Classificação</TableHead>
                       <TableHead className="text-right">Previsto</TableHead>
                       <TableHead className="text-right">Realizado</TableHead>
-                      {canEdit ? (
-                        <TableHead className="w-12">
-                          <span className="sr-only">Ações</span>
-                        </TableHead>
-                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {visibleRows.map((item) => (
                       <TableRow key={`${item.direction}-${item.source_id}`}>
+                        {canEdit ? (
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Classificar ${item.document_number}`}
+                              onClick={() => setClassifying(item)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          </TableCell>
+                        ) : null}
                         <TableCell className="whitespace-nowrap">
                           {dateFormat.format(new Date(`${item.planned_date}T00:00:00Z`))}
                         </TableCell>
@@ -551,18 +559,6 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
                         <TableCell className="text-right font-semibold">
                           {item.realized_amount ? money.format(Number(item.realized_amount)) : "-"}
                         </TableCell>
-                        {canEdit ? (
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Classificar ${item.document_number}`}
-                              onClick={() => setClassifying(item)}
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                          </TableCell>
-                        ) : null}
                       </TableRow>
                     ))}
                   </TableBody>

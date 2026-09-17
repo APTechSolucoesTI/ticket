@@ -329,6 +329,7 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
               <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-36">Ações</TableHead>
                     <TableHead>Competência</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead className="text-right">Receitas</TableHead>
@@ -336,7 +337,6 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
                     <TableHead className="text-right">Resultado</TableHead>
                     <TableHead>Responsável</TableHead>
                     <TableHead>Registro</TableHead>
-                    <TableHead className="w-36 text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -345,6 +345,38 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
                       key={row.period}
                       className={row.active ? "bg-emerald-500/[0.025]" : ""}
                     >
+                      <TableCell>
+                        <div className="flex gap-1.5">
+                          {row.latest ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Histórico de ${row.label}`}
+                              onClick={() => setHistoryPeriod(row)}
+                            >
+                              <History className="size-4" />
+                            </Button>
+                          ) : null}
+                          {canEdit && row.active ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              onClick={() => openConfirmation("reopen", row)}
+                            >
+                              <RotateCcw className="size-3.5" /> Reabrir
+                            </Button>
+                          ) : canEdit && !row.future ? (
+                            <Button
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() => openConfirmation("close", row)}
+                            >
+                              <LockKeyhole className="size-3.5" /> Encerrar
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium capitalize">{row.label}</TableCell>
                       <TableCell>
                         {row.active ? (
@@ -401,38 +433,6 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
                           : row.latest?.reopened_at
                             ? dateTimeFormat.format(new Date(row.latest.reopened_at))
                             : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1.5">
-                          {row.latest ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Histórico de ${row.label}`}
-                              onClick={() => setHistoryPeriod(row)}
-                            >
-                              <History className="size-4" />
-                            </Button>
-                          ) : null}
-                          {canEdit && row.active ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5"
-                              onClick={() => openConfirmation("reopen", row)}
-                            >
-                              <RotateCcw className="size-3.5" /> Reabrir
-                            </Button>
-                          ) : canEdit && !row.future ? (
-                            <Button
-                              size="sm"
-                              className="gap-1.5"
-                              onClick={() => openConfirmation("close", row)}
-                            >
-                              <LockKeyhole className="size-3.5" /> Encerrar
-                            </Button>
-                          ) : null}
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
