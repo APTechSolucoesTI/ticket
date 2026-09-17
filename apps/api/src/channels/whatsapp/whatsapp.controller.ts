@@ -83,7 +83,7 @@ export class WhatsappController {
   @Post(':id/send-media')
   @RequirePermission('tickets', 'edit')
   @ApiOperation({
-    summary: 'Envia imagem, documento, Ã¡udio ou vÃ­deo via uazapi',
+    summary: 'Envia imagem, documento, áudio ou vídeo via uazapi',
   })
   sendMedia(
     @CurrentUser() auth: AuthContext,

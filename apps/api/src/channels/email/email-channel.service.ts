@@ -238,7 +238,7 @@ export class EmailChannelService {
               author_type: 'contact',
               channel: 'email',
               is_internal: false,
-              content: data.body || '(sem conteÃºdo)',
+              content: data.body || '(sem conteúdo)',
               external_id: data.message_id,
               attachments,
             });

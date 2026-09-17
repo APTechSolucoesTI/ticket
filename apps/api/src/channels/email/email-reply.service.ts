@@ -119,7 +119,7 @@ export class EmailReplyService {
       }> = [];
       for (const attachment of attachments) {
         if (!attachment.path.startsWith(`${tenantId}/${ticket.id}/`)) {
-          throw new Error(`Caminho de anexo invÃ¡lido: ${attachment.name}`);
+          throw new Error(`Caminho de anexo inválido: ${attachment.name}`);
         }
         const { data: blob, error: downloadError } =
           await this.supabase.client.storage
@@ -127,7 +127,7 @@ export class EmailReplyService {
             .download(attachment.path);
         if (downloadError || !blob) {
           throw new Error(
-            `NÃ£o foi possÃ­vel carregar o anexo ${attachment.name}: ${downloadError?.message ?? 'arquivo ausente'}`,
+            `Não foi possível carregar o anexo ${attachment.name}: ${downloadError?.message ?? 'arquivo ausente'}`,
           );
         }
         mailAttachments.push({

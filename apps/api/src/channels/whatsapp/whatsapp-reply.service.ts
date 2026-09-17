@@ -259,17 +259,16 @@ export class WhatsappReplyService {
       .eq('tenant_id', tenantId)
       .maybeSingle();
     if (ticketError) throw ticketError;
-    if (!ticket) throw new NotFoundException('Ticket nÃ£o encontrado');
+    if (!ticket) throw new NotFoundException('Ticket não encontrado');
     if (ticket.channel !== 'whatsapp') {
-      throw new BadRequestException('Ticket nÃ£o Ã© de origem WhatsApp');
+      throw new BadRequestException('Ticket não é de origem WhatsApp');
     }
     const phone = (
       ticket as unknown as { contacts?: { phone?: string | null } | null }
     ).contacts?.phone;
-    if (!phone)
-      throw new BadRequestException('Contato sem nÃºmero de telefone');
+    if (!phone) throw new BadRequestException('Contato sem número de telefone');
     if (!data.path.startsWith(`${tenantId}/${ticket.id}/`)) {
-      throw new BadRequestException('Caminho de anexo invÃ¡lido');
+      throw new BadRequestException('Caminho de anexo inválido');
     }
 
     const supported =
@@ -283,7 +282,7 @@ export class WhatsappReplyService {
       data.mimetype === 'application/zip';
     if (!supported) {
       throw new BadRequestException(
-        `Tipo de arquivo nÃ£o suportado no WhatsApp: ${data.mimetype}`,
+        `Tipo de arquivo não suportado no WhatsApp: ${data.mimetype}`,
       );
     }
 
@@ -300,7 +299,7 @@ export class WhatsappReplyService {
       !tenant.whatsapp_uazapi_token
     ) {
       throw new BadRequestException(
-        'WhatsApp nÃ£o configurado para este tenant',
+        'WhatsApp não configurado para este tenant',
       );
     }
 
@@ -366,7 +365,7 @@ export class WhatsappReplyService {
       .single();
     if (insertError) throw insertError;
     if (!response.ok) {
-      throw new BadRequestException(`Falha ao enviar mÃ­dia: ${deliveryError}`);
+      throw new BadRequestException(`Falha ao enviar mídia: ${deliveryError}`);
     }
     return { ok: true as const, messageId: inserted.id, externalId };
   }

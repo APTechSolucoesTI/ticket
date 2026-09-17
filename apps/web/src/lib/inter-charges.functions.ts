@@ -339,7 +339,7 @@ export const emitInterCharge = createServerFn({ method: "POST" })
         if (typeof response?.message === "string") throw new Error(response.message);
       }
       throw new Error(
-        "NÃ£o foi possÃ­vel concluir a comunicaÃ§Ã£o com o Inter. Atualize a consulta antes de qualquer nova tentativa.",
+        "Não foi possível concluir a comunicação com o Inter. Atualize a consulta antes de qualquer nova tentativa.",
       );
     }
     return z
