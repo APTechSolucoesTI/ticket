@@ -76,10 +76,10 @@ type Employee = {
   operating_company_id: string;
   nome_completo: string;
   nome_social: string | null;
-  cpf: string;
+  cpf: string | null;
   rg: string | null;
   rg_orgao_emissor: string | null;
-  data_nascimento: string;
+  data_nascimento: string | null;
   sexo: string | null;
   estado_civil: string | null;
   nacionalidade: string;
@@ -88,8 +88,8 @@ type Employee = {
   nome_mae: string | null;
   nome_pai: string | null;
   pis_pasep: string | null;
-  ctps_numero: string;
-  ctps_serie: string;
+  ctps_numero: string | null;
+  ctps_serie: string | null;
   ctps_uf: string | null;
   titulo_eleitor: string | null;
   certificado_reservista: string | null;
@@ -217,14 +217,14 @@ const employeeSchema = z.object({
   cpf: z
     .string()
     .transform(digits)
-    .refine((v) => v.length === 11, "CPF deve ter 11 dígitos."),
-  data_nascimento: z.string().min(1, "Informe a data de nascimento."),
+    .refine((v) => v.length === 0 || v.length === 11, "CPF deve ter 11 dígitos."),
+  data_nascimento: z.string(),
   pis_pasep: z
     .string()
     .transform(digits)
     .refine((v) => v.length === 0 || v.length === 11, "PIS/PASEP deve ter 11 dígitos."),
-  ctps_numero: z.string().trim().min(1, "Informe a CTPS."),
-  ctps_serie: z.string().trim().min(1, "Informe a série."),
+  ctps_numero: z.string().trim(),
+  ctps_serie: z.string().trim(),
   ctps_uf: z.string().refine((v) => !v || /^[A-Z]{2}$/.test(v), "Informe uma UF válida."),
   email_pessoal: z
     .string()
@@ -609,8 +609,11 @@ function EmployeeCreateDialog({
       const { error } = await db.rpc("create_employee_with_position", {
         p_data: {
           ...data,
-          cpf: digits(data.cpf),
+          cpf: digits(data.cpf) || null,
+          data_nascimento: data.data_nascimento || null,
           pis_pasep: digits(data.pis_pasep) || null,
+          ctps_numero: data.ctps_numero.trim() || null,
+          ctps_serie: data.ctps_serie.trim() || null,
           ctps_uf: data.ctps_uf.trim().toUpperCase() || null,
           email_pessoal: normalizeEmail(data.email_pessoal) || null,
           email_corporativo: normalizeEmail(data.email_corporativo) || null,
@@ -675,7 +678,7 @@ function EmployeeCreateDialog({
             </Select>
           </div>
           {field("nome_completo", "Nome completo *")} {field("nome_social", "Nome social")}{" "}
-          {field("cpf", "CPF *")} {field("data_nascimento", "Nascimento *", "date")}
+          {field("cpf", "CPF")} {field("data_nascimento", "Nascimento", "date")}
           {field("rg", "RG")} {field("rg_orgao_emissor", "Órgão emissor")}{" "}
           <div>
             <Label>Sexo</Label>
@@ -723,8 +726,8 @@ function EmployeeCreateDialog({
           {field("naturalidade_uf", "UF de naturalidade")} {field("nome_mae", "Nome da mãe")}
           {field("nome_pai", "Nome do pai")} {field("titulo_eleitor", "Título de eleitor")}
           {field("certificado_reservista", "Certificado de reservista")}
-          {field("pis_pasep", "PIS/PASEP")} {field("ctps_numero", "CTPS número *")}{" "}
-          {field("ctps_serie", "CTPS série *")} {field("ctps_uf", "CTPS UF")}
+          {field("pis_pasep", "PIS/PASEP")} {field("ctps_numero", "CTPS número")}{" "}
+          {field("ctps_serie", "CTPS série")} {field("ctps_uf", "CTPS UF")}
           {field("email_pessoal", "E-mail pessoal", "email")}{" "}
           {field("email_corporativo", "E-mail corporativo", "email")}{" "}
           {field("telefone_principal", "Telefone principal")}{" "}
@@ -1285,15 +1288,16 @@ function Profile({
     },
     onError: (error) => toast.error(getUserFacingError(error)),
   });
+  const ctpsBase = [employee.ctps_numero, employee.ctps_serie].filter(Boolean).join(" / ");
+  const ctps = employee.ctps_uf
+    ? `${ctpsBase ? `${ctpsBase} - ` : ""}${employee.ctps_uf}`
+    : ctpsBase;
   const items = [
     ["CPF", employee.cpf],
     ["RG", employee.rg],
     ["Nascimento", date(employee.data_nascimento)],
     ["PIS/PASEP", employee.pis_pasep],
-    [
-      "CTPS",
-      `${employee.ctps_numero} / ${employee.ctps_serie}${employee.ctps_uf ? `-${employee.ctps_uf}` : ""}`,
-    ],
+    ["CTPS", ctps],
     ["Contrato", employee.tipo_contrato.toUpperCase()],
     ["Jornada", employee.regime_jornada.replaceAll("_", " ")],
     ["E-mail", employee.email_corporativo || employee.email_pessoal],
@@ -1400,10 +1404,10 @@ function EmployeeEditDialog({
   const [form, setForm] = useState({
     nome_completo: employee.nome_completo,
     nome_social: employee.nome_social ?? "",
-    cpf: employee.cpf,
+    cpf: employee.cpf ?? "",
     rg: employee.rg ?? "",
     rg_orgao_emissor: employee.rg_orgao_emissor ?? "",
-    data_nascimento: employee.data_nascimento,
+    data_nascimento: employee.data_nascimento ?? "",
     sexo: employee.sexo ?? "",
     estado_civil: employee.estado_civil ?? "",
     nacionalidade: employee.nacionalidade ?? "Brasileira",
@@ -1412,8 +1416,8 @@ function EmployeeEditDialog({
     nome_mae: employee.nome_mae ?? "",
     nome_pai: employee.nome_pai ?? "",
     pis_pasep: employee.pis_pasep ?? "",
-    ctps_numero: employee.ctps_numero,
-    ctps_serie: employee.ctps_serie,
+    ctps_numero: employee.ctps_numero ?? "",
+    ctps_serie: employee.ctps_serie ?? "",
     ctps_uf: employee.ctps_uf ?? "",
     titulo_eleitor: employee.titulo_eleitor ?? "",
     certificado_reservista: employee.certificado_reservista ?? "",
@@ -1445,6 +1449,8 @@ function EmployeeEditDialog({
   );
   const save = useMutation({
     mutationFn: async () => {
+      const cpf = digits(form.cpf);
+      if (cpf && cpf.length !== 11) throw new Error("CPF deve ter 11 dígitos.");
       const pis = digits(form.pis_pasep);
       if (pis && pis.length !== 11) throw new Error("PIS/PASEP deve ter 11 dígitos.");
       if (form.ctps_uf && !/^[A-Z]{2}$/.test(form.ctps_uf.toUpperCase()))
@@ -1462,10 +1468,10 @@ function EmployeeEditDialog({
         .update({
           nome_completo: form.nome_completo.trim(),
           nome_social: nullable(form.nome_social),
-          cpf: digits(form.cpf),
+          cpf: cpf || null,
           rg: nullable(form.rg),
           rg_orgao_emissor: nullable(form.rg_orgao_emissor),
-          data_nascimento: form.data_nascimento,
+          data_nascimento: form.data_nascimento || null,
           sexo: nullable(form.sexo),
           estado_civil: nullable(form.estado_civil),
           nacionalidade: form.nacionalidade.trim() || "Brasileira",
@@ -1474,8 +1480,8 @@ function EmployeeEditDialog({
           nome_mae: nullable(form.nome_mae),
           nome_pai: nullable(form.nome_pai),
           pis_pasep: pis || null,
-          ctps_numero: form.ctps_numero.trim(),
-          ctps_serie: form.ctps_serie.trim(),
+          ctps_numero: nullable(form.ctps_numero),
+          ctps_serie: nullable(form.ctps_serie),
           ctps_uf: nullable(form.ctps_uf)?.toUpperCase() ?? null,
           titulo_eleitor: nullable(form.titulo_eleitor),
           certificado_reservista: nullable(form.certificado_reservista),
@@ -1512,8 +1518,8 @@ function EmployeeEditDialog({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {field("nome_completo", "Nome completo *")}
           {field("nome_social", "Nome social")}
-          {field("cpf", "CPF *")}
-          {field("data_nascimento", "Nascimento *", "date")}
+          {field("cpf", "CPF")}
+          {field("data_nascimento", "Nascimento", "date")}
           {field("rg", "RG")}
           {field("rg_orgao_emissor", "Órgão emissor")}
           {field("nacionalidade", "Nacionalidade")}
@@ -1522,8 +1528,8 @@ function EmployeeEditDialog({
           {field("nome_mae", "Nome da mãe")}
           {field("nome_pai", "Nome do pai")}
           {field("pis_pasep", "PIS/PASEP")}
-          {field("ctps_numero", "CTPS número *")}
-          {field("ctps_serie", "CTPS série *")}
+          {field("ctps_numero", "CTPS número")}
+          {field("ctps_serie", "CTPS série")}
           {field("ctps_uf", "CTPS UF")}
           {field("titulo_eleitor", "Título de eleitor")}
           {field("certificado_reservista", "Certificado de reservista")}
@@ -1736,7 +1742,7 @@ function SubrecordDialog({
     chave_pix: "",
     tipo_chave_pix: "cpf",
     titular_nome: employee.nome_completo,
-    titular_cpf: employee.cpf,
+    titular_cpf: employee.cpf ?? "",
     justificativa_terceiro: "",
     tipo_evento: "pagamento_folha",
     competencia: month(),
