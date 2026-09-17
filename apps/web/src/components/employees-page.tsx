@@ -192,7 +192,7 @@ type Event = {
   erro_integracao: string | null;
   conta_pagar_id: string | null;
 };
-type DocType = { id: string; nome: string; obrigatorio: boolean; categoria: string };
+type DocType = { id: string; nome: string; categoria: string };
 
 const statusLabels: Record<Employee["status"], string> = {
   ativo: "Ativo",
@@ -341,7 +341,7 @@ export function EmployeesPage() {
       if (error) throw error;
       const employees = (data ?? []) as Employee[];
       const positionIds = employees.map((item) => item.cargo_atual_id).filter(Boolean) as string[];
-      const [positions, documents, requiredTypes] = await Promise.all([
+      const [positions, documents] = await Promise.all([
         positionIds.length
           ? db
               .from("funcionario_cargos_salarios")
@@ -358,14 +358,6 @@ export function EmployeesPage() {
               )
               .is("deleted_at", null)
           : Promise.resolve({ data: [], error: null }),
-        canSensitive
-          ? db
-              .from("funcionario_tipos_documento")
-              .select("id")
-              .eq("obrigatorio", true)
-              .eq("is_active", true)
-              .is("deleted_at", null)
-          : Promise.resolve({ data: [], error: null }),
       ]);
       const positionMap = new Map(
         (positions.data ?? []).map((item: Record<string, unknown>) => [String(item.id), item]),
@@ -377,19 +369,13 @@ export function EmployeesPage() {
         const docs = (documents.data ?? []).filter(
           (item: Record<string, unknown>) => item.funcionario_id === employee.id,
         );
-        const uploadedTypes = new Set(
-          docs.map((item: Record<string, unknown>) => item.tipo_documento_id),
-        );
-        const missingRequired = (requiredTypes.data ?? []).filter(
-          (item: Record<string, unknown>) => !uploadedTypes.has(item.id),
-        ).length;
         return {
           ...employee,
           cargo: String(current?.cargo ?? "Não informado"),
           salario: Number(current?.salario_base ?? 0),
-          documentos_pendentes:
-            docs.filter((item: Record<string, unknown>) => item.status === "pendente").length +
-            missingRequired,
+          documentos_pendentes: docs.filter(
+            (item: Record<string, unknown>) => item.status === "pendente",
+          ).length,
           documentos_vencidos: docs.filter(
             (item: Record<string, unknown>) => item.status === "vencido",
           ).length,
@@ -925,7 +911,7 @@ function EmployeeDetailDialog({
           .order("competencia", { ascending: false }),
         db
           .from("funcionario_tipos_documento")
-          .select("id,nome,obrigatorio,categoria")
+          .select("id,nome,categoria")
           .eq("is_active", true)
           .is("deleted_at", null)
           .order("nome"),
@@ -2194,8 +2180,6 @@ function Documents({
     else window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
   const typeMap = new Map(types.map((item) => [item.id, item]));
-  const uploadedTypes = new Set(documents.map((item) => item.tipo_documento_id));
-  const missingRequired = types.filter((item) => item.obrigatorio && !uploadedTypes.has(item.id));
   return (
     <Card>
       <CardHeader>
@@ -2237,7 +2221,6 @@ function Documents({
                   {types.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.nome}
-                      {item.obrigatorio ? " *" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2274,20 +2257,6 @@ function Documents({
           </div>
         ) : null}
         <div className="grid gap-2 sm:grid-cols-2">
-          {missingRequired.map((item) => (
-            <div
-              key={`missing-${item.id}`}
-              className="flex items-center justify-between rounded-lg border border-dashed p-3"
-            >
-              <div>
-                <p className="font-medium">{item.nome}</p>
-                <p className="text-xs text-muted-foreground">
-                  Documento obrigatório ainda não enviado.
-                </p>
-              </div>
-              <Badge variant="outline">Pendente</Badge>
-            </div>
-          ))}
           {documents.map((doc) => (
             <button
               key={doc.id}
@@ -2308,10 +2277,10 @@ function Documents({
             </button>
           ))}
         </div>
-        {!documents.length && !missingRequired.length ? (
+        {!documents.length ? (
           <EmptyState
             title="Nenhum documento enviado"
-            description="Use o formulário acima para iniciar o checklist."
+            description="Se necessário, use o formulário acima para anexar um documento opcional."
           />
         ) : null}
       </CardContent>
