@@ -204,8 +204,10 @@ export function BankReconciliationDashboard({
           "source_id",
           rows.map((item) => item.id),
         )
-        .is("deleted_at", null);
-      if (classificationError) throw classificationError;
+        .is("replaced_at", null);
+      // A classificação complementa o movimento, mas não pode ocultá-lo
+      // quando esse cadastro auxiliar estiver temporariamente indisponível.
+      if (classificationError) return rows;
       const bySource = new Map(
         (classifications ?? []).map((item: Record<string, unknown>) => [
           String(item.source_id),

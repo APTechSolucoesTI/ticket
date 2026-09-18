@@ -141,8 +141,10 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
           "source_id",
           rows.map((item) => item.id),
         )
-        .is("deleted_at", null);
-      if (classificationError) throw classificationError;
+        .is("replaced_at", null);
+      // A classificação complementa a conta, mas não pode ocultar o lançamento
+      // quando esse cadastro auxiliar estiver temporariamente indisponível.
+      if (classificationError) return rows;
       const bySource = new Map(
         (classifications ?? []).map((item: Record<string, unknown>) => [
           String(item.source_id),
