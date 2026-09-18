@@ -1323,7 +1323,7 @@ function Profile({
             <div key={label}>
               <p className="text-xs text-muted-foreground">{label}</p>
               <p
-                className={`font-medium ${
+                className={`text-sm font-medium ${
                   label === "E-mail" ? "break-all lowercase" : "break-words capitalize"
                 }`}
               >

@@ -50,7 +50,7 @@ function AuthenticatedLayout() {
       isModuleLocked(requiredModule, (module) => perms.has(module, "view")))
   ) {
     return (
-      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-sm text-foreground">
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader />
@@ -63,7 +63,7 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-sm text-foreground">
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
