@@ -509,7 +509,7 @@ function OperatingCompanyDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>
               {readOnly
@@ -541,8 +541,8 @@ function OperatingCompanyDialog({
                   Atividades{form.cnaes.length ? ` (${form.cnaes.length})` : ""}
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="dados" className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
+              <TabsContent value="dados" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="sm:col-span-2 lg:col-span-4">
                   <Label>Razão social *</Label>
                   <Input
                     value={form.legal_name}
@@ -615,14 +615,14 @@ function OperatingCompanyDialog({
                     onChange={(event) => setForm({ ...form, phone: maskPhone(event.target.value) })}
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-2">
                   <Label>Website</Label>
                   <Input
                     value={form.website}
                     onChange={(event) => setForm({ ...form, website: event.target.value })}
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
+                <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2 lg:col-span-2">
                   <div>
                     <div className="text-sm font-medium">Empresa ativa</div>
                     <div className="text-xs text-muted-foreground">
@@ -635,7 +635,10 @@ function OperatingCompanyDialog({
                   />
                 </div>
               </TabsContent>
-              <TabsContent value="endereco" className="mt-4 grid gap-3 sm:grid-cols-2">
+              <TabsContent
+                value="endereco"
+                className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              >
                 <div>
                   <Label>CEP</Label>
                   <div className="flex gap-2">
@@ -671,7 +674,7 @@ function OperatingCompanyDialog({
                     }
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-3">
                   <Label>Logradouro</Label>
                   <Input
                     value={form.address_street}

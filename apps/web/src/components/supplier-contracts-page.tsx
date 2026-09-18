@@ -331,50 +331,6 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
         </Badge>
       ),
     },
-    {
-      key: "actions",
-      label: "Ações",
-      cell: (row) => (
-        <div className="flex justify-end gap-1">
-          {canEdit ? (
-            <>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={`Editar contrato ${row.numero_contrato}`}
-                onClick={() => {
-                  setEditing(row);
-                  setOpen(true);
-                }}
-              >
-                <Pencil className="size-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={`Remover contrato ${row.numero_contrato}`}
-                onClick={() => setToDelete(row)}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={`Visualizar contrato ${row.numero_contrato}`}
-              onClick={() => {
-                setEditing(row);
-                setOpen(true);
-              }}
-            >
-              <Eye className="size-4" />
-            </Button>
-          )}
-        </div>
-      ),
-      className: "text-right",
-    },
   ];
 
   return (
@@ -426,9 +382,45 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
               "end",
               "value",
               "status",
-              "actions",
             ]}
             columns={columns}
+            rowActions={(row) =>
+              canEdit ? (
+                <>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Editar contrato ${row.numero_contrato}`}
+                    onClick={() => {
+                      setEditing(row);
+                      setOpen(true);
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Remover contrato ${row.numero_contrato}`}
+                    onClick={() => setToDelete(row)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Visualizar contrato ${row.numero_contrato}`}
+                  onClick={() => {
+                    setEditing(row);
+                    setOpen(true);
+                  }}
+                >
+                  <Eye className="size-4" />
+                </Button>
+              )
+            }
           />
         </Card>
       )}

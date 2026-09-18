@@ -486,7 +486,7 @@ function ContactDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {readOnly ? "Visualizar contato" : editing ? "Editar contato" : "Novo contato"}
@@ -494,7 +494,7 @@ function ContactDialog({
           </DialogHeader>
           <ReadOnlyNotice show={readOnly} />
           <form
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
             onSubmit={(e) => {
               e.preventDefault();
               if (readOnly) return;
@@ -506,7 +506,7 @@ function ContactDialog({
               save.mutate(r.data);
             }}
           >
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 lg:col-span-4">
               <Label>Cliente *</Label>
               <Select
                 value={form.company_id}

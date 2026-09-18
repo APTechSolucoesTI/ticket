@@ -556,7 +556,7 @@ function CompanyDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>
               {readOnly ? "Visualizar cliente" : editing ? "Editar cliente" : "Novo cliente"}
@@ -584,8 +584,11 @@ function CompanyDialog({
                   Atividades{form.cnaes.length ? ` (${form.cnaes.length})` : ""}
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="dados" className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
+              <TabsContent
+                value="dados"
+                className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              >
+                <div className="sm:col-span-2 lg:col-span-4">
                   <Label>Razão social *</Label>
                   <Input
                     value={form.name}
@@ -677,14 +680,14 @@ function CompanyDialog({
                     placeholder="55 11 99999-9999"
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-2">
                   <Label>Website</Label>
                   <Input
                     value={form.website}
                     onChange={(e) => setForm({ ...form, website: e.target.value })}
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
+                <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2 lg:col-span-2">
                   <div>
                     <div className="text-sm font-medium">Cliente VIP</div>
                     <div className="text-xs text-muted-foreground">Prioriza tickets na inbox.</div>
@@ -694,7 +697,7 @@ function CompanyDialog({
                     onCheckedChange={(v) => setForm({ ...form, is_vip: v })}
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-4">
                   <Label>Observações</Label>
                   <Textarea
                     rows={3}
@@ -703,7 +706,10 @@ function CompanyDialog({
                   />
                 </div>
               </TabsContent>
-              <TabsContent value="endereco" className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TabsContent
+                value="endereco"
+                className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              >
                 <div>
                   <Label>CEP</Label>
                   <div className="flex gap-2">
@@ -764,7 +770,7 @@ function CompanyDialog({
                     placeholder="SP"
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-3">
                   <Label>Logradouro</Label>
                   <Input
                     value={form.address_street}
