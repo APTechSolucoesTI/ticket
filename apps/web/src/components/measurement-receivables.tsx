@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileCheck2, FileCog, Loader2, Plus, Tags } from "lucide-react";
+import {
+  CircleDollarSign,
+  ExternalLink,
+  Eye,
+  FileCheck2,
+  FileCog,
+  Loader2,
+  Pencil,
+  Plus,
+  Tags,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@apticket/shared-types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -274,6 +284,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="justify-start"
                               onClick={() => setClassifying(receivable)}
                             >
                               <Tags className="size-4" /> Classificar
@@ -282,10 +293,11 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                           {receivable.operating_company_id && (
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
+                              className="justify-start"
                               onClick={() => setInterId(receivable.id)}
                             >
-                              Cobrança Inter
+                              <CircleDollarSign className="size-4" /> Cobrança
                             </Button>
                           )}
                           {receivable.medicao_id && !receivable.operating_company_id && (
@@ -308,7 +320,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                             </Button>
                           )}
                           {receivable.medicoes_contrato?.report_token && (
-                            <Button asChild size="sm" variant="ghost">
+                            <Button asChild size="sm" variant="ghost" className="justify-start">
                               <a
                                 href={`/measurement-report/${receivable.medicoes_contrato.report_token}`}
                                 target="_blank"
@@ -320,10 +332,19 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
                           )}
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            className="justify-start"
                             onClick={() => setEditing(receivable)}
                           >
-                            {canEdit ? "Revisar" : "Visualizar"}
+                            {canEdit ? (
+                              <>
+                                <Pencil className="size-4" /> Revisar
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="size-4" /> Visualizar
+                              </>
+                            )}
                           </Button>
                         </div>
                       </TableCell>
