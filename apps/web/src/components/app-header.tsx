@@ -138,9 +138,9 @@ export function AppHeader({ title }: { title?: string }) {
     setOpen(false);
     setQ("");
     if (r.kind === "ticket") navigate({ to: "/tickets/$id", params: { id: r.id } });
-    else if (r.kind === "company") navigate({ to: "/customers" });
+    else if (r.kind === "company") navigate({ to: "/customers", search: { record: r.id } });
     else if (r.kind === "kb") navigate({ to: "/kb/$slug", params: { slug: r.slug } });
-    else navigate({ to: "/contacts" });
+    else navigate({ to: "/contacts", search: { record: r.id } });
   };
 
   const handleSignOut = async () => {

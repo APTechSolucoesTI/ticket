@@ -56,6 +56,7 @@ import {
 } from "@/lib/cnae";
 
 export const Route = createFileRoute("/_authenticated/customers")({
+  validateSearch: z.object({ record: z.string().optional() }),
   head: () => ({ meta: [{ title: "Clientes - APTicket" }] }),
   component: CustomersPage,
 });
@@ -132,6 +133,8 @@ const schema = z.object({
 });
 
 function CustomersPage() {
+  const { record } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const access = useModulePermissions("clientes");
   const contactsAccess = useModulePermissions("contatos");
   const qc = useQueryClient();
@@ -151,6 +154,18 @@ function CustomersPage() {
       })) as Company[];
     },
   });
+
+  useEffect(() => {
+    if (!record || !data) return;
+
+    const company = data.find((item) => item.id === record);
+    if (company) {
+      setEditing(company);
+      setOpen(true);
+    }
+
+    void navigate({ search: {}, replace: true });
+  }, [data, navigate, record]);
 
   const del = useMutation({
     mutationFn: async (id: string) => {

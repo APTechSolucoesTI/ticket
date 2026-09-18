@@ -56,6 +56,7 @@ import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/pe
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
+  validateSearch: z.object({ record: z.string().optional() }),
   head: () => ({ meta: [{ title: "Contatos - APTicket" }] }),
   component: ContactsPage,
 });
@@ -99,6 +100,8 @@ const schema = z.object({
 });
 
 function ContactsPage() {
+  const { record } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const access = useModulePermissions("contatos");
   const ticketsAccess = useModulePermissions("tickets");
   const qc = useQueryClient();
@@ -119,6 +122,18 @@ function ContactsPage() {
       return data as Contact[];
     },
   });
+
+  useEffect(() => {
+    if (!record || !data) return;
+
+    const contact = data.find((item) => item.id === record);
+    if (contact) {
+      setEditing(contact);
+      setOpen(true);
+    }
+
+    void navigate({ search: {}, replace: true });
+  }, [data, navigate, record]);
 
   const del = useMutation({
     mutationFn: async (id: string) => {
