@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -161,8 +161,6 @@ function SuppliersPage() {
   const access = useModulePermissions("fornecedores");
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState("");
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<"all" | SupplierCategory>("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [toArchive, setToArchive] = useState<Supplier | null>(null);
@@ -203,20 +201,7 @@ function SuppliersPage() {
     },
   });
 
-  const rows = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase("pt-BR");
-    return (suppliers.data ?? []).filter((supplier) => {
-      const primaryCnae = supplier.cnaes.find((item) => item.is_primary);
-      const searchable =
-        `${supplier.legal_name} ${supplier.trade_name ?? ""} ${supplier.tax_id ?? ""} ${primaryCnae?.code ?? ""} ${primaryCnae?.description ?? ""}`.toLocaleLowerCase(
-          "pt-BR",
-        );
-      return (
-        (category === "all" || supplier.category === category) &&
-        (!term || searchable.includes(term))
-      );
-    });
-  }, [category, search, suppliers.data]);
+  const rows = suppliers.data ?? [];
 
   const archive = useMutation({
     mutationFn: async (supplier: Supplier) => {
@@ -355,41 +340,6 @@ function SuppliersPage() {
         />
       ) : (
         <>
-          <Card className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div>
-              <Label htmlFor="supplier-search">Buscar</Label>
-              <div className="relative mt-1">
-                <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input
-                  id="supplier-search"
-                  className="pl-9"
-                  placeholder="Razão social, nome fantasia, CNPJ ou CNAE"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Categoria</Label>
-              <Select
-                value={category}
-                onValueChange={(value) => setCategory(value as typeof category)}
-              >
-                <SelectTrigger className="mt-1 lg:w-56">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as categorias</SelectItem>
-                  {categories.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </Card>
-
           {suppliers.isLoading ? (
             <LoadingState label="Carregando fornecedores…" />
           ) : suppliers.isError ? (
@@ -401,11 +351,7 @@ function SuppliersPage() {
           ) : rows.length === 0 ? (
             <EmptyState
               title="Nenhum fornecedor encontrado"
-              description={
-                search || category !== "all"
-                  ? "Ajuste os filtros da listagem."
-                  : "Cadastre o primeiro fornecedor do grupo empresarial."
-              }
+              description="Cadastre o primeiro fornecedor do grupo empresarial."
             />
           ) : (
             <Card className="p-3">
