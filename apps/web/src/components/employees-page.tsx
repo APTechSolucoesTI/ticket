@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -28,8 +28,10 @@ import { getCurrentUserId } from "@/lib/session";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import { usePermissions } from "@/lib/use-permissions";
 import { formatCurrency } from "@/lib/number-format";
+import { maskPhone } from "@/lib/masks";
 import { PageHeader, EmptyStub } from "@/components/empty-stub";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -292,9 +294,6 @@ export function EmployeesPage() {
   const canPayroll = permissions.has("funcionarios", "payroll");
   const qc = useQueryClient();
   const [view, setView] = useState("employees");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-  const [department, setDepartment] = useState("all");
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Employee | null>(null);
 
@@ -383,24 +382,138 @@ export function EmployeesPage() {
       });
     },
   });
-  const rows = useMemo(
-    () =>
-      (query.data ?? []).filter((employee) => {
-        const term = search.trim().toLocaleLowerCase("pt-BR");
-        return (
-          (status === "all" || employee.status === status) &&
-          (department === "all" || employee.departamento === department) &&
-          (!term ||
-            `${employee.nome_completo} ${employee.nome_social ?? ""} ${employee.matricula} ${employee.cargo ?? ""}`
-              .toLocaleLowerCase("pt-BR")
-              .includes(term))
-        );
-      }),
-    [department, query.data, search, status],
-  );
-  const departments = [
-    ...new Set((query.data ?? []).map((item) => item.departamento).filter(Boolean)),
-  ] as string[];
+  const rows = query.data ?? [];
+  const columns: ListColumn<Employee>[] = [
+    {
+      key: "employee",
+      label: "Funcionário",
+      className: "font-medium",
+      accessor: (employee) => `${employee.nome_social ?? ""} ${employee.nome_completo}`,
+      cell: (employee) => (
+        <div className="flex items-center gap-2">
+          <UserRound className="size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <div className="truncate">{employee.nome_social || employee.nome_completo}</div>
+            {employee.nome_social ? (
+              <div className="max-w-72 truncate text-xs text-muted-foreground">
+                {employee.nome_completo}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "registration",
+      label: "Matrícula",
+      className: "font-mono text-xs",
+      accessor: (employee) => employee.matricula,
+      cell: (employee) => employee.matricula,
+    },
+    {
+      key: "position",
+      label: "Cargo",
+      accessor: (employee) => employee.cargo ?? "",
+      cell: (employee) => employee.cargo || "-",
+    },
+    {
+      key: "department",
+      label: "Departamento",
+      accessor: (employee) => employee.departamento ?? "",
+      cell: (employee) => employee.departamento || "-",
+    },
+    {
+      key: "company",
+      label: "Empresa",
+      accessor: (employee) =>
+        options.data?.companies.find((item) => item.id === employee.operating_company_id)?.label ??
+        "",
+      cell: (employee) =>
+        options.data?.companies.find((item) => item.id === employee.operating_company_id)?.label ||
+        "-",
+    },
+    {
+      key: "cost_center",
+      label: "Centro de custo",
+      accessor: (employee) =>
+        options.data?.centers.find((item) => item.id === employee.centro_custo_id)?.label ?? "",
+      cell: (employee) =>
+        options.data?.centers.find((item) => item.id === employee.centro_custo_id)?.label || "-",
+    },
+    {
+      key: "admission",
+      label: "Admissão",
+      accessor: (employee) => employee.data_admissao,
+      cell: (employee) => date(employee.data_admissao),
+    },
+    {
+      key: "contract",
+      label: "Contrato",
+      accessor: (employee) => employee.tipo_contrato,
+      cell: (employee) => employee.tipo_contrato.toUpperCase(),
+    },
+    {
+      key: "work_schedule",
+      label: "Jornada",
+      accessor: (employee) => employee.regime_jornada.replaceAll("_", " "),
+      cell: (employee) => employee.regime_jornada.replaceAll("_", " "),
+    },
+    {
+      key: "corporate_email",
+      label: "E-mail corporativo",
+      accessor: (employee) => employee.email_corporativo ?? "",
+      cell: (employee) => employee.email_corporativo || "-",
+    },
+    {
+      key: "phone",
+      label: "Telefone",
+      accessor: (employee) => employee.telefone_principal ?? "",
+      cell: (employee) =>
+        employee.telefone_principal ? maskPhone(employee.telefone_principal) : "-",
+    },
+    ...(canSensitive
+      ? [
+          {
+            key: "documents",
+            label: "Documentos",
+            accessor: (employee: Employee) => {
+              if (employee.documentos_vencidos) return "Vencidos";
+              if (employee.documentos_pendentes) return "Pendentes";
+              return "Em dia";
+            },
+            cell: (employee: Employee) => (
+              <div className="flex gap-1">
+                {employee.documentos_vencidos ? (
+                  <Badge variant="destructive">{employee.documentos_vencidos} vencido(s)</Badge>
+                ) : null}
+                {employee.documentos_pendentes ? (
+                  <Badge variant="outline">{employee.documentos_pendentes} pendente(s)</Badge>
+                ) : null}
+                {!employee.documentos_vencidos && !employee.documentos_pendentes ? (
+                  <Badge variant="secondary">Em dia</Badge>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            key: "salary",
+            label: "Salário",
+            accessor: (employee: Employee) => employee.salario ?? 0,
+            cell: (employee: Employee) => formatCurrency(employee.salario ?? 0),
+          },
+        ]
+      : []),
+    {
+      key: "status",
+      label: "Status",
+      accessor: (employee) => statusLabels[employee.status],
+      cell: (employee) => (
+        <Badge variant={employee.status === "ativo" ? "secondary" : "outline"}>
+          {statusLabels[employee.status]}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4 p-6">
@@ -422,45 +535,6 @@ export function EmployeesPage() {
           {canPayroll ? <TabsTrigger value="payroll">Fechamento de folha</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="employees" className="space-y-4">
-          <Card>
-            <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_200px_220px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Buscar por nome, matrícula ou cargo"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-              </div>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  {Object.entries(statusLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={department} onValueChange={setDepartment}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os departamentos</SelectItem>
-                  {departments.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
           {query.isLoading ? (
             <LoadingState label="Carregando funcionários…" />
           ) : query.isError ? (
@@ -471,81 +545,37 @@ export function EmployeesPage() {
             />
           ) : !rows.length ? (
             <EmptyStub
-              title="Nenhum funcionário encontrado"
-              message="Cadastre o primeiro colaborador ou ajuste os filtros."
+              title="Nenhum funcionário cadastrado"
+              message="Cadastre o primeiro colaborador para iniciar a gestão da equipe."
             />
           ) : (
-            <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-20">Ação</TableHead>
-                      <TableHead>Funcionário</TableHead>
-                      <TableHead>Matrícula</TableHead>
-                      <TableHead>Cargo</TableHead>
-                      <TableHead>Departamento</TableHead>
-                      <TableHead>Admissão</TableHead>
-                      {canSensitive ? <TableHead>Documentos</TableHead> : null}
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Abrir ficha de ${employee.nome_completo}`}
-                            onClick={() => setSelected(employee)}
-                          >
-                            <Eye className="size-4" />
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">
-                            {employee.nome_social || employee.nome_completo}
-                          </div>
-                          {employee.nome_social ? (
-                            <div className="text-xs text-muted-foreground">
-                              {employee.nome_completo}
-                            </div>
-                          ) : null}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{employee.matricula}</TableCell>
-                        <TableCell>{employee.cargo}</TableCell>
-                        <TableCell>{employee.departamento || "-"}</TableCell>
-                        <TableCell>{date(employee.data_admissao)}</TableCell>
-                        {canSensitive ? (
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {employee.documentos_vencidos ? (
-                                <Badge variant="destructive">
-                                  {employee.documentos_vencidos} vencido(s)
-                                </Badge>
-                              ) : null}
-                              {employee.documentos_pendentes ? (
-                                <Badge variant="outline">
-                                  {employee.documentos_pendentes} pendente(s)
-                                </Badge>
-                              ) : null}
-                              {!employee.documentos_vencidos && !employee.documentos_pendentes ? (
-                                <Badge variant="secondary">Em dia</Badge>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                        ) : null}
-                        <TableCell>
-                          <Badge variant={employee.status === "ativo" ? "secondary" : "outline"}>
-                            {statusLabels[employee.status]}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+            <Card className="p-3">
+              <ConfigurableTable<Employee>
+                listKey="employees"
+                rows={rows}
+                rowKey={(employee) => employee.id}
+                defaultColumns={[
+                  "employee",
+                  "registration",
+                  "position",
+                  "department",
+                  "admission",
+                  ...(canSensitive ? ["documents"] : []),
+                  "status",
+                ]}
+                columns={columns}
+                rowActions={(employee) => (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    title="Abrir ficha"
+                    aria-label={`Abrir ficha de ${employee.nome_completo}`}
+                    onClick={() => setSelected(employee)}
+                  >
+                    <Eye className="size-4" />
+                  </Button>
+                )}
+              />
             </Card>
           )}
         </TabsContent>
