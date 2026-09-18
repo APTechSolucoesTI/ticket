@@ -355,22 +355,7 @@ function SuppliersPage() {
         />
       ) : (
         <>
-          <Card className="grid gap-3 p-3 lg:grid-cols-[minmax(220px,320px)_1fr_auto] lg:items-end">
-            <div>
-              <Label>Empresa operadora para dados bancários</Label>
-              <Select value={companyId} onValueChange={setCompanyId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.data.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.legal_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <Card className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <Label htmlFor="supplier-search">Buscar</Label>
               <div className="relative mt-1">
