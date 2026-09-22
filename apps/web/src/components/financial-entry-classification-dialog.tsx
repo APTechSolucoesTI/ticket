@@ -57,16 +57,22 @@ export function FinancialEntryClassificationDialog({
       const [categories, centers] = await Promise.all([
         db
           .from("financial_categories")
-          .select("id,code,name,direction,description")
-          .eq("operating_company_id", entry.operating_company_id)
+          .select(
+            "id,operating_company_id,code,name,direction,description,is_global,is_active,classification_type",
+          )
+          .or(`operating_company_id.eq.${entry.operating_company_id},is_global.eq.true`)
           .eq("is_active", true)
+          .eq("classification_type", "analytic")
           .is("deleted_at", null)
           .order("code"),
         db
           .from("financial_cost_centers")
-          .select("id,code,name,description")
-          .eq("operating_company_id", entry.operating_company_id)
+          .select(
+            "id,operating_company_id,code,name,description,is_global,is_active,classification_type",
+          )
+          .or(`operating_company_id.eq.${entry.operating_company_id},is_global.eq.true`)
           .eq("is_active", true)
+          .eq("classification_type", "analytic")
           .is("deleted_at", null)
           .order("code"),
       ]);

@@ -47,16 +47,18 @@ export function FinancialDimensionFields({
         db
           .from("financial_categories")
           .select("id,code,name,direction")
-          .eq("operating_company_id", companyId)
+          .or(`operating_company_id.eq.${companyId},is_global.eq.true`)
           .eq("is_active", true)
+          .eq("classification_type", "analytic")
           .is("deleted_at", null)
           .in("direction", [direction, "both"])
           .order("code"),
         db
           .from("financial_cost_centers")
           .select("id,code,name")
-          .eq("operating_company_id", companyId)
+          .or(`operating_company_id.eq.${companyId},is_global.eq.true`)
           .eq("is_active", true)
+          .eq("classification_type", "analytic")
           .is("deleted_at", null)
           .order("code"),
       ]);
