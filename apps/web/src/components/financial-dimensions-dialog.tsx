@@ -77,16 +77,24 @@ function maskCode(value: string) {
 }
 
 function codeLevel(code: string) {
+  if (!CODE_PATTERN.test(code)) return Math.max(0, code.split(".").length - 1);
   const [, middle = "00", last = "0000"] = code.split(".");
   return last !== "0000" ? 2 : middle !== "00" ? 1 : 0;
 }
 
-function ancestorCodes(code: string) {
-  const [first, middle, last] = code.split(".");
-  if (!first || !middle || !last) return [];
-  if (last !== "0000") return [`${first}.00.0000`, `${first}.${middle}.0000`];
-  if (middle !== "00") return [`${first}.00.0000`];
-  return [];
+function isDescendantCode(parentCode: string, childCode: string) {
+  if (parentCode === childCode) return false;
+  if (!CODE_PATTERN.test(parentCode) || !CODE_PATTERN.test(childCode)) {
+    return childCode.startsWith(`${parentCode}.`);
+  }
+
+  const parent = parentCode.split(".");
+  const child = childCode.split(".");
+  const parentLevel = codeLevel(parentCode);
+  const childLevel = codeLevel(childCode);
+  if (childLevel <= parentLevel || parent[0] !== child[0]) return false;
+  if (parentLevel === 0) return true;
+  return parent[1] === child[1];
 }
 
 function suggestedChildCode(parentCode: string, items: Dimension[]) {
@@ -123,7 +131,6 @@ export function FinancialDimensionsDialog({
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<Editor>();
-  const [collapsed, setCollapsed] = useState(() => new Set<string>());
   const query = useQuery({
     queryKey: ["financial-dimensions", companyId],
     queryFn: async () => {
@@ -254,14 +261,6 @@ export function FinancialDimensionsDialog({
       isActive: !item.is_active,
       classificationType: item.classification_type,
     });
-  const toggleCollapsed = (id: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-6xl">
@@ -305,9 +304,7 @@ export function FinancialDimensionsDialog({
                   items={query.data?.categories ?? []}
                   companyNames={companyNames}
                   canEdit={canEdit}
-                  collapsed={collapsed}
                   saving={save.isPending}
-                  onToggleCollapsed={toggleCollapsed}
                   onAdd={() => openNewEditor("category")}
                   onAddChild={(item) =>
                     openNewEditor(
@@ -329,9 +326,7 @@ export function FinancialDimensionsDialog({
                   items={query.data?.centers ?? []}
                   companyNames={companyNames}
                   canEdit={canEdit}
-                  collapsed={collapsed}
                   saving={save.isPending}
-                  onToggleCollapsed={toggleCollapsed}
                   onAdd={() => openNewEditor("cost_center")}
                   onAddChild={(item) =>
                     openNewEditor(
@@ -491,9 +486,7 @@ function DimensionList({
   items,
   companyNames,
   canEdit,
-  collapsed,
   saving,
-  onToggleCollapsed,
   onAdd,
   onAddChild,
   onEdit,
@@ -506,19 +499,30 @@ function DimensionList({
   items: Dimension[];
   companyNames: Map<string, string>;
   canEdit: boolean;
-  collapsed: Set<string>;
   saving: boolean;
-  onToggleCollapsed(id: string): void;
   onAdd(): void;
   onAddChild(item: Dimension): void;
   onEdit(item: Dimension): void;
   onToggleActive(item: Dimension): void;
   onArchive(item: Dimension): void;
 }) {
-  const collapsedCodes = items.filter((item) => collapsed.has(item.id)).map((item) => item.code);
-  const visible = items.filter(
-    (item) => !ancestorCodes(item.code).some((code) => collapsedCodes.includes(code)),
+  const [collapsed, setCollapsed] = useState(() => new Set<string>());
+  const groups = items.filter((item) => item.classification_type === "synthetic");
+  const collapsedGroups = groups.filter((item) => collapsed.has(item.id));
+  const visible = items.filter((item) =>
+    collapsedGroups.every(
+      (group) =>
+        group.operating_company_id !== item.operating_company_id ||
+        !isDescendantCode(group.code, item.code),
+    ),
   );
+  const toggleCollapsed = (id: string) =>
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   return (
     <section className="space-y-3 pb-5">
       <div className="flex items-center justify-between gap-3">
@@ -531,12 +535,36 @@ function DimensionList({
             Sintéticas agrupam; apenas analíticas ativas recebem lançamentos.
           </p>
         </div>
-        {canEdit ? (
-          <Button size="sm" className="gap-2" onClick={onAdd}>
-            <Plus className="size-4" />
-            Adicionar
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          {groups.length ? (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!collapsed.size}
+                onClick={() => setCollapsed(new Set())}
+              >
+                <ChevronDown className="mr-1.5 size-4" />
+                Expandir todos
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={groups.every((item) => collapsed.has(item.id))}
+                onClick={() => setCollapsed(new Set(groups.map((item) => item.id)))}
+              >
+                <ChevronRight className="mr-1.5 size-4" />
+                Recolher todos
+              </Button>
+            </>
+          ) : null}
+          {canEdit ? (
+            <Button size="sm" className="gap-2" onClick={onAdd}>
+              <Plus className="size-4" />
+              Adicionar
+            </Button>
+          ) : null}
+        </div>
       </div>
       {visible.length ? (
         <div className="overflow-x-auto rounded-lg border bg-background">
@@ -566,7 +594,8 @@ function DimensionList({
                         aria-label={
                           collapsed.has(item.id) ? `Expandir ${item.name}` : `Recolher ${item.name}`
                         }
-                        onClick={() => onToggleCollapsed(item.id)}
+                        aria-expanded={!collapsed.has(item.id)}
+                        onClick={() => toggleCollapsed(item.id)}
                       >
                         {collapsed.has(item.id) ? (
                           <ChevronRight className="size-4" />
