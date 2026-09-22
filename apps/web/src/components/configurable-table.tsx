@@ -40,6 +40,7 @@ type Props<T> = {
   rowKey: (row: T) => string;
   rowClassName?: (row: T) => string | undefined;
   rowActions?: (row: T) => ReactNode;
+  toolbar?: ReactNode;
 };
 
 type SortState = { key: string; dir: "asc" | "desc" } | null;
@@ -124,6 +125,7 @@ export function ConfigurableTable<T>({
   rowKey,
   rowClassName,
   rowActions,
+  toolbar,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [sort, setSort] = useState<SortState>(null);
@@ -192,9 +194,13 @@ export function ConfigurableTable<T>({
     setPage(1);
   }, [filters, sort, pageSize]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [rows]);
+
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <PaginationControls
           page={page}
           pageCount={pageCount}
@@ -202,7 +208,12 @@ export function ConfigurableTable<T>({
           pageSize={pageSize}
           onPageChange={setPage}
         />
-        <div className="flex items-center gap-2">
+        {toolbar ? (
+          <div className="min-w-0 flex-1 lg:px-4">{toolbar}</div>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <div className="ml-auto flex items-center gap-2">
           {activeFilterCount > 0 && (
             <Button size="sm" variant="ghost" onClick={() => setFilters({})}>
               <X className="mr-1 h-4 w-4" /> Limpar filtros ({activeFilterCount})

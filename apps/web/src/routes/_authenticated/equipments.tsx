@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Monitor, Upload, Eye } from "lucide-react";
+import {
+  Building2,
+  Check,
+  ChevronsUpDown,
+  Plus,
+  Pencil,
+  Trash2,
+  Monitor,
+  Upload,
+  Eye,
+} from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
@@ -13,6 +23,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -239,6 +259,7 @@ function EquipmentsPage() {
   const [editing, setEditing] = useState<Equipment | null>(null);
   const [toDelete, setToDelete] = useState<Equipment | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["equipments"],
@@ -251,6 +272,30 @@ function EquipmentsPage() {
       return data as Equipment[];
     },
   });
+
+  const companyOptions = useMemo(() => {
+    const companies = new Map<string, string>();
+    for (const equipment of data ?? []) {
+      if (equipment.company_id && equipment.companies?.name) {
+        companies.set(equipment.company_id, equipment.companies.name);
+      }
+    }
+    return Array.from(companies, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
+    );
+  }, [data]);
+
+  const filteredEquipments = useMemo(() => {
+    if (!data || selectedCompanyIds.length === 0) return data ?? [];
+    const selected = new Set(selectedCompanyIds);
+    return data.filter((equipment) => selected.has(equipment.company_id));
+  }, [data, selectedCompanyIds]);
+
+  useEffect(() => {
+    if (!data) return;
+    const available = new Set(companyOptions.map((company) => company.id));
+    setSelectedCompanyIds((current) => current.filter((id) => available.has(id)));
+  }, [data, companyOptions]);
 
   const del = useMutation({
     mutationFn: async (id: string) => {
@@ -303,10 +348,17 @@ function EquipmentsPage() {
         <Card className="p-3">
           <ConfigurableTable<Equipment>
             listKey="equipments"
-            rows={data}
+            rows={filteredEquipments}
             rowKey={(e) => e.id}
             defaultColumns={DEFAULT_COLUMNS}
             columns={COLUMNS}
+            toolbar={
+              <ClientFilter
+                companies={companyOptions}
+                selectedIds={selectedCompanyIds}
+                onChange={setSelectedCompanyIds}
+              />
+            }
             rowActions={(e) => (
               <>
                 <Button
@@ -359,6 +411,116 @@ function EquipmentsPage() {
       )}
     </div>
   );
+}
+
+function ClientFilter({
+  companies,
+  selectedIds,
+  onChange,
+}: {
+  companies: Array<{ id: string; name: string }>;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const allSelected = selectedIds.length === 0;
+  const selectedNames = companies
+    .filter((company) => selectedIds.includes(company.id))
+    .map((company) => company.name);
+  const label = allSelected
+    ? "Todos os clientes"
+    : selectedNames.length === 1
+      ? selectedNames[0]
+      : `${selectedNames.length} clientes selecionados`;
+
+  const toggleCompany = (id: string) => {
+    if (allSelected) {
+      onChange([id]);
+      return;
+    }
+    const next = selectedIds.includes(id)
+      ? selectedIds.filter((currentId) => currentId !== id)
+      : [...selectedIds, id];
+    onChange(next.length === companies.length ? [] : next);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden text-xs font-medium text-muted-foreground sm:inline">Cliente</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-label="Filtrar equipamentos por cliente"
+            className="h-9 min-w-0 max-w-full justify-between gap-2 sm:w-72"
+            disabled={companies.length === 0}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{label}</span>
+            </span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">
+          <Command>
+            <CommandInput placeholder="Buscar cliente..." />
+            <CommandList>
+              <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="Todos os clientes"
+                  onSelect={() => onChange([])}
+                  className="gap-2"
+                >
+                  <Checkbox
+                    checked={allSelected}
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    className="pointer-events-none"
+                  />
+                  <span className="flex-1">Todos os clientes</span>
+                  {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+                </CommandItem>
+                {companies.map((company) => {
+                  const selected = selectedIds.includes(company.id);
+                  return (
+                    <CommandItem
+                      key={company.id}
+                      value={company.name}
+                      onSelect={() => toggleCompany(company.id)}
+                      className="gap-2"
+                    >
+                      <Checkbox
+                        checked={selected}
+                        aria-hidden="true"
+                        tabIndex={-1}
+                        className="pointer-events-none"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{company.name}</span>
+                      {selected ? <Check className="h-4 w-4 text-primary" /> : null}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {!allSelected ? (
+        <Badge variant="secondary" className="shrink-0 font-normal">
+          {filteredLabel(selectedIds.length)}
+        </Badge>
+      ) : null}
+    </div>
+  );
+}
+
+function filteredLabel(count: number) {
+  return `${count} ${count === 1 ? "selecionado" : "selecionados"}`;
 }
 
 function EquipmentDialog({
