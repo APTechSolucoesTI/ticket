@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 type PortalDocument = {
   id: string;
-  document_type: "medicao" | "fatura" | "nfse" | "boleto" | "outro";
+  document_type: "medicao" | "fatura" | "nfse" | "nfe" | "xml" | "boleto" | "outro";
   competencia: string;
   historico: string | null;
   file_name: string;
@@ -21,6 +21,8 @@ const typeLabels: Record<PortalDocument["document_type"], string> = {
   medicao: "Medição",
   fatura: "Fatura",
   nfse: "NFS-e",
+  nfe: "NF-e",
+  xml: "XML",
   boleto: "Boleto",
   outro: "Outro",
 };

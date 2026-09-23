@@ -2742,7 +2742,7 @@ export type Database = {
     };
     Enums: {
       contract_status: "active" | "suspended" | "cancelled" | "expired";
-      document_type: "medicao" | "fatura" | "nfse" | "boleto" | "outro";
+      document_type: "medicao" | "fatura" | "nfse" | "nfe" | "xml" | "boleto" | "outro";
       kb_status: "draft" | "published";
       message_author_type: "agent" | "contact" | "system";
       motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato";

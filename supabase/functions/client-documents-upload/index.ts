@@ -14,7 +14,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_FILES = 20;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])-01$/;
-const documentTypes = new Set(["medicao", "fatura", "nfse", "boleto", "outro"]);
+const documentTypes = new Set(["medicao", "fatura", "nfse", "nfe", "xml", "boleto", "outro"]);
 const fileTypes: Record<string, Set<string>> = {
   pdf: new Set(["application/pdf"]),
   xls: new Set(["application/vnd.ms-excel", "application/octet-stream"]),

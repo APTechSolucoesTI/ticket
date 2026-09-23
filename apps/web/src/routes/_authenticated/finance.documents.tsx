@@ -11,6 +11,7 @@ import {
   FileText,
   Loader2,
   Pencil,
+  Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -65,7 +66,7 @@ export const Route = createFileRoute("/_authenticated/finance/documents")({
   component: FinancialDocumentsPage,
 });
 
-type DocumentType = "medicao" | "fatura" | "nfse" | "boleto" | "outro";
+type DocumentType = "medicao" | "fatura" | "nfse" | "nfe" | "xml" | "boleto" | "outro";
 type ClientDocument = {
   id: string;
   document_type: DocumentType;
@@ -82,6 +83,8 @@ const DOCUMENT_TYPES: Array<{ value: DocumentType; label: string }> = [
   { value: "medicao", label: "Medição" },
   { value: "fatura", label: "Fatura" },
   { value: "nfse", label: "NFS-e" },
+  { value: "nfe", label: "NF-e" },
+  { value: "xml", label: "XML" },
   { value: "boleto", label: "Boleto" },
   { value: "outro", label: "Outro" },
 ];
@@ -553,7 +556,7 @@ function DocumentList({
                     aria-label={`Remover ${document.file_name}`}
                     onClick={() => onArchive(document)}
                   >
-                    <FileArchive className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 ) : null}
               </div>
