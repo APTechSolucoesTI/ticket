@@ -42,11 +42,12 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
 
         const { data: contacts, error: contactError } = await supabaseAdmin
           .from("contacts")
-          .select("id, tenant_id, company_id, can_open_tickets, is_active")
+          .select(
+            "id, tenant_id, company_id, can_open_tickets, is_portal_admin, is_portal_financial, is_active",
+          )
           .ilike("email", email)
           .not("company_id", "is", null)
           .eq("is_active", true)
-          .eq("can_open_tickets", true)
           .limit(2);
 
         // Always respond identically whether or not the contact exists -
@@ -66,7 +67,7 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           !contact ||
           !contact.company_id ||
           contact.is_active === false ||
-          contact.can_open_tickets === false
+          (!contact.can_open_tickets && !contact.is_portal_admin && !contact.is_portal_financial)
         ) {
           return genericResponse();
         }

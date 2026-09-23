@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/portal/session")({
         const { data: contact } = await supabaseAdmin
           .from("contacts")
           .select(
-            "id, tenant_id, company_id, name, email, can_open_tickets, is_active, companies(name)",
+            "id, tenant_id, company_id, name, email, can_open_tickets, is_portal_admin, is_portal_financial, is_active, companies(name)",
           )
           .eq("id", session.contact_id)
           .eq("tenant_id", session.tenant_id)
@@ -92,6 +92,9 @@ export const Route = createFileRoute("/api/public/portal/session")({
                 (contact as { companies?: { name?: string | null } | null }).companies?.name ??
                 null,
               can_open_tickets: contact.can_open_tickets !== false && contact.is_active !== false,
+              is_portal_admin: contact.is_portal_admin === true && contact.is_active !== false,
+              is_portal_financial:
+                contact.is_portal_financial === true && contact.is_active !== false,
             },
             has_active_contract: contracts.length > 0,
             contracts,

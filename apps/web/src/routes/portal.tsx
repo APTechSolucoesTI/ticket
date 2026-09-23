@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,9 +38,13 @@ import {
   FileSpreadsheet,
   FileText,
   Paperclip,
+  ReceiptText,
   Search,
+  UserRoundCog,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { PortalContactManagement } from "@/components/portal-contact-management";
+import { PortalFinancialDocuments } from "@/components/portal-financial-documents";
 import {
   getPortalToken,
   portalFetch,
@@ -74,6 +78,8 @@ type SessionData = {
     email: string;
     company_name: string | null;
     can_open_tickets: boolean;
+    is_portal_admin: boolean;
+    is_portal_financial: boolean;
   };
   has_active_contract: boolean;
   contracts: ContractOption[];
@@ -90,6 +96,7 @@ type SessionData = {
 };
 
 type LoginStep = "email" | "otp";
+type PortalSection = "tickets" | "contacts" | "invoices";
 
 const ticketStatusLabels: Record<TicketStatus, string> = {
   new: "Novo",
@@ -341,6 +348,13 @@ type TicketDetail = {
 };
 
 function PortalDashboard({ session, reload }: { session: SessionData; reload: () => void }) {
+  const [activeSection, setActiveSection] = useState<PortalSection>(
+    session.contact.can_open_tickets
+      ? "tickets"
+      : session.contact.is_portal_financial
+        ? "invoices"
+        : "contacts",
+  );
   const [showForm, setShowForm] = useState(false);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
@@ -604,6 +618,62 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
     }
   };
 
+  const ticketActions = (
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+      <Button variant="ghost" size="sm" onClick={reload} aria-label="Atualizar portal">
+        <RefreshCw className="h-3.5 w-3.5" />
+      </Button>
+      {canOpen && <HomeChat authenticatedSession={session} onTicketCreated={reload} />}
+      {canOpen && (
+        <Button
+          size="sm"
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              return;
+            }
+            if (session.contracts.length === 0) {
+              startTicketFlow("");
+            } else {
+              setContractPicker({
+                open: true,
+                selected: session.contracts.length === 1 ? session.contracts[0].id : "",
+              });
+            }
+          }}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> Novo chamado
+        </Button>
+      )}
+    </div>
+  );
+
+  if (activeSection === "contacts") {
+    return (
+      <div className="space-y-6">
+        <PortalDashboardHeader
+          session={session}
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+        />
+        <PortalContactManagement currentContactId={session.contact.id} reloadSession={reload} />
+      </div>
+    );
+  }
+
+  if (activeSection === "invoices") {
+    return (
+      <div className="space-y-6">
+        <PortalDashboardHeader
+          session={session}
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+        />
+        <PortalFinancialDocuments />
+      </div>
+    );
+  }
+
   if (selected) {
     return (
       <div className="space-y-4">
@@ -758,47 +828,12 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
-        <div>
-          <h2 className="text-xl font-semibold">Olá, {session.contact.name}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {session.contact.company_name ?? "Sem empresa"}
-            {" · "}
-            {session.has_active_contract ? (
-              <span className="text-green-600 dark:text-green-400">Contrato ativo</span>
-            ) : (
-              <span className="text-yellow-600 dark:text-yellow-400">Sem contrato ativo</span>
-            )}
-          </p>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-          <Button variant="ghost" size="sm" onClick={reload}>
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-          {canOpen && <HomeChat authenticatedSession={session} onTicketCreated={reload} />}
-          {canOpen && (
-            <Button
-              size="sm"
-              onClick={() => {
-                if (showForm) {
-                  setShowForm(false);
-                  return;
-                }
-                if (session.contracts.length === 0) {
-                  startTicketFlow("");
-                } else {
-                  setContractPicker({
-                    open: true,
-                    selected: session.contracts.length === 1 ? session.contracts[0].id : "",
-                  });
-                }
-              }}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Novo chamado
-            </Button>
-          )}
-        </div>
-      </div>
+      <PortalDashboardHeader
+        session={session}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        actions={ticketActions}
+      />
 
       <PortalStats tickets={session.tickets} />
 
@@ -1171,6 +1206,73 @@ function PortalDashboard({ session, reload }: { session: SessionData; reload: ()
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function PortalDashboardHeader({
+  session,
+  activeSection,
+  onSectionChange,
+  actions,
+}: {
+  session: SessionData;
+  activeSection: PortalSection;
+  onSectionChange(section: PortalSection): void;
+  actions?: ReactNode;
+}) {
+  const sections = [
+    ...(session.contact.can_open_tickets
+      ? [{ id: "tickets" as const, label: "Chamados", icon: Inbox }]
+      : []),
+    ...(session.contact.is_portal_financial
+      ? [{ id: "invoices" as const, label: "Faturas", icon: ReceiptText }]
+      : []),
+    ...(session.contact.is_portal_admin
+      ? [{ id: "contacts" as const, label: "Contatos", icon: UserRoundCog }]
+      : []),
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+        <div>
+          <h2 className="text-xl font-semibold">Olá, {session.contact.name}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {session.contact.company_name ?? "Sem empresa"}
+            {" · "}
+            {session.has_active_contract ? (
+              <span className="text-green-600 dark:text-green-400">Contrato ativo</span>
+            ) : (
+              <span className="text-yellow-600 dark:text-yellow-400">Sem contrato ativo</span>
+            )}
+          </p>
+        </div>
+        {actions}
+      </div>
+      {sections.length > 1 ? (
+        <nav
+          className="flex gap-1 overflow-x-auto rounded-lg border bg-muted/25 p-1"
+          aria-label="Áreas do portal"
+        >
+          {sections.map((section) => {
+            const Icon = section.icon;
+            const active = section.id === activeSection;
+            return (
+              <Button
+                key={section.id}
+                type="button"
+                size="sm"
+                variant={active ? "secondary" : "ghost"}
+                aria-current={active ? "page" : undefined}
+                className="shrink-0"
+                onClick={() => onSectionChange(section.id)}
+              >
+                <Icon className="mr-2 h-4 w-4" /> {section.label}
+              </Button>
+            );
+          })}
+        </nav>
+      ) : null}
     </div>
   );
 }

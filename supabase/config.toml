@@ -35,3 +35,13 @@ entrypoint = "./functions/buscar-cep/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/criar-lancamento-financeiro-funcionario/index.ts"
+
+[functions.client-documents-upload]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/client-documents-upload/index.ts"
+
+[functions.client-document-download]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/client-document-download/index.ts"

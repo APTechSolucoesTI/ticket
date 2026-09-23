@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronDown,
   FileText,
+  Files,
   CircleDollarSign,
   Headset,
   Inbox,
@@ -121,6 +122,12 @@ const NAV_SECTIONS: NavSection[] = [
         icon: CircleDollarSign,
         module: "financeiro",
         children: [
+          {
+            to: "/finance/documents",
+            label: "Disponibilizar documentos",
+            icon: Files,
+            module: "financeiro.disponibilizar_documentos",
+          },
           {
             to: "/finance/receivables",
             label: "Contas a receber",

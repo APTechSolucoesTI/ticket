@@ -8,7 +8,7 @@ import {
   Pencil,
   Plus,
   Tickets,
-  Trash2,
+  UserX,
   Upload,
   User,
 } from "lucide-react";
@@ -71,6 +71,8 @@ type Contact = {
   can_open_tickets: boolean;
   receives_csat: boolean;
   is_active: boolean;
+  is_portal_admin: boolean;
+  is_portal_financial: boolean;
   companies?: { name: string } | null;
 };
 
@@ -97,6 +99,8 @@ const schema = z.object({
   can_open_tickets: z.boolean(),
   receives_csat: z.boolean(),
   is_active: z.boolean(),
+  is_portal_admin: z.boolean(),
+  is_portal_financial: z.boolean(),
 });
 
 function ContactsPage() {
@@ -137,11 +141,14 @@ function ContactsPage() {
 
   const del = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("contacts").delete().eq("id", id);
+      const { error } = await supabase
+        .from("contacts")
+        .update({ is_active: false, can_open_tickets: false })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Contato removido");
+      toast.success("Contato inativado");
       qc.invalidateQueries({ queryKey: ["contacts"] });
       setToDelete(null);
     },
@@ -232,11 +239,13 @@ function ContactsPage() {
                   key: "flags",
                   label: "Situação",
                   accessor: (c) =>
-                    `${c.is_active ? "Ativo" : "Inativo"} ${c.can_open_tickets ? "Com abertura" : "Sem abertura"}`,
+                    `${c.is_active ? "Ativo" : "Inativo"} ${c.can_open_tickets ? "Com abertura" : "Sem abertura"} ${c.is_portal_admin ? "Administrador do portal" : ""} ${c.is_portal_financial ? "Financeiro do portal" : ""}`,
                   cell: (c) => (
-                    <div className="space-x-1">
+                    <div className="flex flex-wrap gap-1">
                       {!c.is_active && <Badge variant="outline">Inativo</Badge>}
                       {!c.can_open_tickets && <Badge variant="outline">Sem abertura</Badge>}
+                      {c.is_portal_admin && <Badge variant="secondary">Admin. portal</Badge>}
+                      {c.is_portal_financial && <Badge variant="secondary">Financeiro</Badge>}
                     </div>
                   ),
                 },
@@ -270,7 +279,7 @@ function ContactsPage() {
                 </Button>
                 {access.delete && (
                   <Button variant="ghost" size="icon" onClick={() => setToDelete(c)}>
-                    <Trash2 className="h-4 w-4" />
+                    <UserX className="h-4 w-4" />
                   </Button>
                 )}
               </>
@@ -295,15 +304,15 @@ function ContactsPage() {
         <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remover contato?</AlertDialogTitle>
+              <AlertDialogTitle>Inativar contato?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação removerá <b>{toDelete?.name}</b>.
+                <b>{toDelete?.name}</b> perderá o acesso, mas seu histórico será preservado.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={() => toDelete && del.mutate(toDelete.id)}>
-                Remover
+                Inativar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -420,6 +429,8 @@ function ContactDialog({
     can_open_tickets: true,
     receives_csat: true,
     is_active: true,
+    is_portal_admin: false,
+    is_portal_financial: false,
   });
 
   const { data: companies } = useQuery({
@@ -446,6 +457,8 @@ function ContactDialog({
         can_open_tickets: payload.can_open_tickets,
         receives_csat: payload.receives_csat,
         is_active: payload.is_active,
+        is_portal_admin: payload.is_portal_admin,
+        is_portal_financial: payload.is_portal_financial,
       };
 
       if (payload.phone) {
@@ -495,6 +508,8 @@ function ContactDialog({
       can_open_tickets: editing?.can_open_tickets ?? true,
       receives_csat: editing?.receives_csat ?? true,
       is_active: editing?.is_active ?? true,
+      is_portal_admin: editing?.is_portal_admin ?? false,
+      is_portal_financial: editing?.is_portal_financial ?? false,
     });
   }, [open, editing]);
 
@@ -588,6 +603,26 @@ function ContactDialog({
               <Switch
                 checked={form.is_active}
                 onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
+              <div>
+                <div className="text-sm">Administrador do portal</div>
+                <div className="text-xs text-muted-foreground">Gerencia contatos da empresa</div>
+              </div>
+              <Switch
+                checked={form.is_portal_admin}
+                onCheckedChange={(v) => setForm({ ...form, is_portal_admin: v })}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
+              <div>
+                <div className="text-sm">Financeiro no portal</div>
+                <div className="text-xs text-muted-foreground">Acessa faturas e documentos</div>
+              </div>
+              <Switch
+                checked={form.is_portal_financial}
+                onCheckedChange={(v) => setForm({ ...form, is_portal_financial: v })}
               />
             </div>
             <DialogFooter className="sm:col-span-2">

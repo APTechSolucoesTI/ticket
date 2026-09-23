@@ -36,6 +36,12 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
   { key: "relatorios", label: "Relatórios", actions: ["view"] },
   { key: "financeiro", label: "Financeiro", actions: ["view", "edit"] },
   {
+    key: "financeiro.disponibilizar_documentos",
+    label: "Disponibilizar documentos",
+    actions: ["view", "create", "edit", "delete"],
+    parent: "financeiro",
+  },
+  {
     key: "financeiro_contas_receber",
     label: "Contas a receber",
     actions: ["view", "edit"],
@@ -172,6 +178,10 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/contracts", module: "contratos" },
   { prefix: "/kb", module: "base_conhecimento" },
   { prefix: "/reports", module: "relatorios" },
+  {
+    prefix: "/finance/documents",
+    module: "financeiro.disponibilizar_documentos",
+  },
   { prefix: "/finance/receivables", module: "financeiro_contas_receber" },
   { prefix: "/finance/payables", module: "financeiro_contas_pagar" },
   { prefix: "/supplier-contracts", module: "financeiro_contas_pagar" },

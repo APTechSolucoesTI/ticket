@@ -223,6 +223,8 @@ export type Database = {
           email: string | null;
           id: string;
           is_active: boolean;
+          is_portal_admin: boolean;
+          is_portal_financial: boolean;
           job_title: string | null;
           name: string;
           notes: string | null;
@@ -238,6 +240,8 @@ export type Database = {
           email?: string | null;
           id?: string;
           is_active?: boolean;
+          is_portal_admin?: boolean;
+          is_portal_financial?: boolean;
           job_title?: string | null;
           name: string;
           notes?: string | null;
@@ -253,6 +257,8 @@ export type Database = {
           email?: string | null;
           id?: string;
           is_active?: boolean;
+          is_portal_admin?: boolean;
+          is_portal_financial?: boolean;
           job_title?: string | null;
           name?: string;
           notes?: string | null;
@@ -274,6 +280,118 @@ export type Database = {
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      client_documents: {
+        Row: {
+          company_id: string;
+          competencia: string;
+          created_at: string;
+          deleted_at: string | null;
+          document_type: Database["apticket"]["Enums"]["document_type"];
+          file_name: string;
+          file_path: string;
+          file_size: number | null;
+          historico: string | null;
+          id: string;
+          mime_type: string;
+          tenant_id: string;
+          updated_at: string;
+          uploaded_by: string;
+        };
+        Insert: {
+          company_id: string;
+          competencia: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          document_type: Database["apticket"]["Enums"]["document_type"];
+          file_name: string;
+          file_path: string;
+          file_size?: number | null;
+          historico?: string | null;
+          id?: string;
+          mime_type: string;
+          tenant_id: string;
+          updated_at?: string;
+          uploaded_by: string;
+        };
+        Update: {
+          company_id?: string;
+          competencia?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          document_type?: Database["apticket"]["Enums"]["document_type"];
+          file_name?: string;
+          file_path?: string;
+          file_size?: number | null;
+          historico?: string | null;
+          id?: string;
+          mime_type?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          uploaded_by?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "client_documents_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "client_documents_uploaded_by_fkey";
+            columns: ["uploaded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      document_downloads: {
+        Row: {
+          contact_id: string;
+          document_id: string;
+          downloaded_at: string;
+          id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          contact_id: string;
+          document_id: string;
+          downloaded_at?: string;
+          id?: string;
+          tenant_id: string;
+        };
+        Update: {
+          contact_id?: string;
+          document_id?: string;
+          downloaded_at?: string;
+          id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_downloads_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "document_downloads_document_id_fkey";
+            columns: ["document_id"];
+            isOneToOne: false;
+            referencedRelation: "client_documents";
             referencedColumns: ["id"];
           },
         ];
@@ -2624,6 +2742,7 @@ export type Database = {
     };
     Enums: {
       contract_status: "active" | "suspended" | "cancelled" | "expired";
+      document_type: "medicao" | "fatura" | "nfse" | "boleto" | "outro";
       kb_status: "draft" | "published";
       message_author_type: "agent" | "contact" | "system";
       motivo_avulso: "cliente_sem_contrato" | "equipamento_sem_contrato";

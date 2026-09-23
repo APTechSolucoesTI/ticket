@@ -45,6 +45,7 @@ import { Route as AuthenticatedFinanceAnalyticsRouteImport } from './routes/_aut
 import { Route as AuthenticatedFinanceBankingRouteImport } from './routes/_authenticated/finance.banking'
 import { Route as AuthenticatedFinanceCashFlowRouteImport } from './routes/_authenticated/finance.cash-flow'
 import { Route as AuthenticatedFinanceClosingRouteImport } from './routes/_authenticated/finance.closing'
+import { Route as AuthenticatedFinanceDocumentsRouteImport } from './routes/_authenticated/finance.documents'
 import { Route as AuthenticatedFinancePayablesRouteImport } from './routes/_authenticated/finance.payables'
 import { Route as AuthenticatedFinancePlanningRouteImport } from './routes/_authenticated/finance.planning'
 import { Route as AuthenticatedFinanceReceivablesRouteImport } from './routes/_authenticated/finance.receivables'
@@ -52,6 +53,9 @@ import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
 import { Route as ApiPublicPortalChatStartRouteImport } from './routes/api/public/portal/chat-start'
+import { Route as ApiPublicPortalContactsRouteImport } from './routes/api/public/portal/contacts'
+import { Route as ApiPublicPortalDocumentDownloadRouteImport } from './routes/api/public/portal/document-download'
+import { Route as ApiPublicPortalDocumentsRouteImport } from './routes/api/public/portal/documents'
 import { Route as ApiPublicPortalRequestOtpRouteImport } from './routes/api/public/portal/request-otp'
 import { Route as ApiPublicPortalSessionRouteImport } from './routes/api/public/portal/session'
 import { Route as ApiPublicPortalTicketDetailRouteImport } from './routes/api/public/portal/ticket-detail'
@@ -246,6 +250,12 @@ const AuthenticatedFinanceClosingRoute =
     path: '/closing',
     getParentRoute: () => AuthenticatedFinanceRoute,
   } as any)
+const AuthenticatedFinanceDocumentsRoute =
+  AuthenticatedFinanceDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
 const AuthenticatedFinancePayablesRoute =
   AuthenticatedFinancePayablesRouteImport.update({
     id: '/payables',
@@ -283,6 +293,23 @@ const ApiPublicPortalChatStartRoute =
   ApiPublicPortalChatStartRouteImport.update({
     id: '/api/public/portal/chat-start',
     path: '/api/public/portal/chat-start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPortalContactsRoute = ApiPublicPortalContactsRouteImport.update({
+  id: '/api/public/portal/contacts',
+  path: '/api/public/portal/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPortalDocumentDownloadRoute =
+  ApiPublicPortalDocumentDownloadRouteImport.update({
+    id: '/api/public/portal/document-download',
+    path: '/api/public/portal/document-download',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPortalDocumentsRoute =
+  ApiPublicPortalDocumentsRouteImport.update({
+    id: '/api/public/portal/documents',
+    path: '/api/public/portal/documents',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicPortalRequestOtpRoute =
@@ -355,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/finance/banking': typeof AuthenticatedFinanceBankingRoute
   '/finance/cash-flow': typeof AuthenticatedFinanceCashFlowRoute
   '/finance/closing': typeof AuthenticatedFinanceClosingRoute
+  '/finance/documents': typeof AuthenticatedFinanceDocumentsRoute
   '/finance/payables': typeof AuthenticatedFinancePayablesRoute
   '/finance/planning': typeof AuthenticatedFinancePlanningRoute
   '/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
@@ -363,6 +391,9 @@ export interface FileRoutesByFullPath {
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/finance/': typeof AuthenticatedFinanceIndexRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
+  '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
+  '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
+  '/api/public/portal/documents': typeof ApiPublicPortalDocumentsRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
   '/api/public/portal/ticket-detail': typeof ApiPublicPortalTicketDetailRoute
@@ -402,6 +433,7 @@ export interface FileRoutesByTo {
   '/finance/banking': typeof AuthenticatedFinanceBankingRoute
   '/finance/cash-flow': typeof AuthenticatedFinanceCashFlowRoute
   '/finance/closing': typeof AuthenticatedFinanceClosingRoute
+  '/finance/documents': typeof AuthenticatedFinanceDocumentsRoute
   '/finance/payables': typeof AuthenticatedFinancePayablesRoute
   '/finance/planning': typeof AuthenticatedFinancePlanningRoute
   '/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
@@ -410,6 +442,9 @@ export interface FileRoutesByTo {
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/finance': typeof AuthenticatedFinanceIndexRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
+  '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
+  '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
+  '/api/public/portal/documents': typeof ApiPublicPortalDocumentsRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
   '/api/public/portal/ticket-detail': typeof ApiPublicPortalTicketDetailRoute
@@ -454,6 +489,7 @@ export interface FileRoutesById {
   '/_authenticated/finance/banking': typeof AuthenticatedFinanceBankingRoute
   '/_authenticated/finance/cash-flow': typeof AuthenticatedFinanceCashFlowRoute
   '/_authenticated/finance/closing': typeof AuthenticatedFinanceClosingRoute
+  '/_authenticated/finance/documents': typeof AuthenticatedFinanceDocumentsRoute
   '/_authenticated/finance/payables': typeof AuthenticatedFinancePayablesRoute
   '/_authenticated/finance/planning': typeof AuthenticatedFinancePlanningRoute
   '/_authenticated/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
@@ -462,6 +498,9 @@ export interface FileRoutesById {
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/_authenticated/finance/': typeof AuthenticatedFinanceIndexRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
+  '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
+  '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
+  '/api/public/portal/documents': typeof ApiPublicPortalDocumentsRoute
   '/api/public/portal/request-otp': typeof ApiPublicPortalRequestOtpRoute
   '/api/public/portal/session': typeof ApiPublicPortalSessionRoute
   '/api/public/portal/ticket-detail': typeof ApiPublicPortalTicketDetailRoute
@@ -506,6 +545,7 @@ export interface FileRouteTypes {
     | '/finance/banking'
     | '/finance/cash-flow'
     | '/finance/closing'
+    | '/finance/documents'
     | '/finance/payables'
     | '/finance/planning'
     | '/finance/receivables'
@@ -514,6 +554,9 @@ export interface FileRouteTypes {
     | '/demo/Tickets/$id'
     | '/finance/'
     | '/api/public/portal/chat-start'
+    | '/api/public/portal/contacts'
+    | '/api/public/portal/document-download'
+    | '/api/public/portal/documents'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
     | '/api/public/portal/ticket-detail'
@@ -553,6 +596,7 @@ export interface FileRouteTypes {
     | '/finance/banking'
     | '/finance/cash-flow'
     | '/finance/closing'
+    | '/finance/documents'
     | '/finance/payables'
     | '/finance/planning'
     | '/finance/receivables'
@@ -561,6 +605,9 @@ export interface FileRouteTypes {
     | '/demo/Tickets/$id'
     | '/finance'
     | '/api/public/portal/chat-start'
+    | '/api/public/portal/contacts'
+    | '/api/public/portal/document-download'
+    | '/api/public/portal/documents'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
     | '/api/public/portal/ticket-detail'
@@ -604,6 +651,7 @@ export interface FileRouteTypes {
     | '/_authenticated/finance/banking'
     | '/_authenticated/finance/cash-flow'
     | '/_authenticated/finance/closing'
+    | '/_authenticated/finance/documents'
     | '/_authenticated/finance/payables'
     | '/_authenticated/finance/planning'
     | '/_authenticated/finance/receivables'
@@ -612,6 +660,9 @@ export interface FileRouteTypes {
     | '/demo/Tickets/$id'
     | '/_authenticated/finance/'
     | '/api/public/portal/chat-start'
+    | '/api/public/portal/contacts'
+    | '/api/public/portal/document-download'
+    | '/api/public/portal/documents'
     | '/api/public/portal/request-otp'
     | '/api/public/portal/session'
     | '/api/public/portal/ticket-detail'
@@ -632,6 +683,9 @@ export interface RootRouteChildren {
   MeasurementReportTokenRoute: typeof MeasurementReportTokenRoute
   ReportTokenRoute: typeof ReportTokenRoute
   ApiPublicPortalChatStartRoute: typeof ApiPublicPortalChatStartRoute
+  ApiPublicPortalContactsRoute: typeof ApiPublicPortalContactsRoute
+  ApiPublicPortalDocumentDownloadRoute: typeof ApiPublicPortalDocumentDownloadRoute
+  ApiPublicPortalDocumentsRoute: typeof ApiPublicPortalDocumentsRoute
   ApiPublicPortalRequestOtpRoute: typeof ApiPublicPortalRequestOtpRoute
   ApiPublicPortalSessionRoute: typeof ApiPublicPortalSessionRoute
   ApiPublicPortalTicketDetailRoute: typeof ApiPublicPortalTicketDetailRoute
@@ -894,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinanceClosingRouteImport
       parentRoute: typeof AuthenticatedFinanceRoute
     }
+    '/_authenticated/finance/documents': {
+      id: '/_authenticated/finance/documents'
+      path: '/documents'
+      fullPath: '/finance/documents'
+      preLoaderRoute: typeof AuthenticatedFinanceDocumentsRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
     '/_authenticated/finance/payables': {
       id: '/_authenticated/finance/payables'
       path: '/payables'
@@ -941,6 +1002,27 @@ declare module '@tanstack/react-router' {
       path: '/api/public/portal/chat-start'
       fullPath: '/api/public/portal/chat-start'
       preLoaderRoute: typeof ApiPublicPortalChatStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/portal/contacts': {
+      id: '/api/public/portal/contacts'
+      path: '/api/public/portal/contacts'
+      fullPath: '/api/public/portal/contacts'
+      preLoaderRoute: typeof ApiPublicPortalContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/portal/document-download': {
+      id: '/api/public/portal/document-download'
+      path: '/api/public/portal/document-download'
+      fullPath: '/api/public/portal/document-download'
+      preLoaderRoute: typeof ApiPublicPortalDocumentDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/portal/documents': {
+      id: '/api/public/portal/documents'
+      path: '/api/public/portal/documents'
+      fullPath: '/api/public/portal/documents'
+      preLoaderRoute: typeof ApiPublicPortalDocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/portal/request-otp': {
@@ -993,6 +1075,7 @@ interface AuthenticatedFinanceRouteChildren {
   AuthenticatedFinanceBankingRoute: typeof AuthenticatedFinanceBankingRoute
   AuthenticatedFinanceCashFlowRoute: typeof AuthenticatedFinanceCashFlowRoute
   AuthenticatedFinanceClosingRoute: typeof AuthenticatedFinanceClosingRoute
+  AuthenticatedFinanceDocumentsRoute: typeof AuthenticatedFinanceDocumentsRoute
   AuthenticatedFinancePayablesRoute: typeof AuthenticatedFinancePayablesRoute
   AuthenticatedFinancePlanningRoute: typeof AuthenticatedFinancePlanningRoute
   AuthenticatedFinanceReceivablesRoute: typeof AuthenticatedFinanceReceivablesRoute
@@ -1004,6 +1087,7 @@ const AuthenticatedFinanceRouteChildren: AuthenticatedFinanceRouteChildren = {
   AuthenticatedFinanceBankingRoute: AuthenticatedFinanceBankingRoute,
   AuthenticatedFinanceCashFlowRoute: AuthenticatedFinanceCashFlowRoute,
   AuthenticatedFinanceClosingRoute: AuthenticatedFinanceClosingRoute,
+  AuthenticatedFinanceDocumentsRoute: AuthenticatedFinanceDocumentsRoute,
   AuthenticatedFinancePayablesRoute: AuthenticatedFinancePayablesRoute,
   AuthenticatedFinancePlanningRoute: AuthenticatedFinancePlanningRoute,
   AuthenticatedFinanceReceivablesRoute: AuthenticatedFinanceReceivablesRoute,
@@ -1117,6 +1201,9 @@ const rootRouteChildren: RootRouteChildren = {
   MeasurementReportTokenRoute: MeasurementReportTokenRoute,
   ReportTokenRoute: ReportTokenRoute,
   ApiPublicPortalChatStartRoute: ApiPublicPortalChatStartRoute,
+  ApiPublicPortalContactsRoute: ApiPublicPortalContactsRoute,
+  ApiPublicPortalDocumentDownloadRoute: ApiPublicPortalDocumentDownloadRoute,
+  ApiPublicPortalDocumentsRoute: ApiPublicPortalDocumentsRoute,
   ApiPublicPortalRequestOtpRoute: ApiPublicPortalRequestOtpRoute,
   ApiPublicPortalSessionRoute: ApiPublicPortalSessionRoute,
   ApiPublicPortalTicketDetailRoute: ApiPublicPortalTicketDetailRoute,

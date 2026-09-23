@@ -2,6 +2,7 @@ import {
   BanknoteArrowDown,
   CalendarCheck2,
   ChartNoAxesCombined,
+  Files,
   Landmark,
   LayoutDashboard,
   PackageSearch,
@@ -11,6 +12,12 @@ import {
 
 export const financeNavigation = [
   { to: "/finance", label: "Visão geral", icon: LayoutDashboard, module: "financeiro" },
+  {
+    to: "/finance/documents",
+    label: "Disponibilizar documentos",
+    icon: Files,
+    module: "financeiro.disponibilizar_documentos",
+  },
   {
     to: "/finance/receivables",
     label: "Contas a receber",
