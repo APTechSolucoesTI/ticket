@@ -8,6 +8,7 @@ import {
   Eye,
   FileCheck2,
   FileUp,
+  Gift,
   Loader2,
   MapPin,
   Pencil,
@@ -195,6 +196,21 @@ type Event = {
   conta_pagar_id: string | null;
 };
 type DocType = { id: string; nome: string; categoria: string };
+type Benefit = {
+  id: string;
+  tipo_beneficio: string;
+  vigente_de: string;
+  vigente_ate: string | null;
+  valor: number;
+  observacao: string | null;
+};
+type BenefitDocument = {
+  id: string;
+  beneficio_id: string;
+  arquivo_url: string;
+  arquivo_nome_original: string;
+  historico: string | null;
+};
 
 const statusLabels: Record<Employee["status"], string> = {
   ativo: "Ativo",
@@ -240,7 +256,14 @@ const employeeSchema = z.object({
       "E-mail corporativo inválido.",
     ),
   data_admissao: z.string().min(1),
-  tipo_contrato: z.enum(["clt", "pj", "estagio", "aprendiz", "temporario"]),
+  tipo_contrato: z.enum([
+    "clt",
+    "pj",
+    "estagio",
+    "aprendiz",
+    "temporario",
+    "servicos_terceirizados",
+  ]),
   regime_jornada: z.enum(["integral", "meio_periodo", "home_office", "hibrido"]),
   cargo: z.string().trim().min(2, "Informe o cargo."),
   salario: z.number().min(0),
@@ -792,6 +815,7 @@ function EmployeeCreateDialog({
                 <SelectItem value="estagio">Estágio</SelectItem>
                 <SelectItem value="aprendiz">Aprendiz</SelectItem>
                 <SelectItem value="temporario">Temporário</SelectItem>
+                <SelectItem value="servicos_terceirizados">Serviços Terceirizados</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -964,12 +988,41 @@ function EmployeeDetailDialog({
               .is("deleted_at", null)
               .order("vigente_de", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
+        db
+          .from("funcionario_beneficios")
+          .select("*")
+          .eq("funcionario_id", employee.id)
+          .is("deleted_at", null)
+          .order("vigente_de", { ascending: false }),
+        canSensitive
+          ? db
+              .from("funcionario_beneficio_documentos")
+              .select("*")
+              .eq("funcionario_id", employee.id)
+              .is("deleted_at", null)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
       ];
-      const [addresses, positions, vacations, events, types, documents, banks] =
-        await Promise.all(queries);
-      const failed = [addresses, positions, vacations, events, types].find(
-        (result) => result.error,
-      );
+      const [
+        addresses,
+        positions,
+        vacations,
+        events,
+        types,
+        documents,
+        banks,
+        benefits,
+        benefitDocuments,
+      ] = await Promise.all(queries);
+      const failed = [
+        addresses,
+        positions,
+        vacations,
+        events,
+        types,
+        benefits,
+        benefitDocuments,
+      ].find((result) => result.error);
       if (failed?.error) throw failed.error;
       return {
         addresses: (addresses.data ?? []) as Address[],
@@ -979,6 +1032,8 @@ function EmployeeDetailDialog({
         types: (types.data ?? []) as DocType[],
         documents: (documents.data ?? []) as Document[],
         banks: (banks.data ?? []) as Bank[],
+        benefits: (benefits.data ?? []) as Benefit[],
+        benefitDocuments: (benefitDocuments.data ?? []) as BenefitDocument[],
       };
     },
   });
@@ -1032,6 +1087,23 @@ function EmployeeDetailDialog({
     },
     onError: (error) => toast.error(getUserFacingError(error)),
   });
+  const removeEvent = useMutation({
+    mutationFn: async (event: Event) => {
+      if (!window.confirm(`Excluir o evento ${eventLabels[event.tipo_evento]} pendente?`))
+        return false;
+      const { error } = await db.rpc("archive_employee_financial_event", {
+        p_event_id: event.id,
+      });
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: (removed) => {
+      if (!removed) return;
+      toast.success("Evento financeiro excluído.");
+      refresh();
+    },
+    onError: (error) => toast.error(getUserFacingError(error)),
+  });
   return (
     <Dialog open onOpenChange={(value) => !value && onClose()}>
       <DialogContent className="max-h-[94vh] overflow-y-auto sm:max-w-6xl">
@@ -1049,6 +1121,7 @@ function EmployeeDetailDialog({
             <TabsTrigger value="positions">Cargo & salário</TabsTrigger>
             {canSensitive ? <TabsTrigger value="documents">Documentos</TabsTrigger> : null}
             <TabsTrigger value="vacations">Férias</TabsTrigger>
+            <TabsTrigger value="benefits">Benefícios</TabsTrigger>
             {canSensitive ? <TabsTrigger value="bank">Dados bancários</TabsTrigger> : null}
             <TabsTrigger value="finance">Financeiro</TabsTrigger>
           </TabsList>
@@ -1193,6 +1266,16 @@ function EmployeeDetailDialog({
                   ))}
                 </HistorySection>
               </TabsContent>
+              <TabsContent value="benefits">
+                <Benefits
+                  employee={employee}
+                  benefits={detail.data?.benefits ?? []}
+                  documents={detail.data?.benefitDocuments ?? []}
+                  canEdit={canEdit}
+                  canAttach={canSensitive}
+                  onChanged={refresh}
+                />
+              </TabsContent>
               <TabsContent value="finance">
                 <HistorySection
                   title="Eventos financeiros"
@@ -1227,6 +1310,20 @@ function EmployeeDetailDialog({
                             disabled={integrate.isPending}
                           >
                             Gerar conta a pagar
+                          </Button>
+                        ) : null}
+                        {canPayroll &&
+                        item.status_integracao === "pendente" &&
+                        !item.conta_pagar_id ? (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive"
+                            aria-label="Excluir evento financeiro pendente"
+                            onClick={() => removeEvent.mutate(item)}
+                            disabled={removeEvent.isPending}
+                          >
+                            <Trash2 className="size-4" />
                           </Button>
                         ) : null}
                       </div>
@@ -1587,6 +1684,7 @@ function EmployeeEditDialog({
                   ["estagio", "Estágio"],
                   ["aprendiz", "Aprendiz"],
                   ["temporario", "Temporário"],
+                  ["servicos_terceirizados", "Serviços Terceirizados"],
                 ].map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
@@ -1751,7 +1849,7 @@ function SubrecordDialog({
     cargo: initialPosition?.cargo ?? "",
     nivel: initialPosition?.nivel ?? "",
     salario_base: initialPosition?.salario_base ?? 0,
-    tipo_alteracao: initialPosition?.tipo_alteracao ?? "promocao",
+    tipo_alteracao: initialPosition?.tipo_alteracao ?? "Promoção",
     motivo: initialPosition?.motivo ?? "",
     vigente_de: initialPosition?.vigente_de ?? today(),
     vigente_ate: initialPosition?.vigente_ate ?? "",
@@ -1983,30 +2081,7 @@ function SubrecordDialog({
                   onValueChange={(value) => set("salario_base", Number(value || 0))}
                 />
               </div>
-              <div>
-                <Label>Tipo de alteração</Label>
-                <Select
-                  value={String(form.tipo_alteracao)}
-                  onValueChange={(value) => set("tipo_alteracao", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "promocao",
-                      "merito",
-                      "equiparacao",
-                      "reducao_acordo",
-                      "reajuste_coletivo",
-                    ].map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value.replaceAll("_", " ")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {input("tipo_alteracao", "Tipo de alteração *")}
               {input("vigente_de", "Vigente desde", "date")}
               {initialPosition ? input("vigente_ate", "Vigente até", "date") : null}
               {input("motivo", "Motivo")}
@@ -2123,6 +2198,286 @@ function SubrecordDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Benefits({
+  employee,
+  benefits,
+  documents,
+  canEdit,
+  canAttach,
+  onChanged,
+}: {
+  employee: Employee;
+  benefits: Benefit[];
+  documents: BenefitDocument[];
+  canEdit: boolean;
+  canAttach: boolean;
+  onChanged(): void;
+}) {
+  const [form, setForm] = useState({
+    tipo_beneficio: "",
+    vigente_de: today(),
+    vigente_ate: "",
+    valor: 0,
+    observacao: "",
+  });
+  const [benefitId, setBenefitId] = useState("");
+  const [history, setHistory] = useState("");
+  const [file, setFile] = useState<File>();
+  const create = useMutation({
+    mutationFn: async () => {
+      if (form.tipo_beneficio.trim().length < 2) throw new Error("Informe o tipo de benefício.");
+      if (form.vigente_ate && form.vigente_ate < form.vigente_de)
+        throw new Error("A data final não pode ser anterior à data inicial.");
+      const tenant = await getMyTenantId();
+      if (!tenant) throw new Error("Tenant não encontrado.");
+      const { error } = await db.from("funcionario_beneficios").insert({
+        tenant_id: tenant,
+        funcionario_id: employee.id,
+        tipo_beneficio: form.tipo_beneficio.trim(),
+        vigente_de: form.vigente_de,
+        vigente_ate: form.vigente_ate || null,
+        valor: Number(form.valor),
+        observacao: form.observacao.trim() || null,
+        created_by: getCurrentUserId(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Benefício cadastrado.");
+      setForm({
+        tipo_beneficio: "",
+        vigente_de: today(),
+        vigente_ate: "",
+        valor: 0,
+        observacao: "",
+      });
+      onChanged();
+    },
+    onError: (error) => toast.error(getUserFacingError(error)),
+  });
+  const archive = useMutation({
+    mutationFn: async (benefit: Benefit) => {
+      if (!window.confirm(`Excluir o benefício ${benefit.tipo_beneficio}?`)) return false;
+      const { error } = await db
+        .from("funcionario_beneficios")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", benefit.id);
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: (removed) => {
+      if (!removed) return;
+      toast.success("Benefício excluído.");
+      onChanged();
+    },
+    onError: (error) => toast.error(getUserFacingError(error)),
+  });
+  const upload = useMutation({
+    mutationFn: async () => {
+      if (!benefitId || !file) throw new Error("Selecione o benefício e o arquivo.");
+      const xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      if (!["application/pdf", "image/jpeg", xlsx].includes(file.type))
+        throw new Error("Envie um arquivo XLSX, PDF ou JPG.");
+      if (file.size > 10485760) throw new Error("O arquivo deve ter no máximo 10 MB.");
+      const tenant = await getMyTenantId();
+      if (!tenant) throw new Error("Tenant não encontrado.");
+      const id = crypto.randomUUID();
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${tenant}/${employee.id}/${benefitId}/${id}/${safe}`;
+      const stored = await supabase.storage
+        .from("funcionario-beneficios")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (stored.error) throw stored.error;
+      const { error } = await db.from("funcionario_beneficio_documentos").insert({
+        id,
+        tenant_id: tenant,
+        funcionario_id: employee.id,
+        beneficio_id: benefitId,
+        arquivo_url: path,
+        arquivo_nome_original: file.name,
+        arquivo_mime_type: file.type,
+        arquivo_tamanho_bytes: file.size,
+        historico: history.trim() || null,
+        enviado_por: getCurrentUserId(),
+      });
+      if (error) {
+        await supabase.storage.from("funcionario-beneficios").remove([path]);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Documento do benefício anexado.");
+      setFile(undefined);
+      setHistory("");
+      onChanged();
+    },
+    onError: (error) => toast.error(getUserFacingError(error)),
+  });
+  const openDocument = async (document: BenefitDocument) => {
+    const { data, error } = await supabase.storage
+      .from("funcionario-beneficios")
+      .createSignedUrl(document.arquivo_url, 300);
+    if (error) toast.error(getUserFacingError(error));
+    else window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+  return (
+    <div className="space-y-4">
+      {canEdit ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Gift className="size-5 text-primary" />
+              Novo benefício
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <Label>Tipo de benefício *</Label>
+              <Input
+                value={form.tipo_beneficio}
+                onChange={(e) => setForm({ ...form, tipo_beneficio: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Vigente desde *</Label>
+              <Input
+                type="date"
+                value={form.vigente_de}
+                onChange={(e) => setForm({ ...form, vigente_de: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Vigente até</Label>
+              <Input
+                type="date"
+                value={form.vigente_ate}
+                onChange={(e) => setForm({ ...form, vigente_ate: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Valor</Label>
+              <FinancialCurrencyInput
+                value={form.valor}
+                onValueChange={(value) => setForm({ ...form, valor: Number(value || 0) })}
+              />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Label>Observação</Label>
+              <Input
+                value={form.observacao}
+                onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+              />
+            </div>
+            <Button
+              className="self-end"
+              onClick={() => create.mutate()}
+              disabled={create.isPending}
+            >
+              Cadastrar benefício
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+      {canAttach && benefits.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Anexar documento</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <Label>Benefício</Label>
+              <Select value={benefitId} onValueChange={setBenefitId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {benefits.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.tipo_beneficio}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Histórico do anexo</Label>
+              <Input value={history} onChange={(e) => setHistory(e.target.value)} />
+            </div>
+            <div>
+              <Label>Arquivo (XLSX, PDF ou JPG)</Label>
+              <Input
+                type="file"
+                accept=".xlsx,.pdf,.jpg,.jpeg"
+                onChange={(e) => setFile(e.target.files?.[0])}
+              />
+            </div>
+            <Button
+              className="self-end"
+              onClick={() => upload.mutate()}
+              disabled={upload.isPending}
+            >
+              <FileUp className="mr-1 size-4" />
+              Anexar
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {benefits.map((benefit) => {
+          const attachments = documents.filter((document) => document.beneficio_id === benefit.id);
+          return (
+            <Card key={benefit.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{benefit.tipo_beneficio}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(benefit.valor)} · {date(benefit.vigente_de)} até{" "}
+                    {benefit.vigente_ate ? date(benefit.vigente_ate) : "atual"}
+                  </p>
+                  {benefit.observacao ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{benefit.observacao}</p>
+                  ) : null}
+                </div>
+                {canEdit ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive"
+                    aria-label="Excluir benefício"
+                    onClick={() => archive.mutate(benefit)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                ) : null}
+              </div>
+              {attachments.length ? (
+                <div className="mt-3 space-y-1 border-t pt-3">
+                  {attachments.map((document) => (
+                    <button
+                      key={document.id}
+                      className="block w-full truncate text-left text-xs text-primary hover:underline"
+                      onClick={() => void openDocument(document)}
+                    >
+                      {document.arquivo_nome_original}
+                      {document.historico ? ` · ${document.historico}` : ""}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          );
+        })}
+      </div>
+      {!benefits.length ? (
+        <EmptyState
+          title="Nenhum benefício cadastrado"
+          description="Os benefícios oferecidos ao funcionário aparecerão aqui."
+        />
+      ) : null}
+    </div>
   );
 }
 

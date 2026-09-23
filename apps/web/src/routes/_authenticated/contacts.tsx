@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ExternalLink,
   Eye,
@@ -22,14 +23,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import {
   Dialog,
@@ -74,6 +69,7 @@ type Contact = {
   is_portal_admin: boolean;
   is_portal_financial: boolean;
   companies?: { name: string } | null;
+  contact_companies?: Array<{ company_id: string; companies?: { name: string } | null }>;
 };
 
 type ContactTicket = {
@@ -85,7 +81,7 @@ type ContactTicket = {
 };
 
 const schema = z.object({
-  company_id: z.string().uuid("Selecione um cliente"),
+  company_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um cliente"),
   name: z.string().trim().min(1, "Nome obrigatório").max(120),
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(255),
   phone: z
@@ -120,7 +116,7 @@ function ContactsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contacts")
-        .select("*, companies(name)")
+        .select("*, companies(name), contact_companies(company_id, companies(name))")
         .order("name");
       if (error) throw error;
       return data as Contact[];
@@ -219,8 +215,16 @@ function ContactsPage() {
                   key: "company",
                   label: "Cliente",
                   className: "text-sm",
-                  accessor: (c) => c.companies?.name ?? "",
-                  cell: (c) => c.companies?.name || "-",
+                  accessor: (c) =>
+                    c.contact_companies?.map((link) => link.companies?.name).join(" ") ??
+                    c.companies?.name ??
+                    "",
+                  cell: (c) => {
+                    const names = c.contact_companies
+                      ?.map((link) => link.companies?.name)
+                      .filter(Boolean) as string[] | undefined;
+                    return names?.length ? names.join(", ") : c.companies?.name || "-";
+                  },
                 },
                 { key: "email", label: "E-mail", className: "text-sm", cell: (c) => c.email },
                 {
@@ -421,7 +425,7 @@ function ContactDialog({
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
-    company_id: "",
+    company_ids: [] as string[],
     name: "",
     email: "",
     phone: "",
@@ -449,7 +453,7 @@ function ContactDialog({
       const prof = { tenant_id: _tid };
       if (!prof?.tenant_id) throw new Error("Tenant não encontrado");
       const values = {
-        company_id: payload.company_id,
+        company_id: payload.company_ids[0],
         name: payload.name,
         email: payload.email,
         phone: payload.phone ? normalizePhone(payload.phone) : null,
@@ -474,15 +478,25 @@ function ContactDialog({
         if (dup) throw new Error("Já existe um contato cadastrado com este telefone.");
       }
 
+      let contactId = editing?.id;
       if (editing) {
         const { error } = await supabase.from("contacts").update(values).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("contacts")
-          .insert({ ...values, tenant_id: prof.tenant_id });
+          .insert({ ...values, tenant_id: prof.tenant_id })
+          .select("id")
+          .single();
         if (error) throw error;
+        contactId = data.id;
       }
+      const db = supabase as unknown as SupabaseClient;
+      const { error: companiesError } = await db.rpc("set_contact_companies", {
+        p_contact_id: contactId,
+        p_company_ids: payload.company_ids,
+      });
+      if (companiesError) throw companiesError;
     },
     onSuccess: () => {
       toast.success(editing ? "Contato atualizado" : "Contato criado");
@@ -500,7 +514,15 @@ function ContactDialog({
   useEffect(() => {
     if (!open) return;
     setForm({
-      company_id: editing?.company_id ?? "",
+      company_ids:
+        editing?.company_id
+          ? [
+              editing.company_id,
+              ...(editing.contact_companies ?? [])
+                .map((link) => link.company_id)
+                .filter((id) => id !== editing.company_id),
+            ]
+          : [],
       name: editing?.name ?? "",
       email: editing?.email ?? "",
       phone: editing?.phone ? maskPhone(editing.phone) : "",
@@ -536,23 +558,37 @@ function ContactDialog({
               save.mutate(r.data);
             }}
           >
-            <div className="sm:col-span-2 lg:col-span-4">
-              <Label>Cliente *</Label>
-              <Select
-                value={form.company_id}
-                onValueChange={(v) => setForm({ ...form, company_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+              <Label>Clientes *</Label>
+              <div className="grid max-h-44 gap-1 overflow-y-auto rounded-md border p-2 sm:grid-cols-2">
+                {companies?.map((company) => {
+                  const checked = form.company_ids.includes(company.id);
+                  return (
+                    <label
+                      key={company.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() =>
+                          setForm((current) => ({
+                            ...current,
+                            company_ids: checked
+                              ? current.company_ids.filter((id) => id !== company.id)
+                              : [...current.company_ids, company.id],
+                          }))
+                        }
+                      />
+                      <span>{company.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {form.company_ids.length
+                  ? `${form.company_ids.length} cliente(s) selecionado(s). O primeiro será o principal.`
+                  : "Selecione ao menos um cliente."}
+              </p>
             </div>
             <div>
               <Label>Nome *</Label>

@@ -30,11 +30,20 @@ export const Route = createFileRoute("/api/public/portal/documents")({
           return Response.json({ error: "forbidden" }, { status: 403, headers: CORS });
         }
 
+        const { data: companyLinks } = await supabaseAdmin
+          .from("contact_companies")
+          .select("company_id")
+          .eq("contact_id", contact.id)
+          .eq("tenant_id", contact.tenant_id);
+        const companyIds = Array.from(
+          new Set([contact.company_id, ...(companyLinks ?? []).map((link) => link.company_id)]),
+        );
+
         const { data, error } = await supabaseAdmin
           .from("client_documents")
           .select("id,document_type,competencia,historico,file_name,file_size,mime_type,created_at")
           .eq("tenant_id", contact.tenant_id)
-          .eq("company_id", contact.company_id)
+          .in("company_id", companyIds)
           .is("deleted_at", null)
           .order("competencia", { ascending: false })
           .order("created_at", { ascending: false });

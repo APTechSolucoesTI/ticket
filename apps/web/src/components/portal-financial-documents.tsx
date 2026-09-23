@@ -63,7 +63,6 @@ export function PortalFinancialDocuments() {
   }, [documents]);
 
   const download = async (document: PortalDocument) => {
-    const popup = window.open("", "_blank");
     setDownloading(document.id);
     try {
       const response = await portalFetch("/api/public/portal/document-download", {
@@ -71,16 +70,18 @@ export function PortalFinancialDocuments() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ document_id: document.id }),
       });
-      const result = await response.json();
-      if (!response.ok || !result.url) throw new Error("Download indisponível.");
-      if (popup) {
-        popup.opener = null;
-        popup.location.replace(result.url);
-      } else {
-        window.location.assign(result.url);
-      }
+      if (!response.ok) throw new Error("Download indisponível.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = document.file_name;
+      anchor.rel = "noopener";
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      popup?.close();
       toast.error("Não foi possível abrir o documento.");
     } finally {
       setDownloading(null);

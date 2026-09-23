@@ -53,7 +53,7 @@ Deno.serve(async (request) => {
     ) {
       return json({ message: "Contexto do portal inválido." }, 422);
     }
-    const [contactResponse, documentResponse] = await Promise.all([
+    const [contactResponse, documentResponse, companyLinksResponse] = await Promise.all([
       fetch(
         `${baseUrl}/rest/v1/contacts?id=eq.${body.contact_id}&tenant_id=eq.${body.tenant_id}&is_active=eq.true&is_portal_financial=eq.true&select=id,tenant_id,company_id&limit=1`,
         { headers: serviceHeaders },
@@ -62,10 +62,21 @@ Deno.serve(async (request) => {
         `${baseUrl}/rest/v1/client_documents?id=eq.${body.document_id}&tenant_id=eq.${body.tenant_id}&deleted_at=is.null&select=id,tenant_id,company_id,file_path,file_name&limit=1`,
         { headers: serviceHeaders },
       ),
+      fetch(
+        `${baseUrl}/rest/v1/contact_companies?contact_id=eq.${body.contact_id}&tenant_id=eq.${body.tenant_id}&select=company_id`,
+        { headers: serviceHeaders },
+      ),
     ]);
     const contact = (await contactResponse.json().catch(() => []))?.[0];
     document = (await documentResponse.json().catch(() => []))?.[0];
-    if (!contact || !document || contact.company_id !== document.company_id) {
+    const linkedCompanies = (await companyLinksResponse.json().catch(() => [])) as Array<{
+      company_id: string;
+    }>;
+    const allowedCompanyIds = new Set([
+      contact?.company_id,
+      ...linkedCompanies.map((link) => link.company_id),
+    ]);
+    if (!contact || !document || !allowedCompanyIds.has(document.company_id)) {
       return json({ message: "Documento não encontrado." }, 404);
     }
   } else {
