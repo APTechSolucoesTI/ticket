@@ -3603,7 +3603,7 @@ function WhatsAppConfig({
   useEffect(() => {
     if (data) {
       setForm({
-        name: data.name,
+        name: data.name ?? (outbound ? "Financeiro" : "WhatsApp"),
         whatsapp_enabled: data.status !== "disconnected" || !!data.baseUrl,
         whatsapp_uazapi_base_url: data.baseUrl ?? "",
         whatsapp_uazapi_token: "",
@@ -3619,11 +3619,25 @@ function WhatsAppConfig({
   const save = useMutation({
     mutationFn: async () => {
       if (readOnly) throw new Error("Sem permissão para editar canais");
+      // Respostas antigas ou incompletas podem hidratar o formulário sem todos
+      // os campos. Normalize antes de validar para nunca chamar `trim` em
+      // `undefined` e para apresentar uma mensagem útil ao usuário.
+      const name = String(form.name ?? "").trim();
+      const baseUrl = String(form.whatsapp_uazapi_base_url ?? "")
+        .trim()
+        .replace(/\/+$/, "");
+      const token = String(form.whatsapp_uazapi_token ?? "").trim();
+      const instanceName = String(form.whatsapp_uazapi_instance ?? "").trim();
+
+      if (outbound && !name) throw new Error("Informe o nome do canal.");
+      if (!baseUrl) throw new Error("Informe a URL base da UAZAPI.");
+      if (!hasSavedToken && !token) throw new Error("Informe o token da instância.");
+
       const payload = {
-        name: form.name.trim(),
-        baseUrl: form.whatsapp_uazapi_base_url.trim().replace(/\/+$/, ""),
-        token: form.whatsapp_uazapi_token.trim() || undefined,
-        instanceName: form.whatsapp_uazapi_instance.trim() || undefined,
+        name: name || "WhatsApp",
+        baseUrl,
+        token: token || undefined,
+        instanceName: instanceName || undefined,
         ...(outbound ? { active: form.whatsapp_enabled } : { enabled: form.whatsapp_enabled }),
       };
       if (outbound) {

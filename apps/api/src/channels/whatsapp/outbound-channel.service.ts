@@ -68,9 +68,20 @@ export class OutboundChannelService {
     id: string | null,
     input: UpsertOutboundChannelDto,
   ): Promise<OutboundChannelDto> {
-    const normalizedName = input.name.trim();
+    // O ValidationPipe protege a rota, mas esta camada também pode ser chamada
+    // internamente. Mantenha a normalização defensiva e devolva erro de domínio
+    // em vez de vazar um TypeError de `trim`.
+    const normalizedName = input.name?.trim();
+    const normalizedBaseUrl = input.baseUrl?.trim().replace(/\/+$/, '');
+    const normalizedToken = input.token?.trim();
+    if (!normalizedName) {
+      throw new BadRequestException('Informe o nome do canal.');
+    }
+    if (!normalizedBaseUrl) {
+      throw new BadRequestException('Informe a URL base da uazapi.');
+    }
     const existing = id ? await this.row(tenantId, id) : null;
-    if (!existing && !input.token) {
+    if (!existing && !normalizedToken) {
       throw new BadRequestException(
         'Informe o token da uazapi no primeiro cadastro.',
       );
@@ -78,11 +89,11 @@ export class OutboundChannelService {
     const values = {
       tenant_id: tenantId,
       name: normalizedName,
-      base_url: input.baseUrl.trim().replace(/\/+$/, ''),
+      base_url: normalizedBaseUrl,
       instance_name: input.instanceName?.trim() || null,
       active: input.active ?? true,
-      ...(input.token
-        ? { access_token: this.secrets.encrypt(input.token) }
+      ...(normalizedToken
+        ? { access_token: this.secrets.encrypt(normalizedToken) }
         : {}),
     };
     const query = existing
