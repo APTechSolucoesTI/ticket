@@ -11,6 +11,7 @@ import { WhatsappModule } from './channels/whatsapp/whatsapp.module';
 import { ChatModule } from './channels/chat/chat.module';
 import { InterModule } from './integrations/inter/inter.module';
 import { FinanceModule } from './finance/finance.module';
+import { AutomationsModule } from './automations/automations.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FinanceModule } from './finance/finance.module';
     ChatModule,
     InterModule,
     FinanceModule,
+    AutomationsModule,
   ],
   controllers: [AppController],
 })

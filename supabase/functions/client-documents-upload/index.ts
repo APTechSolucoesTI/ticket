@@ -132,6 +132,7 @@ Deno.serve(async (request) => {
 
   const uploadedPaths: string[] = [];
   const metadata: Record<string, unknown>[] = [];
+  const publicationBatchId = crypto.randomUUID();
   for (const file of files) {
     const safeName = file.name
       .normalize("NFKD")
@@ -164,6 +165,7 @@ Deno.serve(async (request) => {
       file_size: file.size,
       mime_type: file.type || "application/octet-stream",
       uploaded_by: userId,
+      publication_batch_id: publicationBatchId,
     });
   }
 

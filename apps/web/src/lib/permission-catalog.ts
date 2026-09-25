@@ -152,6 +152,12 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
     parent: "configuracoes",
   },
   { key: "canais", label: "Canais", actions: ["view", "edit"], parent: "configuracoes" },
+  {
+    key: "automacoes",
+    label: "Automações",
+    actions: ["view", "create", "edit", "delete"],
+    parent: "configuracoes",
+  },
 ] as const;
 
 export const ACTION_LABELS: Record<string, string> = {

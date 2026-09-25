@@ -70,7 +70,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import { formatCurrency } from "@/lib/number-format";
-import type { EmailAccountDto, WhatsappInstanceDto } from "@apticket/shared-types";
+import type {
+  EmailAccountDto,
+  OutboundChannelDto,
+  WhatsappInstanceDto,
+} from "@apticket/shared-types";
+import { AutomationsTab } from "@/components/settings/AutomationsTab";
 import { inviteUser, resendInvite } from "@/lib/users.functions";
 import { usePermissions } from "@/lib/use-permissions";
 import {
@@ -131,6 +136,7 @@ const SETTINGS_TABS = [
   { value: "canned", module: "respostas_padrao", label: "Respostas Padrão" },
   { value: "stickers", module: "figurinhas", label: "Figurinhas" },
   { value: "channels", module: "canais", label: "Canais" },
+  { value: "automations", module: "automacoes", label: "Automações" },
 ] as const;
 
 function SettingsPage() {
@@ -259,6 +265,13 @@ function SettingsPage() {
           <TabsContent value="channels" className="mt-4">
             <ModulePermissionProvider module="canais">
               <ChannelsTab />
+            </ModulePermissionProvider>
+          </TabsContent>
+        )}
+        {perms.has("automacoes", "view") && (
+          <TabsContent value="automations" className="mt-4">
+            <ModulePermissionProvider module="automacoes">
+              <AutomationsTab />
             </ModulePermissionProvider>
           </TabsContent>
         )}
@@ -641,7 +654,7 @@ function RolesTab() {
   });
 
   const saveMatrix = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!access.edit) throw new Error("Sem permissão para editar papéis");
       return saveRolePerms({ data: { roleId: selected!, permissionIds: Array.from(checked) } });
     },
@@ -3204,51 +3217,99 @@ function loadChannelConfig(key: string): ChannelConfig {
 function ChannelsTab() {
   const access = useModulePermissions("canais");
   const [configuring, setConfiguring] = useState<string | null>(null);
+  const { data: outbound = [], isLoading: loadingOutbound } = useQuery({
+    queryKey: ["outbound-whatsapp-channels"],
+    queryFn: () => backendClient.get<OutboundChannelDto[]>("/channels/whatsapp/outbound"),
+  });
+  const financial =
+    outbound.find((channel) => channel.name.toLowerCase() === "financeiro") ?? outbound[0];
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold">Canais de entrada</h3>
-      <div className="grid gap-3 md:grid-cols-2">
-        {CHANNELS.map((c) => {
-          const Icon = c.icon;
-          const active = c.status === "Ativo";
-          return (
-            <Card key={c.key} className="p-4 flex items-start gap-3">
-              <div className="rounded-md bg-primary/10 text-primary p-2">
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="text-sm font-semibold">{c.label}</div>
-                  <Badge variant={active ? "default" : "outline"}>{c.status}</Badge>
+    <Tabs defaultValue="inbound" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="inbound">Canais de entrada</TabsTrigger>
+        <TabsTrigger value="outbound">Canais de saída</TabsTrigger>
+      </TabsList>
+      <TabsContent value="inbound">
+        <div className="grid gap-3 md:grid-cols-2">
+          {CHANNELS.map((c) => {
+            const Icon = c.icon;
+            const active = c.status === "Ativo";
+            return (
+              <Card key={c.key} className="flex items-start gap-3 p-4">
+                <div className="rounded-md bg-primary/10 p-2 text-primary">
+                  <Icon className="h-5 w-5" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{c.desc}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3"
-                  disabled={!active}
-                  onClick={() => active && setConfiguring(c.key)}
-                >
-                  {active ? (access.edit ? "Configurar" : "Visualizar") : "Conectar"}
-                </Button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-semibold">{c.label}</div>
+                    <Badge variant={active ? "default" : "outline"}>{c.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{c.desc}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3"
+                    disabled={!active}
+                    onClick={() => active && setConfiguring(c.key)}
+                  >
+                    {active ? (access.edit ? "Configurar" : "Visualizar") : "Conectar"}
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </TabsContent>
+      <TabsContent value="outbound">
+        <Card className="p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-600">
+              <MessageCircle className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold">Financeiro</h3>
+                <Badge variant={financial?.active ? "default" : "outline"}>
+                  {loadingOutbound
+                    ? "Carregando…"
+                    : financial?.active
+                      ? "Ativo"
+                      : "Não configurado"}
+                </Badge>
               </div>
-            </Card>
-          );
-        })}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Integrações com e-mail e WhatsApp exigem credenciais externas e serão habilitadas na próxima
-        fase.
-      </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Envia notificações financeiras automáticas sem receber ou criar tickets.
+              </p>
+              {financial?.connectedNumber ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Número conectado: {maskWhatsappPhone(financial.connectedNumber)}
+                </p>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4"
+                onClick={() => setConfiguring("outbound-finance")}
+              >
+                {access.edit ? "Configurar" : "Visualizar"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </TabsContent>
       {configuring && (
         <ChannelConfigDialog
           channelKey={configuring}
-          channelLabel={CHANNELS.find((c) => c.key === configuring)?.label ?? ""}
+          channelLabel={
+            configuring === "outbound-finance"
+              ? "Financeiro"
+              : (CHANNELS.find((c) => c.key === configuring)?.label ?? "")
+          }
           readOnly={!access.edit}
           onClose={() => setConfiguring(null)}
         />
       )}
-    </div>
+    </Tabs>
   );
 }
 
@@ -3355,19 +3416,25 @@ function ChannelConfigDialog({
           </DialogHeader>
           {channelKey === "email" ? (
             <EmailImapConfig onSaved={onClose} readOnly={readOnly} />
-          ) : channelKey === "whatsapp" ? (
-            <WhatsAppConfig onSaved={onClose} readOnly={readOnly} />
+          ) : channelKey === "whatsapp" || channelKey === "outbound-finance" ? (
+            <WhatsAppConfig
+              onSaved={onClose}
+              readOnly={readOnly}
+              direction={channelKey === "outbound-finance" ? "outbound" : "inbound"}
+            />
           ) : (
             generalSection
           )}
-          {channelKey !== "whatsapp" && channelKey !== "email" && (
-            <DialogFooter>
-              <Button variant="outline" onClick={onClose}>
-                Cancelar
-              </Button>
-              {!readOnly && <Button onClick={save}>Salvar</Button>}
-            </DialogFooter>
-          )}
+          {channelKey !== "whatsapp" &&
+            channelKey !== "outbound-finance" &&
+            channelKey !== "email" && (
+              <DialogFooter>
+                <Button variant="outline" onClick={onClose}>
+                  Cancelar
+                </Button>
+                {!readOnly && <Button onClick={save}>Salvar</Button>}
+              </DialogFooter>
+            )}
         </DialogContent>
       </ReadOnlyProvider>
     </Dialog>
@@ -3410,6 +3477,7 @@ function ConfirmDelete({
 /* ============================ WhatsApp (UAZAPI) ============================ */
 
 type WhatsAppSettings = {
+  name: string;
   whatsapp_enabled: boolean;
   whatsapp_uazapi_base_url: string;
   whatsapp_uazapi_token: string;
@@ -3417,9 +3485,30 @@ type WhatsAppSettings = {
   whatsapp_connected_number: string | null;
 };
 
-function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: boolean }) {
+type WhatsAppChannelView = {
+  id: string | null;
+  name: string;
+  baseUrl: string | null;
+  instanceName: string | null;
+  connectedNumber: string | null;
+  status: string;
+  webhookSecret: string | null;
+  tenantId: string | null;
+};
+
+function WhatsAppConfig({
+  onSaved,
+  readOnly,
+  direction = "inbound",
+}: {
+  onSaved: () => void;
+  readOnly: boolean;
+  direction?: "inbound" | "outbound";
+}) {
   const qc = useQueryClient();
+  const outbound = direction === "outbound";
   const [form, setForm] = useState<WhatsAppSettings>({
+    name: outbound ? "Financeiro" : "WhatsApp",
     whatsapp_enabled: false,
     whatsapp_uazapi_base_url: "",
     whatsapp_uazapi_token: "",
@@ -3432,6 +3521,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
   const [webhookTenantId, setWebhookTenantId] = useState<string | null>(null);
   const qcWa = useQueryClient();
+  const channelBasePath = outbound ? "/channels/whatsapp/outbound" : "/channels/whatsapp/instances";
 
   // Webhook expõe a API por trás do proxy same-origin do próprio app - não
   // depende mais de domínio de preview/publicado de nenhuma plataforma de
@@ -3442,71 +3532,118 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
       ? `${window.location.origin}/backend/webhooks/whatsapp/${webhookTenantId}?secret=${encodeURIComponent(webhookSecret)}`
       : "";
 
-  // Enquanto o QR tá visível, confere status a cada poucos segundos e some
-  // sozinho quando conectar.
+  const { data, isLoading } = useQuery<WhatsAppChannelView | null>({
+    queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
+    queryFn: async () => {
+      if (outbound) {
+        const channels = await backendClient.get<OutboundChannelDto[]>(
+          "/channels/whatsapp/outbound",
+        );
+        const channel =
+          channels.find((item) => item.name.toLowerCase() === "financeiro") ?? channels[0];
+        return channel
+          ? {
+              id: channel.id,
+              name: channel.name,
+              baseUrl: channel.baseUrl,
+              instanceName: channel.instanceName,
+              connectedNumber: channel.connectedNumber,
+              status: channel.status,
+              webhookSecret: null,
+              tenantId: channel.tenantId,
+            }
+          : null;
+      }
+      const [instance] = await backendClient.get<WhatsappInstanceDto[]>(
+        "/channels/whatsapp/instances",
+      );
+      return instance
+        ? {
+            id: null,
+            name: "WhatsApp",
+            baseUrl: instance.baseUrl,
+            instanceName: instance.instanceName,
+            connectedNumber: instance.connectedNumber,
+            status: instance.status,
+            webhookSecret: instance.webhookSecret,
+            tenantId: instance.tenantId,
+          }
+        : null;
+    },
+  });
+  const channelResourceId = outbound ? data?.id : "me";
+
   useEffect(() => {
-    if (!qrCode) return;
+    if (!qrCode || !channelResourceId) return;
     let stopped = false;
     const interval = setInterval(async () => {
       try {
         const r = await backendClient.get<{ connected: boolean; number: string | null }>(
-          "/channels/whatsapp/instances/me/status",
+          `${channelBasePath}/${channelResourceId}/status`,
         );
         if (stopped) return;
         if (r.connected) {
           setQrCode(null);
           toast.success(`WhatsApp conectado${r.number ? `: ${r.number}` : ""}`);
-          await qcWa.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+          await qcWa.invalidateQueries({
+            queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
+          });
           clearInterval(interval);
         }
       } catch {
-        /* keep polling */
+        /* mantém o polling enquanto o QR estiver visível */
       }
     }, 3000);
     return () => {
       stopped = true;
       clearInterval(interval);
     };
-  }, [qrCode, qcWa]);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["tenant-whatsapp"],
-    queryFn: async () => {
-      const [instance] = await backendClient.get<WhatsappInstanceDto[]>(
-        "/channels/whatsapp/instances",
-      );
-      return instance ?? null;
-    },
-  });
+  }, [channelBasePath, channelResourceId, outbound, qrCode, qcWa]);
 
   useEffect(() => {
     if (data) {
       setForm({
+        name: data.name,
         whatsapp_enabled: data.status !== "disconnected" || !!data.baseUrl,
         whatsapp_uazapi_base_url: data.baseUrl ?? "",
         whatsapp_uazapi_token: "",
         whatsapp_uazapi_instance: data.instanceName ?? "",
         whatsapp_connected_number: data.connectedNumber,
       });
-      setWebhookSecret(data.webhookSecret);
-      setWebhookTenantId(data.tenantId);
+      setWebhookSecret(outbound ? null : data.webhookSecret);
+      setWebhookTenantId(outbound ? null : data.tenantId);
     }
-  }, [data]);
+  }, [data, outbound]);
   const hasSavedToken = !!data?.baseUrl;
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (readOnly) throw new Error("Sem permissão para editar canais");
-      return backendClient.post<WhatsappInstanceDto>("/channels/whatsapp/instances", {
+      const payload = {
+        name: form.name.trim(),
         baseUrl: form.whatsapp_uazapi_base_url.trim().replace(/\/+$/, ""),
         token: form.whatsapp_uazapi_token.trim() || undefined,
         instanceName: form.whatsapp_uazapi_instance.trim() || undefined,
-        enabled: form.whatsapp_enabled,
-      });
+        ...(outbound ? { active: form.whatsapp_enabled } : { enabled: form.whatsapp_enabled }),
+      };
+      if (outbound) {
+        if (data?.id) {
+          await backendClient.patch<OutboundChannelDto>(
+            `/channels/whatsapp/outbound/${data.id}`,
+            payload,
+          );
+        } else {
+          await backendClient.post<OutboundChannelDto>("/channels/whatsapp/outbound", payload);
+        }
+      } else {
+        await backendClient.post<WhatsappInstanceDto>("/channels/whatsapp/instances", payload);
+      }
     },
     onSuccess: () => {
       toast.success("WhatsApp configurado");
-      qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+      qc.invalidateQueries({
+        queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
+      });
       onSaved();
     },
     onError: (e: Error) =>
@@ -3514,14 +3651,17 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
   });
 
   async function test() {
-    if (readOnly) return;
+    if (readOnly || !channelResourceId) {
+      if (outbound) toast.info("Salve o canal antes de testar a conexão.");
+      return;
+    }
     setTesting(true);
     try {
       const r = await backendClient.get<{
         ok: boolean;
         connected: boolean;
         number: string | null;
-      }>("/channels/whatsapp/instances/me/status");
+      }>(`${channelBasePath}/${channelResourceId}/status`);
       if (r.connected) {
         toast.success(`Instância conectada${r.number ? ` - ${r.number}` : ""}`);
       } else if (r.ok) {
@@ -3539,12 +3679,15 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
   }
 
   async function connect() {
-    if (readOnly) return;
+    if (readOnly || !channelResourceId) {
+      if (outbound) toast.info("Salve o canal antes de gerar o QR code.");
+      return;
+    }
     setConnecting(true);
     setQrCode(null);
     try {
       const r = await backendClient.get<{ connected: boolean; qrcode: string | null }>(
-        "/channels/whatsapp/instances/me/qrcode",
+        `${channelBasePath}/${channelResourceId}/qrcode`,
       );
       if (r.connected) toast.success("Instância já conectada");
       else if (r.qrcode) {
@@ -3559,12 +3702,14 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
   }
 
   async function disconnect() {
-    if (readOnly) return;
+    if (readOnly || !channelResourceId) return;
     try {
-      await backendClient.post("/channels/whatsapp/instances/me/disconnect");
+      await backendClient.post(`${channelBasePath}/${channelResourceId}/disconnect`);
       setForm((f) => ({ ...f, whatsapp_connected_number: null }));
       toast.success("Instância desconectada");
-      qc.invalidateQueries({ queryKey: ["tenant-whatsapp"] });
+      qc.invalidateQueries({
+        queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
+      });
     } catch (e) {
       toast.error(getUserFacingError(e, "Não foi possível desconectar o WhatsApp."));
     }
@@ -3578,7 +3723,9 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
         <div>
           <div className="text-sm font-medium">Habilitar WhatsApp</div>
           <div className="text-xs text-muted-foreground">
-            Ativa recebimento e envio de mensagens via UAZAPI.
+            {outbound
+              ? "Ativa o envio de mensagens automáticas via UAZAPI."
+              : "Ativa recebimento e envio de mensagens via UAZAPI."}
           </div>
         </div>
         <Switch
@@ -3588,6 +3735,17 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
       </div>
 
       <div className="grid gap-3">
+        {outbound ? (
+          <div className="space-y-1.5">
+            <Label>Nome do canal *</Label>
+            <Input
+              value={form.name}
+              maxLength={80}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              placeholder="Financeiro"
+            />
+          </div>
+        ) : null}
         <div className="space-y-1.5">
           <Label>URL base da UAZAPI *</Label>
           <Input
@@ -3640,6 +3798,7 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
             disabled={
               connecting ||
               readOnly ||
+              !channelResourceId ||
               !form.whatsapp_uazapi_base_url ||
               (!hasSavedToken && !form.whatsapp_uazapi_token)
             }
@@ -3663,24 +3822,26 @@ function WhatsAppConfig({ onSaved, readOnly }: { onSaved: () => void; readOnly: 
         )}
       </div>
 
-      <div className="space-y-2 rounded-md border p-3">
-        <div className="text-sm font-semibold">Webhook (UAZAPI → APTicket)</div>
-        <p className="text-xs text-muted-foreground">
-          Segredo gerado automaticamente no primeiro salvamento - já embutido na URL abaixo, nenhuma
-          configuração extra.
-        </p>
-        {webhookUrl ? (
-          <div className="space-y-1.5">
-            <Label>URL do webhook</Label>
-            <Input readOnly value={webhookUrl} onFocus={(e) => e.currentTarget.select()} />
-            <p className="text-xs text-muted-foreground">
-              Cadastre esta URL na configuração de webhook da sua instância UAZAPI.
-            </p>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">Salve a configuração pra gerar a URL.</p>
-        )}
-      </div>
+      {!outbound ? (
+        <div className="space-y-2 rounded-md border p-3">
+          <div className="text-sm font-semibold">Webhook (UAZAPI → APTicket)</div>
+          <p className="text-xs text-muted-foreground">
+            Segredo gerado automaticamente no primeiro salvamento - já embutido na URL abaixo,
+            nenhuma configuração extra.
+          </p>
+          {webhookUrl ? (
+            <div className="space-y-1.5">
+              <Label>URL do webhook</Label>
+              <Input readOnly value={webhookUrl} onFocus={(e) => e.currentTarget.select()} />
+              <p className="text-xs text-muted-foreground">
+                Cadastre esta URL na configuração de webhook da sua instância UAZAPI.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Salve a configuração pra gerar a URL.</p>
+          )}
+        </div>
+      ) : null}
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onSaved}>

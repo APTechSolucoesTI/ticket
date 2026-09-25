@@ -11,6 +11,8 @@ import { WhatsappWebhookService } from './whatsapp-webhook.service';
 import { WhatsappInboundProcessor } from './whatsapp-inbound.processor';
 import { WhatsappReplyService } from './whatsapp-reply.service';
 import { UazapiService } from './uazapi.service';
+import { OutboundChannelController } from './outbound-channel.controller';
+import { OutboundChannelService } from './outbound-channel.service';
 
 @Module({
   imports: [
@@ -19,13 +21,18 @@ import { UazapiService } from './uazapi.service';
       { name: QUEUE_WHATSAPP_OUTBOUND },
     ),
   ],
-  controllers: [WhatsappController, WhatsappWebhookController],
+  controllers: [
+    WhatsappController,
+    WhatsappWebhookController,
+    OutboundChannelController,
+  ],
   providers: [
     WhatsappInstanceService,
     WhatsappWebhookService,
     WhatsappInboundProcessor,
     WhatsappReplyService,
     UazapiService,
+    OutboundChannelService,
   ],
   exports: [UazapiService],
 })

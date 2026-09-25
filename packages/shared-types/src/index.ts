@@ -47,6 +47,19 @@ export interface WhatsappInstanceDto {
   webhookSecret: string | null;
 }
 
+export interface OutboundChannelDto {
+  id: string;
+  tenantId: string;
+  direction: "outbound";
+  name: string;
+  provider: "uazapi";
+  baseUrl: string;
+  instanceName: string | null;
+  connectedNumber: string | null;
+  status: WhatsappInstanceStatus | "error";
+  active: boolean;
+}
+
 // --- Canal de chat (WebSocket) ---
 
 export interface ChatMessageEventDto {
