@@ -116,7 +116,9 @@ function ContactsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contacts")
-        .select("*, companies(name), contact_companies(company_id, companies(name))")
+        .select(
+          "*, companies:companies!contacts_company_id_fkey(name), contact_companies(company_id, companies:companies!contact_companies_company_id_fkey(name))",
+        )
         .order("name");
       if (error) throw error;
       return data as Contact[];
@@ -514,15 +516,14 @@ function ContactDialog({
   useEffect(() => {
     if (!open) return;
     setForm({
-      company_ids:
-        editing?.company_id
-          ? [
-              editing.company_id,
-              ...(editing.contact_companies ?? [])
-                .map((link) => link.company_id)
-                .filter((id) => id !== editing.company_id),
-            ]
-          : [],
+      company_ids: editing?.company_id
+        ? [
+            editing.company_id,
+            ...(editing.contact_companies ?? [])
+              .map((link) => link.company_id)
+              .filter((id) => id !== editing.company_id),
+          ]
+        : [],
       name: editing?.name ?? "",
       email: editing?.email ?? "",
       phone: editing?.phone ? maskPhone(editing.phone) : "",
