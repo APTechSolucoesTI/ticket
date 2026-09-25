@@ -3204,6 +3204,10 @@ const CHANNEL_DEFAULTS: ChannelConfig = {
   signature: "",
 };
 
+const OUTBOUND_WHATSAPP_CHANNELS_QUERY_KEY = ["outbound-whatsapp-channels"] as const;
+const OUTBOUND_WHATSAPP_FINANCE_QUERY_KEY = ["outbound-whatsapp-channel", "finance"] as const;
+const TENANT_WHATSAPP_QUERY_KEY = ["tenant-whatsapp"] as const;
+
 function loadChannelConfig(key: string): ChannelConfig {
   if (typeof window === "undefined") return CHANNEL_DEFAULTS;
   try {
@@ -3218,7 +3222,7 @@ function ChannelsTab() {
   const access = useModulePermissions("canais");
   const [configuring, setConfiguring] = useState<string | null>(null);
   const { data: outbound = [], isLoading: loadingOutbound } = useQuery({
-    queryKey: ["outbound-whatsapp-channels"],
+    queryKey: OUTBOUND_WHATSAPP_CHANNELS_QUERY_KEY,
     queryFn: () => backendClient.get<OutboundChannelDto[]>("/channels/whatsapp/outbound"),
   });
   const financial =
@@ -3522,6 +3526,9 @@ function WhatsAppConfig({
   const [webhookTenantId, setWebhookTenantId] = useState<string | null>(null);
   const qcWa = useQueryClient();
   const channelBasePath = outbound ? "/channels/whatsapp/outbound" : "/channels/whatsapp/instances";
+  const channelQueryKey = outbound
+    ? OUTBOUND_WHATSAPP_FINANCE_QUERY_KEY
+    : TENANT_WHATSAPP_QUERY_KEY;
 
   // Webhook expõe a API por trás do proxy same-origin do próprio app - não
   // depende mais de domínio de preview/publicado de nenhuma plataforma de
@@ -3533,7 +3540,10 @@ function WhatsAppConfig({
       : "";
 
   const { data, isLoading } = useQuery<WhatsAppChannelView | null>({
-    queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
+    // A lista usada no card e o objeto usado neste diálogo precisam de chaves
+    // distintas. Compartilhar a chave fazia o cache entregar um array aqui,
+    // ocultando o id salvo e provocando uma segunda tentativa de INSERT.
+    queryKey: channelQueryKey,
     queryFn: async () => {
       if (outbound) {
         const channels = await backendClient.get<OutboundChannelDto[]>(
@@ -3585,9 +3595,10 @@ function WhatsAppConfig({
         if (r.connected) {
           setQrCode(null);
           toast.success(`WhatsApp conectado${r.number ? `: ${r.number}` : ""}`);
-          await qcWa.invalidateQueries({
-            queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
-          });
+          await qcWa.invalidateQueries({ queryKey: channelQueryKey });
+          if (outbound) {
+            await qcWa.invalidateQueries({ queryKey: OUTBOUND_WHATSAPP_CHANNELS_QUERY_KEY });
+          }
           clearInterval(interval);
         }
       } catch {
@@ -3598,7 +3609,7 @@ function WhatsAppConfig({
       stopped = true;
       clearInterval(interval);
     };
-  }, [channelBasePath, channelResourceId, outbound, qrCode, qcWa]);
+  }, [channelBasePath, channelQueryKey, channelResourceId, outbound, qrCode, qcWa]);
 
   useEffect(() => {
     if (data) {
@@ -3655,9 +3666,10 @@ function WhatsAppConfig({
     },
     onSuccess: () => {
       toast.success("WhatsApp configurado");
-      qc.invalidateQueries({
-        queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
-      });
+      void qc.invalidateQueries({ queryKey: channelQueryKey });
+      if (outbound) {
+        void qc.invalidateQueries({ queryKey: OUTBOUND_WHATSAPP_CHANNELS_QUERY_KEY });
+      }
       onSaved();
     },
     onError: (e: Error) =>
@@ -3721,9 +3733,10 @@ function WhatsAppConfig({
       await backendClient.post(`${channelBasePath}/${channelResourceId}/disconnect`);
       setForm((f) => ({ ...f, whatsapp_connected_number: null }));
       toast.success("Instância desconectada");
-      qc.invalidateQueries({
-        queryKey: [outbound ? "outbound-whatsapp-channels" : "tenant-whatsapp"],
-      });
+      await qc.invalidateQueries({ queryKey: channelQueryKey });
+      if (outbound) {
+        await qc.invalidateQueries({ queryKey: OUTBOUND_WHATSAPP_CHANNELS_QUERY_KEY });
+      }
     } catch (e) {
       toast.error(getUserFacingError(e, "Não foi possível desconectar o WhatsApp."));
     }

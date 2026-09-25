@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -100,6 +101,11 @@ export class OutboundChannelService {
       ? this.db.from('outbound_channels').update(values).eq('id', existing.id)
       : this.db.from('outbound_channels').insert(values);
     const { data, error } = await query.select('*').single();
+    if (error?.code === '23505') {
+      throw new ConflictException(
+        'Já existe um canal de saída com esse nome. Atualize a página e edite o canal existente.',
+      );
+    }
     if (error) throw error;
     const channel = data as ChannelRow;
     if (!existing) await this.seedDefaultAutomation(tenantId, channel.id);
