@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { signSessionToken } from "@/lib/jwt.server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_ATTEMPTS = 8;
@@ -29,7 +30,6 @@ function normalizePhone(value: string): string | null {
 }
 
 async function enforcePasswordAttemptLimit(userId: string) {
-  const { checkRateLimit } = await import("@/lib/rate-limit");
   const result = checkRateLimit(
     `profile-password:${userId}`,
     PASSWORD_ATTEMPTS,
