@@ -1354,6 +1354,7 @@ export type Database = {
           is_active: boolean;
           name: string;
           password_hash: string | null;
+          phone: string | null;
           tenant_id: string;
           tickets_auto_refresh_enabled: boolean;
           tickets_auto_refresh_seconds: number;
@@ -1367,6 +1368,7 @@ export type Database = {
           is_active?: boolean;
           name: string;
           password_hash?: string | null;
+          phone?: string | null;
           tenant_id: string;
           tickets_auto_refresh_enabled?: boolean;
           tickets_auto_refresh_seconds?: number;
@@ -1380,6 +1382,7 @@ export type Database = {
           is_active?: boolean;
           name?: string;
           password_hash?: string | null;
+          phone?: string | null;
           tenant_id?: string;
           tickets_auto_refresh_enabled?: boolean;
           tickets_auto_refresh_seconds?: number;

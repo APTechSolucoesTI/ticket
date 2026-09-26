@@ -273,8 +273,13 @@ export function AppHeader({ title }: { title?: string }) {
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Alternar tema">
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
-        <div className="hidden items-center gap-2 md:flex">
-          <div className="max-w-[160px] text-right leading-tight">
+        <Link
+          to="/profile"
+          className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Abrir meu perfil"
+          title="Meu perfil"
+        >
+          <div className="hidden max-w-[160px] text-right leading-tight md:block">
             <p className="truncate text-xs font-medium text-foreground">
               {user?.name ?? "Usuário"}
             </p>
@@ -285,7 +290,7 @@ export function AppHeader({ title }: { title?: string }) {
               {initials}
             </AvatarFallback>
           </Avatar>
-        </div>
+        </Link>
         <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sair">
           <LogOut className="h-4 w-4" />
         </Button>

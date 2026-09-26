@@ -23,6 +23,7 @@ import { Route as AuthenticatedEmailPendingRouteImport } from './routes/_authent
 import { Route as AuthenticatedEmployeesRouteImport } from './routes/_authenticated/employees'
 import { Route as AuthenticatedEquipmentsRouteImport } from './routes/_authenticated/equipments'
 import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSupplierContractsRouteImport } from './routes/_authenticated/supplier-contracts'
@@ -131,6 +132,11 @@ const AuthenticatedEquipmentsRoute = AuthenticatedEquipmentsRouteImport.update({
 const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
   '/finance': typeof AuthenticatedFinanceRouteWithChildren
+  '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
@@ -412,6 +419,7 @@ export interface FileRoutesByTo {
   '/email-pending': typeof AuthenticatedEmailPendingRoute
   '/employees': typeof AuthenticatedEmployeesRoute
   '/equipments': typeof AuthenticatedEquipmentsRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
@@ -468,6 +476,7 @@ export interface FileRoutesById {
   '/_authenticated/employees': typeof AuthenticatedEmployeesRoute
   '/_authenticated/equipments': typeof AuthenticatedEquipmentsRoute
   '/_authenticated/finance': typeof AuthenticatedFinanceRouteWithChildren
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
@@ -524,6 +533,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/equipments'
     | '/finance'
+    | '/profile'
     | '/reports'
     | '/settings'
     | '/supplier-contracts'
@@ -575,6 +585,7 @@ export interface FileRouteTypes {
     | '/email-pending'
     | '/employees'
     | '/equipments'
+    | '/profile'
     | '/reports'
     | '/settings'
     | '/supplier-contracts'
@@ -630,6 +641,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employees'
     | '/_authenticated/equipments'
     | '/_authenticated/finance'
+    | '/_authenticated/profile'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/supplier-contracts'
@@ -792,6 +804,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof AuthenticatedFinanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reports': {
@@ -1117,6 +1136,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployeesRoute: typeof AuthenticatedEmployeesRoute
   AuthenticatedEquipmentsRoute: typeof AuthenticatedEquipmentsRoute
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRouteWithChildren
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSupplierContractsRoute: typeof AuthenticatedSupplierContractsRoute
@@ -1135,6 +1155,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployeesRoute: AuthenticatedEmployeesRoute,
   AuthenticatedEquipmentsRoute: AuthenticatedEquipmentsRoute,
   AuthenticatedFinanceRoute: AuthenticatedFinanceRouteWithChildren,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSupplierContractsRoute: AuthenticatedSupplierContractsRoute,
