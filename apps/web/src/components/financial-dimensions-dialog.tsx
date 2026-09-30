@@ -70,11 +70,10 @@ type Company = { id: string; legal_name: string; trade_name: string | null };
 
 const db = supabase as unknown as SupabaseClient;
 const FULL_CODE_PATTERN = /^\d{2}\.\d{2}\.\d{4}$/;
-const CATEGORY_CODE_PATTERN = /^(?:\d{2}|\d{2}\.\d{2}|\d{2}\.\d{2}\.\d{4})$/;
+const HIERARCHICAL_CODE_PATTERN = /^(?:\d{2}|\d{2}\.\d{2}|\d{2}\.\d{2}\.\d{4})$/;
 
-function isValidCode(kind: Editor["kind"], code: string, type: ClassificationType) {
-  if (kind === "cost_center") return FULL_CODE_PATTERN.test(code);
-  if (!CATEGORY_CODE_PATTERN.test(code)) return false;
+function isValidCode(code: string, type: ClassificationType) {
+  if (!HIERARCHICAL_CODE_PATTERN.test(code)) return false;
   return type === "analytic" ? FULL_CODE_PATTERN.test(code) : code.split(".").length < 3;
 }
 
@@ -197,14 +196,11 @@ export function FinancialDimensionsDialog({
     queryClient.invalidateQueries({ queryKey: ["financial-dimensions", companyId] });
   const save = useMutation({
     mutationFn: async (value: Editor) => {
-      if (
-        !isValidCode(value.kind, value.code, value.classificationType) ||
-        value.name.trim().length < 2
-      ) {
+      if (!isValidCode(value.code, value.classificationType) || value.name.trim().length < 2) {
         throw new Error(
           value.kind === "category"
             ? "Use 99 ou 99.99 para categorias sintéticas e 99.99.9999 para analíticas."
-            : "Informe o código no formato 99.99.9999 e um nome válido.",
+            : "Use 99 ou 99.99 para centros sintéticos e 99.99.9999 para analíticos.",
         );
       }
       const common = {
@@ -359,12 +355,18 @@ export function FinancialDimensionsDialog({
                   companyNames={companyNames}
                   canEdit={canEdit}
                   saving={save.isPending}
-                  onAdd={() => openNewEditor("cost_center")}
+                  onAdd={() =>
+                    openNewEditor(
+                      "cost_center",
+                      "synthetic",
+                      suggestedRootCode(query.data?.centers ?? []),
+                    )
+                  }
                   onAddChild={(item) =>
                     openNewEditor(
                       "cost_center",
                       codeLevel(item.code) === 0 ? "synthetic" : "analytic",
-                      suggestedChildCode(item.code, query.data?.centers ?? []),
+                      suggestedChildCode(item.code, query.data?.centers ?? [], true),
                     )
                   }
                   onEdit={(item) => openEditor("cost_center", item)}
@@ -399,14 +401,11 @@ function DimensionEditor({
   onSave(): void;
 }) {
   const valid =
-    isValidCode(editor.kind, editor.code, editor.classificationType) &&
-    editor.name.trim().length >= 2;
+    isValidCode(editor.code, editor.classificationType) && editor.name.trim().length >= 2;
   const codeHelp =
-    editor.kind === "category"
-      ? editor.classificationType === "synthetic"
-        ? "Níveis sintéticos: 99 (grupo) ou 99.99 (subgrupo)."
-        : "Nível analítico: 99.99.9999; recebe lançamentos."
-      : "Formato obrigatório: 99.99.9999";
+    editor.classificationType === "synthetic"
+      ? "Níveis sintéticos: 99 (grupo) ou 99.99 (subgrupo)."
+      : "Nível analítico: 99.99.9999; recebe lançamentos.";
   return (
     <div className="my-5 grid gap-4 rounded-xl border bg-muted/20 p-5 sm:grid-cols-2">
       <div className="space-y-1.5">
@@ -419,8 +418,7 @@ function DimensionEditor({
           value={editor.code}
           onChange={(event) => onChange({ ...editor, code: maskCode(event.target.value) })}
           aria-invalid={
-            Boolean(editor.code) &&
-            !isValidCode(editor.kind, editor.code, editor.classificationType)
+            Boolean(editor.code) && !isValidCode(editor.code, editor.classificationType)
           }
         />
         <p className="text-xs text-muted-foreground">{codeHelp}</p>
