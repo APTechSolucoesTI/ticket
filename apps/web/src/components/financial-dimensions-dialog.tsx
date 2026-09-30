@@ -69,7 +69,14 @@ type Editor = {
 type Company = { id: string; legal_name: string; trade_name: string | null };
 
 const db = supabase as unknown as SupabaseClient;
-const CODE_PATTERN = /^\d{2}\.\d{2}\.\d{4}$/;
+const FULL_CODE_PATTERN = /^\d{2}\.\d{2}\.\d{4}$/;
+const CATEGORY_CODE_PATTERN = /^(?:\d{2}|\d{2}\.\d{2}|\d{2}\.\d{2}\.\d{4})$/;
+
+function isValidCode(kind: Editor["kind"], code: string, type: ClassificationType) {
+  if (kind === "cost_center") return FULL_CODE_PATTERN.test(code);
+  if (!CATEGORY_CODE_PATTERN.test(code)) return false;
+  return type === "analytic" ? FULL_CODE_PATTERN.test(code) : code.split(".").length < 3;
+}
 
 function maskCode(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
@@ -77,14 +84,14 @@ function maskCode(value: string) {
 }
 
 function codeLevel(code: string) {
-  if (!CODE_PATTERN.test(code)) return Math.max(0, code.split(".").length - 1);
+  if (!FULL_CODE_PATTERN.test(code)) return Math.max(0, code.split(".").length - 1);
   const [, middle = "00", last = "0000"] = code.split(".");
   return last !== "0000" ? 2 : middle !== "00" ? 1 : 0;
 }
 
 function isDescendantCode(parentCode: string, childCode: string) {
   if (parentCode === childCode) return false;
-  if (!CODE_PATTERN.test(parentCode) || !CODE_PATTERN.test(childCode)) {
+  if (!FULL_CODE_PATTERN.test(parentCode) || !FULL_CODE_PATTERN.test(childCode)) {
     return childCode.startsWith(`${parentCode}.`);
   }
 
@@ -97,7 +104,7 @@ function isDescendantCode(parentCode: string, childCode: string) {
   return parent[1] === child[1];
 }
 
-function suggestedChildCode(parentCode: string, items: Dimension[]) {
+function suggestedChildCode(parentCode: string, items: Dimension[], compact = false) {
   const [first = "00", middle = "00"] = parentCode.split(".");
   const level = codeLevel(parentCode);
   if (level === 0) {
@@ -108,7 +115,8 @@ function suggestedChildCode(parentCode: string, items: Dimension[]) {
           .filter((item) => item.code.startsWith(`${first}.`) && codeLevel(item.code) === 1)
           .map((item) => Number(item.code.split(".")[1])),
       ) + 1;
-    return `${first}.${String(next).padStart(2, "0")}.0000`;
+    const child = `${first}.${String(next).padStart(2, "0")}`;
+    return compact ? child : `${child}.0000`;
   }
   const next =
     Math.max(
@@ -118,6 +126,17 @@ function suggestedChildCode(parentCode: string, items: Dimension[]) {
         .map((item) => Number(item.code.split(".")[2])),
     ) + 1;
   return `${first}.${middle}.${String(next).padStart(4, "0")}`;
+}
+
+function suggestedRootCode(items: Dimension[]) {
+  const next =
+    Math.max(
+      0,
+      ...items
+        .filter((item) => codeLevel(item.code) === 0)
+        .map((item) => Number(item.code.split(".")[0])),
+    ) + 1;
+  return String(next).padStart(2, "0");
 }
 
 export function FinancialDimensionsDialog({
@@ -178,8 +197,15 @@ export function FinancialDimensionsDialog({
     queryClient.invalidateQueries({ queryKey: ["financial-dimensions", companyId] });
   const save = useMutation({
     mutationFn: async (value: Editor) => {
-      if (!CODE_PATTERN.test(value.code) || value.name.trim().length < 2) {
-        throw new Error("Informe o código no formato 99.99.9999 e um nome válido.");
+      if (
+        !isValidCode(value.kind, value.code, value.classificationType) ||
+        value.name.trim().length < 2
+      ) {
+        throw new Error(
+          value.kind === "category"
+            ? "Use 99 ou 99.99 para categorias sintéticas e 99.99.9999 para analíticas."
+            : "Informe o código no formato 99.99.9999 e um nome válido.",
+        );
       }
       const common = {
         p_id: value.id,
@@ -305,12 +331,18 @@ export function FinancialDimensionsDialog({
                   companyNames={companyNames}
                   canEdit={canEdit}
                   saving={save.isPending}
-                  onAdd={() => openNewEditor("category")}
+                  onAdd={() =>
+                    openNewEditor(
+                      "category",
+                      "synthetic",
+                      suggestedRootCode(query.data?.categories ?? []),
+                    )
+                  }
                   onAddChild={(item) =>
                     openNewEditor(
                       "category",
                       codeLevel(item.code) === 0 ? "synthetic" : "analytic",
-                      suggestedChildCode(item.code, query.data?.categories ?? []),
+                      suggestedChildCode(item.code, query.data?.categories ?? [], true),
                     )
                   }
                   onEdit={(item) => openEditor("category", item)}
@@ -366,7 +398,15 @@ function DimensionEditor({
   onCancel(): void;
   onSave(): void;
 }) {
-  const valid = CODE_PATTERN.test(editor.code) && editor.name.trim().length >= 2;
+  const valid =
+    isValidCode(editor.kind, editor.code, editor.classificationType) &&
+    editor.name.trim().length >= 2;
+  const codeHelp =
+    editor.kind === "category"
+      ? editor.classificationType === "synthetic"
+        ? "Níveis sintéticos: 99 (grupo) ou 99.99 (subgrupo)."
+        : "Nível analítico: 99.99.9999; recebe lançamentos."
+      : "Formato obrigatório: 99.99.9999";
   return (
     <div className="my-5 grid gap-4 rounded-xl border bg-muted/20 p-5 sm:grid-cols-2">
       <div className="space-y-1.5">
@@ -378,9 +418,12 @@ function DimensionEditor({
           placeholder="01.01.0001"
           value={editor.code}
           onChange={(event) => onChange({ ...editor, code: maskCode(event.target.value) })}
-          aria-invalid={Boolean(editor.code) && !CODE_PATTERN.test(editor.code)}
+          aria-invalid={
+            Boolean(editor.code) &&
+            !isValidCode(editor.kind, editor.code, editor.classificationType)
+          }
         />
-        <p className="text-xs text-muted-foreground">Formato obrigatório: 99.99.9999</p>
+        <p className="text-xs text-muted-foreground">{codeHelp}</p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="dimension-name">Nome *</Label>
@@ -630,6 +673,15 @@ function DimensionList({
                     >
                       {synthetic ? "Sintética" : "Analítica"}
                     </Badge>
+                    {"direction" in item ? (
+                      <Badge variant="outline" className="font-normal">
+                        {item.direction === "inflow"
+                          ? "Somente entradas"
+                          : item.direction === "outflow"
+                            ? "Somente saídas"
+                            : "Entradas e saídas"}
+                      </Badge>
+                    ) : null}
                     {item.is_global ? <Badge variant="secondary">Global</Badge> : null}
                     <Switch
                       checked={item.is_active}

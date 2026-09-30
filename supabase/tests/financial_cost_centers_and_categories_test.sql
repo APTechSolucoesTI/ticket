@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public,apticket,pg_catalog;
-select plan(37);
+select plan(42);
 
 insert into apticket.tenants(id,name,slug) values
  ('fb100000-0000-0000-0000-000000000001','Classificacao A','classificacao-a'),
@@ -55,10 +55,15 @@ select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-00
 select is((select code from apticket.financial_categories where name='Receitas recorrentes'),'01.00.0001','preserva codigo mascarado da categoria');
 select throws_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','01.01.0001','Outro administrativo',null)$$,'23505','Ja existe um centro de custo com este codigo no escopo informado.','impede codigo duplicado');
 select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','09.00.0001','Invalida','invalid',null)$$,'23514','Informe codigo no formato 99.99.9999, nome, natureza e tipo validos para a categoria.','valida natureza da categoria');
+select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','10','Receitas','inflow',null,true,true,'synthetic')$$,'cadastra categoria sintetica de primeiro nivel');
+select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','10.01','Servicos','inflow',null,true,true,'synthetic')$$,'cadastra categoria sintetica de segundo nivel');
+select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','10.01.0001','Contratos gerenciados MRR','inflow',null,true,true,'analytic')$$,'cadastra categoria analitica de terceiro nivel');
+select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','11','Analitica invalida','inflow',null,false,true,'analytic')$$,'23514','Use codigos 99 ou 99.99 para categorias sinteticas e 99.99.9999 para categorias analiticas.','impede categoria analitica fora do terceiro nivel');
+select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','11.01.0001','Sintetica invalida','inflow',null,false,true,'synthetic')$$,'23514','Use codigos 99 ou 99.99 para categorias sinteticas e 99.99.9999 para categorias analiticas.','impede categoria sintetica no terceiro nivel');
 select throws_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','1.1.1','Codigo invalido',null)$$,'23514','Informe codigo no formato 99.99.9999, nome e tipo validos para o centro de custo.','exige mascara completa do codigo');
-select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','05.00.0000','Grupo sintetico','outflow',null,false,true,'synthetic')$$,'cadastra categoria sintetica');
+select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','05','Grupo sintetico','outflow',null,false,true,'synthetic')$$,'cadastra categoria sintetica');
 select lives_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','05.01.0000','Centro sintetico',null,false,true,'synthetic')$$,'cadastra centro sintetico');
-select throws_ok($$select apticket.classify_financial_entry('supplier_payable','fba00000-0000-0000-0000-000000000002',(select id from apticket.financial_categories where code='05.00.0000'),(select id from apticket.financial_cost_centers where code='01.01.0001'),null)$$,'23514','Selecione uma categoria analitica ativa compativel com o movimento.','categoria sintetica nao recebe lancamento');
+select throws_ok($$select apticket.classify_financial_entry('supplier_payable','fba00000-0000-0000-0000-000000000002',(select id from apticket.financial_categories where code='05'),(select id from apticket.financial_cost_centers where code='01.01.0001'),null)$$,'23514','Selecione uma categoria analitica ativa compativel com o movimento.','categoria sintetica nao recebe lancamento');
 select throws_ok($$select apticket.classify_financial_entry('supplier_payable','fba00000-0000-0000-0000-000000000002',(select id from apticket.financial_categories where code='02.00.0001'),(select id from apticket.financial_cost_centers where code='05.01.0000'),null)$$,'23514','Selecione um centro de custo analitico ativo desta empresa.','centro sintetico nao recebe lancamento');
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000003','07.00.0001','Despesa global','outflow',null,true,true,'analytic')$$,'cadastra categoria global em outra operadora');
 select lives_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000003','07.01.0001','Centro global',null,true,true,'analytic')$$,'cadastra centro global em outra operadora');
