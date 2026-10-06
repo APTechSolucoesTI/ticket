@@ -151,12 +151,16 @@ export class WhatsappWebhookService {
     const { data: contactMatches } = await this.supabase.client
       .from('contacts')
       .select(
-        'id, tenant_id, company_id, name, phone, can_open_tickets, is_active',
+        'id, tenant_id, company_id, name, phone, secondary_phones, can_open_tickets, is_active',
       )
       .eq('tenant_id', tenantId);
 
     let contact =
-      (contactMatches ?? []).find((c) => samePhone(c.phone, phone)) ?? null;
+      (contactMatches ?? []).find(
+        (c) =>
+          samePhone(c.phone, phone) ||
+          c.secondary_phones.some((value) => samePhone(value, phone)),
+      ) ?? null;
 
     if (!contact) {
       const { data: newContact, error: cErr } = await this.supabase.client
@@ -173,7 +177,7 @@ export class WhatsappWebhookService {
             'Contato criado automaticamente via WhatsApp - aguardando vínculo com cliente.',
         })
         .select(
-          'id, tenant_id, company_id, name, phone, can_open_tickets, is_active',
+          'id, tenant_id, company_id, name, phone, secondary_phones, can_open_tickets, is_active',
         )
         .single();
       if (cErr || !newContact) {

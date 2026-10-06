@@ -14,6 +14,8 @@ import {
   User,
 } from "lucide-react";
 import { ContactImportDialog } from "@/components/contact-import-dialog";
+import { ContactCompanySelect } from "@/components/contact-company-select";
+import { ContactSecondaryFields } from "@/components/contact-secondary-fields";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
@@ -23,7 +25,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import {
@@ -48,7 +49,7 @@ import {
 import { toast } from "sonner";
 import { maskPhone, normalizePhone, unmask } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
-import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
+import { getUserFacingError } from "@/lib/user-facing-error";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
   validateSearch: z.object({ record: z.string().optional() }),
@@ -58,10 +59,12 @@ export const Route = createFileRoute("/_authenticated/contacts")({
 
 type Contact = {
   id: string;
-  company_id: string;
+  company_id: string | null;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
+  secondary_emails: string[];
+  secondary_phones: string[];
   job_title: string | null;
   can_open_tickets: boolean;
   receives_csat: boolean;
@@ -80,24 +83,62 @@ type ContactTicket = {
   created_at: string;
 };
 
-const schema = z.object({
-  company_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um cliente"),
-  name: z.string().trim().min(1, "Nome obrigatório").max(120),
-  email: z.string().trim().toLowerCase().email("E-mail inválido").max(255),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .optional()
-    .or(z.literal(""))
-    .refine((v) => !v || unmask(v).length >= 10, "Telefone inválido"),
-  job_title: z.string().trim().max(120).optional().or(z.literal("")),
-  can_open_tickets: z.boolean(),
-  receives_csat: z.boolean(),
-  is_active: z.boolean(),
-  is_portal_admin: z.boolean(),
-  is_portal_financial: z.boolean(),
-});
+const schema = z
+  .object({
+    company_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um cliente"),
+    name: z.string().trim().min(1, "Nome obrigatório").max(120),
+    email: z.string().trim().toLowerCase().email("E-mail inválido").max(255),
+    secondary_emails: z.array(
+      z.string().trim().toLowerCase().email("E-mail secundário inválido").max(255),
+    ),
+    secondary_phones: z.array(
+      z
+        .string()
+        .trim()
+        .min(1, "Informe o telefone ou remova o campo")
+        .max(40)
+        .refine(
+          (v) => unmask(v).length >= 10 && unmask(v).length <= 15,
+          "Telefone secundário inválido",
+        ),
+    ),
+    phone: z
+      .string()
+      .trim()
+      .max(40)
+      .optional()
+      .or(z.literal(""))
+      .refine((v) => !v || (unmask(v).length >= 10 && unmask(v).length <= 15), "Telefone inválido"),
+    job_title: z.string().trim().max(120).optional().or(z.literal("")),
+    can_open_tickets: z.boolean(),
+    receives_csat: z.boolean(),
+    is_active: z.boolean(),
+    is_portal_admin: z.boolean(),
+    is_portal_financial: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    const emails = new Set([values.email]);
+    values.secondary_emails.forEach((email, index) => {
+      if (emails.has(email))
+        ctx.addIssue({
+          code: "custom",
+          path: ["secondary_emails", index],
+          message: "Este e-mail já foi informado no contato",
+        });
+      emails.add(email);
+    });
+    const phones = new Set(values.phone ? [normalizePhone(values.phone)] : []);
+    values.secondary_phones.forEach((phone, index) => {
+      const normalized = normalizePhone(phone);
+      if (phones.has(normalized))
+        ctx.addIssue({
+          code: "custom",
+          path: ["secondary_phones", index],
+          message: "Este telefone já foi informado no contato",
+        });
+      phones.add(normalized);
+    });
+  });
 
 function ContactsPage() {
   const { record } = Route.useSearch();
@@ -228,12 +269,43 @@ function ContactsPage() {
                     return names?.length ? names.join(", ") : c.companies?.name || "-";
                   },
                 },
-                { key: "email", label: "E-mail", className: "text-sm", cell: (c) => c.email },
+                {
+                  key: "email",
+                  label: "E-mail",
+                  className: "text-sm",
+                  accessor: (c) => [c.email, ...(c.secondary_emails ?? [])].join(" "),
+                  cell: (c) => (
+                    <div>
+                      {c.email}
+                      {!!c.secondary_emails?.length && (
+                        <div
+                          className="text-xs text-muted-foreground"
+                          title={c.secondary_emails.join(", ")}
+                        >
+                          +{c.secondary_emails.length} secundário(s)
+                        </div>
+                      )}
+                    </div>
+                  ),
+                },
                 {
                   key: "phone",
                   label: "Telefone",
                   className: "text-sm",
-                  cell: (c) => (c.phone ? maskPhone(c.phone) : "-"),
+                  accessor: (c) => [c.phone, ...(c.secondary_phones ?? [])].join(" "),
+                  cell: (c) => (
+                    <div>
+                      {c.phone ? maskPhone(c.phone) : "-"}
+                      {!!c.secondary_phones?.length && (
+                        <div
+                          className="text-xs text-muted-foreground"
+                          title={c.secondary_phones.map(maskPhone).join(", ")}
+                        >
+                          +{c.secondary_phones.length} secundário(s)
+                        </div>
+                      )}
+                    </div>
+                  ),
                 },
                 {
                   key: "job_title",
@@ -426,11 +498,14 @@ function ContactDialog({
   readOnly: boolean;
 }) {
   const qc = useQueryClient();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     company_ids: [] as string[],
     name: "",
     email: "",
     phone: "",
+    secondary_emails: [] as string[],
+    secondary_phones: [] as string[],
     job_title: "",
     can_open_tickets: true,
     receives_csat: true,
@@ -439,7 +514,7 @@ function ContactDialog({
     is_portal_financial: false,
   });
 
-  const { data: companies } = useQuery({
+  const companiesQuery = useQuery({
     queryKey: ["companies", "options"],
     queryFn: async () => {
       const { data, error } = await supabase.from("companies").select("id, name").order("name");
@@ -459,6 +534,8 @@ function ContactDialog({
         name: payload.name,
         email: payload.email,
         phone: payload.phone ? normalizePhone(payload.phone) : null,
+        secondary_emails: payload.secondary_emails,
+        secondary_phones: payload.secondary_phones.map(normalizePhone),
         job_title: payload.job_title || null,
         can_open_tickets: payload.can_open_tickets,
         receives_csat: payload.receives_csat,
@@ -467,15 +544,18 @@ function ContactDialog({
         is_portal_financial: payload.is_portal_financial,
       };
 
-      if (payload.phone) {
-        const digits = normalizePhone(payload.phone);
+      const phones = [values.phone, ...values.secondary_phones].filter(Boolean);
+      if (phones.length) {
         const { data: existing, error: checkErr } = await supabase
           .from("contacts")
-          .select("id, phone")
-          .not("phone", "is", null);
+          .select("id, phone, secondary_phones");
         if (checkErr) throw checkErr;
         const dup = existing?.find(
-          (c) => c.id !== editing?.id && normalizePhone(c.phone ?? "") === digits,
+          (c) =>
+            c.id !== editing?.id &&
+            [c.phone, ...c.secondary_phones].some(
+              (phone) => phone && phones.includes(normalizePhone(phone)),
+            ),
         );
         if (dup) throw new Error("Já existe um contato cadastrado com este telefone.");
       }
@@ -515,6 +595,7 @@ function ContactDialog({
 
   useEffect(() => {
     if (!open) return;
+    setErrors({});
     setForm({
       company_ids: editing?.company_id
         ? [
@@ -527,6 +608,8 @@ function ContactDialog({
       name: editing?.name ?? "",
       email: editing?.email ?? "",
       phone: editing?.phone ? maskPhone(editing.phone) : "",
+      secondary_emails: editing?.secondary_emails ?? [],
+      secondary_phones: (editing?.secondary_phones ?? []).map(maskPhone),
       job_title: editing?.job_title ?? "",
       can_open_tickets: editing?.can_open_tickets ?? true,
       receives_csat: editing?.receives_csat ?? true,
@@ -536,139 +619,237 @@ function ContactDialog({
     });
   }, [open, editing]);
 
+  const disabled = readOnly || save.isPending;
+  function updateForm(next: typeof form | ((current: typeof form) => typeof form)) {
+    setErrors({});
+    setForm(next);
+  }
+  function fieldError(field: string) {
+    return errors[field] ? (
+      <p id={`contact-${field}-error`} role="alert" className="text-xs text-destructive">
+        {errors[field]}
+      </p>
+    ) : null;
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!save.isPending) onOpenChange(next);
+      }}
+    >
       <ReadOnlyProvider readOnly={readOnly}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+          <DialogHeader className="shrink-0 border-b px-5 py-4">
             <DialogTitle>
               {readOnly ? "Visualizar contato" : editing ? "Editar contato" : "Novo contato"}
             </DialogTitle>
+            <DialogDescription>
+              Vincule clientes e organize os canais de contato. Campos com * são obrigatórios.
+            </DialogDescription>
           </DialogHeader>
-          <ReadOnlyNotice show={readOnly} />
           <form
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (readOnly) return;
-              const r = schema.safeParse(form);
-              if (!r.success) {
-                toast.error(getValidationErrorMessage(r.error));
+            className="flex min-h-0 flex-1 flex-col"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (disabled) return;
+              const result = schema.safeParse(form);
+              if (!result.success) {
+                const nextErrors: Record<string, string> = {};
+                result.error.issues.forEach((issue) => {
+                  const path =
+                    issue.path[0] === "company_ids" ? "company_ids" : issue.path.join(".");
+                  nextErrors[path] ??= issue.message;
+                });
+                setErrors(nextErrors);
+                const first = result.error.issues[0]?.path;
+                const fieldId =
+                  first?.[0] === "company_ids"
+                    ? "contact-companies"
+                    : first
+                      ? `contact-${first.join("-")}`
+                      : "";
+                document.getElementById(fieldId)?.focus();
                 return;
               }
-              save.mutate(r.data);
+              setErrors({});
+              save.mutate(result.data);
             }}
           >
-            <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-              <Label>Clientes *</Label>
-              <div className="grid max-h-44 gap-1 overflow-y-auto rounded-md border p-2 sm:grid-cols-2">
-                {companies?.map((company) => {
-                  const checked = form.company_ids.includes(company.id);
-                  return (
-                    <label
-                      key={company.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted"
+            <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
+              <ReadOnlyNotice show={readOnly} />
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-companies">Clientes *</Label>
+                <ContactCompanySelect
+                  companies={companiesQuery.data ?? []}
+                  value={form.company_ids}
+                  onChange={(ids) => updateForm((current) => ({ ...current, company_ids: ids }))}
+                  disabled={disabled}
+                  loading={companiesQuery.isLoading}
+                  error={companiesQuery.isError}
+                  onRetry={() => {
+                    void companiesQuery.refetch();
+                  }}
+                  invalid={!!errors.company_ids}
+                />
+                {fieldError("company_ids")}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-name">Nome *</Label>
+                  <Input
+                    id="contact-name"
+                    autoComplete="name"
+                    value={form.name}
+                    disabled={disabled}
+                    aria-invalid={!!errors.name}
+                    aria-describedby={errors.name ? "contact-name-error" : undefined}
+                    onChange={(event) => updateForm({ ...form, name: event.target.value })}
+                  />
+                  {fieldError("name")}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-job_title">Cargo</Label>
+                  <Input
+                    id="contact-job_title"
+                    value={form.job_title}
+                    disabled={disabled}
+                    aria-invalid={!!errors.job_title}
+                    onChange={(event) => updateForm({ ...form, job_title: event.target.value })}
+                  />
+                  {fieldError("job_title")}
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <section
+                  className="min-w-0 space-y-2 rounded-lg border p-3"
+                  aria-label="E-mails do contato"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-email">E-mail principal *</Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      autoComplete="email"
+                      value={form.email}
+                      disabled={disabled}
+                      aria-invalid={!!errors.email}
+                      aria-describedby={errors.email ? "contact-email-error" : undefined}
+                      placeholder="nome@empresa.com.br"
+                      onChange={(event) => updateForm({ ...form, email: event.target.value })}
+                    />
+                    {fieldError("email")}
+                  </div>
+                  <ContactSecondaryFields
+                    kind="email"
+                    values={form.secondary_emails}
+                    onChange={(values) =>
+                      updateForm((current) => ({ ...current, secondary_emails: values }))
+                    }
+                    disabled={disabled}
+                    errors={errors}
+                  />
+                </section>
+                <section
+                  className="min-w-0 space-y-2 rounded-lg border p-3"
+                  aria-label="Telefones do contato"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-phone">
+                      Telefone principal{" "}
+                      <span className="font-normal text-muted-foreground">(opcional)</span>
+                    </Label>
+                    <Input
+                      id="contact-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      value={form.phone}
+                      disabled={disabled}
+                      aria-invalid={!!errors.phone}
+                      aria-describedby={errors.phone ? "contact-phone-error" : undefined}
+                      placeholder="55 11 99999-9999"
+                      onChange={(event) =>
+                        updateForm({ ...form, phone: maskPhone(event.target.value) })
+                      }
+                    />
+                    {fieldError("phone")}
+                  </div>
+                  <ContactSecondaryFields
+                    kind="phone"
+                    values={form.secondary_phones}
+                    onChange={(values) =>
+                      updateForm((current) => ({ ...current, secondary_phones: values }))
+                    }
+                    disabled={disabled}
+                    errors={errors}
+                  />
+                </section>
+              </div>
+              <section className="space-y-2" aria-labelledby="contact-permissions-title">
+                <h3 id="contact-permissions-title" className="text-sm font-medium">
+                  Permissões e preferências
+                </h3>
+                <div className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {(
+                    [
+                      ["can_open_tickets", "Pode abrir tickets", ""],
+                      ["receives_csat", "Recebe pesquisa CSAT", ""],
+                      ["is_active", "Contato ativo", ""],
+                      [
+                        "is_portal_admin",
+                        "Administrador do portal",
+                        "Gerencia contatos da empresa",
+                      ],
+                      [
+                        "is_portal_financial",
+                        "Financeiro no portal",
+                        "Acessa faturas e documentos",
+                      ],
+                    ] as const
+                  ).map(([field, label, description]) => (
+                    <div
+                      key={field}
+                      className="flex items-center justify-between gap-3 border-b py-2.5"
                     >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() =>
-                          setForm((current) => ({
-                            ...current,
-                            company_ids: checked
-                              ? current.company_ids.filter((id) => id !== company.id)
-                              : [...current.company_ids, company.id],
-                          }))
+                      <div>
+                        <Label
+                          htmlFor={`contact-${field}`}
+                          className="cursor-pointer text-sm font-normal"
+                        >
+                          {label}
+                        </Label>
+                        {description && (
+                          <p className="text-xs text-muted-foreground">{description}</p>
+                        )}
+                      </div>
+                      <Switch
+                        id={`contact-${field}`}
+                        checked={form[field]}
+                        disabled={disabled}
+                        onCheckedChange={(value) =>
+                          updateForm((current) => ({ ...current, [field]: value }))
                         }
                       />
-                      <span>{company.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {form.company_ids.length
-                  ? `${form.company_ids.length} cliente(s) selecionado(s). O primeiro será o principal.`
-                  : "Selecione ao menos um cliente."}
-              </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
-            <div>
-              <Label>Nome *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Cargo</Label>
-              <Input
-                value={form.job_title}
-                onChange={(e) => setForm({ ...form, job_title: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>E-mail *</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Telefone</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
-                placeholder="55 11 99999-9999"
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <div className="text-sm">Pode abrir tickets</div>
-              <Switch
-                checked={form.can_open_tickets}
-                onCheckedChange={(v) => setForm({ ...form, can_open_tickets: v })}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <div className="text-sm">Recebe pesquisa CSAT</div>
-              <Switch
-                checked={form.receives_csat}
-                onCheckedChange={(v) => setForm({ ...form, receives_csat: v })}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <div className="text-sm">Ativo</div>
-              <Switch
-                checked={form.is_active}
-                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <div>
-                <div className="text-sm">Administrador do portal</div>
-                <div className="text-xs text-muted-foreground">Gerencia contatos da empresa</div>
-              </div>
-              <Switch
-                checked={form.is_portal_admin}
-                onCheckedChange={(v) => setForm({ ...form, is_portal_admin: v })}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <div>
-                <div className="text-sm">Financeiro no portal</div>
-                <div className="text-xs text-muted-foreground">Acessa faturas e documentos</div>
-              </div>
-              <Switch
-                checked={form.is_portal_financial}
-                onCheckedChange={(v) => setForm({ ...form, is_portal_financial: v })}
-              />
-            </div>
-            <DialogFooter className="sm:col-span-2">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="shrink-0 gap-2 border-t bg-muted/20 px-5 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={save.isPending}
+                onClick={() => onOpenChange(false)}
+              >
                 {readOnly ? "Fechar" : "Cancelar"}
               </Button>
               {!readOnly && (
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Salvando…" : "Salvar"}
+                <Button type="submit" disabled={save.isPending || companiesQuery.isLoading}>
+                  {save.isPending && <Loader2 className="size-4 animate-spin" />}
+                  {save.isPending ? "Salvando…" : "Salvar contato"}
                 </Button>
               )}
             </DialogFooter>

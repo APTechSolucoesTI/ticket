@@ -108,11 +108,25 @@ export class EmailChannelService {
   }
 
   async processInboundEmail(data: InboundEmail): Promise<InboundEmailResult> {
-    const { data: contact, error: contactErr } = await this.supabase.client
+    const senderEmail = data.from_email.trim().toLowerCase();
+    let contactQuery = this.supabase.client
       .from('contacts')
       .select('id, tenant_id, company_id, name, can_open_tickets, is_active')
-      .ilike('email', data.from_email)
-      .maybeSingle();
+      .ilike('email', senderEmail.replace(/[\\%_]/g, '\\$&'));
+    if (data.tenant_id)
+      contactQuery = contactQuery.eq('tenant_id', data.tenant_id);
+    let { data: contact, error: contactErr } = await contactQuery.maybeSingle();
+    if (!contact && !contactErr) {
+      let secondaryQuery = this.supabase.client
+        .from('contacts')
+        .select('id, tenant_id, company_id, name, can_open_tickets, is_active')
+        .contains('secondary_emails', [senderEmail]);
+      if (data.tenant_id)
+        secondaryQuery = secondaryQuery.eq('tenant_id', data.tenant_id);
+      const secondary = await secondaryQuery.maybeSingle();
+      contact = secondary.data;
+      contactErr = secondary.error;
+    }
 
     if (contactErr) {
       this.logger.error(`contact lookup error: ${contactErr.message}`);

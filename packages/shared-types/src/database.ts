@@ -215,8 +215,43 @@ export type Database = {
           },
         ];
       };
+      contact_companies: {
+        Row: { contact_id: string; company_id: string; tenant_id: string; created_at: string };
+        Insert: { contact_id: string; company_id: string; tenant_id: string; created_at?: string };
+        Update: {
+          contact_id?: string;
+          company_id?: string;
+          tenant_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_companies_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_companies_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_companies_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contacts: {
         Row: {
+          secondary_emails: string[];
+          secondary_phones: string[];
           can_open_tickets: boolean;
           company_id: string | null;
           created_at: string;
@@ -234,6 +269,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          secondary_emails?: string[];
+          secondary_phones?: string[];
           can_open_tickets?: boolean;
           company_id?: string | null;
           created_at?: string;
@@ -251,6 +288,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          secondary_emails?: string[];
+          secondary_phones?: string[];
           can_open_tickets?: boolean;
           company_id?: string | null;
           created_at?: string;

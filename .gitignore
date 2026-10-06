@@ -11,6 +11,7 @@ bun.lock
 
 # Logs
 /artifacts/inter-settings/
+/artifacts/contacts/
 logs
 *.log
 npm-debug.log*
