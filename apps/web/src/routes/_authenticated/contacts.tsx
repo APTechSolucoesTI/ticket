@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { ContactImportDialog } from "@/components/contact-import-dialog";
 import { ContactCompanySelect } from "@/components/contact-company-select";
-import { ContactSecondaryFields } from "@/components/contact-secondary-fields";
+import { ContactChannelSelect } from "@/components/contact-channel-select";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
@@ -607,9 +607,16 @@ function ContactDialog({
         : [],
       name: editing?.name ?? "",
       email: editing?.email ?? "",
-      phone: editing?.phone ? maskPhone(editing.phone) : "",
+      phone: editing?.phone
+        ? maskPhone(editing.phone)
+        : editing?.secondary_phones?.[0]
+          ? maskPhone(editing.secondary_phones[0])
+          : "",
       secondary_emails: editing?.secondary_emails ?? [],
-      secondary_phones: (editing?.secondary_phones ?? []).map(maskPhone),
+      secondary_phones: (editing?.phone
+        ? editing.secondary_phones
+        : (editing?.secondary_phones?.slice(1) ?? [])
+      ).map(maskPhone),
       job_title: editing?.job_title ?? "",
       can_open_tickets: editing?.can_open_tickets ?? true,
       receives_csat: editing?.receives_csat ?? true,
@@ -668,9 +675,13 @@ function ContactDialog({
                 const fieldId =
                   first?.[0] === "company_ids"
                     ? "contact-companies"
-                    : first
-                      ? `contact-${first.join("-")}`
-                      : "";
+                    : first?.[0] === "secondary_emails"
+                      ? "contact-email"
+                      : first?.[0] === "secondary_phones"
+                        ? "contact-phone"
+                        : first
+                          ? `contact-${first.join("-")}`
+                          : "";
                 document.getElementById(fieldId)?.focus();
                 return;
               }
@@ -723,64 +734,29 @@ function ContactDialog({
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <section
-                  className="min-w-0 space-y-2 rounded-lg border p-3"
-                  aria-label="E-mails do contato"
-                >
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-email">E-mail principal *</Label>
-                    <Input
-                      id="contact-email"
-                      type="email"
-                      autoComplete="email"
-                      value={form.email}
-                      disabled={disabled}
-                      aria-invalid={!!errors.email}
-                      aria-describedby={errors.email ? "contact-email-error" : undefined}
-                      placeholder="nome@empresa.com.br"
-                      onChange={(event) => updateForm({ ...form, email: event.target.value })}
-                    />
-                    {fieldError("email")}
-                  </div>
-                  <ContactSecondaryFields
+                <section className="min-w-0 space-y-2" aria-label="E-mails do contato">
+                  <Label htmlFor="contact-email">E-mails *</Label>
+                  <ContactChannelSelect
                     kind="email"
-                    values={form.secondary_emails}
-                    onChange={(values) =>
-                      updateForm((current) => ({ ...current, secondary_emails: values }))
+                    primary={form.email}
+                    secondary={form.secondary_emails}
+                    onChange={(email, secondary_emails) =>
+                      updateForm((current) => ({ ...current, email, secondary_emails }))
                     }
                     disabled={disabled}
                     errors={errors}
                   />
                 </section>
-                <section
-                  className="min-w-0 space-y-2 rounded-lg border p-3"
-                  aria-label="Telefones do contato"
-                >
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-phone">
-                      Telefone principal{" "}
-                      <span className="font-normal text-muted-foreground">(opcional)</span>
-                    </Label>
-                    <Input
-                      id="contact-phone"
-                      type="tel"
-                      autoComplete="tel"
-                      value={form.phone}
-                      disabled={disabled}
-                      aria-invalid={!!errors.phone}
-                      aria-describedby={errors.phone ? "contact-phone-error" : undefined}
-                      placeholder="55 11 99999-9999"
-                      onChange={(event) =>
-                        updateForm({ ...form, phone: maskPhone(event.target.value) })
-                      }
-                    />
-                    {fieldError("phone")}
-                  </div>
-                  <ContactSecondaryFields
+                <section className="min-w-0 space-y-2" aria-label="Telefones do contato">
+                  <Label htmlFor="contact-phone">
+                    Telefones <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </Label>
+                  <ContactChannelSelect
                     kind="phone"
-                    values={form.secondary_phones}
-                    onChange={(values) =>
-                      updateForm((current) => ({ ...current, secondary_phones: values }))
+                    primary={form.phone}
+                    secondary={form.secondary_phones}
+                    onChange={(phone, secondary_phones) =>
+                      updateForm((current) => ({ ...current, phone, secondary_phones }))
                     }
                     disabled={disabled}
                     errors={errors}

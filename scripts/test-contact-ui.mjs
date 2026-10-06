@@ -59,14 +59,17 @@ try {
     await page.getByRole('option', { name: /APTech/ }).click();
     await page.getByRole('button', { name: 'Concluir', exact: true }).click();
     await dialog.getByLabel('Nome *', { exact: true }).fill('Contato de teste');
-    await dialog.getByLabel('E-mail principal *', { exact: true }).fill(' PRIMARY@example.com ');
-    await dialog.getByRole('button', { name: 'Adicionar e-mail', exact: true }).click();
-    await dialog.getByLabel('E-mail secundário 1', { exact: true }).fill('primary@example.com');
+    await dialog.getByLabel('E-mails *', { exact: true }).click();
+    await page.getByLabel('E-mail 1 · Principal', { exact: true }).fill(' PRIMARY@example.com ');
+    await page.getByRole('button', { name: 'Adicionar e-mail', exact: true }).click();
+    await page.getByLabel('E-mail 2', { exact: true }).fill('primary@example.com');
+    await page.getByRole('button', { name: 'Concluir', exact: true }).click();
     await dialog.getByRole('button', { name: 'Salvar contato', exact: true }).click();
     await dialog.getByText('Este e-mail já foi informado no contato', { exact: true }).waitFor();
-    await dialog.getByLabel('E-mail secundário 1', { exact: true }).fill('secondary@example.com');
-    await dialog.getByRole('button', { name: 'Adicionar telefone', exact: true }).click();
-    await dialog.getByLabel('Telefone secundário 1', { exact: true }).fill('11988881010');
+    await dialog.getByLabel('E-mails *', { exact: true }).click();
+    await page.getByLabel('E-mail 2', { exact: true }).fill('secondary@example.com');
+    await page.getByRole('button', { name: 'Concluir', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Definir secondary@example.com como e-mail principal', exact: true }).click();
     await page.screenshot({ path: `artifacts/contacts/form-${width}.png` });
     const bounds = await dialog.boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= height + 1);
@@ -76,41 +79,63 @@ try {
     await dialog.getByRole('button', { name: 'Salvar contato', exact: true }).click();
     await page.getByText('Contato criado', { exact: true }).waitFor();
     assert.equal(saved.phone, null);
-    assert.deepEqual(saved.secondary_phones, ['5511988881010']);
-    assert.deepEqual(saved.secondary_emails, ['secondary@example.com']);
-    assert.equal(saved.email, 'primary@example.com');
+    assert.deepEqual(saved.secondary_phones, []);
+    assert.deepEqual(saved.secondary_emails, ['primary@example.com']);
+    assert.equal(saved.email, 'secondary@example.com');
     assert.deepEqual(clientPayload.p_company_ids, [companyB, companyA]);
     await page.goto(`http://127.0.0.1:4173/contacts?record=${contactId}`);
     const edit = page.getByRole('dialog').filter({ has: page.getByText('Editar contato', { exact: true }) });
-    await edit.getByLabel('E-mail secundário 1', { exact: true }).waitFor();
-    assert.equal(await edit.getByLabel('E-mail secundário 1', { exact: true }).inputValue(), 'secondary@example.com');
-    assert.equal(await edit.getByLabel('Telefone secundário 1', { exact: true }).inputValue(), '55 11 98888-1010');
+    const primaryEmail = edit.getByRole('button', { name: 'Definir secondary@example.com como e-mail principal', exact: true });
+    await primaryEmail.waitFor();
+    assert.equal(await primaryEmail.getAttribute('aria-pressed'), 'true');
+    await edit.getByLabel('Telefones (opcional)', { exact: true }).click();
+    await page.getByLabel('Telefone 1 · Principal', { exact: true }).fill('11988881010');
+    await page.getByRole('button', { name: 'Adicionar telefone', exact: true }).click();
+    await page.getByLabel('Telefone 2', { exact: true }).fill('11977772020');
+    await page.getByRole('button', { name: 'Concluir', exact: true }).click();
+    await edit.getByRole('button', { name: 'Definir 55 11 97777-2020 como telefone principal', exact: true }).click();
+    await page.screenshot({ path: `artifacts/contacts/primary-${width}.png` });
     if (width === 1366) {
-      for (let index = 2; index <= 8; index++) {
-        await edit.getByRole('button', { name: 'Adicionar e-mail', exact: true }).click();
-        await edit.getByLabel(`E-mail secundário ${index}`, { exact: true }).fill(`secondary${index}@example.com`);
+      await edit.getByLabel('E-mails *', { exact: true }).click();
+      for (let index = 3; index <= 8; index++) {
+        await page.getByRole('button', { name: 'Adicionar e-mail', exact: true }).click();
+        await page.getByLabel(`E-mail ${index}`, { exact: true }).fill(`secondary${index}@example.com`);
       }
+      await page.getByRole('button', { name: 'Concluir', exact: true }).click();
       await page.screenshot({ path: 'artifacts/contacts/many-emails-1366.png' });
       const saveBounds = await edit.getByRole('button', { name: 'Salvar contato', exact: true }).boundingBox();
       assert.ok(saveBounds.y >= 0 && saveBounds.y + saveBounds.height <= height, 'Save remains visible with many channels');
       assert.equal(await edit.evaluate(el => el.scrollWidth > el.clientWidth), false);
-      for (let index = 8; index >= 2; index--) await edit.getByRole('button', { name: `Remover e-mail secundário ${index}`, exact: true }).click();
+      for (let index = 8; index >= 3; index--) await edit.getByRole('button', { name: `Remover e-mail secondary${index}@example.com`, exact: true }).click();
     }
     await edit.getByRole('button', { name: 'Definir APTech Soluções como cliente principal', exact: true }).click();
-    await edit.getByRole('button', { name: 'Remover e-mail secundário 1', exact: true }).click();
-    await edit.getByRole('button', { name: 'Remover telefone secundário 1', exact: true }).click();
-    if (width === 1440) {
-      failSave = true;
-      await edit.getByRole('button', { name: 'Salvar contato', exact: true }).click();
-      await page.getByText('Não foi possível salvar o contato.', { exact: true }).waitFor();
-      assert.ok(await edit.isVisible());
-      failSave = false;
-    }
     await edit.getByRole('button', { name: 'Salvar contato', exact: true }).click();
     await page.getByText('Contato atualizado', { exact: true }).waitFor();
+    assert.equal(saved.phone, '5511977772020');
+    assert.deepEqual(saved.secondary_phones, ['5511988881010']);
+    await page.goto(`http://127.0.0.1:4173/contacts?record=${contactId}`);
+    const reopened = page.getByRole('dialog').filter({ has: page.getByText('Editar contato', { exact: true }) });
+    const primaryPhone = reopened.getByRole('button', { name: 'Definir 55 11 97777-2020 como telefone principal', exact: true });
+    await primaryPhone.waitFor();
+    assert.equal(await primaryPhone.getAttribute('aria-pressed'), 'true');
+    await reopened.getByRole('button', { name: 'Remover e-mail secondary@example.com', exact: true }).click();
+    assert.equal(await reopened.getByRole('button', { name: 'Definir primary@example.com como e-mail principal', exact: true }).getAttribute('aria-pressed'), 'true');
+    await reopened.getByRole('button', { name: 'Remover telefone 55 11 97777-2020', exact: true }).click();
+    assert.equal(await reopened.getByRole('button', { name: 'Definir 55 11 98888-1010 como telefone principal', exact: true }).getAttribute('aria-pressed'), 'true');
+    await reopened.getByRole('button', { name: 'Remover telefone 55 11 98888-1010', exact: true }).click();
+    if (width === 1440) {
+      failSave = true;
+      await reopened.getByRole('button', { name: 'Salvar contato', exact: true }).click();
+      await page.getByText('Não foi possível salvar o contato.', { exact: true }).waitFor();
+      assert.ok(await reopened.isVisible());
+      failSave = false;
+    }
+    await reopened.getByRole('button', { name: 'Salvar contato', exact: true }).click();
+    await page.getByText('Contato atualizado', { exact: true }).waitFor();
+    assert.equal(saved.email, 'primary@example.com');
+    assert.equal(saved.phone, null);
     assert.deepEqual(saved.secondary_emails, []);
     assert.deepEqual(saved.secondary_phones, []);
-    assert.deepEqual(clientPayload.p_company_ids, [companyA, companyB]);
     editable = false;
     await page.goto(`http://127.0.0.1:4173/contacts?record=${contactId}`);
     const view = page.getByRole('dialog').filter({ has: page.getByText('Visualizar contato', { exact: true }) });
@@ -118,6 +143,9 @@ try {
     assert.equal(await view.getByRole('button', { name: 'Salvar contato', exact: true }).count(), 0);
     assert.equal(await view.getByRole('button', { name: 'Adicionar e-mail', exact: true }).count(), 0);
     assert.equal(await view.getByLabel('Clientes *', { exact: true }).isDisabled(), true);
+    assert.equal(await view.getByLabel('E-mails *', { exact: true }).isDisabled(), true);
+    assert.equal(await view.getByLabel('Telefones (opcional)', { exact: true }).isDisabled(), true);
+    assert.equal(await view.getByRole('button', { name: 'Definir primary@example.com como e-mail principal', exact: true }).isDisabled(), true);
     assert.deepEqual(errors, []);
     console.log(`PASS contact create/edit/remove, validation, primary client, read-only and layout ${width}x${height}`);
     await page.close();
