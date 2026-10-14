@@ -149,4 +149,3 @@ select throws_ok($$select * from apticket.financial_settings$$,'42501',null,'an√
 reset role;
 select * from finish();
 rollback;
-
