@@ -10,12 +10,14 @@ import {
   Eye,
   FileCog,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
   Send,
   Settings2,
   Tags,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +60,7 @@ import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs
 import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
+import { EditPayableDialog, DeletePayableDialog } from "@/components/payable-mutation-dialogs";
 
 export type PayableContractOption = {
   id: string;
@@ -74,6 +77,9 @@ type PayableStatus =
   "scheduled" | "awaiting_approval" | "approved" | "paid" | "overdue" | "cancelled";
 type Payable = {
   id: string;
+  revision: number;
+  last_change_reason: string | null;
+  mutation_blocked_reason?: string;
   tenant_id: string;
   operating_company_id: string;
   supplier_id: string;
@@ -116,11 +122,12 @@ type Allocation = {
 type ApprovalRequest = {
   id: string;
   policy_name: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "cancelled";
   submitted_by_name: string;
   submitted_at: string;
   completed_at: string | null;
   rejection_reason: string | null;
+  cancellation_reason: string | null;
 };
 type ApprovalStep = {
   id: string;
@@ -128,7 +135,7 @@ type ApprovalStep = {
   step_order: number;
   approver_id: string;
   approver_name: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "cancelled";
   decided_at: string | null;
   decision_comment: string | null;
 };
@@ -208,6 +215,8 @@ export function SupplierPayables({
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const financialSettings = useFinancialSettings();
   const [selected, setSelected] = useState<Payable>();
+  const [editing, setEditing] = useState<Payable>();
+  const [deleting, setDeleting] = useState<Payable>();
   const [classifying, setClassifying] = useState<Payable>();
   const documentTypes = useFinancialDocumentTypes(Boolean(companyId));
   const documentTypeById = useMemo(
@@ -221,14 +230,24 @@ export function SupplierPayables({
       const { data, error } = await db
         .from("supplier_payables")
         .select(
-          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_type_id,installment_number,installment_count,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot",
+          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_type_id,installment_number,installment_count,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot,revision,last_change_reason",
         )
         .eq("operating_company_id", companyId)
         .is("deleted_at", null)
         .order("due_date", { ascending: false });
       if (error) throw error;
-      const rows = (data ?? []) as Payable[];
-      if (!rows.length) return rows;
+      const rawRows = (data ?? []) as Payable[];
+      if (!rawRows.length) return rawRows;
+      const paymentPromise = Promise.resolve(
+        db
+          .from("supplier_payments")
+          .select("supplier_payable_id,status")
+          .in(
+            "supplier_payable_id",
+            rawRows.map((row) => row.id),
+          )
+          .in("status", ["scheduled", "paid"]),
+      );
       const { data: classifications, error: classificationError } = await db
         .from("financial_entry_classifications")
         .select(
@@ -237,9 +256,21 @@ export function SupplierPayables({
         .eq("source_type", "supplier_payable")
         .in(
           "source_id",
-          rows.map((item) => item.id),
+          rawRows.map((item) => item.id),
         )
         .is("replaced_at", null);
+      const payments = await paymentPromise;
+      const rows = rawRows.map((row) => ({
+        ...row,
+        mutation_blocked_reason:
+          row.status === "paid" || row.status === "cancelled"
+            ? "Lançamentos pagos ou cancelados não podem ser alterados ou excluídos."
+            : payments.error
+              ? "Não foi possível verificar os pagamentos. Atualize a página."
+              : payments.data?.some((payment) => payment.supplier_payable_id === row.id)
+                ? "Cancele a programação do pagamento antes de alterar ou excluir."
+                : undefined,
+      }));
       // A classificação complementa a conta, mas não pode ocultar o lançamento
       // quando esse cadastro auxiliar estiver temporariamente indisponível.
       if (classificationError) return rows;
@@ -427,7 +458,7 @@ export function SupplierPayables({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-20">Ações</TableHead>
+                  <TableHead className="w-40">Ações</TableHead>
                   <TableHead>Documento</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Fornecedor</TableHead>
@@ -467,6 +498,31 @@ export function SupplierPayables({
                           >
                             <Eye className="size-4" />
                           </Button>
+                          {canEdit ? (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Alterar ${item.document_number}`}
+                                title={item.mutation_blocked_reason ?? "Alterar lançamento"}
+                                disabled={Boolean(item.mutation_blocked_reason)}
+                                onClick={() => setEditing(item)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                aria-label={`Excluir ${item.document_number}`}
+                                title={item.mutation_blocked_reason ?? "Excluir lançamento"}
+                                disabled={Boolean(item.mutation_blocked_reason)}
+                                onClick={() => setDeleting(item)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -599,16 +655,48 @@ export function SupplierPayables({
           }}
         />
       ) : null}
+      {editing ? (
+        <EditPayableDialog
+          payable={editing}
+          onClose={() => setEditing(undefined)}
+          onSaved={async () => {
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["supplier-payables"] }),
+              queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
+              queryClient.invalidateQueries({ queryKey: ["supplier-payable-approvals"] }),
+            ]);
+          }}
+        />
+      ) : null}
+      {deleting ? (
+        <DeletePayableDialog
+          payable={deleting}
+          onClose={() => setDeleting(undefined)}
+          onSaved={async () => {
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["supplier-payables"] }),
+              queryClient.invalidateQueries({ queryKey: ["cash-flow"] }),
+              queryClient.invalidateQueries({ queryKey: ["supplier-payable-approvals"] }),
+            ]);
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
 
 function ApprovalStatusBadge({ status }: { status: ApprovalRequest["status"] }) {
-  const labels = { pending: "Em aprovação", approved: "Aprovada", rejected: "Rejeitada" };
+  const labels = {
+    pending: "Em aprovação",
+    approved: "Aprovada",
+    rejected: "Rejeitada",
+    cancelled: "Encerrada",
+  };
   const classes = {
     pending: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
     approved: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
     rejected: "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
+    cancelled: "border-slate-300 bg-slate-100 text-slate-600",
   };
   return (
     <Badge variant="outline" className={classes[status]}>
@@ -776,7 +864,7 @@ function AllocationDialog({
       const requestsResult = await db
         .from("supplier_payable_approval_requests")
         .select(
-          "id,policy_name,status,submitted_by_name,submitted_at,completed_at,rejection_reason",
+          "id,policy_name,status,submitted_by_name,submitted_at,completed_at,rejection_reason,cancellation_reason",
         )
         .eq("supplier_payable_id", payable.id)
         .order("submitted_at", { ascending: false });
@@ -965,7 +1053,7 @@ function AllocationDialog({
                       <div>
                         <p className="text-sm font-medium">
                           {request.policy_name}
-                          {requestIndex === 0 ? " · envio atual" : ""}
+                          {requestIndex === 0 ? " · envio mais recente" : ""}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Enviado por {request.submitted_by_name} em{" "}
@@ -982,7 +1070,7 @@ function AllocationDialog({
                           >
                             {step.status === "approved" ? (
                               <Check className="size-3.5" />
-                            ) : step.status === "rejected" ? (
+                            ) : step.status === "rejected" || step.status === "cancelled" ? (
                               <X className="size-3.5" />
                             ) : (
                               <Clock3 className="size-3.5" />
@@ -997,7 +1085,9 @@ function AllocationDialog({
                                 ? `Aprovado${step.decided_at ? ` em ${new Date(step.decided_at).toLocaleString("pt-BR")}` : ""}`
                                 : step.status === "rejected"
                                   ? "Rejeitado"
-                                  : "Aguardando decisão"}
+                                  : step.status === "cancelled"
+                                    ? "Etapa encerrada após alteração ou exclusão do lançamento"
+                                    : "Aguardando decisão"}
                               {step.decision_comment ? ` · ${step.decision_comment}` : ""}
                             </p>
                           </div>
@@ -1007,6 +1097,11 @@ function AllocationDialog({
                     {request.rejection_reason ? (
                       <p className="mt-3 rounded-md bg-destructive/5 p-2 text-xs text-destructive">
                         Motivo: {request.rejection_reason}
+                      </p>
+                    ) : null}
+                    {request.cancellation_reason ? (
+                      <p className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
+                        {request.cancellation_reason}
                       </p>
                     ) : null}
                   </div>
@@ -1079,6 +1174,11 @@ function AllocationDialog({
           </section>
         ) : null}
         <SupplierPaymentSection payable={payable} canEdit={canEdit} onChanged={onApplied} />
+        {payable.last_change_reason ? (
+          <p className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <span className="font-medium">Última alteração:</span> {payable.last_change_reason}
+          </p>
+        ) : null}
         <DialogFooter>
           {canEdit && payable.allocation_status === "pending_rule" ? (
             <Button onClick={() => applyMutation.mutate()} disabled={applyMutation.isPending}>

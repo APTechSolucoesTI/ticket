@@ -16,6 +16,7 @@ bun.lock
 /artifacts/profile-photo/
 /artifacts/financial-synthetic/
 /artifacts/financial-settings/
+/artifacts/payable-mutations/
 logs
 *.log
 npm-debug.log*
