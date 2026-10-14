@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/empty-stub";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ProfilePhotoEditor } from "@/components/profile-photo-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,7 +35,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { maskPhone, normalizePhone } from "@/lib/masks";
-import { changeMyPassword, getMyProfile, updateMyContact } from "@/lib/profile.functions";
+import {
+  changeMyPassword,
+  getMyProfile,
+  updateMyContact,
+  type MyProfile,
+} from "@/lib/profile.functions";
 import { setToken } from "@/lib/session";
 import { getUserFacingError } from "@/lib/user-facing-error";
 
@@ -75,8 +80,11 @@ function ProfilePage() {
   const [showPasswords, setShowPasswords] = useState(false);
 
   const profileQuery = useQuery({
-    queryKey: ["my-profile"],
+    queryKey: ["my-profile", user?.id],
     queryFn: () => getProfile(),
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 45 * 60 * 1000,
   });
 
   const contactForm = useForm<ContactForm>({
@@ -88,14 +96,16 @@ function ProfilePage() {
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
 
+  const contactEmail = profileQuery.data?.email;
+  const contactPhone = profileQuery.data?.phone;
   useEffect(() => {
-    if (!profileQuery.data) return;
+    if (!contactEmail) return;
     contactForm.reset({
-      email: profileQuery.data.email,
-      phone: profileQuery.data.phone ? maskPhone(profileQuery.data.phone) : "",
+      email: contactEmail,
+      phone: contactPhone ? maskPhone(contactPhone) : "",
       currentPassword: "",
     });
-  }, [contactForm, profileQuery.data]);
+  }, [contactForm, contactEmail, contactPhone]);
 
   const emailChanged =
     contactForm.watch("email").trim().toLowerCase() !==
@@ -105,7 +115,7 @@ function ProfilePage() {
     mutationFn: (values: ContactForm) => saveContact({ data: values }),
     onSuccess: async (result) => {
       if (result.token) setToken(result.token);
-      queryClient.setQueryData(["my-profile"], result.profile);
+      queryClient.setQueryData(["my-profile", user?.id], result.profile);
       contactForm.reset({
         email: result.profile.email,
         phone: result.profile.phone ? maskPhone(result.profile.phone) : "",
@@ -178,11 +188,16 @@ function ProfilePage() {
         <Card className="overflow-hidden lg:sticky lg:top-24">
           <div className="h-20 bg-gradient-to-r from-primary/20 via-primary/10 to-cyan-400/10" />
           <CardContent className="-mt-10 p-5 pt-0">
-            <Avatar className="size-20 border-4 border-card shadow-sm">
-              <AvatarFallback className="bg-primary text-lg font-semibold text-primary-foreground">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <ProfilePhotoEditor
+              avatarUrl={profile.avatarUrl}
+              name={profile.name}
+              initials={initials}
+              onSaved={(avatarUrl) => {
+                queryClient.setQueryData<MyProfile>(["my-profile", user?.id], (current) =>
+                  current ? { ...current, avatarUrl } : current,
+                );
+              }}
+            />
             <h2 className="mt-4 truncate text-base font-semibold">{profile.name}</h2>
             <p className="mt-1 truncate text-xs text-muted-foreground">{profile.email}</p>
             <div className="mt-5 space-y-2 rounded-lg border bg-muted/20 p-3 text-xs">

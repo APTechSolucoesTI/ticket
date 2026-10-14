@@ -13,6 +13,7 @@ bun.lock
 /artifacts/inter-settings/
 /artifacts/contacts/
 /artifacts/contract-allocations/
+/artifacts/profile-photo/
 logs
 *.log
 npm-debug.log*

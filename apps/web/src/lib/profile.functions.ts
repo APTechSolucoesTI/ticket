@@ -4,6 +4,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { signSessionToken } from "@/lib/jwt.server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { randomUUID } from "node:crypto";
+import {
+  avatarImageExtension,
+  MAX_AVATAR_BYTES,
+  PROFILE_AVATAR_BUCKET,
+} from "@/lib/profile-avatar";
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_ATTEMPTS = 8;
@@ -14,6 +20,7 @@ export type MyProfile = {
   name: string;
   email: string;
   phone: string | null;
+  avatarUrl: string | null;
 };
 
 function normalizePhone(value: string): string | null {
@@ -48,18 +55,20 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, tenant_id, name, email, phone, is_active")
+      .select("id, tenant_id, name, email, phone, avatar_url, is_active")
       .eq("id", context.userId)
       .eq("tenant_id", context.claims.tenantId)
       .maybeSingle();
 
     if (error) throw new Error("Não foi possível carregar seu perfil.");
     if (!profile?.is_active) throw new Error("Perfil não encontrado ou inativo.");
+    const { resolveProfileAvatar } = await import("@/lib/profile-avatar.server");
     return {
       id: profile.id,
       name: profile.name,
       email: profile.email,
       phone: profile.phone,
+      avatarUrl: await resolveProfileAvatar(profile.avatar_url, profile.tenant_id, profile.id),
     };
   });
 
@@ -107,7 +116,7 @@ export const updateMyContact = createServerFn({ method: "POST" })
       .update({ email: data.email, phone })
       .eq("id", profile.id)
       .eq("tenant_id", profile.tenant_id)
-      .select("id, tenant_id, name, email, phone")
+      .select("id, tenant_id, name, email, phone, avatar_url")
       .single();
 
     if (error?.code === "23505") throw new Error("Este e-mail já está em uso.");
@@ -122,16 +131,106 @@ export const updateMyContact = createServerFn({ method: "POST" })
         })
       : null;
 
+    const { resolveProfileAvatar } = await import("@/lib/profile-avatar.server");
     return {
       profile: {
         id: updated.id,
         name: updated.name,
         email: updated.email,
         phone: updated.phone,
+        avatarUrl: await resolveProfileAvatar(updated.avatar_url, updated.tenant_id, updated.id),
       } satisfies MyProfile,
       token,
       emailChanged,
     };
+  });
+
+const avatarSchema = z
+  .object({
+    imageBase64: z
+      .string()
+      .min(1)
+      .max(Math.ceil(MAX_AVATAR_BYTES / 3) * 4),
+    mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  })
+  .strict();
+
+export const uploadMyAvatar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => avatarSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (data.imageBase64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data.imageBase64))
+      throw new Error("A imagem enviada é inválida.");
+    const bytes = Buffer.from(data.imageBase64, "base64");
+    const extension = avatarImageExtension(bytes, data.mimeType);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { resolveProfileAvatar, deleteOwnAvatar } = await import("@/lib/profile-avatar.server");
+    const { data: profile, error: readError } = await supabaseAdmin
+      .from("profiles")
+      .select("id,tenant_id,avatar_url,is_active")
+      .eq("id", context.userId)
+      .eq("tenant_id", context.claims.tenantId)
+      .maybeSingle();
+    if (readError || !profile?.is_active) throw new Error("Perfil não encontrado ou inativo.");
+    const path = `${profile.tenant_id}/${profile.id}/${randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(PROFILE_AVATAR_BUCKET)
+      .upload(path, bytes, { contentType: data.mimeType, cacheControl: "3600", upsert: false });
+    if (uploadError) throw new Error("Não foi possível enviar a foto. Tente novamente.");
+    const avatarUrl = await resolveProfileAvatar(path, profile.tenant_id, profile.id);
+    if (!avatarUrl) {
+      await deleteOwnAvatar(path, profile.tenant_id, profile.id);
+      throw new Error("Não foi possível preparar a foto para exibição. Tente novamente.");
+    }
+    let update = supabaseAdmin
+      .from("profiles")
+      .update({ avatar_url: path })
+      .eq("id", profile.id)
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true);
+    update =
+      profile.avatar_url === null
+        ? update.is("avatar_url", null)
+        : update.eq("avatar_url", profile.avatar_url);
+    const { data: saved, error: saveError } = await update.select("id").maybeSingle();
+    if (saveError || !saved) {
+      await deleteOwnAvatar(path, profile.tenant_id, profile.id);
+      throw new Error(
+        saveError
+          ? "Não foi possível salvar sua foto. Tente novamente."
+          : "Seu perfil mudou durante o envio. Tente novamente.",
+      );
+    }
+    await deleteOwnAvatar(profile.avatar_url, profile.tenant_id, profile.id);
+    return { avatarUrl };
+  });
+
+export const removeMyAvatar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { deleteOwnAvatar } = await import("@/lib/profile-avatar.server");
+    const { data: profile, error: readError } = await supabaseAdmin
+      .from("profiles")
+      .select("id,tenant_id,avatar_url,is_active")
+      .eq("id", context.userId)
+      .eq("tenant_id", context.claims.tenantId)
+      .maybeSingle();
+    if (readError || !profile?.is_active) throw new Error("Perfil não encontrado ou inativo.");
+    if (!profile.avatar_url) return { avatarUrl: null };
+    const { data: removed, error } = await supabaseAdmin
+      .from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", profile.id)
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true)
+      .eq("avatar_url", profile.avatar_url)
+      .select("id")
+      .maybeSingle();
+    if (error || !removed)
+      throw new Error("Não foi possível remover sua foto. Atualize o perfil e tente novamente.");
+    await deleteOwnAvatar(profile.avatar_url, profile.tenant_id, profile.id);
+    return { avatarUrl: null };
   });
 
 const passwordSchema = z

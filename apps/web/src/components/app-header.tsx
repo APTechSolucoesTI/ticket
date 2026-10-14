@@ -16,10 +16,12 @@ import { useAuth } from "@/lib/auth";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyProfile } from "@/lib/profile.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { escapePostgrestValue } from "@/lib/postgrest-escape";
 import { usePermissions } from "@/lib/use-permissions";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MobileSidebar } from "@/components/app-sidebar";
 import { BrandLogo } from "@/components/brand-logo";
 
@@ -32,6 +34,14 @@ type Result =
 export function AppHeader({ title }: { title?: string }) {
   const { theme, toggle } = useTheme();
   const { user, signOut } = useAuth();
+  const getProfile = useServerFn(getMyProfile);
+  const profile = useQuery({
+    queryKey: ["my-profile", user?.id],
+    queryFn: () => getProfile(),
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 45 * 60 * 1000,
+  });
   const permissions = usePermissions();
   const navigate = useNavigate();
   const canTickets = permissions.has("tickets", "view");
@@ -286,6 +296,13 @@ export function AppHeader({ title }: { title?: string }) {
             <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
           </div>
           <Avatar className="size-8 border">
+            {profile.data?.avatarUrl ? (
+              <AvatarImage
+                src={profile.data.avatarUrl}
+                alt="Minha foto de perfil"
+                className="object-cover"
+              />
+            ) : null}
             <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
               {initials}
             </AvatarFallback>
