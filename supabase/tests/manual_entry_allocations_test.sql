@@ -140,4 +140,3 @@ select throws_ok($$select apticket.create_manual_supplier_payable_allocated(null
 reset role;
 select * from finish();
 rollback;
-
