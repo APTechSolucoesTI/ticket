@@ -295,15 +295,18 @@ export function AppHeader({ title }: { title?: string }) {
             </p>
             <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
           </div>
-          <Avatar className="size-8 border">
+          <Avatar className="size-10 bg-background shadow-sm ring-2 ring-background sm:size-12">
             {profile.data?.avatarUrl ? (
               <AvatarImage
                 src={profile.data.avatarUrl}
                 alt="Minha foto de perfil"
-                className="object-cover"
+                className="block object-cover object-center"
+                width={96}
+                height={96}
+                decoding="async"
               />
             ) : null}
-            <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary sm:text-sm">
               {initials}
             </AvatarFallback>
           </Avatar>
