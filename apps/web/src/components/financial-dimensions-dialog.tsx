@@ -74,7 +74,7 @@ const HIERARCHICAL_CODE_PATTERN = /^(?:\d{2}|\d{2}\.\d{2}|\d{2}\.\d{2}\.\d{4})$/
 
 function isValidCode(code: string, type: ClassificationType) {
   if (!HIERARCHICAL_CODE_PATTERN.test(code)) return false;
-  return type === "analytic" ? FULL_CODE_PATTERN.test(code) : code.split(".").length < 3;
+  return type === "analytic" ? FULL_CODE_PATTERN.test(code) : true;
 }
 
 function maskCode(value: string) {
@@ -199,8 +199,8 @@ export function FinancialDimensionsDialog({
       if (!isValidCode(value.code, value.classificationType) || value.name.trim().length < 2) {
         throw new Error(
           value.kind === "category"
-            ? "Use 99 ou 99.99 para categorias sintéticas e 99.99.9999 para analíticas."
-            : "Use 99 ou 99.99 para centros sintéticos e 99.99.9999 para analíticos.",
+            ? "Use 99, 99.99 ou 99.99.9999 para categorias sintéticas e 99.99.9999 para analíticas."
+            : "Use 99, 99.99 ou 99.99.9999 para centros sintéticos e 99.99.9999 para analíticos.",
         );
       }
       const common = {
@@ -404,7 +404,7 @@ function DimensionEditor({
     isValidCode(editor.code, editor.classificationType) && editor.name.trim().length >= 2;
   const codeHelp =
     editor.classificationType === "synthetic"
-      ? "Níveis sintéticos: 99 (grupo) ou 99.99 (subgrupo)."
+      ? "Níveis sintéticos: 99, 99.99 ou 99.99.9999; não recebem lançamentos."
       : "Nível analítico: 99.99.9999; recebe lançamentos.";
   return (
     <div className="my-5 grid gap-4 rounded-xl border bg-muted/20 p-5 sm:grid-cols-2">
@@ -548,7 +548,9 @@ function DimensionList({
   onArchive(item: Dimension): void;
 }) {
   const [collapsed, setCollapsed] = useState(() => new Set<string>());
-  const groups = items.filter((item) => item.classification_type === "synthetic");
+  const groups = items.filter(
+    (item) => item.classification_type === "synthetic" && !FULL_CODE_PATTERN.test(item.code),
+  );
   const collapsedGroups = groups.filter((item) => collapsed.has(item.id));
   const visible = items.filter((item) =>
     collapsedGroups.every(
@@ -613,6 +615,7 @@ function DimensionList({
             {visible.map((item) => {
               const level = codeLevel(item.code);
               const synthetic = item.classification_type === "synthetic";
+              const canHaveChildren = synthetic && !FULL_CODE_PATTERN.test(item.code);
               const companyName =
                 companyNames.get(item.operating_company_id) ?? "Empresa operadora";
               return (
@@ -627,7 +630,7 @@ function DimensionList({
                     className="flex min-w-0 items-center gap-2"
                     style={{ paddingLeft: level * 24 }}
                   >
-                    {synthetic ? (
+                    {canHaveChildren ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -696,7 +699,7 @@ function DimensionList({
                     >
                       {item.is_active ? "Ativa" : "Inativa"}
                     </Badge>
-                    {canEdit && synthetic ? (
+                    {canEdit && canHaveChildren ? (
                       <Button
                         size="icon"
                         variant="ghost"
