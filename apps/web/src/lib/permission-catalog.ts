@@ -54,6 +54,12 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
     parent: "financeiro",
   },
   {
+    key: "financeiro_contas_fixas",
+    label: "Contas a pagar fixas",
+    actions: ["view", "edit"],
+    parent: "financeiro_contas_pagar",
+  },
+  {
     key: "financeiro_bancos",
     label: "Banco e Conciliação",
     actions: ["view", "edit"],
@@ -189,6 +195,7 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
     module: "financeiro.disponibilizar_documentos",
   },
   { prefix: "/finance/receivables", module: "financeiro_contas_receber" },
+  { prefix: "/finance/payables/fixed", module: "financeiro_contas_fixas" },
   { prefix: "/finance/payables", module: "financeiro_contas_pagar" },
   { prefix: "/supplier-contracts", module: "financeiro_contas_pagar" },
   { prefix: "/finance/banking", module: "financeiro_bancos" },

@@ -20,6 +20,7 @@ import {
   Monitor,
   PanelLeftClose,
   PanelLeftOpen,
+  Repeat2,
   Settings,
   ShieldCheck,
   Target,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/use-permissions";
+import { isModuleLocked } from "@/lib/permission-catalog";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -139,6 +141,12 @@ const NAV_SECTIONS: NavSection[] = [
             label: "Contas a pagar",
             icon: CircleDollarSign,
             module: "financeiro_contas_pagar",
+          },
+          {
+            to: "/finance/payables/fixed",
+            label: "Contas a pagar fixas",
+            icon: Repeat2,
+            module: "financeiro_contas_fixas",
           },
           {
             to: "/finance/banking",
@@ -266,7 +274,11 @@ function SidebarNavigation({
           .filter((item) => item.module === null || permissions.has(item.module, "view"))
           .map((item) => ({
             ...item,
-            children: item.children?.filter((child) => permissions.has(child.module, "view")),
+            children: item.children?.filter(
+              (child) =>
+                permissions.has(child.module, "view") &&
+                !isModuleLocked(child.module, (module) => permissions.has(module, "view")),
+            ),
           }));
         if (items.length === 0) return null;
 
@@ -396,10 +408,17 @@ function NavItems({
               <div className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
                 {item.children.map((child) => {
                   const ChildIcon = child.icon;
-                  const childActive = pathname === child.to || pathname.startsWith(`${child.to}/`);
+                  const childActive =
+                    (pathname === child.to || pathname.startsWith(`${child.to}/`)) &&
+                    !item.children?.some(
+                      (sibling) =>
+                        sibling.to.length > child.to.length &&
+                        (pathname === sibling.to || pathname.startsWith(`${sibling.to}/`)),
+                    );
                   const childLink = (
                     <Link
                       to={child.to}
+                      activeOptions={{ exact: true }}
                       aria-current={childActive ? "page" : undefined}
                       className={cn(
                         "flex min-h-8 items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",

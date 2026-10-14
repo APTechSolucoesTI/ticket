@@ -6,6 +6,7 @@ import {
   Landmark,
   LayoutDashboard,
   PackageSearch,
+  Repeat2,
   Target,
   WalletCards,
 } from "lucide-react";
@@ -29,6 +30,12 @@ export const financeNavigation = [
     label: "Contas a pagar",
     icon: PackageSearch,
     module: "financeiro_contas_pagar",
+  },
+  {
+    to: "/finance/payables/fixed",
+    label: "Contas a pagar fixas",
+    icon: Repeat2,
+    module: "financeiro_contas_fixas",
   },
   {
     to: "/finance/banking",

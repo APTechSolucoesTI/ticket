@@ -53,6 +53,7 @@ import { Route as AuthenticatedFinanceReceivablesRouteImport } from './routes/_a
 import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticated/kb.admin'
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
+import { Route as AuthenticatedFinancePayablesFixedRouteImport } from './routes/_authenticated/finance.payables_.fixed'
 import { Route as ApiPublicPortalChatStartRouteImport } from './routes/api/public/portal/chat-start'
 import { Route as ApiPublicPortalContactsRouteImport } from './routes/api/public/portal/contacts'
 import { Route as ApiPublicPortalDocumentDownloadRouteImport } from './routes/api/public/portal/document-download'
@@ -295,6 +296,12 @@ const DemoTicketsIdRoute = DemoTicketsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DemoTicketsRoute,
 } as any)
+const AuthenticatedFinancePayablesFixedRoute =
+  AuthenticatedFinancePayablesFixedRouteImport.update({
+    id: '/payables_/fixed',
+    path: '/payables/fixed',
+    getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
 const ApiPublicPortalChatStartRoute =
   ApiPublicPortalChatStartRouteImport.update({
     id: '/api/public/portal/chat-start',
@@ -397,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/finance/': typeof AuthenticatedFinanceIndexRoute
+  '/finance/payables/fixed': typeof AuthenticatedFinancePayablesFixedRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
   '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
@@ -449,6 +457,7 @@ export interface FileRoutesByTo {
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/finance': typeof AuthenticatedFinanceIndexRoute
+  '/finance/payables/fixed': typeof AuthenticatedFinancePayablesFixedRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
   '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
@@ -506,6 +515,7 @@ export interface FileRoutesById {
   '/_authenticated/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/_authenticated/finance/': typeof AuthenticatedFinanceIndexRoute
+  '/_authenticated/finance/payables_/fixed': typeof AuthenticatedFinancePayablesFixedRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
   '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
@@ -563,6 +573,7 @@ export interface FileRouteTypes {
     | '/tickets/$id'
     | '/demo/Tickets/$id'
     | '/finance/'
+    | '/finance/payables/fixed'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/contacts'
     | '/api/public/portal/document-download'
@@ -615,6 +626,7 @@ export interface FileRouteTypes {
     | '/tickets/$id'
     | '/demo/Tickets/$id'
     | '/finance'
+    | '/finance/payables/fixed'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/contacts'
     | '/api/public/portal/document-download'
@@ -671,6 +683,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tickets/$id'
     | '/demo/Tickets/$id'
     | '/_authenticated/finance/'
+    | '/_authenticated/finance/payables_/fixed'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/contacts'
     | '/api/public/portal/document-download'
@@ -1016,6 +1029,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTicketsIdRouteImport
       parentRoute: typeof DemoTicketsRoute
     }
+    '/_authenticated/finance/payables_/fixed': {
+      id: '/_authenticated/finance/payables_/fixed'
+      path: '/payables/fixed'
+      fullPath: '/finance/payables/fixed'
+      preLoaderRoute: typeof AuthenticatedFinancePayablesFixedRouteImport
+      parentRoute: typeof AuthenticatedFinanceRoute
+    }
     '/api/public/portal/chat-start': {
       id: '/api/public/portal/chat-start'
       path: '/api/public/portal/chat-start'
@@ -1099,6 +1119,7 @@ interface AuthenticatedFinanceRouteChildren {
   AuthenticatedFinancePlanningRoute: typeof AuthenticatedFinancePlanningRoute
   AuthenticatedFinanceReceivablesRoute: typeof AuthenticatedFinanceReceivablesRoute
   AuthenticatedFinanceIndexRoute: typeof AuthenticatedFinanceIndexRoute
+  AuthenticatedFinancePayablesFixedRoute: typeof AuthenticatedFinancePayablesFixedRoute
 }
 
 const AuthenticatedFinanceRouteChildren: AuthenticatedFinanceRouteChildren = {
@@ -1111,6 +1132,8 @@ const AuthenticatedFinanceRouteChildren: AuthenticatedFinanceRouteChildren = {
   AuthenticatedFinancePlanningRoute: AuthenticatedFinancePlanningRoute,
   AuthenticatedFinanceReceivablesRoute: AuthenticatedFinanceReceivablesRoute,
   AuthenticatedFinanceIndexRoute: AuthenticatedFinanceIndexRoute,
+  AuthenticatedFinancePayablesFixedRoute:
+    AuthenticatedFinancePayablesFixedRoute,
 }
 
 const AuthenticatedFinanceRouteWithChildren =

@@ -1,5 +1,6 @@
 import { allocationSummary, type ContractAllocation } from "@/lib/contract-allocations";
 import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -13,6 +14,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Repeat2,
   Search,
   Send,
   Settings2,
@@ -61,6 +63,9 @@ import { FinancialDocumentTypesDialog } from "@/components/financial-document-ty
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 import { EditPayableDialog, DeletePayableDialog } from "@/components/payable-mutation-dialogs";
+import { FixedPayableDialog } from "@/components/fixed-payable-dialog";
+import { fixedMonth, useFixedOccurrences, type FixedOccurrence } from "@/lib/fixed-payables";
+import { useModulePermissions } from "@/lib/permission-ui";
 
 export type PayableContractOption = {
   id: string;
@@ -208,7 +213,11 @@ export function SupplierPayables({
   const [allocationFilter, setAllocationFilter] = useState<"all" | "pending_rule" | "complete">(
     "all",
   );
-  const [statusFilter, setStatusFilter] = useState<"all" | PayableStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "forecast" | PayableStatus>("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const fixedAccess = useModulePermissions("financeiro_contas_fixas");
+  const fixedOccurrences = useFixedOccurrences(companyId);
+  const [confirming, setConfirming] = useState<FixedOccurrence>();
   const [generateOpen, setGenerateOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
@@ -311,6 +320,7 @@ export function SupplierPayables({
     const term = search.trim().toLocaleLowerCase("pt-BR");
     return (query.data ?? []).filter(
       (item) =>
+        typeFilter !== "forecast" &&
         (allocationFilter === "all" || item.allocation_status === allocationFilter) &&
         (statusFilter === "all" || effectiveStatus(item) === statusFilter) &&
         (!term ||
@@ -318,8 +328,19 @@ export function SupplierPayables({
             .toLocaleLowerCase("pt-BR")
             .includes(term)),
     );
-  }, [allocationFilter, documentTypeById, query.data, search, statusFilter]);
-  const total = (query.data ?? []).reduce((sum, item) => sum + Number(item.total_amount), 0);
+  }, [allocationFilter, documentTypeById, query.data, search, statusFilter, typeFilter]);
+  const allForecasts = (fixedOccurrences.data ?? []).filter((o) => o.status === "forecast");
+  const term = search.trim().toLocaleLowerCase("pt-BR");
+  const forecasts = allForecasts.filter(
+    (o) =>
+      typeFilter !== "confirmed" &&
+      allocationFilter !== "pending_rule" &&
+      (statusFilter === "all" || statusFilter === "forecast") &&
+      (!term || `${o.description} ${o.supplier_name}`.toLocaleLowerCase("pt-BR").includes(term)),
+  );
+  const total = (query.data ?? [])
+    .filter((item) => !["paid", "cancelled"].includes(item.status))
+    .reduce((sum, item) => sum + Number(item.total_amount), 0);
   const pending = (query.data ?? []).filter((item) => item.allocation_status === "pending_rule");
 
   return (
@@ -336,6 +357,14 @@ export function SupplierPayables({
         </div>
         {canEdit ? (
           <div className="flex flex-wrap gap-2">
+            {fixedAccess.view ? (
+              <Button variant="outline" asChild>
+                <Link to="/finance/payables/fixed">
+                  <Repeat2 className="mr-2 size-4" />
+                  Contas fixas
+                </Link>
+              </Button>
+            ) : null}
             {financialSettings.data?.use_payable_approvals ? (
               <Button variant="outline" className="gap-2" onClick={() => setPoliciesOpen(true)}>
                 <Settings2 className="size-4" />
@@ -363,6 +392,13 @@ export function SupplierPayables({
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4 p-4">
+        {fixedOccurrences.isError ? (
+          <ErrorState
+            title="Previsões indisponíveis"
+            description="Os títulos confirmados continuam disponíveis. Não foi possível consultar as contas fixas."
+            action={{ label: "Tentar novamente", onClick: () => void fixedOccurrences.refetch() }}
+          />
+        ) : null}
         {financialSettings.isError ? (
           <ErrorState
             title="Configurações financeiras indisponíveis"
@@ -378,8 +414,18 @@ export function SupplierPayables({
             rateio. Aprovações já iniciadas mantêm seu fluxo.
           </p>
         ) : null}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Summary label="Total lançado" value={money.format(total)} />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <Summary label="A pagar · títulos confirmados" value={money.format(total)} />
+          <Summary
+            label="Previsto · contas fixas"
+            value={
+              fixedOccurrences.isPending
+                ? "…"
+                : fixedOccurrences.isError
+                  ? "Indisponível"
+                  : money.format(allForecasts.reduce((sum, o) => sum + Number(o.total_amount), 0))
+            }
+          />
           <Summary label="Lançamentos" value={String(query.data?.length ?? 0)} />
           <Summary
             label="Rateio pendente"
@@ -404,6 +450,16 @@ export function SupplierPayables({
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="sm:w-52" aria-label="Tipo de lançamento">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Títulos e previsões</SelectItem>
+              <SelectItem value="confirmed">Somente títulos</SelectItem>
+              <SelectItem value="forecast">Somente previsões</SelectItem>
+            </SelectContent>
+          </Select>
           <Select
             value={allocationFilter}
             onValueChange={(value) => setAllocationFilter(value as typeof allocationFilter)}
@@ -426,6 +482,7 @@ export function SupplierPayables({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="forecast">Previsão</SelectItem>
               {(Object.entries(statusLabels) as Array<[PayableStatus, string]>).map(
                 ([value, label]) => (
                   <SelectItem key={value} value={value}>
@@ -436,7 +493,7 @@ export function SupplierPayables({
             </SelectContent>
           </Select>
         </div>
-        {query.isLoading ? (
+        {query.isLoading || fixedOccurrences.isPending ? (
           <LoadingState label="Carregando lançamentos…" />
         ) : query.isError ? (
           <ErrorState
@@ -444,7 +501,7 @@ export function SupplierPayables({
             description="Não foi possível consultar as contas deste ambiente financeiro."
             action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
           />
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && forecasts.length === 0 ? (
           <EmptyState
             title="Nenhum lançamento encontrado"
             description={
@@ -471,6 +528,71 @@ export function SupplierPayables({
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {forecasts.map((o) => (
+                  <TableRow key={`forecast-${o.id}`} className="bg-amber-500/[0.03]">
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {canEdit && fixedAccess.edit ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirming(o)}
+                            aria-label={`Confirmar previsão ${o.description} ${o.competence}`}
+                          >
+                            <Check className="mr-1 size-3.5" />
+                            Confirmar
+                          </Button>
+                        ) : null}
+                        {fixedAccess.view ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                            aria-label={`Gerir conta fixa ${o.description}`}
+                          >
+                            <Link to="/finance/payables/fixed">
+                              <Repeat2 className="size-4" />
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">—</div>
+                      <Badge variant="outline" className="my-1">
+                        <Repeat2 className="mr-1 size-3" />
+                        Fixa
+                      </Badge>
+                      <div className="max-w-56 truncate text-xs text-muted-foreground">
+                        {o.description}
+                      </div>
+                    </TableCell>
+                    <TableCell>{documentTypeById.get(o.document_type_id)?.code ?? "—"}</TableCell>
+                    <TableCell>{o.supplier_name}</TableCell>
+                    <TableCell>{fixedMonth(o.competence)}</TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">Não aplicável</span>
+                    </TableCell>
+                    <TableCell>{formatDate(o.due_date)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      >
+                        Previsão
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-xs">{allocationSummary(o.category_allocations)}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {allocationSummary(o.cost_center_allocations)}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {money.format(o.total_amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
                 {rows.map((item) => {
                   const status = effectiveStatus(item);
                   const documentType = item.document_type_id
@@ -528,7 +650,13 @@ export function SupplierPayables({
                       <TableCell>
                         <div className="font-medium">{item.document_number}</div>
                         <Badge variant="outline" className="my-1">
-                          {item.origin_type === "manual" ? "Manual" : "Contrato"}
+                          {(fixedOccurrences.data ?? []).some(
+                            (o) => o.confirmed_payable_id === item.id,
+                          )
+                            ? "Fixa confirmada"
+                            : item.origin_type === "manual"
+                              ? "Manual"
+                              : "Contrato"}
                         </Badge>
                         <div className="max-w-56 truncate text-xs text-muted-foreground">
                           {item.description}
@@ -593,6 +721,14 @@ export function SupplierPayables({
           </div>
         )}
       </CardContent>
+      {confirming ? (
+        <FixedPayableDialog
+          companyId={companyId}
+          occurrence={confirming}
+          confirm
+          onClose={() => setConfirming(undefined)}
+        />
+      ) : null}
       {generateOpen ? (
         <GenerateDialog
           companyId={companyId}
