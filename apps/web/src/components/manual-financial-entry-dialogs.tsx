@@ -30,7 +30,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
-import { FinancialDimensionFields } from "@/components/financial-dimension-fields";
+import { ContractAllocationEditor } from "@/components/contract-allocation-editor";
+import {
+  allocationError,
+  allocationPayload,
+  type ContractAllocation,
+} from "@/lib/contract-allocations";
 
 const db = supabase as unknown as SupabaseClient;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -62,16 +67,8 @@ const schema = z
       }),
     ),
     notes: z.string().trim().max(4000, "Use no máximo 4.000 caracteres."),
-    financialCategoryId: z.string(),
-    costCenterId: z.string(),
   })
   .superRefine((value, context) => {
-    if (Boolean(value.financialCategoryId) !== Boolean(value.costCenterId))
-      context.addIssue({
-        code: "custom",
-        path: ["financialCategoryId"],
-        message: "Selecione a categoria financeira e o centro de custo em conjunto.",
-      });
     const competenceStart = `${value.competence}-01`;
     if (value.entryMode === "installments" && value.document.trim().length > 70) {
       context.addIssue({
@@ -155,12 +152,14 @@ function ManualEntryDialog({
       firstDueDate: today(),
       installments: [],
       notes: "",
-      financialCategoryId: "",
-      costCenterId: "",
     },
   });
   const { fields, replace } = useFieldArray({ control: form.control, name: "installments" });
   const [scheduleSignature, setScheduleSignature] = useState("");
+  const [categories, setCategories] = useState<ContractAllocation[]>([]);
+  const [centers, setCenters] = useState<ContractAllocation[]>([]);
+  const [categoriesValid, setCategoriesValid] = useState(false);
+  const [centersValid, setCentersValid] = useState(false);
   const documentTypes = useFinancialDocumentTypes(open);
   const entryMode = useWatch({ control: form.control, name: "entryMode" });
   const competence = useWatch({ control: form.control, name: "competence" });
@@ -169,8 +168,12 @@ function ManualEntryDialog({
   const intervalDays = useWatch({ control: form.control, name: "intervalDays" });
   const firstDueDate = useWatch({ control: form.control, name: "firstDueDate" });
   const selectedCompanyId = useWatch({ control: form.control, name: "operatingCompanyId" });
-  const selectedCategoryId = useWatch({ control: form.control, name: "financialCategoryId" });
-  const selectedCostCenterId = useWatch({ control: form.control, name: "costCenterId" });
+  useEffect(() => {
+    setCategories([]);
+    setCenters([]);
+    setCategoriesValid(false);
+    setCentersValid(false);
+  }, [selectedCompanyId]);
   const installmentValues = useWatch({ control: form.control, name: "installments" }) ?? [];
   const currentSignature = `${totalAmount}|${installmentCount}|${intervalDays}|${firstDueDate}|${competence}`;
   const distributedCents = installmentValues.reduce((sum, item) => sum + toCents(item.amount), 0);
@@ -236,6 +239,10 @@ function ManualEntryDialog({
   useEffect(() => {
     if (open) return;
     form.reset();
+    setCategories([]);
+    setCenters([]);
+    setCategoriesValid(false);
+    setCentersValid(false);
     replace([]);
     setScheduleSignature("");
   }, [form, open, replace]);
@@ -283,6 +290,11 @@ function ManualEntryDialog({
   const create = useMutation({
     mutationFn: async (values: FormValues) => {
       const parsed = schema.parse(values);
+      const allocationIssue =
+        allocationError(categories, "categorias financeiras") ??
+        allocationError(centers, "centros de custo");
+      if (allocationIssue || !categoriesValid || !centersValid)
+        throw new Error(allocationIssue ?? "Revise as opções dos rateios financeiros.");
       const installments =
         parsed.entryMode === "single"
           ? [{ number: 1, due_date: parsed.dueDate, amount: Number(parsed.totalAmount) }]
@@ -318,16 +330,16 @@ function ManualEntryDialog({
         p_installment_interval_days:
           parsed.entryMode === "installments" ? Number(parsed.intervalDays) : 0,
         p_notes: parsed.notes || null,
-        p_category_id: parsed.financialCategoryId || null,
-        p_cost_center_id: parsed.costCenterId || null,
+        p_category_allocations: allocationPayload(categories),
+        p_cost_center_allocations: allocationPayload(centers),
       };
       const { data, error } = isReceivable
-        ? await db.rpc("create_manual_receivable_classified", {
+        ? await db.rpc("create_manual_receivable_allocated", {
             ...common,
             p_company_id: parsed.counterpartyId,
             p_document_reference: parsed.document,
           })
-        : await db.rpc("create_manual_supplier_payable_classified", {
+        : await db.rpc("create_manual_supplier_payable_allocated", {
             ...common,
             p_supplier_id: parsed.counterpartyId,
             p_document_number: parsed.document,
@@ -342,6 +354,10 @@ function ManualEntryDialog({
           : `${isReceivable ? "Conta a receber" : "Conta a pagar"} incluída com sucesso.`,
       );
       form.reset();
+      setCategories([]);
+      setCenters([]);
+      setCategoriesValid(false);
+      setCentersValid(false);
       replace([]);
       setScheduleSignature("");
       onCreated();
@@ -360,7 +376,7 @@ function ManualEntryDialog({
     counterparties.isLoading || documentTypes.isLoading || (isReceivable && companies.isLoading);
 
   return (
-    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+    <Dialog open={open} onOpenChange={(value) => !value && !create.isPending && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -396,8 +412,6 @@ function ManualEntryDialog({
                         value={field.value}
                         onValueChange={(value) => {
                           field.onChange(value);
-                          form.setValue("financialCategoryId", "");
-                          form.setValue("costCenterId", "");
                         }}
                       >
                         <SelectTrigger
@@ -506,18 +520,30 @@ function ManualEntryDialog({
             <div>
               <h3 className="text-sm font-semibold">Classificação financeira</h3>
               <p className="text-xs text-muted-foreground">
-                A categoria e o centro de custo serão replicados em todas as parcelas.
+                Distribua categorias financeiras e centros de custo separadamente, com 100% em cada
+                grupo. Os mesmos percentuais serão aplicados a todas as parcelas.
               </p>
             </div>
-            <FinancialDimensionFields
-              companyId={selectedCompanyId}
-              direction={isReceivable ? "inflow" : "outflow"}
-              categoryId={selectedCategoryId}
-              costCenterId={selectedCostCenterId}
-              onCategoryChange={(value) => form.setValue("financialCategoryId", value)}
-              onCostCenterChange={(value) => form.setValue("costCenterId", value)}
-            />
-            <FieldError message={form.formState.errors.financialCategoryId?.message} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <ContractAllocationEditor
+                companyId={selectedCompanyId}
+                direction={isReceivable ? "inflow" : "outflow"}
+                dimension="category"
+                value={categories}
+                onChange={setCategories}
+                onValidityChange={setCategoriesValid}
+                disabled={create.isPending}
+              />
+              <ContractAllocationEditor
+                companyId={selectedCompanyId}
+                direction={isReceivable ? "inflow" : "outflow"}
+                dimension="cost_center"
+                value={centers}
+                onChange={setCenters}
+                onValidityChange={setCentersValid}
+                disabled={create.isPending}
+              />
+            </div>
           </section>
 
           <section className="space-y-4 rounded-xl border p-4">
@@ -721,13 +747,15 @@ function ManualEntryDialog({
           </div>
         </form>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" disabled={create.isPending} onClick={onClose}>
             Cancelar
           </Button>
           <Button
             type="submit"
             form={`manual-${direction}-form`}
-            disabled={create.isPending || loadPending || loadError}
+            disabled={
+              create.isPending || loadPending || loadError || !categoriesValid || !centersValid
+            }
           >
             {create.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
             {entryMode === "installments" ? "Incluir parcelas" : "Incluir conta"}

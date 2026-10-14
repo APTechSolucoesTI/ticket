@@ -77,6 +77,8 @@ type Transaction = {
   difference_amount: number | null;
   resolution_notes: string | null;
   financial_category_id: string | null;
+  category_allocations?: import("@/lib/contract-allocations").ContractAllocation[] | null;
+  cost_center_allocations?: import("@/lib/contract-allocations").ContractAllocation[] | null;
   cost_center_id: string | null;
   financial_category_name: string | null;
   cost_center_name: string | null;
@@ -197,7 +199,7 @@ export function BankReconciliationDashboard({
       const { data: classifications, error: classificationError } = await db
         .from("financial_entry_classifications")
         .select(
-          "source_id,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
+          "source_id,category_allocations,cost_center_allocations,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
         )
         .eq("source_type", "bank_transaction")
         .in(
@@ -221,6 +223,10 @@ export function BankReconciliationDashboard({
         return {
           ...item,
           financial_category_id: String(classification?.financial_category_id ?? "") || null,
+          category_allocations: classification?.category_allocations as
+            import("@/lib/contract-allocations").ContractAllocation[] | null,
+          cost_center_allocations: classification?.cost_center_allocations as
+            import("@/lib/contract-allocations").ContractAllocation[] | null,
           cost_center_id: String(classification?.cost_center_id ?? "") || null,
           financial_category_name: category?.name ?? null,
           cost_center_name: center?.name ?? null,
@@ -786,6 +792,8 @@ export function BankReconciliationDashboard({
             counterparty_name: classifying.memo,
             operating_company_id: companyId,
             financial_category_id: classifying.financial_category_id,
+            category_allocations: classifying.category_allocations,
+            cost_center_allocations: classifying.cost_center_allocations,
             cost_center_id: classifying.cost_center_id,
           }}
           onClose={() => setClassifying(undefined)}

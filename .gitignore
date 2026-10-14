@@ -17,6 +17,7 @@ bun.lock
 /artifacts/financial-synthetic/
 /artifacts/financial-settings/
 /artifacts/payable-mutations/
+/artifacts/entry-allocations/
 logs
 *.log
 npm-debug.log*
