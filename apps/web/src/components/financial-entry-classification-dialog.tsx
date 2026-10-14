@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { allocationSummary, type ContractAllocation } from "@/lib/contract-allocations";
 import type {
   FinancialCategory,
   FinancialCostCenter,
@@ -43,6 +44,8 @@ export function FinancialEntryClassificationDialog({
     operating_company_id: string;
     financial_category_id: string | null;
     cost_center_id: string | null;
+    category_allocations?: ContractAllocation[] | null;
+    cost_center_allocations?: ContractAllocation[] | null;
   };
   onClose: () => void;
   onSaved: () => void;
@@ -158,6 +161,17 @@ export function FinancialEntryClassificationDialog({
           </p>
         </DialogHeader>
         <div className="space-y-4">
+          {entry.category_allocations?.length ? (
+            <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-xs">
+              <p className="font-medium">Rateio atual do documento</p>
+              <p>{allocationSummary(entry.category_allocations)}</p>
+              <p>{allocationSummary(entry.cost_center_allocations)}</p>
+              <p className="text-muted-foreground">
+                Ao salvar esta classificação manual, o documento inteiro passará a usar 100% na
+                categoria e no centro selecionados.
+              </p>
+            </div>
+          ) : null}
           <div>
             <Label>Categoria financeira</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>

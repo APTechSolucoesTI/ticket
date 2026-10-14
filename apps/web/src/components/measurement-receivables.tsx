@@ -1,3 +1,4 @@
+import { allocationSummary, type ContractAllocation } from "@/lib/contract-allocations";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -64,6 +65,8 @@ type Receivable = Omit<Tables<"contas_receber">, "contrato_id" | "medicao_id"> &
   installment_number: number | null;
   installment_count: number | null;
   medicoes_contrato: { report_token: string } | null;
+  category_allocations?: ContractAllocation[] | null;
+  cost_center_allocations?: ContractAllocation[] | null;
   financial_category_id: string | null;
   cost_center_id: string | null;
   financial_category_name: string | null;
@@ -144,7 +147,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
       const { data: classifications, error: classificationError } = await db
         .from("financial_entry_classifications")
         .select(
-          "source_id,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
+          "source_id,category_allocations,cost_center_allocations,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
         )
         .in("source_type", ["measurement_receivable", "recurring_receivable", "manual_receivable"])
         .in(
@@ -169,8 +172,21 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
           ...item,
           financial_category_id: String(classification?.financial_category_id ?? "") || null,
           cost_center_id: String(classification?.cost_center_id ?? "") || null,
-          financial_category_name: category?.name ?? null,
-          cost_center_name: center?.name ?? null,
+          category_allocations: classification?.category_allocations as ContractAllocation[] | null,
+          cost_center_allocations: classification?.cost_center_allocations as
+            ContractAllocation[] | null,
+          financial_category_name:
+            allocationSummary(
+              classification?.category_allocations as ContractAllocation[] | null,
+            ) ||
+            category?.name ||
+            null,
+          cost_center_name:
+            allocationSummary(
+              classification?.cost_center_allocations as ContractAllocation[] | null,
+            ) ||
+            center?.name ||
+            null,
         };
       });
     },
@@ -454,6 +470,8 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
             document_number: classifying.documento_referencia,
             counterparty_name: classifying.cliente_nome,
             operating_company_id: classifying.operating_company_id,
+            category_allocations: classifying.category_allocations,
+            cost_center_allocations: classifying.cost_center_allocations,
             financial_category_id: classifying.financial_category_id,
             cost_center_id: classifying.cost_center_id,
           }}

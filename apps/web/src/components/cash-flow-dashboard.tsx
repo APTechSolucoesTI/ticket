@@ -66,6 +66,8 @@ type CashEntry = {
   reconciliation_status: "pending" | "matched" | "difference" | null;
   difference_amount: number | null;
   classification_id: string | null;
+  category_allocations?: import("@/lib/contract-allocations").ContractAllocation[] | null;
+  cost_center_allocations?: import("@/lib/contract-allocations").ContractAllocation[] | null;
   financial_category_id: string | null;
   financial_category_code: string | null;
   financial_category_name: string | null;
@@ -139,7 +141,11 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
     queryKey: ["cash-flow", companyId],
     enabled: Boolean(companyId),
     queryFn: async () => {
-      let request = db.from("cash_flow_entries").select("*").order("planned_date").limit(5000);
+      let request = db
+        .from("cash_flow_allocation_entries")
+        .select("*")
+        .order("planned_date")
+        .limit(5000);
       if (companyId !== "all") request = request.eq("operating_company_id", companyId);
       const { data, error } = await request;
       if (error) throw error;
@@ -244,7 +250,13 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
         ]),
     ),
   );
-  const classifiedCount = periodRows.filter((item) => item.classification_id).length;
+  const classifiedCount = new Set(
+    periodRows
+      .filter((item) => item.classification_id)
+      .map((item) => `${item.source_type}-${item.source_id}`),
+  ).size;
+  const documentCount = new Set(periodRows.map((item) => `${item.source_type}-${item.source_id}`))
+    .size;
 
   return (
     <Card id="cash-flow">
@@ -339,7 +351,7 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
               <div>
                 <p className="text-sm font-medium">Cobertura de classificação</p>
                 <p className="text-xs text-muted-foreground">
-                  {classifiedCount} de {periodRows.length} movimentos classificados no período.
+                  {classifiedCount} de {documentCount} movimentos classificados no período.
                 </p>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted sm:w-56">
@@ -485,7 +497,9 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
                   </TableHeader>
                   <TableBody>
                     {visibleRows.map((item) => (
-                      <TableRow key={`${item.direction}-${item.source_id}`}>
+                      <TableRow
+                        key={`${item.direction}-${item.source_id}-${item.financial_category_id}-${item.cost_center_id}`}
+                      >
                         {canEdit ? (
                           <TableCell>
                             <Button

@@ -541,6 +541,8 @@ export type Database = {
       };
       contracts: {
         Row: {
+          category_allocations: Json | null;
+          cost_center_allocations: Json | null;
           auto_renew: boolean;
           billing_type: string;
           billing_model: string;
@@ -573,6 +575,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          category_allocations?: Json | null;
+          cost_center_allocations?: Json | null;
           auto_renew?: boolean;
           billing_type?: string;
           billing_model?: string;
@@ -605,6 +609,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          category_allocations?: Json | null;
+          cost_center_allocations?: Json | null;
           auto_renew?: boolean;
           billing_type?: string;
           billing_model?: string;

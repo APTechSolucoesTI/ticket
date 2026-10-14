@@ -1,3 +1,4 @@
+import { allocationSummary, type ContractAllocation } from "@/lib/contract-allocations";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -92,6 +93,8 @@ type Payable = {
   allocation_status: "pending_rule" | "complete";
   status: PayableStatus;
   terms_snapshot: { supplier_name?: string; contract_description?: string };
+  category_allocations?: ContractAllocation[] | null;
+  cost_center_allocations?: ContractAllocation[] | null;
   financial_category_id: string | null;
   cost_center_id: string | null;
   financial_category_name: string | null;
@@ -227,7 +230,7 @@ export function SupplierPayables({
       const { data: classifications, error: classificationError } = await db
         .from("financial_entry_classifications")
         .select(
-          "source_id,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
+          "source_id,category_allocations,cost_center_allocations,financial_category_id,cost_center_id,financial_categories(name),financial_cost_centers(name)",
         )
         .eq("source_type", "supplier_payable")
         .in(
@@ -252,8 +255,21 @@ export function SupplierPayables({
           ...item,
           financial_category_id: String(classification?.financial_category_id ?? "") || null,
           cost_center_id: String(classification?.cost_center_id ?? "") || null,
-          financial_category_name: category?.name ?? null,
-          cost_center_name: center?.name ?? null,
+          category_allocations: classification?.category_allocations as ContractAllocation[] | null,
+          cost_center_allocations: classification?.cost_center_allocations as
+            ContractAllocation[] | null,
+          financial_category_name:
+            allocationSummary(
+              classification?.category_allocations as ContractAllocation[] | null,
+            ) ||
+            category?.name ||
+            null,
+          cost_center_name:
+            allocationSummary(
+              classification?.cost_center_allocations as ContractAllocation[] | null,
+            ) ||
+            center?.name ||
+            null,
         };
       });
     },
@@ -552,6 +568,8 @@ export function SupplierPayables({
             document_number: classifying.document_number,
             counterparty_name: classifying.terms_snapshot.supplier_name ?? "Fornecedor",
             operating_company_id: classifying.operating_company_id,
+            category_allocations: classifying.category_allocations,
+            cost_center_allocations: classifying.cost_center_allocations,
             financial_category_id: classifying.financial_category_id,
             cost_center_id: classifying.cost_center_id,
           }}

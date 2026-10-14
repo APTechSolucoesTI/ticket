@@ -49,7 +49,14 @@ import { toast } from "sonner";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import { formatCurrency } from "@/lib/number-format";
-import { FinancialDimensionFields } from "@/components/financial-dimension-fields";
+import { ContractAllocationEditor } from "@/components/contract-allocation-editor";
+import {
+  allocationError,
+  allocationPayload,
+  allocationSummary,
+  legacyAllocation,
+  type ContractAllocation,
+} from "@/lib/contract-allocations";
 
 export const Route = createFileRoute("/_authenticated/contracts")({
   head: () => ({ meta: [{ title: "Contratos - APTicket" }] }),
@@ -94,6 +101,8 @@ type Contract = {
   dia_vencimento: number;
   description: string | null;
   notes: string | null;
+  category_allocations?: ContractAllocation[] | null;
+  cost_center_allocations?: ContractAllocation[] | null;
   financial_category_id: string | null;
   cost_center_id: string | null;
   companies?: { name: string } | null;
@@ -405,20 +414,26 @@ function ContractsPage() {
                 {
                   key: "category",
                   label: "Categoria financeira",
-                  accessor: (c) => c.financial_categories?.name ?? "",
+                  accessor: (c) =>
+                    allocationSummary(c.category_allocations) || c.financial_categories?.name || "",
                   cell: (c) =>
-                    c.financial_categories
+                    allocationSummary(c.category_allocations) ||
+                    (c.financial_categories
                       ? `${c.financial_categories.code} - ${c.financial_categories.name}`
-                      : "-",
+                      : "-"),
                 },
                 {
                   key: "cost_center",
                   label: "Centro de custo",
-                  accessor: (c) => c.financial_cost_centers?.name ?? "",
+                  accessor: (c) =>
+                    allocationSummary(c.cost_center_allocations) ||
+                    c.financial_cost_centers?.name ||
+                    "",
                   cell: (c) =>
-                    c.financial_cost_centers
+                    allocationSummary(c.cost_center_allocations) ||
+                    (c.financial_cost_centers
                       ? `${c.financial_cost_centers.code} - ${c.financial_cost_centers.name}`
-                      : "-",
+                      : "-"),
                 },
                 {
                   key: "sla",
@@ -543,6 +558,7 @@ function ContractsPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`${access.edit ? "Editar" : "Visualizar"} contrato ${c.numero_contrato}`}
                   onClick={() => {
                     setEditing(c);
                     setOpen(true);
@@ -742,8 +758,29 @@ function ContractDialog({
         ? servicesTotal(form.service_items)
         : form.monthly_value;
 
+  const [categoryAllocations, setCategoryAllocations] = useState<ContractAllocation[]>([]);
+  const [centerAllocations, setCenterAllocations] = useState<ContractAllocation[]>([]);
+  const [categoryValid, setCategoryValid] = useState(false);
+  const [centerValid, setCenterValid] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setCategoryAllocations(
+      legacyAllocation(editing?.category_allocations, editing?.financial_category_id),
+    );
+    setCenterAllocations(
+      legacyAllocation(editing?.cost_center_allocations, editing?.cost_center_id),
+    );
+    setCategoryValid(false);
+    setCenterValid(false);
+  }, [editing, open]);
+
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
+      const allocationIssue =
+        allocationError(categoryAllocations, "categorias financeiras") ??
+        allocationError(centerAllocations, "centros de custo");
+      if (allocationIssue) throw new Error(allocationIssue);
+
       const _tid = await getMyTenantId();
       if (!_tid) throw new Error("Tenant não encontrado");
       const prof = { tenant_id: _tid };
@@ -783,8 +820,8 @@ function ContractDialog({
         auto_renew: payload.auto_renew,
         description: payload.description || null,
         notes: payload.notes || null,
-        financial_category_id: payload.financial_category_id,
-        cost_center_id: payload.cost_center_id,
+        category_allocations: allocationPayload(categoryAllocations),
+        cost_center_allocations: allocationPayload(centerAllocations),
       };
       let contractId: string;
       if (editing) {
@@ -1115,14 +1152,16 @@ function ContractDialog({
                   <Label>Empresa operadora *</Label>
                   <Select
                     value={form.operating_company_id}
-                    onValueChange={(v) =>
+                    onValueChange={(v) => {
+                      setCategoryAllocations([]);
+                      setCenterAllocations([]);
                       setForm({
                         ...form,
                         operating_company_id: v,
                         financial_category_id: "",
                         cost_center_id: "",
-                      })
-                    }
+                      });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma empresa operadora" />
@@ -1138,19 +1177,26 @@ function ContractDialog({
                 </div>
 
                 <div className="sm:col-span-2 lg:col-span-4">
-                  <FinancialDimensionFields
-                    companyId={form.operating_company_id}
-                    direction="inflow"
-                    categoryId={form.financial_category_id}
-                    costCenterId={form.cost_center_id}
-                    onCategoryChange={(value) =>
-                      setForm((current) => ({ ...current, financial_category_id: value }))
-                    }
-                    onCostCenterChange={(value) =>
-                      setForm((current) => ({ ...current, cost_center_id: value }))
-                    }
-                    disabled={readOnly}
-                  />
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <ContractAllocationEditor
+                      companyId={form.operating_company_id}
+                      direction="inflow"
+                      dimension="category"
+                      value={categoryAllocations}
+                      onChange={setCategoryAllocations}
+                      onValidityChange={setCategoryValid}
+                      disabled={readOnly || save.isPending}
+                    />
+                    <ContractAllocationEditor
+                      companyId={form.operating_company_id}
+                      direction="inflow"
+                      dimension="cost_center"
+                      value={centerAllocations}
+                      onChange={setCenterAllocations}
+                      onValidityChange={setCenterValid}
+                      disabled={readOnly || save.isPending}
+                    />
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2 lg:col-span-4">
@@ -1550,7 +1596,10 @@ function ContractDialog({
                     {readOnly ? "Fechar" : "Cancelar"}
                   </Button>
                   {!readOnly && (
-                    <Button type="submit" disabled={save.isPending}>
+                    <Button
+                      type="submit"
+                      disabled={save.isPending || !categoryValid || !centerValid}
+                    >
                       {save.isPending ? "Salvando…" : "Salvar"}
                     </Button>
                   )}

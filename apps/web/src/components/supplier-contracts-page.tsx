@@ -36,7 +36,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { FinancialDimensionFields } from "@/components/financial-dimension-fields";
+import { ContractAllocationEditor } from "@/components/contract-allocation-editor";
+import {
+  allocationError,
+  allocationPayload,
+  allocationSummary,
+  legacyAllocation,
+  type ContractAllocation,
+} from "@/lib/contract-allocations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +83,8 @@ type Contract = {
   emite_boleto: boolean;
   auto_renew: boolean;
   notes: string | null;
+  category_allocations?: ContractAllocation[] | null;
+  cost_center_allocations?: ContractAllocation[] | null;
   financial_category_id: string | null;
   cost_center_id: string | null;
   financial_categories?: { code: string; name: string } | null;
@@ -214,7 +223,7 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
       const { data, error } = await db
         .from("supplier_contracts")
         .select(
-          "id,tenant_id,operating_company_id,supplier_id,numero_contrato,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,is_active,status,tipo_medicao,tipo_vencimento,emite_nf,emite_boleto,auto_renew,notes,financial_category_id,cost_center_id,financial_categories(code,name),financial_cost_centers(code,name)",
+          "id,tenant_id,operating_company_id,supplier_id,numero_contrato,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,is_active,status,tipo_medicao,tipo_vencimento,emite_nf,emite_boleto,auto_renew,notes,category_allocations,cost_center_allocations,financial_category_id,cost_center_id,financial_categories(code,name),financial_cost_centers(code,name)",
         )
         .is("deleted_at", null)
         .order("starts_at", { ascending: false });
@@ -288,20 +297,24 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
     {
       key: "category",
       label: "Categoria financeira",
-      accessor: (row) => row.financial_categories?.name ?? "",
+      accessor: (row) =>
+        allocationSummary(row.category_allocations) || row.financial_categories?.name || "",
       cell: (row) =>
-        row.financial_categories
+        allocationSummary(row.category_allocations) ||
+        (row.financial_categories
           ? `${row.financial_categories.code} - ${row.financial_categories.name}`
-          : "-",
+          : "-"),
     },
     {
       key: "cost_center",
       label: "Centro de custo",
-      accessor: (row) => row.financial_cost_centers?.name ?? "",
+      accessor: (row) =>
+        allocationSummary(row.cost_center_allocations) || row.financial_cost_centers?.name || "",
       cell: (row) =>
-        row.financial_cost_centers
+        allocationSummary(row.cost_center_allocations) ||
+        (row.financial_cost_centers
           ? `${row.financial_cost_centers.code} - ${row.financial_cost_centers.name}`
-          : "-",
+          : "-"),
     },
     {
       key: "end",
@@ -524,8 +537,28 @@ function SupplierContractDialog({
       cost_center_id: editing?.cost_center_id ?? "",
     });
   }, [companies, editing, open]);
+  const [categoryAllocations, setCategoryAllocations] = useState<ContractAllocation[]>([]);
+  const [centerAllocations, setCenterAllocations] = useState<ContractAllocation[]>([]);
+  const [categoryValid, setCategoryValid] = useState(false);
+  const [centerValid, setCenterValid] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setCategoryAllocations(
+      legacyAllocation(editing?.category_allocations, editing?.financial_category_id),
+    );
+    setCenterAllocations(
+      legacyAllocation(editing?.cost_center_allocations, editing?.cost_center_id),
+    );
+    setCategoryValid(false);
+    setCenterValid(false);
+  }, [editing, open]);
+
   const save = useMutation({
     mutationFn: async () => {
+      const allocationIssue =
+        allocationError(categoryAllocations, "categorias financeiras") ??
+        allocationError(centerAllocations, "centros de custo");
+      if (allocationIssue) throw new Error(allocationIssue);
       const parsed = schema.safeParse({
         ...form,
         financial_category_id: form.financial_category_id || null,
@@ -536,6 +569,8 @@ function SupplierContractDialog({
         parsed.data.tipo_medicao === "unica" ? 1 : frequencyMonths[parsed.data.tipo_medicao];
       const values = {
         ...parsed.data,
+        category_allocations: allocationPayload(categoryAllocations),
+        cost_center_allocations: allocationPayload(centerAllocations),
         billing_interval_months: frequency,
         base_amount: parsed.data.billing_unit === "fixed" ? parsed.data.base_amount : 0,
         unit_price: parsed.data.billing_unit === "fixed" ? 0 : parsed.data.unit_price,
@@ -682,14 +717,16 @@ function SupplierContractDialog({
                 <Label>Empresa operadora *</Label>
                 <Select
                   value={form.operating_company_id}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
+                    setCategoryAllocations([]);
+                    setCenterAllocations([]);
                     setForm({
                       ...form,
                       operating_company_id: value,
                       financial_category_id: "",
                       cost_center_id: "",
-                    })
-                  }
+                    });
+                  }}
                   disabled={readOnly || Boolean(editing)}
                 >
                   <SelectTrigger>
@@ -705,19 +742,26 @@ function SupplierContractDialog({
                 </Select>
               </div>
               <div className="lg:col-span-4">
-                <FinancialDimensionFields
-                  companyId={form.operating_company_id}
-                  direction="outflow"
-                  categoryId={form.financial_category_id}
-                  costCenterId={form.cost_center_id}
-                  onCategoryChange={(value) =>
-                    setForm((current) => ({ ...current, financial_category_id: value }))
-                  }
-                  onCostCenterChange={(value) =>
-                    setForm((current) => ({ ...current, cost_center_id: value }))
-                  }
-                  disabled={readOnly}
-                />
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <ContractAllocationEditor
+                    companyId={form.operating_company_id}
+                    direction="outflow"
+                    dimension="category"
+                    value={categoryAllocations}
+                    onChange={setCategoryAllocations}
+                    onValidityChange={setCategoryValid}
+                    disabled={readOnly || save.isPending}
+                  />
+                  <ContractAllocationEditor
+                    companyId={form.operating_company_id}
+                    direction="outflow"
+                    dimension="cost_center"
+                    value={centerAllocations}
+                    onChange={setCenterAllocations}
+                    onValidityChange={setCenterValid}
+                    disabled={readOnly || save.isPending}
+                  />
+                </div>
               </div>
               <div className="lg:col-span-4">
                 <Label>Fornecedor *</Label>
@@ -842,7 +886,7 @@ function SupplierContractDialog({
                   {readOnly ? "Fechar" : "Cancelar"}
                 </Button>
                 {!readOnly ? (
-                  <Button type="submit" disabled={save.isPending}>
+                  <Button type="submit" disabled={save.isPending || !categoryValid || !centerValid}>
                     {save.isPending ? "Salvando…" : "Salvar"}
                   </Button>
                 ) : null}
