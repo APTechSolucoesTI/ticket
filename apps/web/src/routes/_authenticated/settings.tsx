@@ -66,6 +66,7 @@ import { toast } from "sonner";
 import { CompanyTab } from "@/components/settings/CompanyTab";
 import { OperatingCompaniesTab } from "@/components/settings/OperatingCompaniesTab";
 import { InterTab } from "@/components/settings/InterTab";
+import { FinancialTab } from "@/components/settings/FinancialTab";
 import { useServerFn } from "@tanstack/react-start";
 import { backendClient } from "@/lib/backend-client";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
@@ -125,6 +126,7 @@ const SETTINGS_TABS = [
   { value: "company", module: "empresa", label: "Empresa" },
   { value: "operating-companies", module: "empresa_operadora", label: "Empresa Operadora" },
   { value: "inter", module: "financeiro_bancos", label: "Banco Inter" },
+  { value: "financial", module: "configuracoes", label: "Financeiro" },
   { value: "users", module: "usuarios", label: "Usuários" },
   { value: "roles", module: "papeis", label: "Papéis" },
   { value: "user-permissions", module: "permissoes", label: "Permissões" },
@@ -172,6 +174,11 @@ function SettingsPage() {
             </TabsTrigger>
           ))}
         </TabsList>
+        {perms.has("configuracoes", "view") && (
+          <TabsContent value="financial" className="mt-4">
+            <FinancialTab />
+          </TabsContent>
+        )}
         {perms.has("empresa", "view") && (
           <TabsContent value="company" className="mt-4">
             <ModulePermissionProvider module="empresa">

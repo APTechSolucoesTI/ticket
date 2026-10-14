@@ -49,6 +49,8 @@ export class CollectionDispatchError extends Error {
   }
 }
 
+export class CollectionDispatchPausedError extends Error {}
+
 @Injectable()
 export class CollectionDispatchService {
   constructor(
@@ -80,6 +82,14 @@ export class CollectionDispatchService {
   }
 
   async dispatch(action: CollectionAction): Promise<string | null> {
+    const allowed = await this.db.rpc('prepare_collection_action_dispatch', {
+      p_action: action.id,
+      p_attempt_count: action.attempt_count,
+    });
+    if (allowed.error)
+      throw new Error(`collection_dispatch_check_failed:${allowed.error.code}`);
+    if (!z.boolean().parse(allowed.data))
+      throw new CollectionDispatchPausedError('Régua de cobrança pausada.');
     const message = this.render(
       action.content_snapshot.message_template,
       action,

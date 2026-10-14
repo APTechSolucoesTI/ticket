@@ -1,9 +1,11 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { randomUUID } from 'node:crypto';
 import { Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { QUEUE_COLLECTION } from '../queue/queue.module';
 import {
   CollectionDispatchError,
+  CollectionDispatchPausedError,
   CollectionDispatchService,
 } from './collection-dispatch.service';
 import type { CollectionJobData } from './collection.types';
@@ -45,7 +47,8 @@ export class CollectionProcessor extends WorkerHost {
           'dispatch',
           { action },
           {
-            jobId: `${action.id}-${action.attempt_count}`,
+            // A paused action can resume with the same attempt count.
+            jobId: `${action.id}-${action.attempt_count}-${randomUUID()}`,
             removeOnComplete: 100,
             removeOnFail: 100,
           },
@@ -65,6 +68,12 @@ export class CollectionProcessor extends WorkerHost {
       });
       this.logger.log(`ação=${action.id} canal=${action.channel} enviada`);
     } catch (error) {
+      if (error instanceof CollectionDispatchPausedError) {
+        this.logger.log(
+          `ação=${action.id} pausada; preservada para novo processamento`,
+        );
+        return;
+      }
       const retryable =
         error instanceof CollectionDispatchError ? error.retryable : true;
       const message =

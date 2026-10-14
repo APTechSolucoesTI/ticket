@@ -50,6 +50,7 @@ import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { MeasurementReceivables } from "@/components/measurement-receivables";
 import { CollectionRulesDialog } from "@/components/collection-rules-dialog";
+import { useFinancialSettings } from "@/lib/financial-settings";
 
 type BillingStatus = "a_faturar" | "faturado" | "vencido" | "recebido" | "cancelado";
 type Charge = {
@@ -140,6 +141,7 @@ export function FinanceReceivablesPage() {
   const [editing, setEditing] = useState<Charge | null>(null);
   const [priceOpen, setPriceOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const financialSettings = useFinancialSettings();
 
   const chargesQuery = useQuery({
     queryKey: ["avulso-billing"],
@@ -191,7 +193,7 @@ export function FinanceReceivablesPage() {
         icon={BanknoteArrowDown}
         actions={
           <div className="flex flex-wrap gap-2">
-            {access.edit ? (
+            {access.edit && financialSettings.data?.use_collection_rules ? (
               <Button variant="outline" className="gap-2" onClick={() => setCollectionOpen(true)}>
                 <BellRing className="size-4" /> Régua de cobrança
               </Button>
@@ -205,7 +207,24 @@ export function FinanceReceivablesPage() {
         }
       />
 
-      {collectionOpen && <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />}
+      {financialSettings.isError ? (
+        <ErrorState
+          title="Configurações financeiras indisponíveis"
+          description="Não foi possível verificar a disponibilidade da régua de cobrança."
+          action={{ label: "Tentar novamente", onClick: () => void financialSettings.refetch() }}
+        />
+      ) : financialSettings.data?.use_collection_rules === false ? (
+        <p
+          role="status"
+          className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          Régua de cobrança desativada em Administração → Configurações → Financeiro. As cobranças e
+          suspensões automáticas estão pausadas.
+        </p>
+      ) : null}
+      {collectionOpen && financialSettings.data?.use_collection_rules && (
+        <CollectionRulesDialog onClose={() => setCollectionOpen(false)} />
+      )}
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Atendimentos avulsos</h2>

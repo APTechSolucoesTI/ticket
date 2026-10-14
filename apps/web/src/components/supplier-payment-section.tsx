@@ -18,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { useFinancialSettings } from "@/lib/financial-settings";
 import type { SupplierBankAccount } from "@/components/supplier-bank-accounts-dialog";
 
 type Payment = {
@@ -61,6 +62,7 @@ export function SupplierPaymentSection({
     operating_company_id: string;
     supplier_id: string;
     status: string;
+    allocation_status: string;
     due_date: string;
     total_amount: number;
   };
@@ -68,6 +70,12 @@ export function SupplierPaymentSection({
   onChanged: () => void;
 }) {
   const queryClient = useQueryClient();
+  const financialSettings = useFinancialSettings();
+  const canSchedule =
+    payable.status === "approved" ||
+    (financialSettings.data?.use_payable_approvals === false &&
+      payable.status === "scheduled" &&
+      payable.allocation_status === "complete");
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(payable.due_date);
   const [bankId, setBankId] = useState("");
@@ -370,7 +378,7 @@ export function SupplierPaymentSection({
             </div>
           ) : null}
         </div>
-      ) : payable.status === "approved" && canEdit ? (
+      ) : canSchedule && canEdit ? (
         showSchedule ? (
           <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -450,7 +458,13 @@ export function SupplierPaymentSection({
         )
       ) : (
         <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-          O pagamento será liberado depois da aprovação integral do lançamento.
+          {financialSettings.isError
+            ? "Não foi possível consultar as configurações financeiras. Atualize a página para tentar novamente."
+            : financialSettings.isLoading
+              ? "Verificando configurações financeiras…"
+              : payable.allocation_status !== "complete"
+                ? "Conclua o rateio para liberar o pagamento."
+                : "O pagamento será liberado depois da aprovação integral do lançamento."}
         </p>
       )}
       {payments.data?.some((item) => item.status === "cancelled") ? (

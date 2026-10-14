@@ -53,6 +53,7 @@ import { getCurrentUserId } from "@/lib/session";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-policies-dialog";
 import { SupplierPaymentSection } from "@/components/supplier-payment-section";
+import { useFinancialSettings } from "@/lib/financial-settings";
 import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
 import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
@@ -205,6 +206,7 @@ export function SupplierPayables({
   const [manualOpen, setManualOpen] = useState(false);
   const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
+  const financialSettings = useFinancialSettings();
   const [selected, setSelected] = useState<Payable>();
   const [classifying, setClassifying] = useState<Payable>();
   const documentTypes = useFinancialDocumentTypes(Boolean(companyId));
@@ -303,10 +305,12 @@ export function SupplierPayables({
         </div>
         {canEdit ? (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setPoliciesOpen(true)}>
-              <Settings2 className="size-4" />
-              Alçadas
-            </Button>
+            {financialSettings.data?.use_payable_approvals ? (
+              <Button variant="outline" className="gap-2" onClick={() => setPoliciesOpen(true)}>
+                <Settings2 className="size-4" />
+                Alçadas
+              </Button>
+            ) : null}
             <Button variant="outline" className="gap-2" onClick={() => setDocumentTypesOpen(true)}>
               <FileCog className="size-4" />
               Tipos de documento
@@ -328,6 +332,21 @@ export function SupplierPayables({
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4 p-4">
+        {financialSettings.isError ? (
+          <ErrorState
+            title="Configurações financeiras indisponíveis"
+            description="Não foi possível verificar o uso de alçadas de aprovação."
+            action={{ label: "Tentar novamente", onClick: () => void financialSettings.refetch() }}
+          />
+        ) : financialSettings.data?.use_payable_approvals === false ? (
+          <p
+            role="status"
+            className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+          >
+            Alçada de aprovação desativada. Novos pagamentos seguem diretamente após a conclusão do
+            rateio. Aprovações já iniciadas mantêm seu fluxo.
+          </p>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Summary label="Total lançado" value={money.format(total)} />
           <Summary label="Lançamentos" value={String(query.data?.length ?? 0)} />
@@ -540,7 +559,7 @@ export function SupplierPayables({
         open={documentTypesOpen}
         onClose={() => setDocumentTypesOpen(false)}
       />
-      {policiesOpen ? (
+      {policiesOpen && financialSettings.data?.use_payable_approvals ? (
         <SupplierApprovalPoliciesDialog
           companyId={companyId}
           onClose={() => setPoliciesOpen(false)}
@@ -734,6 +753,7 @@ function AllocationDialog({
 }) {
   const queryClient = useQueryClient();
   const [decisionComment, setDecisionComment] = useState("");
+  const financialSettings = useFinancialSettings();
   const [rejectionReason, setRejectionReason] = useState("");
   const query = useQuery({
     queryKey: ["supplier-payable-allocations", payable.id],
@@ -906,152 +926,158 @@ function AllocationDialog({
             </Table>
           </div>
         )}
-        <section className="space-y-3 border-t pt-4" aria-labelledby="approval-history-title">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 id="approval-history-title" className="font-medium">
-                Aprovação por alçada
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Responsáveis, decisões e reenvios ficam preservados no histórico.
+        {financialSettings.data?.use_payable_approvals ||
+        approvalQuery.isError ||
+        approvalQuery.data?.length ? (
+          <section className="space-y-3 border-t pt-4" aria-labelledby="approval-history-title">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 id="approval-history-title" className="font-medium">
+                  Aprovação por alçada
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Responsáveis, decisões e reenvios ficam preservados no histórico.
+                </p>
+              </div>
+              <Badge
+                variant={
+                  payable.status === "approved" || payable.status === "paid"
+                    ? "secondary"
+                    : "outline"
+                }
+              >
+                {statusLabels[payable.status]}
+              </Badge>
+            </div>
+            {approvalQuery.isLoading ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Carregando aprovações
+              </div>
+            ) : approvalQuery.isError ? (
+              <p className="text-sm text-destructive">
+                Não foi possível consultar o histórico de aprovação.
               </p>
-            </div>
-            <Badge
-              variant={
-                payable.status === "approved" || payable.status === "paid" ? "secondary" : "outline"
-              }
-            >
-              {statusLabels[payable.status]}
-            </Badge>
-          </div>
-          {approvalQuery.isLoading ? (
-            <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Carregando aprovações
-            </div>
-          ) : approvalQuery.isError ? (
-            <p className="text-sm text-destructive">
-              Não foi possível consultar o histórico de aprovação.
-            </p>
-          ) : approvalQuery.data?.length ? (
-            <div className="space-y-3">
-              {approvalQuery.data.map((request, requestIndex) => (
-                <div key={request.id} className="rounded-lg border p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {request.policy_name}
-                        {requestIndex === 0 ? " · envio atual" : ""}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Enviado por {request.submitted_by_name} em{" "}
-                        {new Date(request.submitted_at).toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                    <ApprovalStatusBadge status={request.status} />
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {request.steps.map((step) => (
-                      <div key={step.id} className="flex items-start gap-2 text-sm">
-                        <div
-                          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${step.status === "approved" ? "bg-emerald-500/10 text-emerald-700" : step.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}
-                        >
-                          {step.status === "approved" ? (
-                            <Check className="size-3.5" />
-                          ) : step.status === "rejected" ? (
-                            <X className="size-3.5" />
-                          ) : (
-                            <Clock3 className="size-3.5" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">
-                            {step.step_order}. {step.approver_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {step.status === "approved"
-                              ? `Aprovado${step.decided_at ? ` em ${new Date(step.decided_at).toLocaleString("pt-BR")}` : ""}`
-                              : step.status === "rejected"
-                                ? "Rejeitado"
-                                : "Aguardando decisão"}
-                            {step.decision_comment ? ` · ${step.decision_comment}` : ""}
-                          </p>
-                        </div>
+            ) : approvalQuery.data?.length ? (
+              <div className="space-y-3">
+                {approvalQuery.data.map((request, requestIndex) => (
+                  <div key={request.id} className="rounded-lg border p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {request.policy_name}
+                          {requestIndex === 0 ? " · envio atual" : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Enviado por {request.submitted_by_name} em{" "}
+                          {new Date(request.submitted_at).toLocaleString("pt-BR")}
+                        </p>
                       </div>
-                    ))}
+                      <ApprovalStatusBadge status={request.status} />
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {request.steps.map((step) => (
+                        <div key={step.id} className="flex items-start gap-2 text-sm">
+                          <div
+                            className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${step.status === "approved" ? "bg-emerald-500/10 text-emerald-700" : step.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}
+                          >
+                            {step.status === "approved" ? (
+                              <Check className="size-3.5" />
+                            ) : step.status === "rejected" ? (
+                              <X className="size-3.5" />
+                            ) : (
+                              <Clock3 className="size-3.5" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium">
+                              {step.step_order}. {step.approver_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {step.status === "approved"
+                                ? `Aprovado${step.decided_at ? ` em ${new Date(step.decided_at).toLocaleString("pt-BR")}` : ""}`
+                                : step.status === "rejected"
+                                  ? "Rejeitado"
+                                  : "Aguardando decisão"}
+                              {step.decision_comment ? ` · ${step.decision_comment}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {request.rejection_reason ? (
+                      <p className="mt-3 rounded-md bg-destructive/5 p-2 text-xs text-destructive">
+                        Motivo: {request.rejection_reason}
+                      </p>
+                    ) : null}
                   </div>
-                  {request.rejection_reason ? (
-                    <p className="mt-3 rounded-md bg-destructive/5 p-2 text-xs text-destructive">
-                      Motivo: {request.rejection_reason}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-              Este lançamento ainda não foi enviado para aprovação.
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
+                Este lançamento ainda não foi enviado para aprovação.
+              </div>
+            )}
 
-          {isCurrentApprover ? (
-            <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="text-sm font-medium">Sua decisão é necessária nesta etapa.</p>
-              <div className="space-y-1.5">
-                <Label htmlFor="approval-comment">Comentário da aprovação, opcional</Label>
-                <Textarea
-                  id="approval-comment"
-                  maxLength={1000}
-                  value={decisionComment}
-                  onChange={(event) => setDecisionComment(event.target.value)}
-                />
+            {isCurrentApprover ? (
+              <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-sm font-medium">Sua decisão é necessária nesta etapa.</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="approval-comment">Comentário da aprovação, opcional</Label>
+                  <Textarea
+                    id="approval-comment"
+                    maxLength={1000}
+                    value={decisionComment}
+                    onChange={(event) => setDecisionComment(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rejection-reason">Motivo para rejeição</Label>
+                  <Textarea
+                    id="rejection-reason"
+                    maxLength={1000}
+                    value={rejectionReason}
+                    placeholder="Obrigatório somente ao rejeitar"
+                    onChange={(event) => setRejectionReason(event.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="destructive"
+                    onClick={() => rejectMutation.mutate()}
+                    disabled={
+                      rejectMutation.isPending ||
+                      approveMutation.isPending ||
+                      rejectionReason.trim().length < 3
+                    }
+                  >
+                    {rejectMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <X className="mr-2 size-4" />
+                    )}
+                    Rejeitar
+                  </Button>
+                  <Button
+                    onClick={() => approveMutation.mutate()}
+                    disabled={rejectMutation.isPending || approveMutation.isPending}
+                  >
+                    {approveMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Check className="mr-2 size-4" />
+                    )}
+                    Aprovar etapa
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="rejection-reason">Motivo para rejeição</Label>
-                <Textarea
-                  id="rejection-reason"
-                  maxLength={1000}
-                  value={rejectionReason}
-                  placeholder="Obrigatório somente ao rejeitar"
-                  onChange={(event) => setRejectionReason(event.target.value)}
-                />
-              </div>
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button
-                  variant="destructive"
-                  onClick={() => rejectMutation.mutate()}
-                  disabled={
-                    rejectMutation.isPending ||
-                    approveMutation.isPending ||
-                    rejectionReason.trim().length < 3
-                  }
-                >
-                  {rejectMutation.isPending ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <X className="mr-2 size-4" />
-                  )}
-                  Rejeitar
-                </Button>
-                <Button
-                  onClick={() => approveMutation.mutate()}
-                  disabled={rejectMutation.isPending || approveMutation.isPending}
-                >
-                  {approveMutation.isPending ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <Check className="mr-2 size-4" />
-                  )}
-                  Aprovar etapa
-                </Button>
-              </div>
-            </div>
-          ) : pendingRequest && currentStep ? (
-            <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-              Aguardando decisão de{" "}
-              <span className="font-medium text-foreground">{currentStep.approver_name}</span>.
-            </p>
-          ) : null}
-        </section>
+            ) : pendingRequest && currentStep ? (
+              <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                Aguardando decisão de{" "}
+                <span className="font-medium text-foreground">{currentStep.approver_name}</span>.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
         <SupplierPaymentSection payable={payable} canEdit={canEdit} onChanged={onApplied} />
         <DialogFooter>
           {canEdit && payable.allocation_status === "pending_rule" ? (
@@ -1064,7 +1090,10 @@ function AllocationDialog({
               Aplicar rateio
             </Button>
           ) : null}
-          {canEdit && payable.status === "scheduled" && payable.allocation_status === "complete" ? (
+          {canEdit &&
+          financialSettings.data?.use_payable_approvals &&
+          payable.status === "scheduled" &&
+          payable.allocation_status === "complete" ? (
             <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
               {submitMutation.isPending ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />

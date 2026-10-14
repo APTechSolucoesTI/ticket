@@ -1,5 +1,6 @@
 import {
   CollectionDispatchError,
+  CollectionDispatchPausedError,
   CollectionDispatchService,
 } from './collection-dispatch.service';
 import type { CollectionAction } from './collection.types';
@@ -78,7 +79,30 @@ describe('CollectionDispatchService', () => {
     uazapi as never,
   );
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    supabase.client.rpc.mockResolvedValue({ data: true, error: null });
+  });
+
+  it('não envia mensagens quando a régua foi desativada após entrar na fila', async () => {
+    supabase.client.rpc.mockResolvedValueOnce({ data: false, error: null });
+    await expect(service.dispatch(action('email'))).rejects.toBeInstanceOf(
+      CollectionDispatchPausedError,
+    );
+    expect(email.sendTenantEmail).not.toHaveBeenCalled();
+    expect(uazapi.sendText).not.toHaveBeenCalled();
+  });
+
+  it('não envia se não conseguir verificar a configuração financeira', async () => {
+    supabase.client.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: '503' },
+    });
+    await expect(service.dispatch(action('email'))).rejects.toThrow(
+      'collection_dispatch_check_failed',
+    );
+    expect(email.sendTenantEmail).not.toHaveBeenCalled();
+  });
 
   it('envia e-mail com variáveis financeiras renderizadas', async () => {
     await expect(service.dispatch(action('email'))).resolves.toBe('mail-1');

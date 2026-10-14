@@ -15,6 +15,7 @@ bun.lock
 /artifacts/contract-allocations/
 /artifacts/profile-photo/
 /artifacts/financial-synthetic/
+/artifacts/financial-settings/
 logs
 *.log
 npm-debug.log*
