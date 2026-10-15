@@ -104,9 +104,9 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
         <>
           <Card>
             <CardContent className="max-w-md p-4">
-              <Label>Empresa operadora</Label>
+              <Label htmlFor="payable-company">Empresa operadora</Label>
               <Select value={companyId} onValueChange={setCompanyId}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="payable-company" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -128,7 +128,15 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
               action={{ label: "Tentar novamente", onClick: () => void contracts.refetch() }}
             />
           ) : (
-            <SupplierPayables companyId={companyId} contracts={options} canEdit={canEdit} />
+            <SupplierPayables
+              companyId={companyId}
+              companyName={
+                companies.data.find((company) => company.id === companyId)?.legal_name ??
+                "Empresa operadora indisponível."
+              }
+              contracts={options}
+              canEdit={canEdit}
+            />
           )}
         </>
       )}

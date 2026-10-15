@@ -8,6 +8,7 @@ const dir = "apps/web/.output/server/_ssr";
 const source = readFileSync(`${dir}/${readdirSync(dir).find((f) => f.startsWith("permissions.functions-"))}`, "utf8");
 const permissionsId = source.match(/id:\s*"([^"]+)",\s*name:\s*"getMyPermissions"/)[1];
 const company = "af300000-0000-4000-8000-000000000001", tenant = "af100000-0000-4000-8000-000000000001";
+const secondCompany = "af300000-0000-4000-8000-000000000002";
 const supplier = "af800000-0000-4000-8000-000000000001", documentType = "af900000-0000-4000-8000-000000000001";
 const categories = [1, 2].map((n) => ({ id: `af400000-0000-4000-8000-00000000000${n}`, code: `10.0${n}.0001`, name: n === 1 ? "Aluguéis" : "Serviços" }));
 const centers = [1, 2].map((n) => ({ id: `af500000-0000-4000-8000-00000000000${n}`, code: `20.0${n}.0001`, name: n === 1 ? "Operações" : "Administrativo" }));
@@ -66,7 +67,7 @@ try {
         return route.fulfill({ json: occurrences.filter((o) => !o.deleted_at).slice(offset, offset + limit) });
       }
       if (url.includes("/rest/v1/fixed_payables")) return route.fulfill({ json: templates.filter((t) => !t.deleted_at) });
-      if (url.includes("/rest/v1/operating_companies")) return route.fulfill({ json: [{ id: company, legal_name: "APTech" }] });
+      if (url.includes("/rest/v1/operating_companies")) return route.fulfill({ json: [{ id: company, legal_name: "APTech" }, { id: secondCompany, legal_name: "APTech Filial" }] });
       if (url.includes("/rest/v1/profiles")) return route.fulfill({ json: { tenant_id: tenant } });
       if (url.includes("/rest/v1/suppliers")) return route.fulfill({ json: [{ id: supplier, legal_name: "Imobiliária Centro", trade_name: null }] });
       if (url.includes("/rest/v1/financial_document_types")) return route.fulfill({ json: [{ id: documentType, code: "BOL", name: "Boleto", availability: "both", is_active: true }] });
@@ -77,8 +78,16 @@ try {
       return route.continue();
     });
     await page.goto("http://127.0.0.1:4173/finance/payables/fixed");
+    await choose(page, page.getByRole("combobox", { name: "Empresa operadora", exact: true }), "APTech Filial");
+    await page.getByRole("button", { name: "Nova conta fixa", exact: true }).click();
+    const secondCompanyDialog = page.getByRole("dialog", { name: "Nova conta fixa", exact: true });
+    await secondCompanyDialog.getByRole("group", { name: "Empresa operadora do lançamento", exact: true }).getByText("APTech Filial", { exact: true }).waitFor();
+    await secondCompanyDialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+    await choose(page, page.getByRole("combobox", { name: "Empresa operadora", exact: true }), "APTech");
     await page.getByRole("button", { name: "Nova conta fixa", exact: true }).click();
     let dialog = page.getByRole("dialog").last();
+    await dialog.getByRole("group", { name: "Empresa operadora do lançamento", exact: true }).getByText("APTech", { exact: true }).waitFor();
+    await page.screenshot({ path: `artifacts/fixed-payables/company-${width}.png`, animations: "disabled" });
     assert.equal(await dialog.locator("#fixed-document").count(), 0);
     assert.equal(await dialog.locator("#fixed-mode").getAttribute("readonly"), "");
     assert.equal(await dialog.getByRole("button", { name: "Calcular parcelas" }).count(), 0);
@@ -104,6 +113,7 @@ try {
     failSave = false; await dialog.getByRole("button", { name: "Salvar", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
     assert.equal(saves[0].p_payload.end_month, width === 1440 ? "2028-12-01" : null);
     assert.equal(saves[0].p_payload.total_amount, 250.75);
+    assert.equal(saves[0].p_payload.operating_company_id, company);
     assert.equal(saves[0].p_payload.document_number, "");
     await page.getByRole("button", { name: "Editar conta fixa Aluguel da sede", exact: true }).click();
     dialog = page.getByRole("dialog").last(); await dialog.locator("#fixed-amount").fill("150,00");
@@ -132,6 +142,7 @@ try {
     assert.equal(await page.getByRole("button", { name: "Alterar EXISTENTE", exact: true }).count(), 0);
     await page.getByRole("button", { name: "Confirmar previsão Aluguel da sede 2027-01-01", exact: true }).click();
     dialog = page.getByRole("dialog").last();
+    await dialog.getByRole("group", { name: "Empresa operadora do lançamento", exact: true }).getByText("APTech", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "Confirmar e criar título", exact: true }).click();
     await dialog.getByText("Informe o número do documento com pelo menos 2 caracteres.", { exact: true }).waitFor(); assert.equal(confirmations.length, 0);
     await dialog.locator("#fixed-document").fill("ALUGUEL-JAN-2027"); await dialog.locator("#fixed-amount").fill("123,45");

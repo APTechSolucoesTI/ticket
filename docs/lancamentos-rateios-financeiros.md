@@ -1,5 +1,10 @@
 # Rateios em contas a pagar e a receber
 
+Os cadastros manuais exibem a **Empresa operadora** no topo do formulário. Em
+contas a pagar, corresponde à empresa selecionada na listagem. Em contas a
+receber, acompanha a escolha da empresa dentro do cadastro. A identificação
+reutiliza os nomes já carregados e corresponde ao identificador enviado ao salvar.
+
 Os lançamentos manuais e a ação **Classificar** usam o mesmo editor dos contratos
 de clientes e fornecedores. Categorias financeiras e centros de custo têm listas
 independentes: cada grupo exige ao menos um item e deve totalizar exatamente 100%.

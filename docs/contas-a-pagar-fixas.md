@@ -9,6 +9,10 @@ do módulo de contas a pagar e podem ser ajustados na matriz de permissões.
 
 ## Modelo e previsão
 
+O topo do formulário identifica a **Empresa operadora** selecionada na listagem.
+A mesma identificação aparece ao editar o modelo, editar uma previsão ou
+confirmar seu documento no contas a pagar.
+
 O formulário segue o molde manual: fornecedor, tipo de documento, descrição,
 valor, observações e rateios independentes de categorias e centros, cada grupo
 totalizando 100%. Não solicita número do documento nem permite parcelamento.

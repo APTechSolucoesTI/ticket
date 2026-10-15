@@ -129,6 +129,9 @@ export function FixedPayablesPage() {
       (!term || `${t.supplier_name} ${t.description}`.toLocaleLowerCase("pt-BR").includes(term)),
   );
   const selected = allTemplates.find((t) => t.id === selectedId);
+  const companyName =
+    companies.data?.find((company) => company.id === companyId)?.legal_name ??
+    "Empresa operadora indisponível.";
   const selectedOccurrences = allOccurrences.filter(
     (o) =>
       o.fixed_payable_id === selectedId &&
@@ -372,6 +375,7 @@ export function FixedPayablesPage() {
       {form ? (
         <FixedPayableDialog
           companyId={companyId}
+          companyName={companyName}
           template={form.template}
           onClose={() => setForm(undefined)}
         />
@@ -490,6 +494,7 @@ export function FixedPayablesPage() {
       {occurrenceForm ? (
         <FixedPayableDialog
           companyId={companyId}
+          companyName={companyName}
           occurrence={occurrenceForm.row}
           confirm={occurrenceForm.confirm}
           onClose={() => setOccurrenceForm(undefined)}

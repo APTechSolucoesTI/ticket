@@ -201,10 +201,12 @@ const statusLabels: Record<PayableStatus, string> = {
 
 export function SupplierPayables({
   companyId,
+  companyName,
   contracts,
   canEdit,
 }: {
   companyId: string;
+  companyName: string;
   contracts: PayableContractOption[];
   canEdit: boolean;
 }) {
@@ -724,6 +726,7 @@ export function SupplierPayables({
       {confirming ? (
         <FixedPayableDialog
           companyId={companyId}
+          companyName={companyName}
           occurrence={confirming}
           confirm
           onClose={() => setConfirming(undefined)}
@@ -742,6 +745,7 @@ export function SupplierPayables({
       <ManualPayableDialog
         open={manualOpen}
         operatingCompanyId={companyId}
+        operatingCompanyName={companyName}
         onClose={() => setManualOpen(false)}
         onCreated={() =>
           void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })

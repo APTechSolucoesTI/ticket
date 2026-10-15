@@ -8,6 +8,8 @@ const dir = "apps/web/.output/server/_ssr";
 const source = readFileSync(`${dir}/${readdirSync(dir).find((f) => f.startsWith("permissions.functions-"))}`, "utf8");
 const permissionId = source.match(/id:\s*"([^"]+)",\s*name:\s*"getMyPermissions"/)[1];
 const operator = "ae300000-0000-4000-8000-000000000001";
+const secondOperator = "ae300000-0000-4000-8000-000000000002";
+const secondOperatorName = "APTech Serviços Gerenciados e Soluções em Tecnologia da Informação";
 const tenant = "ae100000-0000-4000-8000-000000000001";
 const partner = "ae600000-0000-4000-8000-000000000001";
 const documentType = "ae900000-0000-4000-8000-000000000001";
@@ -60,7 +62,7 @@ try {
         return route.fulfill({ json: inactive ? categories.slice(1) : categories });
       }
       if (url.includes("/rest/v1/financial_cost_centers")) return route.fulfill({ json: centers });
-      if (url.includes("/rest/v1/operating_companies")) return route.fulfill({ json: [{ id: operator, legal_name: "APTech" }] });
+      if (url.includes("/rest/v1/operating_companies")) return route.fulfill({ json: [{ id: operator, legal_name: "APTech" }, ...(width === 1440 ? [{ id: secondOperator, legal_name: secondOperatorName }] : [])] });
       if (url.includes("/rest/v1/profiles")) return route.fulfill({ json: { tenant_id: tenant } });
       if (url.includes("/rest/v1/suppliers")) return route.fulfill({ json: [{ id: partner, legal_name: "Fornecedor teste", trade_name: "Fornecedor teste" }, ...searchablePartners] });
       if (url.includes("/rest/v1/companies")) return route.fulfill({ json: [{ id: partner, name: "Cliente teste" }, ...searchablePartners] });
@@ -71,9 +73,20 @@ try {
       return route.continue();
     });
     await page.goto(`http://127.0.0.1:4173/finance/${kind === "payable" ? "payables" : "receivables"}`);
+    if (kind === "payable" && width === 1440) await choose(page, page.getByRole("combobox", { name: "Empresa operadora", exact: true }), secondOperatorName);
     const classify = () => page.getByRole("button", { name: kind === "payable" ? "Classificar RATEIO" : "Classificar", exact: true });
     await page.getByRole("button", { name: "Nova conta", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: /^(Nova conta a (pagar|receber)|Classificar movimento)$/ });
+    const companySummary = dialog.getByRole("group", { name: "Empresa operadora do lançamento", exact: true });
+    if (kind === "receivable" && width === 1440) {
+      await companySummary.getByText("Selecione a empresa operadora.", { exact: true }).waitFor();
+      await choose(page, dialog.locator("#manual-entry-operator"), "APTech");
+      await companySummary.getByText("APTech", { exact: true }).waitFor();
+      await choose(page, dialog.locator("#manual-entry-operator"), secondOperatorName);
+    }
+    await companySummary.getByText(width === 1440 ? secondOperatorName : "APTech", { exact: true }).waitFor();
+    await companySummary.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `artifacts/entry-allocations/company-${kind}-${width}.png`, animations: "disabled" });
     const counterparty = dialog.locator("#manual-entry-counterparty");
     const search = page.getByRole("combobox", { name: "Buscar opções", exact: true });
     const popup = page.getByRole("dialog", { name: "Selecionar opção", exact: true });
@@ -141,6 +154,7 @@ try {
     failSave = true; await submit.click(); await page.getByText(/Falha simulada ao salvar rateios/).waitFor();
     assert.equal(await dialog.getByLabel("Categorias financeiras · percentual 1", { exact: true }).inputValue(), "70");
     failSave = false; await submit.click(); await dialog.waitFor({ state: "hidden" });
+    assert.equal(writes[0].p_operating_company_id, width === 1440 ? secondOperator : operator);
     assert.deepEqual(writes[0].p_category_allocations.map((a) => Number(a.percentage)), [70, 30]);
     assert.deepEqual(writes[0].p_cost_center_allocations.map((a) => Number(a.percentage)), [60, 40]);
     assert.equal(writes[0].p_installments.length, width === 1440 ? 2 : 1);

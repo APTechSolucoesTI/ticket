@@ -48,6 +48,7 @@ import {
   type FixedOccurrence,
 } from "@/lib/fixed-payables";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { FinancialOperatingCompany } from "@/components/financial-operating-company";
 
 const schema = z.object({
   supplier_id: z.string().uuid("Selecione o fornecedor."),
@@ -69,12 +70,14 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 export function FixedPayableDialog({
   companyId,
+  companyName,
   template,
   occurrence,
   confirm = false,
   onClose,
 }: {
   companyId: string;
+  companyName: string;
   template?: FixedPayable;
   occurrence?: FixedOccurrence;
   confirm?: boolean;
@@ -233,6 +236,7 @@ export function FixedPayableDialog({
                 : "Despesa mensal recorrente. As previsões só entram nos valores reais a pagar após a confirmação."}
             </DialogDescription>
           </DialogHeader>
+          <FinancialOperatingCompany name={companyName} />
           <form id="fixed-payable-form" className="space-y-5" onSubmit={submit}>
             <fieldset disabled={busy} className="space-y-5">
               <section className="space-y-4 rounded-xl border p-4">

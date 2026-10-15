@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { ContractAllocationEditor } from "@/components/contract-allocation-editor";
+import { FinancialOperatingCompany } from "@/components/financial-operating-company";
 import {
   allocationError,
   allocationPayload,
@@ -125,12 +126,14 @@ function ManualEntryDialog({
   direction,
   open,
   operatingCompanyId,
+  operatingCompanyName,
   onClose,
   onCreated,
 }: {
   direction: Direction;
   open: boolean;
   operatingCompanyId?: string;
+  operatingCompanyName?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -388,6 +391,18 @@ function ManualEntryDialog({
             editáveis.
           </DialogDescription>
         </DialogHeader>
+        <FinancialOperatingCompany
+          name={
+            isReceivable
+              ? companies.isPending
+                ? "Carregando empresas…"
+                : companies.isError
+                  ? "Empresa operadora indisponível."
+                  : (companies.data?.find((company) => company.id === selectedCompanyId)?.label ??
+                    "Selecione a empresa operadora.")
+              : operatingCompanyName || "Empresa operadora indisponível."
+          }
+        />
         <form
           className="space-y-5"
           id={`manual-${direction}-form`}
@@ -782,11 +797,13 @@ export function ManualReceivableDialog({
 export function ManualPayableDialog({
   open,
   operatingCompanyId,
+  operatingCompanyName,
   onClose,
   onCreated,
 }: {
   open: boolean;
   operatingCompanyId: string;
+  operatingCompanyName: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -795,6 +812,7 @@ export function ManualPayableDialog({
       direction="payable"
       open={open}
       operatingCompanyId={operatingCompanyId}
+      operatingCompanyName={operatingCompanyName}
       onClose={onClose}
       onCreated={onCreated}
     />
