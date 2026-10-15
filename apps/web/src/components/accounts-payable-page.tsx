@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CircleDollarSign } from "lucide-react";
+import { CircleDollarSign, FileCog, Repeat2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/empty-stub";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
+import { useModulePermissions } from "@/lib/permission-ui";
 import {
   Select,
   SelectContent,
@@ -32,6 +36,8 @@ const db = supabase as unknown as SupabaseClient;
 
 export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
   const [companyId, setCompanyId] = useState("");
+  const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
+  const fixedAccess = useModulePermissions("financeiro_contas_fixas");
   const companies = useQuery({
     queryKey: ["payable-operating-companies"],
     queryFn: async () => {
@@ -80,12 +86,33 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
   );
 
   return (
-    <section className="space-y-4 p-6" aria-labelledby="accounts-payable-title">
+    <section
+      className="accounts-payable-page space-y-4 sm:p-6"
+      aria-labelledby="accounts-payable-title"
+    >
       <PageHeader
         title="Contas a pagar"
         titleId="accounts-payable-title"
         subtitle="Lançamentos contratuais e manuais, aprovações, rateios e pagamentos."
         icon={CircleDollarSign}
+        actions={
+          canEdit ? (
+            <>
+              {fixedAccess.view ? (
+                <Button variant="outline" asChild>
+                  <Link to="/finance/payables/fixed">
+                    <Repeat2 className="size-4" />
+                    Contas fixas
+                  </Link>
+                </Button>
+              ) : null}
+              <Button variant="outline" onClick={() => setDocumentTypesOpen(true)}>
+                <FileCog className="size-4" />
+                Tipos de documento
+              </Button>
+            </>
+          ) : undefined
+        }
       />
       {companies.isLoading ? (
         <LoadingState label="Carregando empresas…" />
@@ -109,7 +136,7 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
                 <SelectTrigger id="payable-company" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
                   {companies.data.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.legal_name}
@@ -140,6 +167,10 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
           )}
         </>
       )}
+      <FinancialDocumentTypesDialog
+        open={documentTypesOpen}
+        onClose={() => setDocumentTypesOpen(false)}
+      />
     </section>
   );
 }

@@ -24,10 +24,11 @@ try {
   for (let i = 0; i < 100; i++) { try { if ((await fetch("http://127.0.0.1:4174")).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 100)); }
   mkdirSync("artifacts/payable-mutations", { recursive: true });
   browser = await chromium.launch({ channel: "msedge", headless: true });
-  for (const width of [1440, 768, 390]) {
+  for (const width of [1914, 1440, 768, 390]) {
     const errors = [];
     let readOnly = false;
-    const page = await browser.newPage({ viewport: { width, height: 1000 }, timezoneId: "America/Sao_Paulo" }); active = page;
+    const height = width === 1914 ? 907 : 1000;
+    const page = await browser.newPage({ viewport: { width, height }, timezoneId: "America/Sao_Paulo" }); active = page;
     await page.clock.setFixedTime("2026-10-15T12:00:00Z");
     page.on("pageerror", error => errors.push(error.message));
     await page.addInitScript(() => {
@@ -69,6 +70,23 @@ try {
     await page.goto("http://127.0.0.1:4174/finance/payables");
     await competence.filter({ hasText: "outubro de 2026" }).waitFor();
     await shown(current); await totals(170, 30);
+    const heading = page.getByRole("heading", { name: "Contas a pagar", exact: true });
+    const header = page.locator("header").filter({ has: heading });
+    assert.equal(await header.getByRole("link", { name: "Contas fixas", exact: true }).getAttribute("href"), "/finance/payables/fixed");
+    const types = header.getByRole("button", { name: "Tipos de documento", exact: true });
+    assert.equal(await types.count(), 1);
+    assert.equal(await heading.evaluate(el => getComputedStyle(el).fontSize), "14px");
+    assert.equal(await types.evaluate(el => getComputedStyle(el).fontSize), "12px");
+    assert.equal(await search.evaluate(el => getComputedStyle(el).fontSize), "12px");
+    assert.equal(await competence.evaluate(el => getComputedStyle(el).fontSize), "12px");
+    const headerBounds = await header.boundingBox();
+    assert.ok(headerBounds.x >= 0 && headerBounds.x + headerBounds.width <= width + 1);
+    await types.click();
+    const documentTypes = page.getByRole("dialog", { name: "Tipos de documento", exact: true });
+    await documentTypes.waitFor();
+    await documentTypes.press("Escape");
+    await documentTypes.waitFor({ state: "hidden" });
+    await page.screenshot({ path: `artifacts/payable-mutations/payable-layout-${width}.png`, animations: "disabled" });
     await competence.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `artifacts/payable-mutations/filters-${width}.png`, animations: "disabled" });
     await competence.click();
@@ -79,7 +97,7 @@ try {
     await page.getByRole("combobox", { name: "Buscar competência", exact: true }).fill("");
     await page.screenshot({ path: `artifacts/payable-mutations/competence-multiple-${width}.png`, animations: "disabled" });
     const bounds = await popup("Competência").boundingBox();
-    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= 1001);
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= height + 1);
     await popup("Competência").getByRole("button", { name: "Concluir", exact: true }).click();
     assert.match(await competence.innerText(), /2 opções selecionadas/);
     await shown([...current, "SET-AGENDADO", "Previsão Setembro"]); await totals(320, 75);

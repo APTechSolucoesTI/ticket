@@ -27,12 +27,14 @@ export function MultiSelectFilter({
   options,
   value,
   onChange,
+  compact = false,
 }: {
   label: string;
   allLabel: string;
   options: FilterOption[];
   value: string[];
   onChange(value: string[]): void;
+  compact?: boolean;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -43,7 +45,9 @@ export function MultiSelectFilter({
   const choices: FilterOption[] = [{ value: "__all__", label: allLabel }, ...options];
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={compact ? "text-xs" : undefined}>
+        {label}
+      </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -56,7 +60,7 @@ export function MultiSelectFilter({
             aria-expanded={open}
             aria-haspopup="dialog"
             title={selection}
-            className="w-full min-w-0 justify-between font-normal"
+            className={cn("w-full min-w-0 justify-between font-normal", compact && "text-xs")}
             onKeyDown={(event) => {
               if (["ArrowDown", "ArrowUp"].includes(event.key)) {
                 event.preventDefault();
@@ -73,7 +77,10 @@ export function MultiSelectFilter({
         <PopoverContent
           align="start"
           aria-label={`${label} - opções`}
-          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
+          className={cn(
+            "w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0",
+            compact && "[&_[cmdk-item]]:text-xs",
+          )}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             input.current?.focus();

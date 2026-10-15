@@ -289,3 +289,17 @@ table td {
   padding-top: 6px !important;
   padding-bottom: 6px !important;
 }
+
+/* Compact typography for the accounts payable workspace only. */
+.accounts-payable-page {
+  font-size: 12px;
+}
+.accounts-payable-page :is(button, a, input, label, [role="combobox"], [role="status"]) {
+  font-size: 12px;
+}
+.accounts-payable-page :is(h1, h2, h3) {
+  font-size: 14px;
+}
+.accounts-payable-page > header p {
+  font-size: 11px;
+}

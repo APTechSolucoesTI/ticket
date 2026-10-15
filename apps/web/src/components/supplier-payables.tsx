@@ -9,7 +9,6 @@ import {
   CircleDollarSign,
   Clock3,
   Eye,
-  FileCog,
   Loader2,
   Pencil,
   Plus,
@@ -59,7 +58,6 @@ import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-p
 import { SupplierPaymentSection } from "@/components/supplier-payment-section";
 import { useFinancialSettings } from "@/lib/financial-settings";
 import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
-import { FinancialDocumentTypesDialog } from "@/components/financial-document-types-dialog";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 import { EditPayableDialog, DeletePayableDialog } from "@/components/payable-mutation-dialogs";
@@ -224,7 +222,6 @@ export function SupplierPayables({
   const [confirming, setConfirming] = useState<FixedOccurrence>();
   const [generateOpen, setGenerateOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [documentTypesOpen, setDocumentTypesOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const financialSettings = useFinancialSettings();
   const [selected, setSelected] = useState<Payable>();
@@ -380,32 +377,20 @@ export function SupplierPayables({
         <div>
           <div className="flex items-center gap-2">
             <CircleDollarSign className="size-5 text-primary" />
-            <CardTitle className="text-base">Lançamentos de fornecedores</CardTitle>
+            <CardTitle className="text-sm">Lançamentos de fornecedores</CardTitle>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Contas contratuais e lançamentos manuais da empresa operadora selecionada.
           </p>
         </div>
         {canEdit ? (
           <div className="flex flex-wrap gap-2">
-            {fixedAccess.view ? (
-              <Button variant="outline" asChild>
-                <Link to="/finance/payables/fixed">
-                  <Repeat2 className="mr-2 size-4" />
-                  Contas fixas
-                </Link>
-              </Button>
-            ) : null}
             {financialSettings.data?.use_payable_approvals ? (
               <Button variant="outline" className="gap-2" onClick={() => setPoliciesOpen(true)}>
                 <Settings2 className="size-4" />
                 Alçadas
               </Button>
             ) : null}
-            <Button variant="outline" className="gap-2" onClick={() => setDocumentTypesOpen(true)}>
-              <FileCog className="size-4" />
-              Tipos de documento
-            </Button>
             <Button
               variant="outline"
               className="gap-2"
@@ -488,7 +473,7 @@ export function SupplierPayables({
               <SelectTrigger id="payable-type-filter" aria-label="Tipo de lançamento">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
                 <SelectItem value="all">Títulos e previsões</SelectItem>
                 <SelectItem value="confirmed">Somente títulos</SelectItem>
                 <SelectItem value="forecast">Somente previsões</SelectItem>
@@ -504,7 +489,7 @@ export function SupplierPayables({
               <SelectTrigger id="payable-allocation-filter">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
                 <SelectItem value="all">Todos os rateios</SelectItem>
                 <SelectItem value="complete">Rateio concluído</SelectItem>
                 <SelectItem value="pending_rule">Rateio pendente</SelectItem>
@@ -512,6 +497,7 @@ export function SupplierPayables({
             </Select>
           </div>
           <MultiSelectFilter
+            compact
             label="Competência"
             allLabel="Todas as competências"
             options={competenceOptions}
@@ -519,6 +505,7 @@ export function SupplierPayables({
             onChange={setCompetenceFilter}
           />
           <MultiSelectFilter
+            compact
             label="Status"
             allLabel="Todos os status"
             options={[
@@ -789,10 +776,6 @@ export function SupplierPayables({
           void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
         }
       />
-      <FinancialDocumentTypesDialog
-        open={documentTypesOpen}
-        onClose={() => setDocumentTypesOpen(false)}
-      />
       {policiesOpen && financialSettings.data?.use_payable_approvals ? (
         <SupplierApprovalPoliciesDialog
           companyId={companyId}
@@ -894,10 +877,10 @@ function Summary({
 }) {
   return (
     <div className="rounded-lg border bg-muted/25 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
       <p
         className={
-          alert ? "mt-1 text-lg font-semibold text-amber-700" : "mt-1 text-lg font-semibold"
+          alert ? "mt-1 text-base font-semibold text-amber-700" : "mt-1 text-base font-semibold"
         }
       >
         {value}

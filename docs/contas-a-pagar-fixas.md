@@ -7,6 +7,11 @@ acesso de contas a pagar. A confirmação exige também edição de contas a pag
 e escrita financeira na empresa operadora. Os acessos existentes foram copiados
 do módulo de contas a pagar e podem ser ajustados na matriz de permissões.
 
+Na tela de contas a pagar, **Contas fixas** e **Tipos de documento** ficam no
+cabeçalho principal. **Gerar lançamento** e **Nova conta** permanecem na listagem.
+A tipografia compacta dessa área usa controles de 12 px, títulos de 14 px e
+valores dos resumos de 16 px, sem alterar o menu ou outras telas do sistema.
+
 ## Modelo e previsão
 
 O topo do formulário identifica a **Empresa operadora** selecionada na listagem.
