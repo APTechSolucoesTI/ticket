@@ -622,10 +622,50 @@ function DimensionList({
                 <div
                   key={item.id}
                   className={cn(
-                    "grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-3 py-2.5 last:border-b-0",
+                    "grid min-h-13 items-center gap-3 border-b px-3 py-2.5 last:border-b-0",
+                    canEdit
+                      ? "grid-cols-[7rem_minmax(0,1fr)_auto]"
+                      : "grid-cols-[minmax(0,1fr)_auto]",
                     !item.is_active && "bg-muted/40 text-muted-foreground",
                   )}
                 >
+                  {canEdit ? (
+                    <div
+                      className="flex w-28 items-center"
+                      role="group"
+                      aria-label={`Ações de ${item.name}`}
+                    >
+                      {canHaveChildren ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Adicionar abaixo de ${item.name}`}
+                          onClick={() => onAddChild(item)}
+                        >
+                          <Plus className="size-4" />
+                        </Button>
+                      ) : (
+                        <span className="size-9 shrink-0" aria-hidden="true" />
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={`Editar ${item.name}`}
+                        onClick={() => onEdit(item)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        aria-label={`Arquivar ${item.name}`}
+                        onClick={() => onArchive(item)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  ) : null}
                   <div
                     className="flex min-w-0 items-center gap-2"
                     style={{ paddingLeft: level * 24 }}
@@ -699,37 +739,6 @@ function DimensionList({
                     >
                       {item.is_active ? "Ativa" : "Inativa"}
                     </Badge>
-                    {canEdit && canHaveChildren ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Adicionar abaixo de ${item.name}`}
-                        onClick={() => onAddChild(item)}
-                      >
-                        <Plus className="size-4" />
-                      </Button>
-                    ) : null}
-                    {canEdit ? (
-                      <>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Editar ${item.name}`}
-                          onClick={() => onEdit(item)}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          aria-label={`Arquivar ${item.name}`}
-                          onClick={() => onArchive(item)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </>
-                    ) : null}
                   </div>
                 </div>
               );
