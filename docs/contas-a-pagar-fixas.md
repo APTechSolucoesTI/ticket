@@ -40,6 +40,14 @@ dos títulos confirmados.
 
 ## Confirmação e separação financeira
 
+Na listagem de contas a pagar, **Competência** inicia no mês atual e aceita
+vários meses ou **Todas as competências**. **Status** também permite seleção
+múltipla, incluindo **Previsão** em conjunto com status dos títulos confirmados.
+Desmarcar a última opção remove a restrição daquele filtro. O mês dos títulos
+é obtido do início de seu período (`cycle_start`); previsões usam `competence`.
+Os totalizadores respeitam as competências e os status selecionados, mantendo
+valores previstos separados dos valores confirmados.
+
 Foram escolhidas tabelas separadas (`fixed_payables` e
 `fixed_payable_occurrences`). A tabela de títulos exige documento, e seu status
 é utilizado por aprovação, pagamento, conciliação e relatórios. Acrescentar
@@ -83,6 +91,9 @@ A implementação atual mantém o histórico e as ações normais do título con
   ocorrências, confirmação, totais, filtros, inativação, exclusão e leitura em
   1440, 768 e 390 px; verifica também totais com mais de 1.000 ocorrências.
 - Regressões no navegador: edição/exclusão e rateios nos dois módulos financeiros.
+- `scripts/test-payable-filters-ui.mjs`: mês local atual, múltiplas competências e
+  status, opção Todas, anos diferentes, competência distinta do vencimento,
+  previsões, atraso calculado, totalizadores, busca, teclado e acesso de leitura.
 
 As suítes antigas `supplier_payable_approvals_test.sql` e
 `supplier_payment_settlement_test.sql` têm fixtures incompatíveis com mudanças

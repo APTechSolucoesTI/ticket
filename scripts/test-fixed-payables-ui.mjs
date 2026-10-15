@@ -133,6 +133,11 @@ try {
     alert = page.getByRole("alertdialog"); await alert.getByRole("button", { name: "Cancelar", exact: true }).click(); assert.equal(occurrences[2].deleted_at, null);
     await dialog.getByRole("button", { name: "Excluir previsão 2027-03-01", exact: true }).click(); await alert.getByRole("button", { name: "Excluir", exact: true }).click(); await alert.waitFor({ state: "hidden" });
     await page.goto("http://127.0.0.1:4173/finance/payables");
+    await page.getByRole("combobox", { name: "Competência", exact: true }).click();
+    const competenceFilter = page.getByRole("dialog", { name: "Competência - opções", exact: true });
+    await competenceFilter.getByRole("option", { name: "Todas as competências", exact: true }).click();
+    await competenceFilter.getByRole("button", { name: "Concluir", exact: true }).click();
+    await competenceFilter.waitFor({ state: "hidden" });
     await page.getByRole("button", { name: "Confirmar previsão Aluguel da sede 2027-01-01", exact: true }).waitFor();
     const actualSummary = page.locator("div.rounded-lg").filter({ has: page.getByText("A pagar · títulos confirmados", { exact: true }) });
     await actualSummary.getByText(/80,00/).waitFor();

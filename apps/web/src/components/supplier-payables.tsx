@@ -66,6 +66,7 @@ import { EditPayableDialog, DeletePayableDialog } from "@/components/payable-mut
 import { FixedPayableDialog } from "@/components/fixed-payable-dialog";
 import { fixedMonth, useFixedOccurrences, type FixedOccurrence } from "@/lib/fixed-payables";
 import { useModulePermissions } from "@/lib/permission-ui";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 
 export type PayableContractOption = {
   id: string;
@@ -215,7 +216,8 @@ export function SupplierPayables({
   const [allocationFilter, setAllocationFilter] = useState<"all" | "pending_rule" | "complete">(
     "all",
   );
-  const [statusFilter, setStatusFilter] = useState<"all" | "forecast" | PayableStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [competenceFilter, setCompetenceFilter] = useState<string[]>(() => [defaultMonth()]);
   const [typeFilter, setTypeFilter] = useState("all");
   const fixedAccess = useModulePermissions("financeiro_contas_fixas");
   const fixedOccurrences = useFixedOccurrences(companyId);
@@ -318,32 +320,59 @@ export function SupplierPayables({
       });
     },
   });
+  const scopedRows = useMemo(
+    () =>
+      (query.data ?? []).filter(
+        (item) =>
+          (!competenceFilter.length || competenceFilter.includes(item.cycle_start.slice(0, 7))) &&
+          (!statusFilter.length || statusFilter.includes(effectiveStatus(item))),
+      ),
+    [competenceFilter, query.data, statusFilter],
+  );
   const rows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
-    return (query.data ?? []).filter(
+    return scopedRows.filter(
       (item) =>
         typeFilter !== "forecast" &&
         (allocationFilter === "all" || item.allocation_status === allocationFilter) &&
-        (statusFilter === "all" || effectiveStatus(item) === statusFilter) &&
         (!term ||
           `${item.document_number} ${item.description} ${item.terms_snapshot.supplier_name ?? ""} ${item.document_type_id ? (documentTypeById.get(item.document_type_id)?.code ?? "") : ""}`
             .toLocaleLowerCase("pt-BR")
             .includes(term)),
     );
-  }, [allocationFilter, documentTypeById, query.data, search, statusFilter, typeFilter]);
+  }, [allocationFilter, documentTypeById, scopedRows, search, typeFilter]);
   const allForecasts = (fixedOccurrences.data ?? []).filter((o) => o.status === "forecast");
+  const scopedForecasts = allForecasts.filter(
+    (o) =>
+      (!competenceFilter.length || competenceFilter.includes(o.competence.slice(0, 7))) &&
+      (!statusFilter.length || statusFilter.includes("forecast")),
+  );
+  const competenceOptions = [
+    ...new Set([
+      defaultMonth(),
+      ...competenceFilter,
+      ...(query.data ?? []).map((item) => item.cycle_start.slice(0, 7)),
+      ...allForecasts.map((item) => item.competence.slice(0, 7)),
+    ]),
+  ]
+    .sort()
+    .reverse()
+    .map((month) => ({
+      value: month,
+      label: fixedMonth(`${month}-01`),
+      keywords: [month.split("-").reverse().join("/")],
+    }));
   const term = search.trim().toLocaleLowerCase("pt-BR");
-  const forecasts = allForecasts.filter(
+  const forecasts = scopedForecasts.filter(
     (o) =>
       typeFilter !== "confirmed" &&
       allocationFilter !== "pending_rule" &&
-      (statusFilter === "all" || statusFilter === "forecast") &&
       (!term || `${o.description} ${o.supplier_name}`.toLocaleLowerCase("pt-BR").includes(term)),
   );
-  const total = (query.data ?? [])
+  const total = scopedRows
     .filter((item) => !["paid", "cancelled"].includes(item.status))
     .reduce((sum, item) => sum + Number(item.total_amount), 0);
-  const pending = (query.data ?? []).filter((item) => item.allocation_status === "pending_rule");
+  const pending = scopedRows.filter((item) => item.allocation_status === "pending_rule");
 
   return (
     <Card>
@@ -425,10 +454,12 @@ export function SupplierPayables({
                 ? "…"
                 : fixedOccurrences.isError
                   ? "Indisponível"
-                  : money.format(allForecasts.reduce((sum, o) => sum + Number(o.total_amount), 0))
+                  : money.format(
+                      scopedForecasts.reduce((sum, o) => sum + Number(o.total_amount), 0),
+                    )
             }
           />
-          <Summary label="Lançamentos" value={String(query.data?.length ?? 0)} />
+          <Summary label="Lançamentos" value={String(scopedRows.length)} />
           <Summary
             label="Rateio pendente"
             value={String(pending.length)}
@@ -436,64 +467,67 @@ export function SupplierPayables({
           />
           <Summary
             label="Aguardando aprovação"
-            value={String(
-              (query.data ?? []).filter((item) => item.status === "awaiting_approval").length,
-            )}
-            alert={(query.data ?? []).some((item) => item.status === "awaiting_approval")}
+            value={String(scopedRows.filter((item) => item.status === "awaiting_approval").length)}
+            alert={scopedRows.some((item) => item.status === "awaiting_approval")}
           />
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative flex-1">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="relative sm:col-span-2 xl:col-span-4">
             <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
               className="pl-9"
               placeholder="Buscar documento, fornecedor ou contrato"
+              aria-label="Buscar documento, fornecedor ou contrato"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="sm:w-52" aria-label="Tipo de lançamento">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Títulos e previsões</SelectItem>
-              <SelectItem value="confirmed">Somente títulos</SelectItem>
-              <SelectItem value="forecast">Somente previsões</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={allocationFilter}
-            onValueChange={(value) => setAllocationFilter(value as typeof allocationFilter)}
-          >
-            <SelectTrigger className="sm:w-52">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os rateios</SelectItem>
-              <SelectItem value="complete">Rateio concluído</SelectItem>
-              <SelectItem value="pending_rule">Rateio pendente</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="payable-type-filter">Tipo de lançamento</Label>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger id="payable-type-filter" aria-label="Tipo de lançamento">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Títulos e previsões</SelectItem>
+                <SelectItem value="confirmed">Somente títulos</SelectItem>
+                <SelectItem value="forecast">Somente previsões</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="payable-allocation-filter">Rateio</Label>
+            <Select
+              value={allocationFilter}
+              onValueChange={(value) => setAllocationFilter(value as typeof allocationFilter)}
+            >
+              <SelectTrigger id="payable-allocation-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os rateios</SelectItem>
+                <SelectItem value="complete">Rateio concluído</SelectItem>
+                <SelectItem value="pending_rule">Rateio pendente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <MultiSelectFilter
+            label="Competência"
+            allLabel="Todas as competências"
+            options={competenceOptions}
+            value={competenceFilter}
+            onChange={setCompetenceFilter}
+          />
+          <MultiSelectFilter
+            label="Status"
+            allLabel="Todos os status"
+            options={[
+              { value: "forecast", label: "Previsão" },
+              ...Object.entries(statusLabels).map(([value, label]) => ({ value, label })),
+            ]}
             value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
-          >
-            <SelectTrigger className="sm:w-52">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="forecast">Previsão</SelectItem>
-              {(Object.entries(statusLabels) as Array<[PayableStatus, string]>).map(
-                ([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ),
-              )}
-            </SelectContent>
-          </Select>
+            onChange={setStatusFilter}
+          />
         </div>
         {query.isLoading || fixedOccurrences.isPending ? (
           <LoadingState label="Carregando lançamentos…" />
@@ -507,7 +541,11 @@ export function SupplierPayables({
           <EmptyState
             title="Nenhum lançamento encontrado"
             description={
-              search || allocationFilter !== "all" || statusFilter !== "all"
+              search ||
+              allocationFilter !== "all" ||
+              statusFilter.length ||
+              competenceFilter.length ||
+              typeFilter !== "all"
                 ? "Ajuste os filtros para ampliar a busca."
                 : "Gere o primeiro lançamento a partir de um contrato de fornecedor ativo."
             }

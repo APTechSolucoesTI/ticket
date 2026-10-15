@@ -35,6 +35,7 @@ try {
     let failSave = false, inactive = false, readOnly = false;
     const classification = { source_id: "entry", financial_category_id: categories[0].id, cost_center_id: centers[0].id, category_allocations: snapshots(categories, [70, 30]), cost_center_allocations: snapshots(centers, [60, 40]) };
     const page = await browser.newPage({ viewport: { width, height: 1000 } }); active = page;
+    await page.clock.setFixedTime("2026-10-15T12:00:00Z");
     page.on("pageerror", (e) => errors.push(e.message));
     await page.addInitScript(() => {
       const claims = btoa(JSON.stringify({ sub: "ae200000-0000-4000-8000-000000000001", email: "test@example.test", name: "Teste", tenant_id: "ae100000-0000-4000-8000-000000000001", app: "apticket", exp: 4102444800 }));
