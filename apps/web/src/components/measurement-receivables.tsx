@@ -117,7 +117,13 @@ function StatusBadge({ status }: { status: BillingStatus }) {
   );
 }
 
-export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
+export function MeasurementReceivables({
+  canEdit,
+  operatingCompanyId,
+}: {
+  canEdit: boolean;
+  operatingCompanyId?: string;
+}) {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"todos" | BillingStatus>("todos");
   const [editing, setEditing] = useState<Receivable | null>(null);
@@ -134,13 +140,14 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
   );
 
   const query = useQuery({
-    queryKey: ["measurement-receivables"],
+    queryKey: ["measurement-receivables", operatingCompanyId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let request = db
         .from("contas_receber")
         .select("*, medicoes_contrato(report_token)")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
+        .is("deleted_at", null);
+      if (operatingCompanyId) request = request.eq("operating_company_id", operatingCompanyId);
+      const { data, error } = await request.order("created_at", { ascending: false });
       if (error) throw error;
       const rows = (data ?? []) as Receivable[];
       if (!rows.length) return rows;
@@ -447,6 +454,7 @@ export function MeasurementReceivables({ canEdit }: { canEdit: boolean }) {
       {interId && <InterChargeDialog key={interId} id={interId} onClose={() => setInterId(null)} />}
       <ManualReceivableDialog
         open={manualOpen}
+        operatingCompanyId={operatingCompanyId}
         onClose={() => setManualOpen(false)}
         onCreated={() =>
           void queryClient.invalidateQueries({ queryKey: ["measurement-receivables"] })

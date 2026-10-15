@@ -1,8 +1,12 @@
 # Rateios em contas a pagar e a receber
 
 Os cadastros manuais exibem a **Empresa operadora** no topo do formulário. Em
-contas a pagar, corresponde à empresa selecionada na listagem. Em contas a
-receber, acompanha a escolha da empresa dentro do cadastro. A identificação
+contas a pagar e a receber, corresponde à empresa selecionada no card da tela
+principal. Em contas a receber, essa seleção filtra os lançamentos manuais e
+contratuais e preenche a empresa de novas contas. A opção **Todas as empresas**
+permite consultar também lançamentos antigos sem empresa vinculada; nesse modo,
+a empresa é escolhida dentro do cadastro. Atendimentos avulsos mantêm seu
+acompanhamento próprio, pois ainda não possuem vínculo de empresa operadora. A identificação
 reutiliza os nomes já carregados e corresponde ao identificador enviado ao salvar.
 
 Os lançamentos manuais e a ação **Classificar** usam o mesmo editor dos contratos

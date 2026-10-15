@@ -229,9 +229,9 @@ function ManualEntryDialog({
   );
 
   useEffect(() => {
-    if (open && isReceivable && companies.data?.length === 1)
+    if (open && isReceivable && !operatingCompanyId && companies.data?.length === 1)
       form.setValue("operatingCompanyId", companies.data[0].id, { shouldValidate: true });
-  }, [companies.data, form, isReceivable, open]);
+  }, [companies.data, form, isReceivable, open, operatingCompanyId]);
   useEffect(() => {
     if (open && operatingCompanyId) form.setValue("operatingCompanyId", operatingCompanyId);
   }, [form, open, operatingCompanyId]);
@@ -425,6 +425,7 @@ function ManualEntryDialog({
                     render={({ field }) => (
                       <Select
                         value={field.value}
+                        disabled={Boolean(operatingCompanyId)}
                         onValueChange={(value) => {
                           field.onChange(value);
                         }}
@@ -783,15 +784,23 @@ function ManualEntryDialog({
 
 export function ManualReceivableDialog({
   open,
+  operatingCompanyId,
   onClose,
   onCreated,
 }: {
   open: boolean;
+  operatingCompanyId?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
   return (
-    <ManualEntryDialog direction="receivable" open={open} onClose={onClose} onCreated={onCreated} />
+    <ManualEntryDialog
+      direction="receivable"
+      open={open}
+      operatingCompanyId={operatingCompanyId}
+      onClose={onClose}
+      onCreated={onCreated}
+    />
   );
 }
 export function ManualPayableDialog({

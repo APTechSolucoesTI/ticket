@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   Banknote,
   BanknoteArrowDown,
@@ -103,6 +104,7 @@ const money = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const db = supabase as unknown as SupabaseClient;
 
 function effectiveStatus(charge: Charge): BillingStatus {
   if (
@@ -142,6 +144,23 @@ export function FinanceReceivablesPage() {
   const [priceOpen, setPriceOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
   const financialSettings = useFinancialSettings();
+  const [companyId, setCompanyId] = useState("");
+  const companies = useQuery({
+    queryKey: ["receivable-operating-companies"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("operating_companies")
+        .select("id,legal_name")
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("legal_name");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; legal_name: string }>;
+    },
+  });
+  useEffect(() => {
+    if (!companyId && companies.data?.[0]) setCompanyId(companies.data[0].id);
+  }, [companyId, companies.data]);
 
   const chargesQuery = useQuery({
     queryKey: ["avulso-billing"],
@@ -206,6 +225,42 @@ export function FinanceReceivablesPage() {
           </div>
         }
       />
+
+      <Card>
+        <CardContent className="max-w-md p-4">
+          <Label htmlFor="receivable-company">Empresa operadora</Label>
+          <Select value={companyId} onValueChange={setCompanyId} disabled={!companies.data?.length}>
+            <SelectTrigger id="receivable-company" className="mt-1">
+              <SelectValue
+                placeholder={companies.isPending ? "Carregando empresas…" : "Selecione a empresa"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas as empresas</SelectItem>
+              {(companies.data ?? []).map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.legal_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-2 text-xs text-muted-foreground">
+            A seleção se aplica aos lançamentos manuais e contratuais abaixo.
+          </p>
+        </CardContent>
+      </Card>
+      {companies.isError ? (
+        <ErrorState
+          title="Empresas indisponíveis"
+          description="Não foi possível consultar seu acesso financeiro."
+          action={{ label: "Tentar novamente", onClick: () => void companies.refetch() }}
+        />
+      ) : !companies.isPending && !companies.data?.length ? (
+        <EmptyState
+          title="Sem empresa operadora"
+          description="Solicite ao administrador o vínculo financeiro com uma empresa operadora."
+        />
+      ) : null}
 
       {financialSettings.isError ? (
         <ErrorState
@@ -362,7 +417,13 @@ export function FinanceReceivablesPage() {
         </CardContent>
       </Card>
 
-      <MeasurementReceivables canEdit={access.edit} />
+      {companyId && companies.data?.length && !companies.isError ? (
+        <MeasurementReceivables
+          key={companyId}
+          canEdit={access.edit}
+          operatingCompanyId={companyId === "__all__" ? undefined : companyId}
+        />
+      ) : null}
 
       <ChargeDialog
         charge={editing}

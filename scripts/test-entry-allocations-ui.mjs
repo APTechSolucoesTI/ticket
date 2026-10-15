@@ -73,17 +73,12 @@ try {
       return route.continue();
     });
     await page.goto(`http://127.0.0.1:4173/finance/${kind === "payable" ? "payables" : "receivables"}`);
-    if (kind === "payable" && width === 1440) await choose(page, page.getByRole("combobox", { name: "Empresa operadora", exact: true }), secondOperatorName);
+    if (width === 1440) await choose(page, page.getByRole("combobox", { name: "Empresa operadora", exact: true }), secondOperatorName);
     const classify = () => page.getByRole("button", { name: kind === "payable" ? "Classificar RATEIO" : "Classificar", exact: true });
     await page.getByRole("button", { name: "Nova conta", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: /^(Nova conta a (pagar|receber)|Classificar movimento)$/ });
     const companySummary = dialog.getByRole("group", { name: "Empresa operadora do lançamento", exact: true });
-    if (kind === "receivable" && width === 1440) {
-      await companySummary.getByText("Selecione a empresa operadora.", { exact: true }).waitFor();
-      await choose(page, dialog.locator("#manual-entry-operator"), "APTech");
-      await companySummary.getByText("APTech", { exact: true }).waitFor();
-      await choose(page, dialog.locator("#manual-entry-operator"), secondOperatorName);
-    }
+    if (kind === "receivable") assert.equal(await dialog.locator("#manual-entry-operator").isDisabled(), true);
     await companySummary.getByText(width === 1440 ? secondOperatorName : "APTech", { exact: true }).waitFor();
     await companySummary.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `artifacts/entry-allocations/company-${kind}-${width}.png`, animations: "disabled" });
