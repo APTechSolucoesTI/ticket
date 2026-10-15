@@ -22,7 +22,9 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { FinancialWorkspace } from "@/components/financial-workspace";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -259,344 +261,358 @@ export function CashFlowDashboard({ canEdit }: { canEdit: boolean }) {
     .size;
 
   return (
-    <Card id="cash-flow">
-      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="pt-0.5 text-primary">
-            <Landmark className="size-5" />
-          </div>
-          <div>
-            <CardTitle className="text-base">Fluxo de caixa consolidado</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Previsão e realização de recebimentos e pagamentos.
-            </p>
-          </div>
-        </div>
-        <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-4">
-          <Select value={companyId} onValueChange={setCompanyId}>
-            <SelectTrigger className="sm:min-w-52" aria-label="Empresa operadora">
-              <SelectValue placeholder="Empresa operadora" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as empresas permitidas</SelectItem>
-              {companies.data?.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.legal_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            aria-label="Data inicial"
-            type="date"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-          />
-          <Button
-            variant="outline"
-            className="gap-2"
-            disabled={companyId === "all"}
-            onClick={() => setDimensionsOpen(true)}
-          >
-            <Settings2 className="size-4" />
-            Classificações
-          </Button>
-          <Input
-            aria-label="Data final"
-            type="date"
-            min={startDate}
-            value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 p-4">
-        {query.isLoading || companies.isLoading ? (
-          <LoadingState label="Consolidando o fluxo de caixa..." />
-        ) : query.isError || companies.isError ? (
-          <ErrorState
-            title="Fluxo de caixa indisponível"
-            description="Não foi possível consolidar os lançamentos desta empresa."
-            action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
-          />
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <FlowMetric
-                icon={ArrowDownToLine}
-                label="Entradas previstas"
-                value={plannedIn}
-                tone="emerald"
-              />
-              <FlowMetric
-                icon={ArrowUpFromLine}
-                label="Saídas previstas"
-                value={plannedOut}
-                tone="blue"
-              />
-              <FlowMetric
-                icon={Scale}
-                label="Saldo projetado"
-                value={plannedIn - plannedOut}
-                tone={plannedIn - plannedOut >= 0 ? "emerald" : "red"}
-              />
-              <FlowMetric
-                icon={CalendarRange}
-                label="Saldo realizado"
-                value={realizedIn - realizedOut}
-                tone={realizedIn - realizedOut >= 0 ? "neutral" : "red"}
+    <FinancialWorkspace
+      id="cash-flow"
+      title="Fluxo de caixa"
+      subtitle="Previsão e realização de recebimentos e pagamentos."
+      icon={Landmark}
+      actions={
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={companyId === "all"}
+          onClick={() => setDimensionsOpen(true)}
+        >
+          <Settings2 className="size-4" />
+          Classificações
+        </Button>
+      }
+    >
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="cash-company">Empresa operadora</Label>
+              <Select value={companyId} onValueChange={setCompanyId}>
+                <SelectTrigger id="cash-company" aria-label="Empresa operadora">
+                  <SelectValue placeholder="Empresa operadora" />
+                </SelectTrigger>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  <SelectItem value="all">Todas as empresas permitidas</SelectItem>
+                  {companies.data?.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.legal_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="cash-start">Data inicial</Label>
+              <Input
+                id="cash-start"
+                aria-label="Data inicial"
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium">Cobertura de classificação</p>
-                <p className="text-xs text-muted-foreground">
-                  {classifiedCount} de {documentCount} movimentos classificados no período.
-                </p>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted sm:w-56">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{
-                    width: `${periodRows.length ? (classifiedCount / periodRows.length) * 100 : 0}%`,
-                  }}
+
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="cash-end">Data final</Label>
+              <Input
+                id="cash-end"
+                aria-label="Data final"
+                type="date"
+                min={startDate}
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-5 p-4">
+          {query.isLoading || companies.isLoading ? (
+            <LoadingState label="Consolidando o fluxo de caixa..." />
+          ) : query.isError || companies.isError ? (
+            <ErrorState
+              title="Fluxo de caixa indisponível"
+              description="Não foi possível consolidar os lançamentos desta empresa."
+              action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
+            />
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <FlowMetric
+                  icon={ArrowDownToLine}
+                  label="Entradas previstas"
+                  value={plannedIn}
+                  tone="emerald"
+                />
+                <FlowMetric
+                  icon={ArrowUpFromLine}
+                  label="Saídas previstas"
+                  value={plannedOut}
+                  tone="blue"
+                />
+                <FlowMetric
+                  icon={Scale}
+                  label="Saldo projetado"
+                  value={plannedIn - plannedOut}
+                  tone={plannedIn - plannedOut >= 0 ? "emerald" : "red"}
+                />
+                <FlowMetric
+                  icon={CalendarRange}
+                  label="Saldo realizado"
+                  value={realizedIn - realizedOut}
+                  tone={realizedIn - realizedOut >= 0 ? "neutral" : "red"}
                 />
               </div>
-            </div>
-            {chart.length ? (
-              <div className="rounded-xl border bg-muted/10 p-3">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium">Saldo mensal</p>
-                    <p className="text-xs text-muted-foreground">
-                      Projetado pelo vencimento e realizado pela data efetiva.
-                    </p>
-                  </div>
-                  <div className="flex gap-4 text-xs">
-                    <span className="flex items-center gap-1.5">
-                      <i className="size-2.5 rounded-sm bg-primary" />
-                      Projetado
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <i className="size-2.5 rounded-sm bg-emerald-500" />
-                      Realizado
-                    </span>
-                  </div>
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">Cobertura de classificação</p>
+                  <p className="text-xs text-muted-foreground">
+                    {classifiedCount} de {documentCount} movimentos classificados no período.
+                  </p>
                 </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chart} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                      <YAxis
-                        tickFormatter={(value) => compactMoney.format(value)}
-                        width={72}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip formatter={(value) => money.format(Number(value))} />
-                      <ReferenceLine y={0} stroke="currentColor" opacity={0.35} />
-                      <Bar
-                        dataKey="projected"
-                        name="Projetado"
-                        fill="hsl(var(--primary))"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="realized"
-                        name="Realizado"
-                        fill="#10b981"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted sm:w-56">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${periodRows.length ? (classifiedCount / periodRows.length) * 100 : 0}%`,
+                    }}
+                  />
                 </div>
               </div>
-            ) : null}
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_11rem_11rem_13rem_13rem]">
-              <Input
-                className="sm:col-span-2 xl:col-span-1"
-                placeholder="Buscar documento, cliente, fornecedor ou descrição"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <Select
-                value={direction}
-                onValueChange={(value) => setDirection(value as typeof direction)}
-              >
-                <SelectTrigger className="lg:w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Entradas e saídas</SelectItem>
-                  <SelectItem value="inflow">Entradas</SelectItem>
-                  <SelectItem value="outflow">Saídas</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
-                <SelectTrigger className="lg:w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="pending">Pendentes</SelectItem>
-                  <SelectItem value="overdue">Vencidos</SelectItem>
-                  <SelectItem value="realized">Realizados</SelectItem>
-                  <SelectItem value="cancelled">Cancelados</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as categorias</SelectItem>
-                  <SelectItem value="unclassified">Sem categoria</SelectItem>
-                  {categoryOptions.map(([id, label]) => (
-                    <SelectItem key={id} value={id}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={costCenterId} onValueChange={setCostCenterId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Centro de custo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os centros</SelectItem>
-                  <SelectItem value="unclassified">Sem centro de custo</SelectItem>
-                  {costCenterOptions.map(([id, label]) => (
-                    <SelectItem key={id} value={id}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {!visibleRows.length ? (
-              <EmptyState
-                title="Nenhum movimento no período"
-                description="Ajuste o período ou os filtros para consultar outros lançamentos."
-              />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {canEdit ? <TableHead className="w-20">Ações</TableHead> : null}
-                      <TableHead>Data</TableHead>
-                      <TableHead>Movimento</TableHead>
-                      <TableHead>Documento</TableHead>
-                      <TableHead>Cliente/fornecedor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Classificação</TableHead>
-                      <TableHead className="text-right">Previsto</TableHead>
-                      <TableHead className="text-right">Realizado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleRows.map((item) => (
-                      <TableRow
-                        key={`${item.direction}-${item.source_id}-${item.financial_category_id}-${item.cost_center_id}`}
-                      >
-                        {canEdit ? (
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Classificar ${item.document_number}`}
-                              onClick={() => setClassifying(item)}
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                          </TableCell>
-                        ) : null}
-                        <TableCell className="whitespace-nowrap">
-                          {dateFormat.format(new Date(`${item.planned_date}T00:00:00Z`))}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={
-                              item.direction === "inflow"
-                                ? "font-medium text-emerald-700 dark:text-emerald-300"
-                                : "font-medium text-blue-700 dark:text-blue-300"
-                            }
-                          >
-                            {item.direction === "inflow" ? "Entrada" : "Saída"}
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            {sourceLabels[item.source_type]}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium">{item.document_number}</p>
-                          <p className="max-w-52 truncate text-xs text-muted-foreground">
-                            {item.description}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          {item.counterparty_name}
-                          {companyId === "all" ? (
-                            <p className="text-xs text-muted-foreground">
-                              {companies.data?.find(
-                                (company) => company.id === item.operating_company_id,
-                              )?.legal_name ?? "Empresa operadora"}
-                            </p>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>
-                          <CashStatusBadge status={item.cash_status} />
-                          {item.reconciliation_status === "difference" ? (
-                            <p className="mt-1 text-xs font-medium text-destructive">
-                              Diferença {money.format(Number(item.difference_amount))}
-                            </p>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>
-                          {item.classification_id ? (
-                            <div>
-                              <p className="text-sm font-medium">
-                                {item.financial_category_code} · {item.financial_category_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.cost_center_code} · {item.cost_center_name}
-                              </p>
-                            </div>
-                          ) : (
-                            <Badge variant="outline">Não classificado</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {money.format(Number(item.planned_amount))}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {item.realized_amount ? money.format(Number(item.realized_amount)) : "-"}
-                        </TableCell>
-                      </TableRow>
+              {chart.length ? (
+                <div className="rounded-xl border bg-muted/10 p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">Saldo mensal</p>
+                      <p className="text-xs text-muted-foreground">
+                        Projetado pelo vencimento e realizado pela data efetiva.
+                      </p>
+                    </div>
+                    <div className="flex gap-4 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <i className="size-2.5 rounded-sm bg-primary" />
+                        Projetado
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <i className="size-2.5 rounded-sm bg-emerald-500" />
+                        Realizado
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chart} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                        <YAxis
+                          tickFormatter={(value) => compactMoney.format(value)}
+                          width={72}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip formatter={(value) => money.format(Number(value))} />
+                        <ReferenceLine y={0} stroke="currentColor" opacity={0.35} />
+                        <Bar
+                          dataKey="projected"
+                          name="Projetado"
+                          fill="var(--primary)"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="realized"
+                          name="Realizado"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : null}
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_11rem_11rem_13rem_13rem]">
+                <Input
+                  className="sm:col-span-2 xl:col-span-1"
+                  placeholder="Buscar documento, cliente, fornecedor ou descrição"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+                <Select
+                  value={direction}
+                  onValueChange={(value) => setDirection(value as typeof direction)}
+                >
+                  <SelectTrigger className="lg:w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Entradas e saídas</SelectItem>
+                    <SelectItem value="inflow">Entradas</SelectItem>
+                    <SelectItem value="outflow">Saídas</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
+                  <SelectTrigger className="lg:w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="pending">Pendentes</SelectItem>
+                    <SelectItem value="overdue">Vencidos</SelectItem>
+                    <SelectItem value="realized">Realizados</SelectItem>
+                    <SelectItem value="cancelled">Cancelados</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    <SelectItem value="unclassified">Sem categoria</SelectItem>
+                    {categoryOptions.map(([id, label]) => (
+                      <SelectItem key={id} value={id}>
+                        {label}
+                      </SelectItem>
                     ))}
-                  </TableBody>
-                </Table>
+                  </SelectContent>
+                </Select>
+                <Select value={costCenterId} onValueChange={setCostCenterId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Centro de custo" />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Todos os centros</SelectItem>
+                    <SelectItem value="unclassified">Sem centro de custo</SelectItem>
+                    {costCenterOptions.map(([id, label]) => (
+                      <SelectItem key={id} value={id}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </>
-        )}
-      </CardContent>
-      {dimensionsOpen ? (
-        <FinancialDimensionsDialog
-          companyId={companyId}
-          canEdit={canEdit}
-          onClose={() => setDimensionsOpen(false)}
-        />
-      ) : null}
-      {classifying ? (
-        <FinancialEntryClassificationDialog
-          entry={classifying}
-          onClose={() => setClassifying(undefined)}
-          onSaved={() => setClassifying(undefined)}
-        />
-      ) : null}
-    </Card>
+              {!visibleRows.length ? (
+                <EmptyState
+                  title="Nenhum movimento no período"
+                  description="Ajuste o período ou os filtros para consultar outros lançamentos."
+                />
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {canEdit ? <TableHead className="w-20">Ações</TableHead> : null}
+                        <TableHead>Data</TableHead>
+                        <TableHead>Movimento</TableHead>
+                        <TableHead>Documento</TableHead>
+                        <TableHead>Cliente/fornecedor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Classificação</TableHead>
+                        <TableHead className="text-right">Previsto</TableHead>
+                        <TableHead className="text-right">Realizado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleRows.map((item) => (
+                        <TableRow
+                          key={`${item.direction}-${item.source_id}-${item.financial_category_id}-${item.cost_center_id}`}
+                        >
+                          {canEdit ? (
+                            <TableCell>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Classificar ${item.document_number}`}
+                                onClick={() => setClassifying(item)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                            </TableCell>
+                          ) : null}
+                          <TableCell className="whitespace-nowrap">
+                            {dateFormat.format(new Date(`${item.planned_date}T00:00:00Z`))}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={
+                                item.direction === "inflow"
+                                  ? "font-medium text-emerald-700 dark:text-emerald-300"
+                                  : "font-medium text-blue-700 dark:text-blue-300"
+                              }
+                            >
+                              {item.direction === "inflow" ? "Entrada" : "Saída"}
+                            </span>
+                            <p className="text-xs text-muted-foreground">
+                              {sourceLabels[item.source_type]}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium">{item.document_number}</p>
+                            <p className="max-w-52 truncate text-xs text-muted-foreground">
+                              {item.description}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            {item.counterparty_name}
+                            {companyId === "all" ? (
+                              <p className="text-xs text-muted-foreground">
+                                {companies.data?.find(
+                                  (company) => company.id === item.operating_company_id,
+                                )?.legal_name ?? "Empresa operadora"}
+                              </p>
+                            ) : null}
+                          </TableCell>
+                          <TableCell>
+                            <CashStatusBadge status={item.cash_status} />
+                            {item.reconciliation_status === "difference" ? (
+                              <p className="mt-1 text-xs font-medium text-destructive">
+                                Diferença {money.format(Number(item.difference_amount))}
+                              </p>
+                            ) : null}
+                          </TableCell>
+                          <TableCell>
+                            {item.classification_id ? (
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {item.financial_category_code} · {item.financial_category_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.cost_center_code} · {item.cost_center_name}
+                                </p>
+                              </div>
+                            ) : (
+                              <Badge variant="outline">Não classificado</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {money.format(Number(item.planned_amount))}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {item.realized_amount
+                              ? money.format(Number(item.realized_amount))
+                              : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+        {dimensionsOpen ? (
+          <FinancialDimensionsDialog
+            companyId={companyId}
+            canEdit={canEdit}
+            onClose={() => setDimensionsOpen(false)}
+          />
+        ) : null}
+        {classifying ? (
+          <FinancialEntryClassificationDialog
+            entry={classifying}
+            onClose={() => setClassifying(undefined)}
+            onSaved={() => setClassifying(undefined)}
+          />
+        ) : null}
+      </Card>
+    </FinancialWorkspace>
   );
 }
 
@@ -618,13 +634,13 @@ function FlowMetric({
     neutral: "bg-muted text-foreground",
   };
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-background p-3">
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
       <div className={`rounded-lg p-2 ${tones[tone]}`}>
         <Icon className="size-4" />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-lg font-semibold tabular-nums">{money.format(value)}</p>
+        <p className="truncate text-base font-semibold tabular-nums">{money.format(value)}</p>
       </div>
     </div>
   );

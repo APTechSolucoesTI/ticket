@@ -15,7 +15,8 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { FinancialWorkspace } from "@/components/financial-workspace";
 import {
   Dialog,
   DialogContent,
@@ -251,372 +252,378 @@ export function FinancialPeriodClosure({ canEdit }: { canEdit: boolean }) {
   };
 
   return (
-    <Card id="financial-period-closure">
-      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="pt-0.5 text-primary">
-            <LockKeyhole className="size-5" />
-          </div>
-          <div>
-            <CardTitle className="text-base">Fechamento mensal</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Preserve o resultado conferido e controle reaberturas por competência.
-            </p>
-          </div>
-        </div>
-        <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto">
-          <Select value={companyId} onValueChange={setCompanyId}>
-            <SelectTrigger className="sm:min-w-56" aria-label="Empresa do fechamento">
-              <SelectValue placeholder="Empresa operadora" />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.data?.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.legal_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
-            <SelectTrigger aria-label="Exercício do fechamento">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((item) => (
-                <SelectItem key={item} value={String(item)}>
-                  Exercício {item}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4">
-        {companies.isLoading || closures.isLoading ? (
-          <LoadingState label="Consultando competências financeiras..." />
-        ) : companies.isError || closures.isError ? (
-          <ErrorState
-            title="Fechamentos indisponíveis"
-            description="Não foi possível consultar os períodos desta empresa."
-            action={{ label: "Tentar novamente", onClick: () => void closures.refetch() }}
-          />
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <ClosureMetric
-                icon={CalendarCheck2}
-                label="Competências encerradas"
-                value={String(activeClosures.length)}
-                detail={`de 12 em ${year}`}
-                tone="emerald"
-              />
-              <ClosureMetric
-                icon={CheckCircle2}
-                label="Resultado consolidado"
-                value={money.format(closedResult)}
-                detail="somente períodos encerrados"
-                tone={closedResult >= 0 ? "blue" : "red"}
-              />
-              <ClosureMetric
-                icon={History}
-                label="Reaberturas registradas"
-                value={String(reopenedCount)}
-                detail="histórico preservado"
-                tone="amber"
-              />
+    <FinancialWorkspace
+      id="financial-period-closure"
+      title="Fechamento"
+      subtitle="Preserve o resultado conferido e controle reaberturas por competência."
+      icon={LockKeyhole}
+    >
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="closure-company">Empresa operadora</Label>
+              <Select value={companyId} onValueChange={setCompanyId}>
+                <SelectTrigger id="closure-company" aria-label="Empresa do fechamento">
+                  <SelectValue placeholder="Empresa operadora" />
+                </SelectTrigger>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  {companies.data?.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.legal_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="overflow-x-auto rounded-xl border">
-              <Table className="min-w-[900px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-36">Ações</TableHead>
-                    <TableHead>Competência</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead className="text-right">Receitas</TableHead>
-                    <TableHead className="text-right">Despesas</TableHead>
-                    <TableHead className="text-right">Resultado</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Registro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow
-                      key={row.period}
-                      className={row.active ? "bg-emerald-500/[0.025]" : ""}
-                    >
-                      <TableCell>
-                        <div className="flex gap-1.5">
-                          {row.latest ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Histórico de ${row.label}`}
-                              onClick={() => setHistoryPeriod(row)}
-                            >
-                              <History className="size-4" />
-                            </Button>
-                          ) : null}
-                          {canEdit && row.active ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5"
-                              onClick={() => openConfirmation("reopen", row)}
-                            >
-                              <RotateCcw className="size-3.5" /> Reabrir
-                            </Button>
-                          ) : canEdit && !row.future ? (
-                            <Button
-                              size="sm"
-                              className="gap-1.5"
-                              onClick={() => openConfirmation("close", row)}
-                            >
-                              <LockKeyhole className="size-3.5" /> Encerrar
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium capitalize">{row.label}</TableCell>
-                      <TableCell>
-                        {row.active ? (
-                          <Badge
-                            className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                            variant="outline"
-                          >
-                            <LockKeyhole className="mr-1 size-3" /> Encerrada
-                          </Badge>
-                        ) : row.future ? (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Futura
-                          </Badge>
-                        ) : row.latest?.status === "reopened" ? (
-                          <Badge
-                            className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                            variant="outline"
-                          >
-                            <RotateCcw className="mr-1 size-3" /> Reaberta
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            <CalendarClock className="mr-1 size-3" /> Em aberto
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.active ? money.format(Number(row.active.revenue_realized)) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.active ? money.format(Number(row.active.expense_realized)) : "-"}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-semibold tabular-nums ${row.active && Number(row.active.result_realized) < 0 ? "text-red-700 dark:text-red-300" : ""}`}
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="closure-year">Exercício</Label>
+              <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
+                <SelectTrigger id="closure-year" aria-label="Exercício do fechamento">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((item) => (
+                    <SelectItem key={item} value={String(item)}>
+                      Exercício {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          {companies.isLoading || closures.isLoading ? (
+            <LoadingState label="Consultando competências financeiras..." />
+          ) : companies.isError || closures.isError ? (
+            <ErrorState
+              title="Fechamentos indisponíveis"
+              description="Não foi possível consultar os períodos desta empresa."
+              action={{ label: "Tentar novamente", onClick: () => void closures.refetch() }}
+            />
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <ClosureMetric
+                  icon={CalendarCheck2}
+                  label="Competências encerradas"
+                  value={String(activeClosures.length)}
+                  detail={`de 12 em ${year}`}
+                  tone="emerald"
+                />
+                <ClosureMetric
+                  icon={CheckCircle2}
+                  label="Resultado consolidado"
+                  value={money.format(closedResult)}
+                  detail="somente períodos encerrados"
+                  tone={closedResult >= 0 ? "blue" : "red"}
+                />
+                <ClosureMetric
+                  icon={History}
+                  label="Reaberturas registradas"
+                  value={String(reopenedCount)}
+                  detail="histórico preservado"
+                  tone="amber"
+                />
+              </div>
+              <div className="overflow-x-auto rounded-xl border">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-36">Ações</TableHead>
+                      <TableHead>Competência</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead className="text-right">Receitas</TableHead>
+                      <TableHead className="text-right">Despesas</TableHead>
+                      <TableHead className="text-right">Resultado</TableHead>
+                      <TableHead>Responsável</TableHead>
+                      <TableHead>Registro</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow
+                        key={row.period}
+                        className={row.active ? "bg-emerald-500/[0.025]" : ""}
                       >
-                        {row.active ? money.format(Number(row.active.result_realized)) : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {row.active?.closed_by_name ?? row.latest?.reopened_by_name ?? "-"}
-                        {row.active ? (
-                          <p className="text-xs text-muted-foreground">
-                            Revisão {row.active.revision} · {row.active.snapshot_line_count}{" "}
-                            linha(s)
-                          </p>
-                        ) : row.latest ? (
-                          <p className="text-xs text-muted-foreground">
-                            Revisão {row.latest.revision} reaberta
-                          </p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        {row.active
-                          ? dateTimeFormat.format(new Date(row.active.closed_at))
-                          : row.latest?.reopened_at
-                            ? dateTimeFormat.format(new Date(row.latest.reopened_at))
-                            : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              O encerramento exige que todos os movimentos da competência estejam classificados.
-              Orçamentos e classificações ficam protegidos até uma reabertura justificada.
-            </p>
-          </>
-        )}
-      </CardContent>
-      {confirmation ? (
-        <Dialog
-          open
-          onOpenChange={(open) => !open && !mutation.isPending && setConfirmation(undefined)}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {confirmation.action === "close" ? "Encerrar competência" : "Reabrir competência"}
-              </DialogTitle>
-              <DialogDescription>
-                {confirmation.action === "close"
-                  ? `Será criado um snapshot imutável do resultado de ${confirmation.row.label}.`
-                  : `O período ${confirmation.row.label} voltará a aceitar correções. O snapshot anterior continuará no histórico.`}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor="period-action-notes">
-                {confirmation.action === "close" ? "Observações" : "Justificativa da reabertura"}
-                {confirmation.action === "reopen" ? " *" : " (opcional)"}
-              </Label>
-              <Textarea
-                id="period-action-notes"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                maxLength={1000}
-                rows={4}
-                placeholder={
-                  confirmation.action === "close"
-                    ? "Ex.: conciliação e classificações conferidas."
-                    : "Descreva a correção que será realizada."
-                }
-                autoFocus
-              />
-              <p className="text-right text-xs text-muted-foreground">{notes.length}/1000</p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                disabled={mutation.isPending}
-                onClick={() => setConfirmation(undefined)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant={confirmation.action === "reopen" ? "destructive" : "default"}
-                disabled={
-                  mutation.isPending ||
-                  (confirmation.action === "reopen" && notes.trim().length < 10)
-                }
-                onClick={confirm}
-              >
-                {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                {confirmation.action === "close" ? "Confirmar fechamento" : "Confirmar reabertura"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
-      {historyPeriod ? (
-        <Dialog open onOpenChange={(open) => !open && setHistoryPeriod(undefined)}>
-          <DialogContent className="max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Histórico do fechamento</DialogTitle>
-              <DialogDescription>
-                {companyName} · {historyPeriod.label}. Cada revisão permanece preservada para
-                auditoria.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                disabled={exportingHistory !== null}
-                onClick={() => void exportHistory("xlsx")}
-              >
-                {exportingHistory === "xlsx" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="size-4" />
-                )}
-                Excel XLSX
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                disabled={exportingHistory !== null}
-                onClick={() => void exportHistory("pdf")}
-              >
-                {exportingHistory === "pdf" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <FileText className="size-4" />
-                )}
-                PDF
-              </Button>
-            </div>
-            <div className="max-h-[60dvh] overflow-auto rounded-xl border">
-              <Table className="min-w-[850px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Revisão</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead className="text-right">Receitas</TableHead>
-                    <TableHead className="text-right">Despesas</TableHead>
-                    <TableHead className="text-right">Resultado</TableHead>
-                    <TableHead className="text-right">Diferença</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Registro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...historyRows].reverse().map((row) => (
-                    <TableRow key={row.revision}>
-                      <TableCell className="font-semibold">#{row.revision}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            row.status === "closed"
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                              : "border-amber-500/30 bg-amber-500/10 text-amber-700"
-                          }
+                        <TableCell>
+                          <div className="flex gap-1.5">
+                            {row.latest ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Histórico de ${row.label}`}
+                                onClick={() => setHistoryPeriod(row)}
+                              >
+                                <History className="size-4" />
+                              </Button>
+                            ) : null}
+                            {canEdit && row.active ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5"
+                                onClick={() => openConfirmation("reopen", row)}
+                              >
+                                <RotateCcw className="size-3.5" /> Reabrir
+                              </Button>
+                            ) : canEdit && !row.future ? (
+                              <Button
+                                size="sm"
+                                className="gap-1.5"
+                                onClick={() => openConfirmation("close", row)}
+                              >
+                                <LockKeyhole className="size-3.5" /> Encerrar
+                              </Button>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium capitalize">{row.label}</TableCell>
+                        <TableCell>
+                          {row.active ? (
+                            <Badge
+                              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                              variant="outline"
+                            >
+                              <LockKeyhole className="mr-1 size-3" /> Encerrada
+                            </Badge>
+                          ) : row.future ? (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Futura
+                            </Badge>
+                          ) : row.latest?.status === "reopened" ? (
+                            <Badge
+                              className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                              variant="outline"
+                            >
+                              <RotateCcw className="mr-1 size-3" /> Reaberta
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">
+                              <CalendarClock className="mr-1 size-3" /> Em aberto
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.active ? money.format(Number(row.active.revenue_realized)) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.active ? money.format(Number(row.active.expense_realized)) : "-"}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right font-semibold tabular-nums ${row.active && Number(row.active.result_realized) < 0 ? "text-red-700 dark:text-red-300" : ""}`}
                         >
-                          {row.status === "closed" ? "Encerrada" : "Reaberta"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {money.format(row.revenue)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {money.format(row.expense)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {money.format(row.result)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {row.resultDelta === null ? "Base" : money.format(row.resultDelta)}
-                      </TableCell>
-                      <TableCell>
-                        {row.closedBy}
-                        {row.reopenedBy ? (
-                          <p className="text-xs text-muted-foreground">
-                            Reaberta por {row.reopenedBy}
-                          </p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        {dateTimeFormat.format(new Date(row.closedAt))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {[...historyRows]
-              .reverse()
-              .filter((row) => row.reopenReason)
-              .map((row) => (
-                <div
-                  key={`reason-${row.revision}`}
-                  className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-sm"
+                          {row.active ? money.format(Number(row.active.result_realized)) : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {row.active?.closed_by_name ?? row.latest?.reopened_by_name ?? "-"}
+                          {row.active ? (
+                            <p className="text-xs text-muted-foreground">
+                              Revisão {row.active.revision} · {row.active.snapshot_line_count}{" "}
+                              linha(s)
+                            </p>
+                          ) : row.latest ? (
+                            <p className="text-xs text-muted-foreground">
+                              Revisão {row.latest.revision} reaberta
+                            </p>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {row.active
+                            ? dateTimeFormat.format(new Date(row.active.closed_at))
+                            : row.latest?.reopened_at
+                              ? dateTimeFormat.format(new Date(row.latest.reopened_at))
+                              : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O encerramento exige que todos os movimentos da competência estejam classificados.
+                Orçamentos e classificações ficam protegidos até uma reabertura justificada.
+              </p>
+            </>
+          )}
+        </CardContent>
+        {confirmation ? (
+          <Dialog
+            open
+            onOpenChange={(open) => !open && !mutation.isPending && setConfirmation(undefined)}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {confirmation.action === "close" ? "Encerrar competência" : "Reabrir competência"}
+                </DialogTitle>
+                <DialogDescription>
+                  {confirmation.action === "close"
+                    ? `Será criado um snapshot imutável do resultado de ${confirmation.row.label}.`
+                    : `O período ${confirmation.row.label} voltará a aceitar correções. O snapshot anterior continuará no histórico.`}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Label htmlFor="period-action-notes">
+                  {confirmation.action === "close" ? "Observações" : "Justificativa da reabertura"}
+                  {confirmation.action === "reopen" ? " *" : " (opcional)"}
+                </Label>
+                <Textarea
+                  id="period-action-notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  maxLength={1000}
+                  rows={4}
+                  placeholder={
+                    confirmation.action === "close"
+                      ? "Ex.: conciliação e classificações conferidas."
+                      : "Descreva a correção que será realizada."
+                  }
+                  autoFocus
+                />
+                <p className="text-right text-xs text-muted-foreground">{notes.length}/1000</p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="ghost"
+                  disabled={mutation.isPending}
+                  onClick={() => setConfirmation(undefined)}
                 >
-                  <span className="font-medium">Reabertura da revisão {row.revision}: </span>
-                  <span className="text-muted-foreground">{row.reopenReason}</span>
-                </div>
-              ))}
-          </DialogContent>
-        </Dialog>
-      ) : null}
-    </Card>
+                  Cancelar
+                </Button>
+                <Button
+                  variant={confirmation.action === "reopen" ? "destructive" : "default"}
+                  disabled={
+                    mutation.isPending ||
+                    (confirmation.action === "reopen" && notes.trim().length < 10)
+                  }
+                  onClick={confirm}
+                >
+                  {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                  {confirmation.action === "close"
+                    ? "Confirmar fechamento"
+                    : "Confirmar reabertura"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : null}
+        {historyPeriod ? (
+          <Dialog open onOpenChange={(open) => !open && setHistoryPeriod(undefined)}>
+            <DialogContent className="max-w-5xl">
+              <DialogHeader>
+                <DialogTitle>Histórico do fechamento</DialogTitle>
+                <DialogDescription>
+                  {companyName} · {historyPeriod.label}. Cada revisão permanece preservada para
+                  auditoria.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={exportingHistory !== null}
+                  onClick={() => void exportHistory("xlsx")}
+                >
+                  {exportingHistory === "xlsx" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="size-4" />
+                  )}
+                  Excel XLSX
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={exportingHistory !== null}
+                  onClick={() => void exportHistory("pdf")}
+                >
+                  {exportingHistory === "pdf" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FileText className="size-4" />
+                  )}
+                  PDF
+                </Button>
+              </div>
+              <div className="max-h-[60dvh] overflow-auto rounded-xl border">
+                <Table className="min-w-[850px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Revisão</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead className="text-right">Receitas</TableHead>
+                      <TableHead className="text-right">Despesas</TableHead>
+                      <TableHead className="text-right">Resultado</TableHead>
+                      <TableHead className="text-right">Diferença</TableHead>
+                      <TableHead>Responsável</TableHead>
+                      <TableHead>Registro</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...historyRows].reverse().map((row) => (
+                      <TableRow key={row.revision}>
+                        <TableCell className="font-semibold">#{row.revision}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              row.status === "closed"
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-700"
+                            }
+                          >
+                            {row.status === "closed" ? "Encerrada" : "Reaberta"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {money.format(row.revenue)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {money.format(row.expense)}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {money.format(row.result)}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {row.resultDelta === null ? "Base" : money.format(row.resultDelta)}
+                        </TableCell>
+                        <TableCell>
+                          {row.closedBy}
+                          {row.reopenedBy ? (
+                            <p className="text-xs text-muted-foreground">
+                              Reaberta por {row.reopenedBy}
+                            </p>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {dateTimeFormat.format(new Date(row.closedAt))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {[...historyRows]
+                .reverse()
+                .filter((row) => row.reopenReason)
+                .map((row) => (
+                  <div
+                    key={`reason-${row.revision}`}
+                    className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium">Reabertura da revisão {row.revision}: </span>
+                    <span className="text-muted-foreground">{row.reopenReason}</span>
+                  </div>
+                ))}
+            </DialogContent>
+          </Dialog>
+        ) : null}
+      </Card>
+    </FinancialWorkspace>
   );
 }
 
@@ -640,13 +647,13 @@ function ClosureMetric({
     amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   };
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-background p-3">
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
       <div className={`rounded-lg p-2 ${colors[tone]}`}>
         <Icon className="size-4" />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-lg font-semibold tabular-nums">{value}</p>
+        <p className="truncate text-base font-semibold tabular-nums">{value}</p>
         <p className="truncate text-xs text-muted-foreground">{detail}</p>
       </div>
     </div>

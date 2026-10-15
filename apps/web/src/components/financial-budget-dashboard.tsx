@@ -14,7 +14,9 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { FinancialWorkspace } from "@/components/financial-workspace";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -118,6 +120,7 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
         return {
           month: new Date(`${key}-01T00:00:00Z`).toLocaleDateString("pt-BR", {
             month: "short",
+            timeZone: "UTC",
           }),
           budget:
             sum(periodRows, "budgeted_amount", "inflow") -
@@ -142,278 +145,284 @@ export function FinancialBudgetDashboard({ canEdit }: { canEdit: boolean }) {
   });
 
   return (
-    <Card id="financial-budget">
-      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="pt-0.5 text-primary">
-            <Target className="size-5" />
-          </div>
-          <div>
-            <CardTitle className="text-base">Orçamento e desempenho</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Compare o planejamento anual com o previsto e o realizado.
-            </p>
-          </div>
-        </div>
-        <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto">
-          <Select value={companyId} onValueChange={setCompanyId}>
-            <SelectTrigger className="sm:min-w-52" aria-label="Empresa do orçamento">
-              <SelectValue placeholder="Empresa operadora" />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.data?.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.legal_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
-            <SelectTrigger aria-label="Exercício do orçamento">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((item) => (
-                <SelectItem key={item} value={String(item)}>
-                  Exercício {item}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {canEdit ? (
-            <Button className="gap-2" onClick={() => setEditor(null)}>
-              <Plus className="size-4" />
-              Novo orçamento
-            </Button>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 p-4">
-        {query.isLoading || companies.isLoading ? (
-          <LoadingState label="Consolidando orçamento e realização..." />
-        ) : query.isError || companies.isError ? (
-          <ErrorState
-            title="Orçamento indisponível"
-            description="Não foi possível consultar o orçamento desta empresa."
-            action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
-          />
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <BudgetMetric
-                icon={ArrowDownToLine}
-                label="Entradas orçadas"
-                primary={budgetIn}
-                secondary={`Realizado ${money.format(realizedIn)}`}
-                tone="emerald"
-              />
-              <BudgetMetric
-                icon={ArrowUpFromLine}
-                label="Saídas orçadas"
-                primary={budgetOut}
-                secondary={`Realizado ${money.format(realizedOut)}`}
-                tone="blue"
-              />
-              <BudgetMetric
-                icon={Target}
-                label="Resultado orçado"
-                primary={budgetIn - budgetOut}
-                secondary="Entradas menos saídas"
-                tone={budgetIn - budgetOut >= 0 ? "violet" : "red"}
-              />
-              <BudgetMetric
-                icon={Scale}
-                label="Resultado realizado"
-                primary={realizedIn - realizedOut}
-                secondary={`Desvio ${money.format(realizedIn - realizedOut - (budgetIn - budgetOut))}`}
-                tone={realizedIn - realizedOut >= 0 ? "neutral" : "red"}
-              />
-            </div>
-            <div className="rounded-xl border bg-muted/10 p-3">
-              <div className="mb-3">
-                <p className="text-sm font-medium">Resultado mensal</p>
-                <p className="text-xs text-muted-foreground">
-                  Saldo orçado e realizado por competência no exercício.
-                </p>
-              </div>
-              <div className="h-60 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chart} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                    <YAxis
-                      width={72}
-                      tickFormatter={(value) => compactMoney.format(Number(value))}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip formatter={(value) => money.format(Number(value))} />
-                    <ReferenceLine y={0} stroke="currentColor" opacity={0.35} />
-                    <Bar dataKey="budget" name="Orçado" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                    <Bar
-                      dataKey="realized"
-                      name="Realizado"
-                      fill="hsl(var(--primary))"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(16rem,1fr)_12rem_12rem]">
-              <Input
-                placeholder="Buscar categoria ou centro de custo"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <Select
-                value={direction}
-                onValueChange={(value) => setDirection(value as typeof direction)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
+    <FinancialWorkspace
+      id="financial-budget"
+      title="Planejamento"
+      subtitle="Compare o planejamento anual com o previsto e o realizado."
+      icon={Target}
+      actions={
+        canEdit ? (
+          <Button className="gap-2" onClick={() => setEditor(null)}>
+            <Plus className="size-4" />
+            Novo orçamento
+          </Button>
+        ) : undefined
+      }
+    >
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="budget-company">Empresa operadora</Label>
+              <Select value={companyId} onValueChange={setCompanyId}>
+                <SelectTrigger id="budget-company" aria-label="Empresa do orçamento">
+                  <SelectValue placeholder="Empresa operadora" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Entradas e saídas</SelectItem>
-                  <SelectItem value="inflow">Entradas</SelectItem>
-                  <SelectItem value="outflow">Saídas</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os meses</SelectItem>
-                  {Array.from({ length: 12 }, (_, index) => {
-                    const value = `${year}-${String(index + 1).padStart(2, "0")}`;
-                    return (
-                      <SelectItem key={value} value={value}>
-                        {monthFormat.format(new Date(`${value}-01T00:00:00Z`))}
-                      </SelectItem>
-                    );
-                  })}
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  {companies.data?.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.legal_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            {!visibleRows.length ? (
-              <EmptyState
-                title="Nenhum orçamento ou movimento no exercício"
-                description={
-                  canEdit
-                    ? "Inclua o primeiro item ou ajuste os filtros da consulta."
-                    : "Ajuste os filtros ou selecione outro exercício."
-                }
-              />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {canEdit ? <TableHead className="w-20">Ações</TableHead> : null}
-                      <TableHead>Competência</TableHead>
-                      <TableHead>Natureza</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Centro de custo</TableHead>
-                      <TableHead className="text-right">Orçado</TableHead>
-                      <TableHead className="text-right">Previsto</TableHead>
-                      <TableHead className="text-right">Realizado</TableHead>
-                      <TableHead className="text-right">Desvio</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleRows.map((item, index) => (
-                      <TableRow
-                        key={`${item.period_month}-${item.direction}-${item.financial_category_id}-${item.cost_center_id}-${index}`}
-                      >
-                        {canEdit ? (
-                          <TableCell>
-                            {item.budget_entry_id ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Revisar orçamento de ${item.financial_category_name}`}
-                                onClick={() => setEditor(item)}
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
-                            ) : null}
-                          </TableCell>
-                        ) : null}
-                        <TableCell className="whitespace-nowrap font-medium">
-                          {monthFormat.format(new Date(`${item.period_month}T00:00:00Z`))}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {item.direction === "inflow" ? "Entrada" : "Saída"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {item.financial_category_id ? (
-                            <>
-                              <span className="font-medium">{item.financial_category_code}</span>
-                              <p className="text-xs text-muted-foreground">
-                                {item.financial_category_name}
-                              </p>
-                            </>
-                          ) : (
-                            <Badge variant="outline">Não classificado</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {item.cost_center_id ? (
-                            <>
-                              <span className="font-medium">{item.cost_center_code}</span>
-                              <p className="text-xs text-muted-foreground">
-                                {item.cost_center_name}
-                              </p>
-                            </>
-                          ) : (
-                            <Badge variant="outline">Não classificado</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {item.budget_entry_id ? (
-                            money.format(Number(item.budgeted_amount))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Sem orçamento</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {money.format(Number(item.planned_amount))}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {money.format(Number(item.realized_amount))}
-                        </TableCell>
-                        <TableCell className={`text-right font-semibold ${varianceTone(item)}`}>
-                          {money.format(Number(item.variance_amount))}
-                          {item.variance_percent === null ? null : (
-                            <p className="text-xs">
-                              {Number(item.variance_percent).toLocaleString("pt-BR", {
-                                maximumFractionDigits: 2,
-                              })}
-                              %
-                            </p>
-                          )}
-                        </TableCell>
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="budget-year">Exercício</Label>
+              <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
+                <SelectTrigger id="budget-year" aria-label="Exercício do orçamento">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((item) => (
+                    <SelectItem key={item} value={String(item)}>
+                      Exercício {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-5 p-4">
+          {query.isLoading || companies.isLoading ? (
+            <LoadingState label="Consolidando orçamento e realização..." />
+          ) : query.isError || companies.isError ? (
+            <ErrorState
+              title="Orçamento indisponível"
+              description="Não foi possível consultar o orçamento desta empresa."
+              action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
+            />
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <BudgetMetric
+                  icon={ArrowDownToLine}
+                  label="Entradas orçadas"
+                  primary={budgetIn}
+                  secondary={`Realizado ${money.format(realizedIn)}`}
+                  tone="emerald"
+                />
+                <BudgetMetric
+                  icon={ArrowUpFromLine}
+                  label="Saídas orçadas"
+                  primary={budgetOut}
+                  secondary={`Realizado ${money.format(realizedOut)}`}
+                  tone="blue"
+                />
+                <BudgetMetric
+                  icon={Target}
+                  label="Resultado orçado"
+                  primary={budgetIn - budgetOut}
+                  secondary="Entradas menos saídas"
+                  tone={budgetIn - budgetOut >= 0 ? "violet" : "red"}
+                />
+                <BudgetMetric
+                  icon={Scale}
+                  label="Resultado realizado"
+                  primary={realizedIn - realizedOut}
+                  secondary={`Desvio ${money.format(realizedIn - realizedOut - (budgetIn - budgetOut))}`}
+                  tone={realizedIn - realizedOut >= 0 ? "neutral" : "red"}
+                />
+              </div>
+              <div className="rounded-xl border bg-muted/10 p-3">
+                <div className="mb-3">
+                  <p className="text-sm font-medium">Resultado mensal</p>
+                  <p className="text-xs text-muted-foreground">
+                    Saldo orçado e realizado por competência no exercício.
+                  </p>
+                </div>
+                <div className="h-60 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chart} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                      <YAxis
+                        width={72}
+                        tickFormatter={(value) => compactMoney.format(Number(value))}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip formatter={(value) => money.format(Number(value))} />
+                      <ReferenceLine y={0} stroke="currentColor" opacity={0.35} />
+                      <Bar dataKey="budget" name="Orçado" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="realized"
+                        name="Realizado"
+                        fill="var(--primary)"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(16rem,1fr)_12rem_12rem]">
+                <Input
+                  placeholder="Buscar categoria ou centro de custo"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+                <Select
+                  value={direction}
+                  onValueChange={(value) => setDirection(value as typeof direction)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Entradas e saídas</SelectItem>
+                    <SelectItem value="inflow">Entradas</SelectItem>
+                    <SelectItem value="outflow">Saídas</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={month} onValueChange={setMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Todos os meses</SelectItem>
+                    {Array.from({ length: 12 }, (_, index) => {
+                      const value = `${year}-${String(index + 1).padStart(2, "0")}`;
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {monthFormat.format(new Date(`${value}-01T00:00:00Z`))}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!visibleRows.length ? (
+                <EmptyState
+                  title="Nenhum orçamento ou movimento no exercício"
+                  description={
+                    canEdit
+                      ? "Inclua o primeiro item ou ajuste os filtros da consulta."
+                      : "Ajuste os filtros ou selecione outro exercício."
+                  }
+                />
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {canEdit ? <TableHead className="w-20">Ações</TableHead> : null}
+                        <TableHead>Competência</TableHead>
+                        <TableHead>Natureza</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Centro de custo</TableHead>
+                        <TableHead className="text-right">Orçado</TableHead>
+                        <TableHead className="text-right">Previsto</TableHead>
+                        <TableHead className="text-right">Realizado</TableHead>
+                        <TableHead className="text-right">Desvio</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-      {editor !== undefined ? (
-        <FinancialBudgetDialog
-          companyId={companyId}
-          year={year}
-          entry={editor ?? undefined}
-          onClose={() => setEditor(undefined)}
-        />
-      ) : null}
-    </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleRows.map((item, index) => (
+                        <TableRow
+                          key={`${item.period_month}-${item.direction}-${item.financial_category_id}-${item.cost_center_id}-${index}`}
+                        >
+                          {canEdit ? (
+                            <TableCell>
+                              {item.budget_entry_id ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label={`Revisar orçamento de ${item.financial_category_name}`}
+                                  onClick={() => setEditor(item)}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                              ) : null}
+                            </TableCell>
+                          ) : null}
+                          <TableCell className="whitespace-nowrap font-medium">
+                            {monthFormat.format(new Date(`${item.period_month}T00:00:00Z`))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {item.direction === "inflow" ? "Entrada" : "Saída"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {item.financial_category_id ? (
+                              <>
+                                <span className="font-medium">{item.financial_category_code}</span>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.financial_category_name}
+                                </p>
+                              </>
+                            ) : (
+                              <Badge variant="outline">Não classificado</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {item.cost_center_id ? (
+                              <>
+                                <span className="font-medium">{item.cost_center_code}</span>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.cost_center_name}
+                                </p>
+                              </>
+                            ) : (
+                              <Badge variant="outline">Não classificado</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {item.budget_entry_id ? (
+                              money.format(Number(item.budgeted_amount))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem orçamento</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {money.format(Number(item.planned_amount))}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {money.format(Number(item.realized_amount))}
+                          </TableCell>
+                          <TableCell className={`text-right font-semibold ${varianceTone(item)}`}>
+                            {money.format(Number(item.variance_amount))}
+                            {item.variance_percent === null ? null : (
+                              <p className="text-xs">
+                                {Number(item.variance_percent).toLocaleString("pt-BR", {
+                                  maximumFractionDigits: 2,
+                                })}
+                                %
+                              </p>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+        {editor !== undefined ? (
+          <FinancialBudgetDialog
+            companyId={companyId}
+            year={year}
+            entry={editor ?? undefined}
+            onClose={() => setEditor(undefined)}
+          />
+        ) : null}
+      </Card>
+    </FinancialWorkspace>
   );
 }
 
@@ -464,13 +473,13 @@ function BudgetMetric({
     neutral: "bg-muted text-foreground",
   };
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-background p-3">
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
       <div className={`rounded-lg p-2 ${tones[tone]}`}>
         <Icon className="size-4" />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-lg font-semibold tabular-nums">{money.format(primary)}</p>
+        <p className="truncate text-base font-semibold tabular-nums">{money.format(primary)}</p>
         <p className="truncate text-xs text-muted-foreground">{secondary}</p>
       </div>
     </div>

@@ -173,28 +173,33 @@ export function FinancialContractAnalytics() {
 
   return (
     <Card id="contract-analytics">
-      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
+      <CardHeader className="gap-4 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="financial-section-title flex items-center gap-2 text-sm">
             <ChartNoAxesCombined className="size-5 text-primary" /> Rentabilidade e MRR
           </CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Margem por contrato e projeção consolidada dos próximos doze meses.
           </p>
         </div>
-        <Select value={companyId} onValueChange={setCompanyId}>
-          <SelectTrigger className="w-full lg:w-72">
-            <SelectValue placeholder="Empresa operadora" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as empresas permitidas</SelectItem>
-            {companies.data?.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.legal_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="min-w-0 space-y-1">
+          <Label className="block" htmlFor="analytics-company">
+            Empresa operadora
+          </Label>
+          <Select value={companyId} onValueChange={setCompanyId}>
+            <SelectTrigger id="analytics-company" className="w-full lg:w-72">
+              <SelectValue placeholder="Empresa operadora" />
+            </SelectTrigger>
+            <SelectContent className="[&_[cmdk-item]]:text-xs">
+              <SelectItem value="all">Todas as empresas permitidas</SelectItem>
+              {companies.data?.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.legal_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6 p-4">
         {profitability.isLoading || projection.isLoading ? (
@@ -362,7 +367,7 @@ export function FinancialContractAnalytics() {
                       <Bar
                         dataKey="baseline"
                         name="MRR base"
-                        fill="hsl(var(--primary))"
+                        fill="var(--primary)"
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
@@ -387,7 +392,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border bg-muted/20 p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="mt-1 text-base font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

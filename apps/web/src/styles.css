@@ -290,16 +290,26 @@ table td {
   padding-bottom: 6px !important;
 }
 
-/* Compact typography for the accounts payable workspace only. */
-.accounts-payable-page {
+/* Financial pages share the compact scale established by accounts payable. */
+.financial-workspace {
   font-size: 12px;
 }
-.accounts-payable-page :is(button, a, input, label, [role="combobox"], [role="status"]) {
+.financial-workspace .text-sm {
   font-size: 12px;
 }
-.accounts-payable-page :is(h1, h2, h3) {
+.financial-workspace .text-xs {
+  font-size: 11px;
+}
+.financial-workspace :is(button, a, input, label, [role="combobox"], [role="status"]) {
+  font-size: 12px;
+}
+.financial-workspace :is(h1, h2, h3),
+.financial-workspace .financial-section-title {
   font-size: 14px;
 }
-.accounts-payable-page > header p {
+.financial-workspace > header p {
   font-size: 11px;
+}
+.financial-workspace thead {
+  background-color: color-mix(in oklab, var(--muted) 40%, transparent);
 }

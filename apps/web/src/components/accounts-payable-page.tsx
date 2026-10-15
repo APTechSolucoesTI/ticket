@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CircleDollarSign, FileCog, Repeat2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/empty-stub";
+import { FinancialWorkspace } from "@/components/financial-workspace";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -86,34 +86,30 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
   );
 
   return (
-    <section
-      className="accounts-payable-page space-y-4 sm:p-6"
-      aria-labelledby="accounts-payable-title"
-    >
-      <PageHeader
-        title="Contas a pagar"
-        titleId="accounts-payable-title"
-        subtitle="Lançamentos contratuais e manuais, aprovações, rateios e pagamentos."
-        icon={CircleDollarSign}
-        actions={
-          canEdit ? (
-            <>
-              {fixedAccess.view ? (
-                <Button variant="outline" asChild>
-                  <Link to="/finance/payables/fixed">
-                    <Repeat2 className="size-4" />
-                    Contas fixas
-                  </Link>
-                </Button>
-              ) : null}
-              <Button variant="outline" onClick={() => setDocumentTypesOpen(true)}>
-                <FileCog className="size-4" />
-                Tipos de documento
+    <FinancialWorkspace
+      title="Contas a pagar"
+      titleId="accounts-payable-title"
+      subtitle="Lançamentos contratuais e manuais, aprovações, rateios e pagamentos."
+      icon={CircleDollarSign}
+      actions={
+        canEdit ? (
+          <>
+            {fixedAccess.view ? (
+              <Button variant="outline" asChild>
+                <Link to="/finance/payables/fixed">
+                  <Repeat2 className="size-4" />
+                  Contas fixas
+                </Link>
               </Button>
-            </>
-          ) : undefined
-        }
-      />
+            ) : null}
+            <Button variant="outline" onClick={() => setDocumentTypesOpen(true)}>
+              <FileCog className="size-4" />
+              Tipos de documento
+            </Button>
+          </>
+        ) : undefined
+      }
+    >
       {companies.isLoading ? (
         <LoadingState label="Carregando empresas…" />
       ) : companies.isError ? (
@@ -171,6 +167,6 @@ export function AccountsPayablePage({ canEdit }: { canEdit: boolean }) {
         open={documentTypesOpen}
         onClose={() => setDocumentTypesOpen(false)}
       />
-    </section>
+    </FinancialWorkspace>
   );
 }

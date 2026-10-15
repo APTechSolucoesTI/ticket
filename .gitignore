@@ -20,6 +20,7 @@ bun.lock
 /artifacts/entry-allocations/
 /artifacts/fixed-payables/
 /artifacts/searchable-select/
+/artifacts/financial-workspaces/
 logs
 *.log
 npm-debug.log*

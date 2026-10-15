@@ -23,6 +23,7 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -220,66 +221,80 @@ export function FinancialManagementStatement() {
 
   return (
     <Card id="financial-statement">
-      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md lg:flex-row lg:items-center lg:justify-between">
+      <CardHeader className="gap-4 border-b p-4">
         <div className="flex items-start gap-3">
           <div className="pt-0.5 text-primary">
             <ChartNoAxesCombined className="size-5" />
           </div>
           <div>
-            <CardTitle className="text-base">Demonstrativo gerencial de resultado</CardTitle>
+            <CardTitle className="financial-section-title text-sm">
+              Demonstrativo gerencial de resultado
+            </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               Receitas, despesas e resultado operacional mensal e acumulado.
             </p>
           </div>
         </div>
-        <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4">
-          <Select value={companyId} onValueChange={setCompanyId}>
-            <SelectTrigger className="sm:min-w-52" aria-label="Empresa do demonstrativo">
-              <SelectValue placeholder="Empresa operadora" />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.data?.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.legal_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
-            <SelectTrigger aria-label="Exercício do demonstrativo">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((item) => (
-                <SelectItem key={item} value={String(item)}>
-                  Exercício {item}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={costCenterId} onValueChange={setCostCenterId}>
-            <SelectTrigger aria-label="Centro de custo do demonstrativo">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os centros</SelectItem>
-              <SelectItem value="unclassified">Não classificados</SelectItem>
-              {centerOptions.map(([id, label]) => (
-                <SelectItem key={id} value={id}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={groupBy} onValueChange={(value) => setGroupBy(value as typeof groupBy)}>
-            <SelectTrigger aria-label="Agrupamento do demonstrativo">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="category">Agrupar por categoria</SelectItem>
-              <SelectItem value="cost_center">Agrupar por centro</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor="statement-company">Empresa operadora</Label>
+            <Select value={companyId} onValueChange={setCompanyId}>
+              <SelectTrigger id="statement-company" aria-label="Empresa do demonstrativo">
+                <SelectValue placeholder="Empresa operadora" />
+              </SelectTrigger>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
+                {companies.data?.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.legal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor="statement-year">Exercício</Label>
+            <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
+              <SelectTrigger id="statement-year" aria-label="Exercício do demonstrativo">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
+                {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((item) => (
+                  <SelectItem key={item} value={String(item)}>
+                    Exercício {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor="statement-center">Centro de custo</Label>
+            <Select value={costCenterId} onValueChange={setCostCenterId}>
+              <SelectTrigger id="statement-center" aria-label="Centro de custo do demonstrativo">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
+                <SelectItem value="all">Todos os centros</SelectItem>
+                <SelectItem value="unclassified">Não classificados</SelectItem>
+                {centerOptions.map(([id, label]) => (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor="statement-group">Agrupamento</Label>
+            <Select value={groupBy} onValueChange={(value) => setGroupBy(value as typeof groupBy)}>
+              <SelectTrigger id="statement-group" aria-label="Agrupamento do demonstrativo">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
+                <SelectItem value="category">Agrupar por categoria</SelectItem>
+                <SelectItem value="cost_center">Agrupar por centro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex gap-2 sm:col-span-2 xl:col-span-4 xl:justify-end">
             <Button
               variant="outline"
@@ -392,7 +407,7 @@ export function FinancialManagementStatement() {
                       type="monotone"
                       dataKey="result"
                       name="Resultado"
-                      stroke="hsl(var(--primary))"
+                      stroke="var(--primary)"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
                     />
@@ -646,13 +661,13 @@ function ResultMetric({
     violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
   };
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-background p-3">
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
       <div className={`rounded-lg p-2 ${tones[tone]}`}>
         <Icon className="size-4" />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-lg font-semibold tabular-nums">
+        <p className="truncate text-base font-semibold tabular-nums">
           {percent
             ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`
             : money.format(value)}

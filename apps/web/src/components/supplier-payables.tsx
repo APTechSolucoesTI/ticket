@@ -377,7 +377,9 @@ export function SupplierPayables({
         <div>
           <div className="flex items-center gap-2">
             <CircleDollarSign className="size-5 text-primary" />
-            <CardTitle className="text-sm">Lançamentos de fornecedores</CardTitle>
+            <CardTitle className="financial-section-title text-sm">
+              Lançamentos de fornecedores
+            </CardTitle>
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
             Contas contratuais e lançamentos manuais da empresa operadora selecionada.

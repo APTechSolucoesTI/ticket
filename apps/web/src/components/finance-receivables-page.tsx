@@ -13,7 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/empty-stub";
+import { FinancialWorkspace } from "@/components/financial-workspace";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,27 +205,25 @@ export function FinanceReceivablesPage() {
       .reduce((sum, charge) => sum + Number(charge.valor_final), 0);
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Contas a receber"
-        subtitle="Atendimentos avulsos, medições contratuais e revisão das cobranças."
-        icon={BanknoteArrowDown}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            {access.edit && financialSettings.data?.use_collection_rules ? (
-              <Button variant="outline" className="gap-2" onClick={() => setCollectionOpen(true)}>
-                <BellRing className="size-4" /> Régua de cobrança
-              </Button>
-            ) : null}
-            {access.edit ? (
-              <Button variant="outline" className="gap-2" onClick={() => setPriceOpen(true)}>
-                <Settings2 className="size-4" /> Configurar preços
-              </Button>
-            ) : null}
-          </div>
-        }
-      />
-
+    <FinancialWorkspace
+      title="Contas a receber"
+      subtitle="Atendimentos avulsos, medições contratuais e revisão das cobranças."
+      icon={BanknoteArrowDown}
+      actions={
+        <div className="flex flex-wrap gap-2">
+          {access.edit && financialSettings.data?.use_collection_rules ? (
+            <Button variant="outline" className="gap-2" onClick={() => setCollectionOpen(true)}>
+              <BellRing className="size-4" /> Régua de cobrança
+            </Button>
+          ) : null}
+          {access.edit ? (
+            <Button variant="outline" className="gap-2" onClick={() => setPriceOpen(true)}>
+              <Settings2 className="size-4" /> Configurar preços
+            </Button>
+          ) : null}
+        </div>
+      }
+    >
       <Card>
         <CardContent className="max-w-md p-4">
           <Label htmlFor="receivable-company">Empresa operadora</Label>
@@ -235,7 +233,7 @@ export function FinanceReceivablesPage() {
                 placeholder={companies.isPending ? "Carregando empresas…" : "Selecione a empresa"}
               />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="[&_[cmdk-item]]:text-xs">
               <SelectItem value="__all__">Todas as empresas</SelectItem>
               {(companies.data ?? []).map((company) => (
                 <SelectItem key={company.id} value={company.id}>
@@ -316,9 +314,11 @@ export function FinanceReceivablesPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b">
+        <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 border-b sm:flex-row sm:items-center">
           <div>
-            <CardTitle className="text-base">Tickets para faturamento</CardTitle>
+            <CardTitle className="financial-section-title text-sm">
+              Tickets para faturamento
+            </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               Valores calculados pelo tempo apontado e revisados antes do faturamento manual.
             </p>
@@ -327,7 +327,7 @@ export function FinanceReceivablesPage() {
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="[&_[cmdk-item]]:text-xs">
               <SelectItem value="todos">Todos os status</SelectItem>
               {STATUS.slice(0, 4).map((status) => (
                 <SelectItem key={status.value} value={status.value}>
@@ -337,7 +337,7 @@ export function FinanceReceivablesPage() {
             </SelectContent>
           </Select>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-4">
           {chargesQuery.isLoading ? (
             <LoadingState label="Carregando cobranças…" />
           ) : chargesQuery.isError ? (
@@ -352,67 +352,70 @@ export function FinanceReceivablesPage() {
               description="Os tickets avulsos aparecerão aqui automaticamente."
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-24">Ação</TableHead>
-                  <TableHead>Ticket</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Tempo</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Revisão</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((charge) => (
-                  <TableRow key={charge.id}>
-                    <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => setEditing(charge)}>
-                        {access.edit ? "Revisar" : "Visualizar"}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        to="/tickets/$id"
-                        params={{ id: charge.ticket_id }}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        #{charge.tickets.number} {charge.tickets.subject}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{charge.tickets.companies?.name ?? "Sem cliente"}</TableCell>
-                    <TableCell>
-                      {Math.floor(charge.minutos_apurados / 60)}h {charge.minutos_apurados % 60}min
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold tabular-nums">
-                        {money.format(charge.valor_final)}
-                      </div>
-                      {charge.valor_ajustado_manualmente && (
-                        <div className="text-[10px] text-muted-foreground">Ajustado</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {charge.vencimento_em
-                        ? new Date(`${charge.vencimento_em}T12:00:00`).toLocaleDateString("pt-BR")
-                        : "Não definido"}
-                    </TableCell>
-                    <TableCell>
-                      <BillingStatusBadge status={effectiveStatus(charge)} />
-                    </TableCell>
-                    <TableCell>
-                      {charge.revisado_em ? (
-                        <span className="text-emerald-600">Revisado</span>
-                      ) : (
-                        <span className="text-amber-600">Pendente</span>
-                      )}
-                    </TableCell>
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Ação</TableHead>
+                    <TableHead>Ticket</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Tempo</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Revisão</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((charge) => (
+                    <TableRow key={charge.id}>
+                      <TableCell>
+                        <Button size="sm" variant="outline" onClick={() => setEditing(charge)}>
+                          {access.edit ? "Revisar" : "Visualizar"}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          to="/tickets/$id"
+                          params={{ id: charge.ticket_id }}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          #{charge.tickets.number} {charge.tickets.subject}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{charge.tickets.companies?.name ?? "Sem cliente"}</TableCell>
+                      <TableCell>
+                        {Math.floor(charge.minutos_apurados / 60)}h {charge.minutos_apurados % 60}
+                        min
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold tabular-nums">
+                          {money.format(charge.valor_final)}
+                        </div>
+                        {charge.valor_ajustado_manualmente && (
+                          <div className="text-[10px] text-muted-foreground">Ajustado</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {charge.vencimento_em
+                          ? new Date(`${charge.vencimento_em}T12:00:00`).toLocaleDateString("pt-BR")
+                          : "Não definido"}
+                      </TableCell>
+                      <TableCell>
+                        <BillingStatusBadge status={effectiveStatus(charge)} />
+                      </TableCell>
+                      <TableCell>
+                        {charge.revisado_em ? (
+                          <span className="text-emerald-600">Revisado</span>
+                        ) : (
+                          <span className="text-amber-600">Pendente</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -443,7 +446,7 @@ export function FinanceReceivablesPage() {
           void queryClient.invalidateQueries({ queryKey: ["avulso-price-table"] });
         }}
       />
-    </div>
+    </FinancialWorkspace>
   );
 }
 
@@ -467,8 +470,8 @@ function SummaryCard({
     green: "bg-emerald-500/10 text-emerald-600",
   };
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
+    <Card className="border bg-muted/20 shadow-none">
+      <CardContent className="flex items-center gap-3 p-3">
         <div className={`rounded-lg p-2.5 ${tones[tone]}`}>
           <Icon className="size-5" />
         </div>
@@ -476,7 +479,7 @@ function SummaryCard({
           <div className="text-xs text-muted-foreground">
             {label} · {count}
           </div>
-          <div className="truncate text-lg font-semibold tabular-nums">{money.format(value)}</div>
+          <div className="truncate text-base font-semibold tabular-nums">{money.format(value)}</div>
         </div>
       </CardContent>
     </Card>
@@ -574,7 +577,7 @@ function ChargeDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
                   {STATUS.map((status) => (
                     <SelectItem key={status.value} value={status.value}>
                       {status.label}

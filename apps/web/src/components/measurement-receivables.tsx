@@ -213,11 +213,11 @@ export function MeasurementReceivables({
     <Card>
       <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 border-b sm:flex-row">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600">
+          <div className="pt-0.5 text-primary">
             <FileCheck2 className="size-5" />
           </div>
           <div>
-            <CardTitle className="text-base">Contas a receber</CardTitle>
+            <CardTitle className="financial-section-title text-sm">Contas a receber</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               {receivables.length} lançamento(s) · {money.format(pendingTotal)} em aberto
             </p>
@@ -242,7 +242,7 @@ export function MeasurementReceivables({
             <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar origem">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="[&_[cmdk-item]]:text-xs">
               <SelectItem value="todos">Todas as origens</SelectItem>
               <SelectItem value="measurement">Medições</SelectItem>
               <SelectItem value="recurring">Ciclos recorrentes</SelectItem>
@@ -253,7 +253,7 @@ export function MeasurementReceivables({
             <SelectTrigger className="w-full shrink-0 sm:w-40">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="[&_[cmdk-item]]:text-xs">
               <SelectItem value="todos">Todos os status</SelectItem>
               {STATUS.map((status) => (
                 <SelectItem key={status.value} value={status.value}>
@@ -264,7 +264,7 @@ export function MeasurementReceivables({
           </Select>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-4">
         {query.isLoading ? (
           <LoadingState label="Carregando contas a receber…" />
         ) : query.isError ? (
@@ -279,7 +279,7 @@ export function MeasurementReceivables({
             description="Medições aprovadas, ciclos fechados e lançamentos manuais aparecerão aqui."
           />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border">
             <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
@@ -560,7 +560,7 @@ function ReceivableDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
                   {STATUS.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}

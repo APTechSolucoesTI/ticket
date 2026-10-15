@@ -15,7 +15,8 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { FinancialWorkspace } from "@/components/financial-workspace";
 import {
   Dialog,
   DialogContent,
@@ -394,16 +395,12 @@ export function BankReconciliationDashboard({
   });
 
   return (
-    <Card id="bank-reconciliation">
-      <CardHeader className="sticky top-0 z-30 gap-4 border-b bg-card p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            <Landmark className="size-5 text-primary" /> Conciliação bancária
-          </CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Importe extratos OFX e revise os movimentos sem correspondência única.
-          </p>
-        </div>
+    <FinancialWorkspace
+      id="bank-reconciliation"
+      title="Banco e conciliação"
+      subtitle="Importe extratos OFX e revise os movimentos sem correspondência única."
+      icon={Landmark}
+      actions={
         <div className="flex flex-wrap gap-2">
           {onConfigureOperator ? (
             <Button variant="outline" onClick={onConfigureOperator}>
@@ -442,370 +439,385 @@ export function BankReconciliationDashboard({
             Importar OFX
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          <Select
-            value={companyId}
-            onValueChange={(value) => {
-              setCompanyId(value);
-              setAccountId("");
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Empresa operadora" />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.data?.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.legal_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Conta bancária" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.data?.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name} · {item.bank_name} · {item.account_number}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {accounts.isLoading ? (
-          <LoadingState />
-        ) : accounts.isError ? (
-          <ErrorState
-            title="Não foi possível carregar as contas bancárias"
-            description="Atualize a consulta para tentar novamente."
-            action={{ label: "Atualizar", onClick: () => void accounts.refetch() }}
-          />
-        ) : !accounts.data?.length ? (
-          <EmptyState
-            title="Nenhuma conta bancária"
-            description="Cadastre uma conta operacional para importar extratos."
-          />
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Metric label="Pendentes" value={String(pending)} />
-              <Metric label="Conciliados" value={String(matched)} />
-              <Metric label="Saldo dos movimentos" value={money.format(balance)} />
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar histórico, documento ou contraparte"
-                />
-              </div>
-              <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
-                <SelectTrigger className="sm:w-52">
-                  <SelectValue />
+      }
+    >
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="bank-company">Empresa operadora</Label>
+              <Select
+                value={companyId}
+                onValueChange={(value) => {
+                  setCompanyId(value);
+                  setAccountId("");
+                }}
+              >
+                <SelectTrigger id="bank-company">
+                  <SelectValue placeholder="Empresa operadora" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  {Object.entries(statusLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  {companies.data?.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.legal_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {transactions.isLoading ? (
-              <LoadingState />
-            ) : transactions.isError ? (
-              <ErrorState
-                title="Não foi possível carregar os movimentos"
-                description="Atualize a consulta para tentar novamente."
-                action={{ label: "Atualizar", onClick: () => void transactions.refetch() }}
-              />
-            ) : !filtered.length ? (
-              <EmptyState
-                title="Nenhum movimento encontrado"
-                description="Importe um OFX ou ajuste os filtros."
-              />
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-28">Ações</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Histórico</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Correspondência</TableHead>
-                      <TableHead>Classificação</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            {canEdit ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Classificar movimento ${item.memo}`}
-                                onClick={() => setClassifying(item)}
-                              >
-                                <Tags className="size-4" />
-                              </Button>
-                            ) : null}
-                            {item.reconciliation_status === "pending_review" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={!canEdit}
-                                onClick={() => {
-                                  setReviewing(item);
-                                  setCandidateId("");
-                                  setNotes("");
-                                }}
-                              >
-                                Revisar
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {dateFormat.format(new Date(`${item.posted_at}T00:00:00Z`))}
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium">{item.memo}</p>
-                          {item.document_number && (
-                            <p className="text-xs text-muted-foreground">
-                              Doc. {item.document_number}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right font-semibold ${item.amount < 0 ? "text-red-600" : "text-emerald-600"}`}
-                        >
-                          {money.format(item.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              item.reconciliation_status === "pending_review"
-                                ? "destructive"
-                                : "secondary"
-                            }
-                          >
-                            {statusLabels[item.reconciliation_status]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <p>{item.match_document_number ?? "Sem vínculo"}</p>
-                          {item.match_counterparty_name && (
-                            <p className="text-xs text-muted-foreground">
-                              {item.match_counterparty_name}
-                            </p>
-                          )}
-                          {Number(item.difference_amount) !== 0 &&
-                            item.difference_amount !== null && (
-                              <p className="text-xs text-amber-700">
-                                Diferença: {money.format(item.difference_amount)}
-                              </p>
-                            )}
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-xs font-medium">
-                            {item.financial_category_name ?? "Não classificado"}
-                          </p>
-                          {item.cost_center_name ? (
-                            <p className="text-[11px] text-muted-foreground">
-                              {item.cost_center_name}
-                            </p>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-
-      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nova conta bancária</DialogTitle>
-            <DialogDescription>
-              A conta fica vinculada somente à empresa operadora selecionada.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Nome"
-              value={accountForm.name}
-              onChange={(value) => setAccountForm((old) => ({ ...old, name: value }))}
-            />
-            <Field
-              label="Código do banco"
-              value={accountForm.bankCode}
-              onChange={(value) => setAccountForm((old) => ({ ...old, bankCode: value }))}
-            />
-            <Field
-              label="Banco"
-              value={accountForm.bankName}
-              onChange={(value) => setAccountForm((old) => ({ ...old, bankName: value }))}
-            />
-            <Field
-              label="Agência"
-              value={accountForm.branch}
-              onChange={(value) => setAccountForm((old) => ({ ...old, branch: value }))}
-            />
-            <Field
-              label="Conta"
-              value={accountForm.accountNumber}
-              onChange={(value) => setAccountForm((old) => ({ ...old, accountNumber: value }))}
-            />
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select
-                value={accountForm.accountType}
-                onValueChange={(value) => setAccountForm((old) => ({ ...old, accountType: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="bank-account">Conta bancária</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger id="bank-account">
+                  <SelectValue placeholder="Conta bancária" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="checking">Corrente</SelectItem>
-                  <SelectItem value="savings">Poupança</SelectItem>
-                  <SelectItem value="payment">Pagamento</SelectItem>
+                <SelectContent className="[&_[cmdk-item]]:text-xs">
+                  {accounts.data?.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} · {item.bank_name} · {item.account_number}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Saldo inicial</Label>
-              <FinancialCurrencyInput
-                allowNegative
-                value={accountForm.openingBalance}
-                onValueChange={(value) =>
-                  setAccountForm((old) => ({ ...old, openingBalance: value }))
-                }
-              />
-            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAccountOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => saveAccount.mutate()} disabled={saveAccount.isPending}>
-              {saveAccount.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(reviewing)}
-        onOpenChange={(open) => {
-          if (!open) setReviewing(undefined);
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Revisar movimento bancário</DialogTitle>
-            <DialogDescription>
-              {reviewing && `${reviewing.memo} · ${money.format(reviewing.amount)}`}
-            </DialogDescription>
-          </DialogHeader>
-          {candidates.isLoading ? (
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          {accounts.isLoading ? (
             <LoadingState />
+          ) : accounts.isError ? (
+            <ErrorState
+              title="Não foi possível carregar as contas bancárias"
+              description="Atualize a consulta para tentar novamente."
+              action={{ label: "Atualizar", onClick: () => void accounts.refetch() }}
+            />
+          ) : !accounts.data?.length ? (
+            <EmptyState
+              title="Nenhuma conta bancária"
+              description="Cadastre uma conta operacional para importar extratos."
+            />
           ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Lançamento financeiro</Label>
-                <Select value={candidateId} onValueChange={setCandidateId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a correspondência" />
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Metric label="Pendentes" value={String(pending)} />
+                <Metric label="Conciliados" value={String(matched)} />
+                <Metric label="Saldo dos movimentos" value={money.format(balance)} />
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar histórico, documento ou contraparte"
+                  />
+                </div>
+                <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
+                  <SelectTrigger className="sm:w-52">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    {candidates.data?.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.document} · {item.counterparty} · {money.format(item.amount)} ·{" "}
-                        {dateFormat.format(new Date(`${item.date}T00:00:00Z`))}
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    {Object.entries(statusLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+              {transactions.isLoading ? (
+                <LoadingState />
+              ) : transactions.isError ? (
+                <ErrorState
+                  title="Não foi possível carregar os movimentos"
+                  description="Atualize a consulta para tentar novamente."
+                  action={{ label: "Atualizar", onClick: () => void transactions.refetch() }}
+                />
+              ) : !filtered.length ? (
+                <EmptyState
+                  title="Nenhum movimento encontrado"
+                  description="Importe um OFX ou ajuste os filtros."
+                />
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-28">Ações</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Histórico</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Correspondência</TableHead>
+                        <TableHead>Classificação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {canEdit ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label={`Classificar movimento ${item.memo}`}
+                                  onClick={() => setClassifying(item)}
+                                >
+                                  <Tags className="size-4" />
+                                </Button>
+                              ) : null}
+                              {item.reconciliation_status === "pending_review" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={!canEdit}
+                                  onClick={() => {
+                                    setReviewing(item);
+                                    setCandidateId("");
+                                    setNotes("");
+                                  }}
+                                >
+                                  Revisar
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {dateFormat.format(new Date(`${item.posted_at}T00:00:00Z`))}
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium">{item.memo}</p>
+                            {item.document_number && (
+                              <p className="text-xs text-muted-foreground">
+                                Doc. {item.document_number}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right font-semibold ${item.amount < 0 ? "text-red-600" : "text-emerald-600"}`}
+                          >
+                            {money.format(item.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                item.reconciliation_status === "pending_review"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                            >
+                              {statusLabels[item.reconciliation_status]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <p>{item.match_document_number ?? "Sem vínculo"}</p>
+                            {item.match_counterparty_name && (
+                              <p className="text-xs text-muted-foreground">
+                                {item.match_counterparty_name}
+                              </p>
+                            )}
+                            {Number(item.difference_amount) !== 0 &&
+                              item.difference_amount !== null && (
+                                <p className="text-xs text-amber-700">
+                                  Diferença: {money.format(item.difference_amount)}
+                                </p>
+                              )}
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-xs font-medium">
+                              {item.financial_category_name ?? "Não classificado"}
+                            </p>
+                            {item.cost_center_name ? (
+                              <p className="text-[11px] text-muted-foreground">
+                                {item.cost_center_name}
+                              </p>
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+
+        <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nova conta bancária</DialogTitle>
+              <DialogDescription>
+                A conta fica vinculada somente à empresa operadora selecionada.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Nome"
+                value={accountForm.name}
+                onChange={(value) => setAccountForm((old) => ({ ...old, name: value }))}
+              />
+              <Field
+                label="Código do banco"
+                value={accountForm.bankCode}
+                onChange={(value) => setAccountForm((old) => ({ ...old, bankCode: value }))}
+              />
+              <Field
+                label="Banco"
+                value={accountForm.bankName}
+                onChange={(value) => setAccountForm((old) => ({ ...old, bankName: value }))}
+              />
+              <Field
+                label="Agência"
+                value={accountForm.branch}
+                onChange={(value) => setAccountForm((old) => ({ ...old, branch: value }))}
+              />
+              <Field
+                label="Conta"
+                value={accountForm.accountNumber}
+                onChange={(value) => setAccountForm((old) => ({ ...old, accountNumber: value }))}
+              />
               <div className="space-y-2">
-                <Label>Observação ou justificativa</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Obrigatória ao ignorar o movimento"
+                <Label>Tipo</Label>
+                <Select
+                  value={accountForm.accountType}
+                  onValueChange={(value) =>
+                    setAccountForm((old) => ({ ...old, accountType: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
+                    <SelectItem value="checking">Corrente</SelectItem>
+                    <SelectItem value="savings">Poupança</SelectItem>
+                    <SelectItem value="payment">Pagamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Saldo inicial</Label>
+                <FinancialCurrencyInput
+                  allowNegative
+                  value={accountForm.openingBalance}
+                  onValueChange={(value) =>
+                    setAccountForm((old) => ({ ...old, openingBalance: value }))
+                  }
                 />
               </div>
             </div>
-          )}
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button
-              variant="destructive"
-              disabled={resolve.isPending || notes.trim().length < 3}
-              onClick={() => resolve.mutate("ignore")}
-            >
-              <Unlink className="mr-2 size-4" />
-              Ignorar
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setReviewing(undefined)}>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAccountOpen(false)}>
                 Cancelar
               </Button>
-              <Button
-                disabled={resolve.isPending || !candidateId}
-                onClick={() => resolve.mutate("match")}
-              >
-                {resolve.isPending ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <RefreshCcw className="mr-2 size-4" />
-                )}
-                Conciliar
+              <Button onClick={() => saveAccount.mutate()} disabled={saveAccount.isPending}>
+                {saveAccount.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Salvar
               </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {classifying ? (
-        <FinancialEntryClassificationDialog
-          entry={{
-            source_type: "bank_transaction",
-            source_id: classifying.id,
-            direction: classifying.amount >= 0 ? "inflow" : "outflow",
-            document_number: classifying.document_number || classifying.posted_at,
-            counterparty_name: classifying.memo,
-            operating_company_id: companyId,
-            financial_category_id: classifying.financial_category_id,
-            category_allocations: classifying.category_allocations,
-            cost_center_allocations: classifying.cost_center_allocations,
-            cost_center_id: classifying.cost_center_id,
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={Boolean(reviewing)}
+          onOpenChange={(open) => {
+            if (!open) setReviewing(undefined);
           }}
-          onClose={() => setClassifying(undefined)}
-          onSaved={() => {
-            setClassifying(undefined);
-            void queryClient.invalidateQueries({
-              queryKey: ["bank-statement-transactions", companyId, accountId],
-            });
-          }}
-        />
-      ) : null}
-    </Card>
+        >
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Revisar movimento bancário</DialogTitle>
+              <DialogDescription>
+                {reviewing && `${reviewing.memo} · ${money.format(reviewing.amount)}`}
+              </DialogDescription>
+            </DialogHeader>
+            {candidates.isLoading ? (
+              <LoadingState />
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Lançamento financeiro</Label>
+                  <Select value={candidateId} onValueChange={setCandidateId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a correspondência" />
+                    </SelectTrigger>
+                    <SelectContent className="[&_[cmdk-item]]:text-xs">
+                      {candidates.data?.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.document} · {item.counterparty} · {money.format(item.amount)} ·{" "}
+                          {dateFormat.format(new Date(`${item.date}T00:00:00Z`))}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Observação ou justificativa</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    placeholder="Obrigatória ao ignorar o movimento"
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2 sm:justify-between">
+              <Button
+                variant="destructive"
+                disabled={resolve.isPending || notes.trim().length < 3}
+                onClick={() => resolve.mutate("ignore")}
+              >
+                <Unlink className="mr-2 size-4" />
+                Ignorar
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setReviewing(undefined)}>
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={resolve.isPending || !candidateId}
+                  onClick={() => resolve.mutate("match")}
+                >
+                  {resolve.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="mr-2 size-4" />
+                  )}
+                  Conciliar
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {classifying ? (
+          <FinancialEntryClassificationDialog
+            entry={{
+              source_type: "bank_transaction",
+              source_id: classifying.id,
+              direction: classifying.amount >= 0 ? "inflow" : "outflow",
+              document_number: classifying.document_number || classifying.posted_at,
+              counterparty_name: classifying.memo,
+              operating_company_id: companyId,
+              financial_category_id: classifying.financial_category_id,
+              category_allocations: classifying.category_allocations,
+              cost_center_allocations: classifying.cost_center_allocations,
+              cost_center_id: classifying.cost_center_id,
+            }}
+            onClose={() => setClassifying(undefined)}
+            onSaved={() => {
+              setClassifying(undefined);
+              void queryClient.invalidateQueries({
+                queryKey: ["bank-statement-transactions", companyId, accountId],
+              });
+            }}
+          />
+        ) : null}
+      </Card>
+    </FinancialWorkspace>
   );
 }
 
@@ -813,7 +825,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border bg-muted/20 p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="mt-1 text-base font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

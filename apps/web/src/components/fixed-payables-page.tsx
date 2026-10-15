@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Eye, Loader2, Pencil, Plus, Power, Repeat2, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/empty-stub";
+import { FinancialWorkspace } from "@/components/financial-workspace";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -139,15 +139,19 @@ export function FixedPayablesPage() {
   );
   const forecasts = allOccurrences.filter((o) => o.status === "forecast");
   return (
-    <section className="space-y-5" aria-labelledby="fixed-payables-title">
-      <PageHeader
-        title="Contas a pagar fixas"
-        titleId="fixed-payables-title"
-        subtitle="Despesas mensais, previsões e confirmação dos documentos de cada competência."
-        icon={Repeat2}
-      />
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="w-full space-y-1.5 sm:max-w-sm">
+    <FinancialWorkspace
+      title="Contas a pagar fixas"
+      titleId="fixed-payables-title"
+      subtitle="Despesas mensais, previsões e confirmação dos documentos de cada competência."
+      icon={Repeat2}
+      actions={
+        <Button variant="outline" asChild>
+          <Link to="/finance/payables">Contas a pagar</Link>
+        </Button>
+      }
+    >
+      <Card>
+        <CardContent className="max-w-md space-y-1 p-4">
           <Label htmlFor="fixed-company">Empresa operadora</Label>
           <Select
             value={companyId}
@@ -159,7 +163,7 @@ export function FixedPayablesPage() {
             <SelectTrigger id="fixed-company">
               <SelectValue placeholder="Selecione a empresa" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="[&_[cmdk-item]]:text-xs">
               {(companies.data ?? []).map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.legal_name}
@@ -167,19 +171,8 @@ export function FixedPayablesPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/finance/payables">Contas a pagar</Link>
-          </Button>
-          {access.edit ? (
-            <Button disabled={!companyId} onClick={() => setForm({})}>
-              <Plus className="mr-2 size-4" />
-              Nova conta fixa
-            </Button>
-          ) : null}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       {companies.isPending ? (
         <LoadingState label="Carregando empresas…" />
       ) : companies.isError ? (
@@ -196,7 +189,7 @@ export function FixedPayablesPage() {
       ) : (
         <>
           <Card>
-            <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
+            <CardContent className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
               <div>
                 <p className="text-sm font-semibold">Previsões aguardando confirmação</p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -204,7 +197,7 @@ export function FixedPayablesPage() {
                 </p>
               </div>
               <div className="sm:text-right">
-                <p className="text-2xl font-semibold tabular-nums">
+                <p className="text-base font-semibold tabular-nums">
                   {fixedMoney.format(forecasts.reduce((sum, o) => sum + Number(o.total_amount), 0))}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -216,7 +209,16 @@ export function FixedPayablesPage() {
           </Card>
           <Card>
             <CardHeader className="gap-3 border-b">
-              <CardTitle className="text-base">Despesas recorrentes</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="financial-section-title text-sm">
+                  Despesas recorrentes
+                </CardTitle>
+                {access.edit ? (
+                  <Button disabled={!companyId} onClick={() => setForm({})}>
+                    <Plus className="size-4" /> Nova conta fixa
+                  </Button>
+                ) : null}
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -232,7 +234,7 @@ export function FixedPayablesPage() {
                   <SelectTrigger className="sm:w-44" aria-label="Situação dos modelos">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="[&_[cmdk-item]]:text-xs">
                     <SelectItem value="all">Todas as situações</SelectItem>
                     <SelectItem value="active">Ativas</SelectItem>
                     <SelectItem value="inactive">Inativas</SelectItem>
@@ -240,7 +242,7 @@ export function FixedPayablesPage() {
                 </Select>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-4">
               {templates.isPending || occurrences.isPending ? (
                 <LoadingState label="Carregando contas fixas…" />
               ) : templates.isError || occurrences.isError ? (
@@ -265,7 +267,7 @@ export function FixedPayablesPage() {
                   }
                 />
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-lg border">
                   <Table className="min-w-[1100px]">
                     <TableHeader>
                       <TableRow>
@@ -394,7 +396,7 @@ export function FixedPayablesPage() {
               <SelectTrigger className="sm:w-52" aria-label="Filtrar previsões">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="[&_[cmdk-item]]:text-xs">
                 <SelectItem value="all">Todas as competências</SelectItem>
                 <SelectItem value="forecast">Previsões</SelectItem>
                 <SelectItem value="confirmed">Confirmadas</SelectItem>
@@ -542,6 +544,6 @@ export function FixedPayablesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </section>
+    </FinancialWorkspace>
   );
 }
