@@ -17,6 +17,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId, getToken } from "@/lib/session";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChannelIcon, type TicketChannel } from "@/components/ticket/ChannelIcon";
 import { PriorityBadge, type TicketPriority } from "@/components/ticket/PriorityBadge";
@@ -1260,20 +1267,26 @@ function TicketDetailPage() {
             </CardHeader>
             <CardContent className="space-y-2 p-3 pt-0 text-xs">
               <Row label="Status">
-                <select
+                <Select
                   value={ticket.status}
                   disabled={readOnly || updateTicket.isPending}
-                  aria-label="Status do ticket"
-                  aria-busy={updateTicket.isPending}
-                  onChange={(e) => requestStatusChange(e.target.value as TicketStatus)}
-                  className="h-6 rounded-md border bg-background px-1 text-xs disabled:opacity-50"
+                  onValueChange={(value) => requestStatusChange(value as TicketStatus)}
                 >
-                  <option value="new">Novo</option>
-                  <option value="in_progress">Em atendimento</option>
-                  <option value="pending">Pendente</option>
-                  <option value="resolved">Resolvido</option>
-                  <option value="closed">Fechado</option>
-                </select>
+                  <SelectTrigger
+                    aria-label="Status do ticket"
+                    aria-busy={updateTicket.isPending}
+                    className="h-6 w-auto max-w-full px-1 text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">Novo</SelectItem>
+                    <SelectItem value="in_progress">Em atendimento</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="resolved">Resolvido</SelectItem>
+                    <SelectItem value="closed">Fechado</SelectItem>
+                  </SelectContent>
+                </Select>
               </Row>
               <Row label="Atual">
                 <TicketBadge status={ticket.status as TicketStatus} />
@@ -1284,21 +1297,29 @@ function TicketDetailPage() {
                 </Row>
               )}
               <Row label="Técnico">
-                <select
-                  value={ticket.assigned_to ?? ""}
+                <Select
+                  value={ticket.assigned_to ?? "__none__"}
                   disabled={readOnly || updateTicket.isPending}
-                  aria-label="Técnico responsável"
-                  aria-busy={updateTicket.isPending}
-                  onChange={(e) => updateTicket.mutate({ assigned_to: e.target.value || null })}
-                  className="h-6 rounded-md border bg-background px-1 text-xs disabled:opacity-50"
+                  onValueChange={(value) =>
+                    updateTicket.mutate({ assigned_to: value === "__none__" ? null : value })
+                  }
                 >
-                  <option value="">Não atribuído</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    aria-label="Técnico responsável"
+                    aria-busy={updateTicket.isPending}
+                    className="h-6 w-auto max-w-full px-1 text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Não atribuído</SelectItem>
+                    {agents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Row>
               <Row label="Prioridade">
                 <PriorityBadge priority={ticket.priority as TicketPriority} />
@@ -1623,20 +1644,18 @@ function TicketDetailPage() {
                 </Button>
               </div>
             )}
-            <select
-              id="pause-reason"
-              autoFocus
-              value={pauseReasonId}
-              onChange={(event) => setPauseReasonId(event.target.value)}
-              className="mt-1.5 h-9 w-full rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="">Selecione um motivo</option>
-              {pauseReasons.map((reason) => (
-                <option key={reason.id} value={reason.id}>
-                  {reason.name}
-                </option>
-              ))}
-            </select>
+            <Select value={pauseReasonId} onValueChange={setPauseReasonId}>
+              <SelectTrigger id="pause-reason" autoFocus className="mt-1.5">
+                <SelectValue placeholder="Selecione um motivo" />
+              </SelectTrigger>
+              <SelectContent>
+                {pauseReasons.map((reason) => (
+                  <SelectItem key={reason.id} value={reason.id}>
+                    {reason.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <label className="mt-3 block text-xs font-medium" htmlFor="pause-complement">
               Complemento
               {pauseReasons.find((reason) => reason.id === pauseReasonId)?.name === "Outro" && (

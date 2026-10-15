@@ -15,6 +15,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -116,23 +123,26 @@ export function InterBindingDialog({ onClose }: { onClose(): void }) {
             {(companies.data?.length ?? 0) > 1 && (
               <label className="space-y-1 text-sm">
                 Empresa
-                <select
-                  aria-label="Empresa operadora"
-                  className="w-full rounded-md border bg-background p-2"
+                <Select
                   value={company.id}
                   disabled={busy}
-                  onChange={(e) => {
-                    setSelected(e.target.value);
+                  onValueChange={(value) => {
+                    setSelected(value);
                     setConfirmation("");
                     mutation.reset();
                   }}
                 >
-                  {companies.data?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.legal_name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger aria-label="Empresa operadora">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.data?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.legal_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
             )}
             <div className="min-w-0 rounded-lg border bg-muted/30 p-4">

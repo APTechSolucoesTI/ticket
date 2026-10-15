@@ -58,7 +58,7 @@ try {
     await page.getByRole("combobox", { name: "Empresa operadora", exact: true }).click();
     await page.getByRole("option", { name: "Operadora teste", exact: true }).click();
     await page.getByRole("button", { name: "Classificações", exact: true }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Classificações financeiras", exact: true });
     if (kind === "cost_center") await dialog.getByRole("tab", { name: "Centros de custo", exact: true }).click();
     await dialog.getByRole("button", { name: "Adicionar abaixo de Subgrupo", exact: true }).click();
     const code = dialog.locator("#dimension-code"), name = dialog.locator("#dimension-name");

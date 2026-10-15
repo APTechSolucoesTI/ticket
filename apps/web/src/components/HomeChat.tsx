@@ -2,6 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { CustomerChatComposer } from "@/components/chat/CustomerChatComposer";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AttachmentPreview, type Attachment } from "@/components/ticket/AttachmentPreview";
 import {
   getPortalToken,
@@ -413,18 +420,21 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
             </div>
             {session.contracts.length > 1 && (
               <div>
-                <label className="text-xs font-medium block mb-1">Contrato</label>
-                <select
-                  value={contractId}
-                  onChange={(e) => setContractId(e.target.value)}
-                  className="w-full rounded-md border border-input px-2 py-2 text-sm"
-                >
-                  {session.contracts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <label htmlFor="chat-contract" className="text-xs font-medium block mb-1">
+                  Contrato
+                </label>
+                <Select value={contractId} onValueChange={setContractId}>
+                  <SelectTrigger id="chat-contract">
+                    <SelectValue placeholder="Selecione o contrato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {session.contracts.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             {session.contracts.find((c) => c.id === contractId)?.description && (

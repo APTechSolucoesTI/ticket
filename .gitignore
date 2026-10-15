@@ -19,6 +19,7 @@ bun.lock
 /artifacts/payable-mutations/
 /artifacts/entry-allocations/
 /artifacts/fixed-payables/
+/artifacts/searchable-select/
 logs
 *.log
 npm-debug.log*

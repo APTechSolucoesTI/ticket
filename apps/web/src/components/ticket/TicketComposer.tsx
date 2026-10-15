@@ -16,6 +16,13 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
@@ -381,21 +388,27 @@ export function TicketComposer({
           </button>
         </div>
 
-        <select
-          className="h-6 rounded-md border bg-background px-1 text-[11px]"
-          onChange={(e) => {
-            const c = cannedList.find((x) => x.id === e.target.value);
+        <Select
+          value=""
+          onValueChange={(value) => {
+            const c = cannedList.find((x) => x.id === value);
             if (c) setReply((r) => (r ? r + "\n\n" : "") + applyTemplate(c.body));
-            e.target.value = "";
           }}
         >
-          <option value="">Respostas padrão…</option>
-          {cannedList.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            aria-label="Respostas padrão"
+            className="h-6 w-auto max-w-full px-1 text-[11px]"
+          >
+            <SelectValue placeholder="Respostas padrão…" />
+          </SelectTrigger>
+          <SelectContent className="min-w-64">
+            {cannedList.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {!internal && agentName && (
           <span className="text-[10px] text-muted-foreground">

@@ -15,7 +15,11 @@ const allocate = (items, values) => items.map((item, i) => ({ item_id: item.id, 
 const snapshotPayload = (p) => ({ ...p, category_allocations: p.category_allocations.map((a) => ({ ...categories.find((c) => c.id === a.item_id), ...a })), cost_center_allocations: p.cost_center_allocations.map((a) => ({ ...centers.find((c) => c.id === a.item_id), ...a })) });
 const app = spawn(process.execPath, ["apps/web/.output/server/index.mjs"], { env: { ...process.env, PORT: "4173", HOST: "127.0.0.1", SUPABASE_URL: "http://127.0.0.1:4189", SUPABASE_PUBLISHABLE_KEY: "fixture", SUPABASE_SERVICE_ROLE_KEY: "fixture", JWT_SECRET: "fixed-payables-isolated-secret" }, stdio: "ignore" });
 let browser, active;
-const choose = async (page, trigger, name) => { await trigger.click(); await page.getByRole("option", { name, exact: true }).click(); };
+const choose = async (page, trigger, name) => {
+  await trigger.click();
+  await page.getByRole("option", { name, exact: true }).click();
+  await page.getByRole("dialog", { name: "Selecionar opção", exact: true }).waitFor({ state: "hidden" });
+};
 try {
   for (let i = 0; i < 100; i++) { try { if ((await fetch("http://127.0.0.1:4173")).ok) break; } catch {} await new Promise((r) => setTimeout(r, 100)); }
   mkdirSync("artifacts/fixed-payables", { recursive: true });
