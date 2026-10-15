@@ -1,19 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  FolderTree,
-  Loader2,
-  Pencil,
-  Plus,
-  Tags,
-  Trash2,
-} from "lucide-react";
+import { FolderTree, Loader2, Tags } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,122 +11,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { ErrorState, LoadingState } from "@/components/data-state";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
-import { cn } from "@/lib/utils";
-
-type ClassificationType = "analytic" | "synthetic";
-type FinancialDimensionBase = {
-  id: string;
-  operating_company_id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  is_global: boolean;
-  is_active: boolean;
-  classification_type: ClassificationType;
-};
-export type FinancialCategory = FinancialDimensionBase & {
-  direction: "inflow" | "outflow" | "both";
-};
-export type FinancialCostCenter = FinancialDimensionBase;
-type Dimension = FinancialCategory | FinancialCostCenter;
-type Editor = {
-  kind: "category" | "cost_center";
-  id: string | null;
-  code: string;
-  name: string;
-  direction: FinancialCategory["direction"];
-  description: string;
-  isGlobal: boolean;
-  isActive: boolean;
-  classificationType: ClassificationType;
-};
-type Company = { id: string; legal_name: string; trade_name: string | null };
-
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { DimensionEditor } from "@/components/financial-dimension-editor";
+import { DimensionList } from "@/components/financial-dimension-list";
+import {
+  isValidCode,
+  codeLevel,
+  suggestedChildCode,
+  suggestedRootCode,
+  type ClassificationType,
+  type FinancialCategory,
+  type FinancialCostCenter,
+  type Company,
+  type Editor,
+  type Dimension,
+  type Dependencies,
+  type PendingAction,
+} from "@/lib/financial-dimensions";
+export type { FinancialCategory, FinancialCostCenter } from "@/lib/financial-dimensions";
 const db = supabase as unknown as SupabaseClient;
-const FULL_CODE_PATTERN = /^\d{2}\.\d{2}\.\d{4}$/;
-const HIERARCHICAL_CODE_PATTERN = /^(?:\d{2}|\d{2}\.\d{2}|\d{2}\.\d{2}\.\d{4})$/;
-
-function isValidCode(code: string, type: ClassificationType) {
-  if (!HIERARCHICAL_CODE_PATTERN.test(code)) return false;
-  return type === "analytic" ? FULL_CODE_PATTERN.test(code) : true;
-}
-
-function maskCode(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(Boolean).join(".");
-}
-
-function codeLevel(code: string) {
-  if (!FULL_CODE_PATTERN.test(code)) return Math.max(0, code.split(".").length - 1);
-  const [, middle = "00", last = "0000"] = code.split(".");
-  return last !== "0000" ? 2 : middle !== "00" ? 1 : 0;
-}
-
-function isDescendantCode(parentCode: string, childCode: string) {
-  if (parentCode === childCode) return false;
-  if (!FULL_CODE_PATTERN.test(parentCode) || !FULL_CODE_PATTERN.test(childCode)) {
-    return childCode.startsWith(`${parentCode}.`);
-  }
-
-  const parent = parentCode.split(".");
-  const child = childCode.split(".");
-  const parentLevel = codeLevel(parentCode);
-  const childLevel = codeLevel(childCode);
-  if (childLevel <= parentLevel || parent[0] !== child[0]) return false;
-  if (parentLevel === 0) return true;
-  return parent[1] === child[1];
-}
-
-function suggestedChildCode(parentCode: string, items: Dimension[], compact = false) {
-  const [first = "00", middle = "00"] = parentCode.split(".");
-  const level = codeLevel(parentCode);
-  if (level === 0) {
-    const next =
-      Math.max(
-        0,
-        ...items
-          .filter((item) => item.code.startsWith(`${first}.`) && codeLevel(item.code) === 1)
-          .map((item) => Number(item.code.split(".")[1])),
-      ) + 1;
-    const child = `${first}.${String(next).padStart(2, "0")}`;
-    return compact ? child : `${child}.0000`;
-  }
-  const next =
-    Math.max(
-      0,
-      ...items
-        .filter((item) => item.code.startsWith(`${first}.${middle}.`) && codeLevel(item.code) === 2)
-        .map((item) => Number(item.code.split(".")[2])),
-    ) + 1;
-  return `${first}.${middle}.${String(next).padStart(4, "0")}`;
-}
-
-function suggestedRootCode(items: Dimension[]) {
-  const next =
-    Math.max(
-      0,
-      ...items
-        .filter((item) => codeLevel(item.code) === 0)
-        .map((item) => Number(item.code.split(".")[0])),
-    ) + 1;
-  return String(next).padStart(2, "0");
-}
-
 export function FinancialDimensionsDialog({
   companyId,
   canEdit,
@@ -149,6 +54,25 @@ export function FinancialDimensionsDialog({
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<Editor>();
+  const [pendingAction, setPendingAction] = useState<PendingAction>();
+  const [tab, setTab] = useState("categories");
+  const inspectedId =
+    pendingAction?.kind === "category"
+      ? pendingAction.item.id
+      : editor?.kind === "category"
+        ? editor.id
+        : null;
+  const dependencies = useQuery({
+    queryKey: ["financial-category-dependencies", inspectedId],
+    enabled: Boolean(canEdit && inspectedId),
+    queryFn: async () => {
+      const { data, error } = await db.rpc("get_financial_category_dependencies", {
+        p_id: inspectedId!,
+      });
+      if (error) throw error;
+      return data as Dependencies;
+    },
+  });
   const query = useQuery({
     queryKey: ["financial-dimensions", companyId],
     queryFn: async () => {
@@ -193,10 +117,21 @@ export function FinancialDimensionsDialog({
     [query.data?.companies],
   );
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["financial-dimensions", companyId] });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["financial-dimensions"] }),
+      queryClient.invalidateQueries({
+        queryKey: ["financial-category-dependencies"],
+        refetchType: "none",
+      }),
+      queryClient.invalidateQueries({ queryKey: ["contract-allocation-options"] }),
+    ]);
   const save = useMutation({
     mutationFn: async (value: Editor) => {
-      if (!isValidCode(value.code, value.classificationType) || value.name.trim().length < 2) {
+      if (
+        !isValidCode(value.code, value.classificationType) ||
+        value.name.trim().length < 2 ||
+        (value.kind === "category" && !value.direction)
+      ) {
         throw new Error(
           value.kind === "category"
             ? "Use 99, 99.99 ou 99.99.9999 para categorias sintéticas e 99.99.9999 para analíticas."
@@ -214,17 +149,29 @@ export function FinancialDimensionsDialog({
         p_classification_type: value.classificationType,
       };
       const result =
-        value.kind === "category"
-          ? await db.rpc("save_financial_category", {
-              ...common,
+        value.kind === "category" && !value.id
+          ? await db.rpc("create_financial_category", {
+              p_operating_company_id: companyId,
+              p_parent_id: value.parentId,
+              p_name: value.name,
               p_direction: value.direction,
+              p_description: value.description || null,
+              p_is_global: value.isGlobal,
+              p_is_active: value.isActive,
+              p_classification_type: value.classificationType,
             })
-          : await db.rpc("save_financial_cost_center", common);
+          : value.kind === "category"
+            ? await db.rpc("save_financial_category", {
+                ...common,
+                p_direction: value.direction,
+              })
+            : await db.rpc("save_financial_cost_center", common);
       if (result.error) throw result.error;
     },
     onSuccess: async (_, value) => {
       toast.success(value.id ? "Classificação atualizada." : "Classificação cadastrada.");
       setEditor(undefined);
+      setPendingAction(undefined);
       await refresh();
     },
     onError: (error) => toast.error(getUserFacingError(error, "salvar o cadastro financeiro")),
@@ -239,6 +186,7 @@ export function FinancialDimensionsDialog({
     },
     onSuccess: async () => {
       toast.success("Classificação arquivada.");
+      setPendingAction(undefined);
       await refresh();
     },
     onError: (error) => toast.error(getUserFacingError(error, "arquivar o cadastro financeiro")),
@@ -247,15 +195,18 @@ export function FinancialDimensionsDialog({
     kind: Editor["kind"],
     classificationType: ClassificationType = "analytic",
     code = "",
+    parent?: Dimension,
   ) =>
     setEditor({
       kind,
       id: null,
       code,
       name: "",
-      direction: kind === "category" ? "outflow" : "both",
+      direction:
+        parent && "direction" in parent ? parent.direction : kind === "category" ? "" : "both",
+      parentId: parent?.id ?? null,
       description: "",
-      isGlobal: false,
+      isGlobal: parent?.is_global ?? false,
       isActive: true,
       classificationType,
     });
@@ -263,6 +214,12 @@ export function FinancialDimensionsDialog({
     setEditor({
       kind,
       id: item.id,
+      parentId:
+        (query.data?.categories ?? []).find(
+          (parent) =>
+            parent.code === item.code.split(".").slice(0, -1).join(".") &&
+            (parent.is_global || parent.operating_company_id === item.operating_company_id),
+        )?.id ?? null,
       code: item.code,
       name: item.name,
       direction: "direction" in item ? item.direction : "both",
@@ -275,6 +232,7 @@ export function FinancialDimensionsDialog({
     save.mutate({
       kind,
       id: item.id,
+      parentId: null,
       code: item.code,
       name: item.name,
       direction: "direction" in item ? item.direction : "both",
@@ -301,8 +259,25 @@ export function FinancialDimensionsDialog({
               editor={editor}
               saving={save.isPending}
               onChange={setEditor}
+              items={
+                editor.kind === "category"
+                  ? (query.data?.categories ?? [])
+                  : (query.data?.centers ?? [])
+              }
+              dependencies={dependencies.data}
               onCancel={() => setEditor(undefined)}
-              onSave={() => save.mutate(editor)}
+              onSave={() => {
+                if (editor.id && !editor.isActive) {
+                  const item = (
+                    editor.kind === "category" ? query.data?.categories : query.data?.centers
+                  )?.find((row) => row.id === editor.id);
+                  if (item?.is_active) {
+                    setPendingAction({ kind: editor.kind, item, action: "deactivate" });
+                    return;
+                  }
+                }
+                save.mutate(editor);
+              }}
             />
           ) : query.isLoading ? (
             <LoadingState label="Carregando classificações..." />
@@ -313,7 +288,7 @@ export function FinancialDimensionsDialog({
               action={{ label: "Tentar novamente", onClick: () => void query.refetch() }}
             />
           ) : (
-            <Tabs defaultValue="categories">
+            <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="categories">Categorias</TabsTrigger>
                 <TabsTrigger value="centers">Centros de custo</TabsTrigger>
@@ -339,11 +314,18 @@ export function FinancialDimensionsDialog({
                       "category",
                       codeLevel(item.code) === 0 ? "synthetic" : "analytic",
                       suggestedChildCode(item.code, query.data?.categories ?? [], true),
+                      item,
                     )
                   }
                   onEdit={(item) => openEditor("category", item)}
-                  onToggleActive={(item) => toggleActive("category", item)}
-                  onArchive={(item) => archive.mutate({ kind: "category", id: item.id })}
+                  onToggleActive={(item) =>
+                    item.is_active
+                      ? setPendingAction({ kind: "category", item, action: "deactivate" })
+                      : toggleActive("category", item)
+                  }
+                  onArchive={(item) =>
+                    setPendingAction({ kind: "category", item, action: "archive" })
+                  }
                 />
               </TabsContent>
               <TabsContent value="centers" className="pt-4">
@@ -367,11 +349,18 @@ export function FinancialDimensionsDialog({
                       "cost_center",
                       codeLevel(item.code) === 0 ? "synthetic" : "analytic",
                       suggestedChildCode(item.code, query.data?.centers ?? [], true),
+                      item,
                     )
                   }
                   onEdit={(item) => openEditor("cost_center", item)}
-                  onToggleActive={(item) => toggleActive("cost_center", item)}
-                  onArchive={(item) => archive.mutate({ kind: "cost_center", id: item.id })}
+                  onToggleActive={(item) =>
+                    item.is_active
+                      ? setPendingAction({ kind: "cost_center", item, action: "deactivate" })
+                      : toggleActive("cost_center", item)
+                  }
+                  onArchive={(item) =>
+                    setPendingAction({ kind: "cost_center", item, action: "archive" })
+                  }
                 />
               </TabsContent>
             </Tabs>
@@ -382,375 +371,88 @@ export function FinancialDimensionsDialog({
             Fechar
           </Button>
         </DialogFooter>
+        <AlertDialog
+          open={Boolean(pendingAction)}
+          onOpenChange={(open) =>
+            !open && !save.isPending && !archive.isPending && setPendingAction(undefined)
+          }
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingAction?.action === "archive"
+                  ? "Arquivar classificação"
+                  : "Inativar classificação"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingAction?.item.code} · {pendingAction?.item.name}. A classificação deixará de
+                estar disponível para novos lançamentos. O histórico será preservado.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {pendingAction?.kind === "category" ? (
+              dependencies.isPending ? (
+                <LoadingState label="Verificando vínculos…" />
+              ) : dependencies.isError ? (
+                <ErrorState
+                  title="Não foi possível verificar os vínculos"
+                  description="Tente novamente antes de continuar."
+                  action={{ label: "Tentar novamente", onClick: () => void dependencies.refetch() }}
+                />
+              ) : (
+                <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-xs">
+                  <p>
+                    Subcategorias: {dependencies.data?.children ?? 0} · Vínculos ativos:{" "}
+                    {dependencies.data?.active_links ?? 0} · Referências históricas:{" "}
+                    {dependencies.data?.history_links ?? 0}
+                  </p>
+                  {((pendingAction.action === "archive"
+                    ? dependencies.data?.children
+                    : dependencies.data?.active_children) ?? 0) > 0 ||
+                  (dependencies.data?.active_links ?? 0) > 0 ? (
+                    <p role="alert">
+                      Operação bloqueada. Reorganize as subcategorias e os vínculos ativos antes de
+                      continuar.
+                    </p>
+                  ) : null}
+                </div>
+              )
+            ) : null}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={save.isPending || archive.isPending}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={
+                  save.isPending ||
+                  archive.isPending ||
+                  (pendingAction?.kind === "category" &&
+                    (dependencies.isPending ||
+                      dependencies.isError ||
+                      ((pendingAction.action === "archive"
+                        ? dependencies.data?.children
+                        : dependencies.data?.active_children) ?? 0) > 0 ||
+                      (dependencies.data?.active_links ?? 0) > 0))
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (!pendingAction) return;
+                  if (pendingAction.action === "archive")
+                    archive.mutate({ kind: pendingAction.kind, id: pendingAction.item.id });
+                  else if (editor?.id === pendingAction.item.id) save.mutate(editor);
+                  else toggleActive(pendingAction.kind, pendingAction.item);
+                }}
+              >
+                {save.isPending || archive.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
+                {pendingAction?.action === "archive"
+                  ? "Confirmar arquivamento"
+                  : "Confirmar inativação"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DimensionEditor({
-  editor,
-  saving,
-  onChange,
-  onCancel,
-  onSave,
-}: {
-  editor: Editor;
-  saving: boolean;
-  onChange(value: Editor): void;
-  onCancel(): void;
-  onSave(): void;
-}) {
-  const valid =
-    isValidCode(editor.code, editor.classificationType) && editor.name.trim().length >= 2;
-  const codeHelp =
-    editor.classificationType === "synthetic"
-      ? "Níveis sintéticos: 99, 99.99 ou 99.99.9999; não recebem lançamentos."
-      : "Nível analítico: 99.99.9999; recebe lançamentos.";
-  return (
-    <div className="my-5 grid gap-4 rounded-xl border bg-muted/20 p-5 sm:grid-cols-2">
-      <div className="space-y-1.5">
-        <Label htmlFor="dimension-code">Código *</Label>
-        <Input
-          id="dimension-code"
-          autoFocus
-          inputMode="numeric"
-          placeholder="01.01.0001"
-          value={editor.code}
-          onChange={(event) => onChange({ ...editor, code: maskCode(event.target.value) })}
-          aria-invalid={
-            Boolean(editor.code) && !isValidCode(editor.code, editor.classificationType)
-          }
-        />
-        <p className="text-xs text-muted-foreground">{codeHelp}</p>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="dimension-name">Nome *</Label>
-        <Input
-          id="dimension-name"
-          maxLength={150}
-          value={editor.name}
-          onChange={(event) => onChange({ ...editor, name: event.target.value })}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Tipo *</Label>
-        <Select
-          value={editor.classificationType}
-          onValueChange={(value) =>
-            onChange({ ...editor, classificationType: value as ClassificationType })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="analytic">Analítica</SelectItem>
-            <SelectItem value="synthetic">Sintética</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      {editor.kind === "category" ? (
-        <div className="space-y-1.5">
-          <Label>Natureza *</Label>
-          <Select
-            value={editor.direction}
-            onValueChange={(value) =>
-              onChange({ ...editor, direction: value as Editor["direction"] })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="inflow">Somente entradas</SelectItem>
-              <SelectItem value="outflow">Somente saídas</SelectItem>
-              <SelectItem value="both">Entradas e saídas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
-      <div className="space-y-1.5">
-        <Label>Global *</Label>
-        <Select
-          value={editor.isGlobal ? "yes" : "no"}
-          onValueChange={(value) => onChange({ ...editor, isGlobal: value === "yes" })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="yes">Sim</SelectItem>
-            <SelectItem value="no">Não</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label>Ativo *</Label>
-        <Select
-          value={editor.isActive ? "yes" : "no"}
-          onValueChange={(value) => onChange({ ...editor, isActive: value === "yes" })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="yes">Sim</SelectItem>
-            <SelectItem value="no">Não</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5 sm:col-span-2">
-        <Label htmlFor="dimension-description">Descrição</Label>
-        <Textarea
-          id="dimension-description"
-          maxLength={1000}
-          value={editor.description}
-          onChange={(event) => onChange({ ...editor, description: event.target.value })}
-        />
-      </div>
-      <div className="flex justify-end gap-2 sm:col-span-2">
-        <Button variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button onClick={onSave} disabled={saving || !valid}>
-          {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}Salvar
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function DimensionList({
-  kind,
-  icon: Icon,
-  title,
-  items,
-  companyNames,
-  canEdit,
-  saving,
-  onAdd,
-  onAddChild,
-  onEdit,
-  onToggleActive,
-  onArchive,
-}: {
-  kind: Editor["kind"];
-  icon: typeof Tags;
-  title: string;
-  items: Dimension[];
-  companyNames: Map<string, string>;
-  canEdit: boolean;
-  saving: boolean;
-  onAdd(): void;
-  onAddChild(item: Dimension): void;
-  onEdit(item: Dimension): void;
-  onToggleActive(item: Dimension): void;
-  onArchive(item: Dimension): void;
-}) {
-  const [collapsed, setCollapsed] = useState(() => new Set<string>());
-  const groups = items.filter(
-    (item) => item.classification_type === "synthetic" && !FULL_CODE_PATTERN.test(item.code),
-  );
-  const collapsedGroups = groups.filter((item) => collapsed.has(item.id));
-  const visible = items.filter((item) =>
-    collapsedGroups.every(
-      (group) =>
-        group.operating_company_id !== item.operating_company_id ||
-        !isDescendantCode(group.code, item.code),
-    ),
-  );
-  const toggleCollapsed = (id: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  return (
-    <section className="space-y-3 pb-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 font-medium">
-            <Icon className="size-4 text-primary" />
-            {title}
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Sintéticas agrupam; apenas analíticas ativas recebem lançamentos.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          {groups.length ? (
-            <>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={!collapsed.size}
-                onClick={() => setCollapsed(new Set())}
-              >
-                <ChevronDown className="mr-1.5 size-4" />
-                Expandir todos
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={groups.every((item) => collapsed.has(item.id))}
-                onClick={() => setCollapsed(new Set(groups.map((item) => item.id)))}
-              >
-                <ChevronRight className="mr-1.5 size-4" />
-                Recolher todos
-              </Button>
-            </>
-          ) : null}
-          {canEdit ? (
-            <Button size="sm" className="gap-2" onClick={onAdd}>
-              <Plus className="size-4" />
-              Adicionar
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      {visible.length ? (
-        <div className="overflow-x-auto rounded-lg border bg-background">
-          <div className="min-w-[900px]">
-            {visible.map((item) => {
-              const level = codeLevel(item.code);
-              const synthetic = item.classification_type === "synthetic";
-              const canHaveChildren = synthetic && !FULL_CODE_PATTERN.test(item.code);
-              const companyName =
-                companyNames.get(item.operating_company_id) ?? "Empresa operadora";
-              return (
-                <div
-                  key={item.id}
-                  className={cn(
-                    "grid min-h-13 items-center gap-3 border-b px-3 py-2.5 last:border-b-0",
-                    canEdit
-                      ? "grid-cols-[7rem_minmax(0,1fr)_auto]"
-                      : "grid-cols-[minmax(0,1fr)_auto]",
-                    !item.is_active && "bg-muted/40 text-muted-foreground",
-                  )}
-                >
-                  {canEdit ? (
-                    <div
-                      className="flex w-28 items-center"
-                      role="group"
-                      aria-label={`Ações de ${item.name}`}
-                    >
-                      {canHaveChildren ? (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Adicionar abaixo de ${item.name}`}
-                          onClick={() => onAddChild(item)}
-                        >
-                          <Plus className="size-4" />
-                        </Button>
-                      ) : (
-                        <span className="size-9 shrink-0" aria-hidden="true" />
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Editar ${item.name}`}
-                        onClick={() => onEdit(item)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        aria-label={`Arquivar ${item.name}`}
-                        onClick={() => onArchive(item)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  ) : null}
-                  <div
-                    className="flex min-w-0 items-center gap-2"
-                    style={{ paddingLeft: level * 24 }}
-                  >
-                    {canHaveChildren ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-6 shrink-0"
-                        aria-label={
-                          collapsed.has(item.id) ? `Expandir ${item.name}` : `Recolher ${item.name}`
-                        }
-                        aria-expanded={!collapsed.has(item.id)}
-                        onClick={() => toggleCollapsed(item.id)}
-                      >
-                        {collapsed.has(item.id) ? (
-                          <ChevronRight className="size-4" />
-                        ) : (
-                          <ChevronDown className="size-4" />
-                        )}
-                      </Button>
-                    ) : (
-                      <span className="w-6" />
-                    )}
-                    {synthetic ? (
-                      <FolderTree className="size-4 shrink-0 text-amber-600" />
-                    ) : (
-                      <FileText className="size-4 shrink-0 text-blue-600" />
-                    )}
-                    <span className="w-24 shrink-0 font-mono text-xs font-medium">{item.code}</span>
-                    <span className={cn("truncate text-sm", synthetic && "font-semibold")}>
-                      {item.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="max-w-40 truncate font-normal">
-                      {item.is_global ? "Todas as empresas" : companyName}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        synthetic
-                          ? "border-amber-300 bg-amber-50 text-amber-700"
-                          : "border-blue-200 bg-blue-50 text-blue-700",
-                      )}
-                    >
-                      {synthetic ? "Sintética" : "Analítica"}
-                    </Badge>
-                    {"direction" in item ? (
-                      <Badge variant="outline" className="font-normal">
-                        {item.direction === "inflow"
-                          ? "Somente entradas"
-                          : item.direction === "outflow"
-                            ? "Somente saídas"
-                            : "Entradas e saídas"}
-                      </Badge>
-                    ) : null}
-                    {item.is_global ? <Badge variant="secondary">Global</Badge> : null}
-                    <Switch
-                      checked={item.is_active}
-                      disabled={!canEdit || saving}
-                      aria-label={`${item.is_active ? "Desativar" : "Ativar"} ${item.name}`}
-                      onCheckedChange={() => onToggleActive(item)}
-                    />
-                    <Badge
-                      className={cn(
-                        item.is_active
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-600",
-                      )}
-                    >
-                      {item.is_active ? "Ativa" : "Inativa"}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <EmptyState
-          title={kind === "category" ? "Nenhuma categoria" : "Nenhum centro de custo"}
-          description="Crie a primeira classificação financeira desta estrutura."
-        />
-      )}
-    </section>
   );
 }

@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public,apticket,pg_catalog;
-select plan(53);
+select plan(55);
 
 insert into apticket.tenants(id,name,slug) values
  ('fb100000-0000-0000-0000-000000000001','Classificacao A','classificacao-a'),
@@ -50,6 +50,14 @@ insert into apticket.supplier_payables(id,tenant_id,operating_company_id,supplie
  ('fba00000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','fb800000-0000-0000-0000-000000000001','fb900000-0000-0000-0000-000000000001','PAG-CLASS-001','Cloud janeiro','2026-01-01','2026-02-01','2026-02-15','fixed',1,80,80,'complete','approved','{"supplier_name":"Fornecedor A"}'),
  ('fba00000-0000-0000-0000-000000000002','fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','fb800000-0000-0000-0000-000000000001','fb900000-0000-0000-0000-000000000001','PAG-CLASS-002','Cloud fevereiro','2026-02-01','2026-03-01','2026-03-15','fixed',1,80,80,'complete','approved','{"supplier_name":"Fornecedor A"}');
 
+-- Category creation now requires an explicit, compatible hierarchy.
+insert into apticket.financial_categories(tenant_id,operating_company_id,code,name,direction,is_global,classification_type)
+select 'fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001',v.code,v.name,v.direction,v.is_global,'synthetic'
+from (values ('01','Entradas','inflow',false),('01.00','Receitas de serviços','inflow',false),
+ ('02','Saídas','outflow',false),('02.00','Despesas','outflow',false),
+ ('03','Movimentos gerais','both',false),('03.00','Classificações gerais','both',false),
+ ('11','Grupo detalhado','inflow',false),('11.01','Subgrupo detalhado','inflow',false),
+ ('07','Saídas globais','outflow',true),('07.00','Despesas globais','outflow',true)) v(code,name,direction,is_global);
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
 select lives_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','01.01.0001','Administrativo','Custos administrativos')$$,'cadastra centro de custo');
@@ -59,11 +67,11 @@ select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-00
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','03.00.0001','Classificacao geral','both',null)$$,'cadastra categoria de ambas naturezas');
 select is((select code from apticket.financial_categories where name='Receitas recorrentes'),'01.00.0001','preserva codigo mascarado da categoria');
 select throws_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','01.01.0001','Outro administrativo',null)$$,'23505','Ja existe um centro de custo com este codigo no escopo informado.','impede codigo duplicado');
-select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','09.00.0001','Invalida','invalid',null)$$,'23514','Informe codigo no formato 99.99.9999, nome, natureza e tipo validos para a categoria.','valida natureza da categoria');
+select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','09.00.0001','Invalida','invalid',null)$$,'23514','Revise código, nome, natureza e tipo da categoria.','valida natureza da categoria');
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','10','Receitas','inflow',null,true,true,'synthetic')$$,'cadastra categoria sintetica de primeiro nivel');
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','10.01','Servicos','inflow',null,true,true,'synthetic')$$,'cadastra categoria sintetica de segundo nivel');
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','10.01.0001','Contratos gerenciados MRR','inflow',null,true,true,'analytic')$$,'cadastra categoria analitica de terceiro nivel');
-select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','11','Analitica invalida','inflow',null,false,true,'analytic')$$,'23514','Use codigos 99, 99.99 ou 99.99.9999 para categorias sinteticas e 99.99.9999 para categorias analiticas.','impede categoria analitica fora do terceiro nivel');
+select throws_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','11','Analitica invalida','inflow',null,false,true,'analytic')$$,'23514','Revise código, nome, natureza e tipo da categoria.','impede categoria analitica fora do terceiro nivel');
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','11.01.0001','Sintetica detalhada','inflow',null,false,true,'synthetic')$$,'cadastra categoria sintetica no terceiro nivel');
 select throws_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','1.1.1','Codigo invalido',null)$$,'23514','Informe codigo no formato 99.99.9999, nome e tipo validos para o centro de custo.','exige mascara completa do codigo');
 select lives_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','10','Administracao','Centro sintetico principal',true,true,'synthetic')$$,'cadastra centro sintetico de primeiro nivel');
@@ -94,7 +102,9 @@ select is((select count(*) from apticket.financial_entry_classifications where s
 select is((select count(*) from apticket.financial_entry_classifications where source_id='fb700000-0000-0000-0000-000000000001' and replaced_at is null),1::bigint,'mantem somente uma classificacao atual');
 select is((select financial_category_code from apticket.cash_flow_entries where source_id='fb700000-0000-0000-0000-000000000001'),'03.00.0001','fluxo usa classificacao mais recente');
 select lives_ok($$select apticket.classify_financial_entry('supplier_payable','fba00000-0000-0000-0000-000000000001',(select id from apticket.financial_categories where code='02.00.0001'),(select id from apticket.financial_cost_centers where code='01.01.0001'),null)$$,'classifica conta a pagar');
-select throws_ok($$select apticket.save_financial_category((select id from apticket.financial_categories where code='03.00.0001'),'fb300000-0000-0000-0000-000000000001','03.00.0001','Geral alterada','both',null)$$,'23514','Esta categoria ja foi utilizada; somente o status Ativo pode ser alterado.','impede alteracao estrutural de categoria utilizada');
+select is((apticket.get_financial_category_dependencies((select id from apticket.financial_categories where code='02.00.0001'))->>'active_links')::int,1,'detecta lançamento a pagar ainda aberto');
+select throws_ok($$select apticket.archive_financial_dimension('category',(select id from apticket.financial_categories where code='02.00.0001'))$$,'23514',null,'preserva categoria vinculada a lançamento aberto');
+select throws_ok($$select apticket.save_financial_category((select id from apticket.financial_categories where code='03.00.0001'),'fb300000-0000-0000-0000-000000000001','03.00.0001','Geral alterada','both',null)$$,'23514','Categoria com vínculos: preserve código, nome, natureza, abrangência e tipo. A descrição pode ser atualizada.','impede alteracao estrutural de categoria utilizada');
 select lives_ok($$select apticket.archive_financial_dimension('cost_center',(select id from apticket.financial_cost_centers where code='01.01.0001'))$$,'arquiva dimensao utilizada preservando historico');
 select is((select cost_center_code from apticket.cash_flow_entries where source_id='fba00000-0000-0000-0000-000000000001'),'01.01.0001','snapshot arquivado permanece no fluxo');
 select throws_ok($$select apticket.classify_financial_entry('supplier_payable','fba00000-0000-0000-0000-000000000002',(select id from apticket.financial_categories where code='02.00.0001'),(select id from apticket.financial_cost_centers where code='01.01.0001'),null)$$,'23514','Selecione um centro de custo analitico ativo desta empresa.','nao reutiliza centro de custo arquivado');

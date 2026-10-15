@@ -41,11 +41,12 @@ try {
       if (url.includes("/_serverFn/")) return route.fulfill({ json: { result: url.includes(permissionsId) ? ["financeiro", "financeiro_fluxo_caixa"].flatMap((module) => ["view", "create", "edit", "delete"].map((action) => ({ module, action }))) : [], context: {} } });
       if (url.includes("/rest/v1/operating_companies")) return route.fulfill({ json: [{ id: operator, legal_name: "Operadora teste", trade_name: null }] });
       if (url.includes("/rest/v1/profiles")) return route.fulfill({ json: { tenant_id: "fb100000-0000-4000-8000-000000000001" } });
-      if (url.includes("/rest/v1/rpc/save_financial_")) {
+      if (url.includes("/rpc/get_financial_category_dependencies")) return route.fulfill({ json: { children: 0, active_children: 0, active_links: 0, history_links: 0 } });
+      if (url.includes("/rest/v1/rpc/save_financial_") || url.includes("/rpc/create_financial_category")) {
         const value = request.postDataJSON();
-        const savedKind = url.includes("save_financial_category") ? "category" : "cost_center";
+        const savedKind = url.includes("financial_category") ? "category" : "cost_center";
         writes.push({ kind: savedKind, ...value });
-        const item = { id: value.p_id ?? `created-${writes.length}`, code: value.p_code, name: value.p_name, classification_type: value.p_classification_type, operating_company_id: operator, direction: value.p_direction ?? "both", description: value.p_description, is_global: value.p_is_global, is_active: value.p_is_active };
+        const item = { id: value.p_id ?? `created-${writes.length}`, code: value.p_code ?? (value.p_parent_id === "root" ? "10.02" : "10.01.0002"), name: value.p_name, classification_type: value.p_classification_type, operating_company_id: operator, direction: value.p_direction ?? "both", description: value.p_description, is_global: value.p_is_global, is_active: value.p_is_active };
         rows[savedKind] = rows[savedKind].filter((row) => row.id !== item.id).concat(item).sort((a, b) => a.code.localeCompare(b.code));
         return route.fulfill({ json: item.id });
       }
@@ -67,9 +68,14 @@ try {
     await name.fill("Sintética detalhada");
     await dialog.getByText("Tipo *", { exact: true }).locator("..").getByRole("combobox").click();
     await page.getByRole("option", { name: "Sintética", exact: true }).click();
-    await code.fill("1001000");
-    assert.equal(await save.isDisabled(), true);
-    await code.fill("10010002");
+    if (kind === "cost_center") {
+      await code.fill("1001000");
+      assert.equal(await save.isDisabled(), true);
+      await code.fill("10010002");
+    } else {
+      assert.equal(await code.getAttribute("readonly"), "");
+      assert.equal(await dialog.locator("#dimension-parent").innerText(), "10.01 · Subgrupo");
+    }
     assert.equal(await save.isDisabled(), false);
     const bounds = await dialog.boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1);
@@ -79,10 +85,11 @@ try {
     await code.waitFor({ state: "hidden" });
     if (kind === "cost_center") await dialog.getByRole("tab", { name: "Centros de custo", exact: true }).click();
     await dialog.getByText("Sintética detalhada", { exact: true }).waitFor();
-    assert.equal(writes[0].p_code, "10.01.0002");
+    if (kind === "cost_center") assert.equal(writes[0].p_code, "10.01.0002");
+    else { assert.equal(writes[0].p_parent_id, "second"); assert.equal(writes[0].p_direction, "both"); }
     assert.equal(writes[0].p_classification_type, "synthetic");
     assert.equal(await dialog.getByRole("button", { name: "Adicionar abaixo de Sintética detalhada", exact: true }).count(), 0);
-    const row = dialog.getByText("Sintética detalhada", { exact: true }).locator("../..");
+    const row = dialog.getByRole("group", { name: "Ações de Sintética detalhada", exact: true }).locator("..");
     assert.equal(await row.getByText("Sintética", { exact: true }).count(), 1);
     await dialog.getByRole("button", { name: "Editar Sintética detalhada", exact: true }).click();
     assert.equal(await code.inputValue(), "10.01.0002");
@@ -101,7 +108,8 @@ try {
     if (kind === "cost_center") await dialog.getByRole("tab", { name: "Centros de custo", exact: true }).click();
     await dialog.getByText("Sintética segundo nível", { exact: true }).waitFor();
     assert.equal(writes[2].p_classification_type, "synthetic");
-    assert.equal(writes[2].p_code, "10.02");
+    if (kind === "cost_center") assert.equal(writes[2].p_code, "10.02");
+    else assert.equal(writes[2].p_parent_id, "root");
     await dialog.getByRole("button", { name: "Recolher Grupo", exact: true }).click();
     assert.equal(await dialog.getByText("Sintética editada", { exact: true }).count(), 0);
     await dialog.getByRole("button", { name: "Expandir Grupo", exact: true }).click();
