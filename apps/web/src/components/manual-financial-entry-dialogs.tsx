@@ -32,6 +32,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { ContractAllocationEditor } from "@/components/contract-allocation-editor";
 import { FinancialOperatingCompany } from "@/components/financial-operating-company";
+import { PayableAttachmentEditor } from "@/components/payable-attachment-editor";
+import {
+  discardPayableUploads,
+  uploadPayableAttachments,
+  type PayableAttachmentDraft,
+} from "@/lib/payable-attachments";
 import {
   allocationError,
   allocationPayload,
@@ -159,6 +165,7 @@ function ManualEntryDialog({
   });
   const { fields, replace } = useFieldArray({ control: form.control, name: "installments" });
   const [scheduleSignature, setScheduleSignature] = useState("");
+  const [attachments, setAttachments] = useState<PayableAttachmentDraft[]>([]);
   const [categories, setCategories] = useState<ContractAllocation[]>([]);
   const [centers, setCenters] = useState<ContractAllocation[]>([]);
   const [categoriesValid, setCategoriesValid] = useState(false);
@@ -242,6 +249,7 @@ function ManualEntryDialog({
   useEffect(() => {
     if (open) return;
     form.reset();
+    setAttachments([]);
     setCategories([]);
     setCenters([]);
     setCategoriesValid(false);
@@ -336,19 +344,37 @@ function ManualEntryDialog({
         p_category_allocations: allocationPayload(categories),
         p_cost_center_allocations: allocationPayload(centers),
       };
-      const { data, error } = isReceivable
-        ? await db.rpc("create_manual_receivable_allocated", {
-            ...common,
-            p_company_id: parsed.counterpartyId,
-            p_document_reference: parsed.document,
-          })
-        : await db.rpc("create_manual_supplier_payable_allocated", {
-            ...common,
-            p_supplier_id: parsed.counterpartyId,
-            p_document_number: parsed.document,
-          });
-      if (error) throw error;
-      return data;
+      const uploaded = isReceivable
+        ? []
+        : await uploadPayableAttachments(
+            attachments,
+            parsed.operatingCompanyId,
+            parsed.entryMode === "installments" ? installments.length : undefined,
+          );
+      try {
+        const { data, error } = isReceivable
+          ? await db.rpc("create_manual_receivable_allocated", {
+              ...common,
+              p_company_id: parsed.counterpartyId,
+              p_document_reference: parsed.document,
+            })
+          : await db.rpc(
+              uploaded.length
+                ? "create_manual_supplier_payable_with_attachments"
+                : "create_manual_supplier_payable_allocated",
+              {
+                ...common,
+                p_supplier_id: parsed.counterpartyId,
+                p_document_number: parsed.document,
+                ...(uploaded.length ? { p_attachments: uploaded } : {}),
+              },
+            );
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        await discardPayableUploads(uploaded);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success(
@@ -406,7 +432,9 @@ function ManualEntryDialog({
         <form
           className="space-y-5"
           id={`manual-${direction}-form`}
-          onSubmit={form.handleSubmit((values) => create.mutate(values))}
+          onSubmit={form.handleSubmit((values) => {
+            if (!create.isPending) create.mutate(values);
+          })}
         >
           <section className="space-y-4 rounded-xl border p-4">
             <div>
@@ -751,6 +779,20 @@ function ManualEntryDialog({
               </div>
             )}
           </section>
+          {!isReceivable ? (
+            <PayableAttachmentEditor
+              value={attachments}
+              onChange={setAttachments}
+              installments={
+                entryMode === "installments"
+                  ? scheduleIsCurrent
+                    ? installmentValues
+                    : []
+                  : undefined
+              }
+              disabled={create.isPending}
+            />
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="manual-entry-notes">Observações</Label>
             <Textarea

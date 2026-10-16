@@ -58,6 +58,7 @@ import { SupplierApprovalPoliciesDialog } from "@/components/supplier-approval-p
 import { SupplierPaymentSection } from "@/components/supplier-payment-section";
 import { useFinancialSettings } from "@/lib/financial-settings";
 import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
+import { PayableAttachments } from "@/components/payable-attachments";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 import { EditPayableDialog, DeletePayableDialog } from "@/components/payable-mutation-dialogs";
@@ -1134,6 +1135,7 @@ function AllocationDialog({
             <p className="font-semibold">{money.format(payable.total_amount)}</p>
           </div>
         </div>
+        <PayableAttachments payableId={payable.id} />
         {query.isLoading ? (
           <LoadingState label="Carregando rateio…" />
         ) : query.isError ? (

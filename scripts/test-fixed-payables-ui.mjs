@@ -26,7 +26,7 @@ try {
   mkdirSync("artifacts/fixed-payables", { recursive: true });
   browser = await chromium.launch({ channel: "msedge", headless: true });
   for (const width of [1440, 768, 390]) {
-    const errors = [], saves = [], confirmations = [], mutations = [], occurrenceOffsets = [];
+    const errors = [], saves = [], confirmations = [], mutations = [], occurrenceOffsets = [], uploads = [], cleanups = [];
     let readOnly = false, failSave = false;
     const original = { id: "template", operating_company_id: company, supplier_id: supplier, supplier_name: "Imobiliária Centro", document_type_id: documentType, description: "Aluguel da sede", total_amount: 100, due_day: 31, start_month: "2027-01-01", end_month: "2027-03-01", is_active: true, revision: 0, notes: "Locação mensal", category_allocations: allocate(categories, [70, 30]), cost_center_allocations: allocate(centers, [60, 40]), deleted_at: null };
     const templates = [original];
@@ -37,6 +37,10 @@ try {
     await page.addInitScript(() => { const claims = btoa(JSON.stringify({ sub: "af200000-0000-4000-8000-000000000001", name: "Financeiro", email: "teste@example.test", tenant_id: "af100000-0000-4000-8000-000000000001", app: "apticket", exp: 4102444800 })); localStorage.setItem("apticket_session_token", `test.${claims}.mock`); });
     await page.route("**/*", async (route) => {
       const request = route.request(), url = request.url();
+      if (url.includes("/storage/v1/object/")) {
+        if (request.method() === "DELETE") { cleanups.push(request.postDataJSON()); return route.fulfill({ json: [] }); }
+        uploads.push(url); return route.fulfill({ json: { Key: url.split("/object/")[1] } });
+      }
       if (url.includes("/_serverFn/")) return route.fulfill({ json: { result: url.includes(permissionsId) ? ["financeiro", "financeiro_contas_pagar", "financeiro_contas_fixas"].flatMap((module) => ["view", ...(readOnly ? [] : ["edit"])].map((action) => ({ module, action }))) : [], context: {} } });
       if (url.includes("/rpc/get_financial_settings")) return route.fulfill({ json: { use_payable_approvals: false, use_collection_rules: false } });
       if (url.includes("/rpc/save_fixed_payable_occurrence")) {
@@ -152,10 +156,25 @@ try {
     await dialog.getByText("Informe o número do documento com pelo menos 2 caracteres.", { exact: true }).waitFor(); assert.equal(confirmations.length, 0);
     await dialog.locator("#fixed-document").fill("ALUGUEL-JAN-2027"); await dialog.locator("#fixed-amount").fill("123,45");
     await dialog.locator("#fixed-due").fill("2027-02-05");
+    await dialog.getByLabel("Selecionar arquivos para anexar", { exact: true }).setInputFiles([
+      { name: "aluguel.pdf", mimeType: "application/pdf", buffer: Buffer.from("boleto aluguel") },
+      { name: "recibo.pdf", mimeType: "application/pdf", buffer: Buffer.from("recibo") },
+    ]);
+    await choose(page, dialog.getByRole("combobox", { name: "Tipo do anexo 1 *", exact: true }), "Boleto");
+    await choose(page, dialog.getByRole("combobox", { name: "Tipo do anexo 2 *", exact: true }), "Outros");
+    await dialog.getByRole("button", { name: "Confirmar e criar título", exact: true }).click();
+    await page.getByText("recibo.pdf: Descreva o tipo do anexo.", { exact: true }).waitFor();
+    assert.equal(uploads.length, 0); assert.equal(confirmations.length, 0);
+    await dialog.getByLabel("Descrição do tipo 2 *", { exact: true }).fill("Recibo de locação");
+    assert.equal(await dialog.getByRole("combobox", { name: /Parcela do anexo/ }).count(), 0);
     await page.screenshot({ path: `artifacts/fixed-payables/confirm-${width}.png`, animations: "disabled" });
     failSave = true; await dialog.getByRole("button", { name: "Confirmar e criar título", exact: true }).click(); await page.getByText(/Falha simulada na confirmação/).waitFor();
     failSave = false; await dialog.getByRole("button", { name: "Confirmar e criar título", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
     assert.equal(confirmations.length, 1); assert.equal(confirmations[0].p_payload.total_amount, 123.45);
+    assert.equal(confirmations[0].p_payload.attachments.length, 2);
+    assert.deepEqual(confirmations[0].p_payload.attachments.map(a => a.installment_number), [1,1]);
+    assert.equal(confirmations[0].p_payload.attachments[1].type_description, "Recibo de locação");
+    assert.equal(cleanups.length, 1, "cleans up uploads when confirmation fails");
     assert.deepEqual(confirmations[0].p_payload.category_allocations.map((a) => Number(a.percentage)), [70, 30]);
     assert.equal(templates[0].total_amount, 150); assert.equal(occurrences[1].total_amount, 175);
     assert.equal(await page.getByRole("button", { name: "Confirmar previsão Aluguel da sede 2027-01-01", exact: true }).count(), 0);

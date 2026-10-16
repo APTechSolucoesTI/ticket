@@ -1,4 +1,10 @@
 import { useState } from "react";
+import { PayableAttachmentEditor } from "@/components/payable-attachment-editor";
+import {
+  discardPayableUploads,
+  uploadPayableAttachments,
+  type PayableAttachmentDraft,
+} from "@/lib/payable-attachments";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -85,6 +91,7 @@ export function FixedPayableDialog({
 }) {
   const client = useQueryClient();
   const original = occurrence ?? template;
+  const [attachments, setAttachments] = useState<PayableAttachmentDraft[]>([]);
   const [categories, setCategories] = useState<ContractAllocation[]>(
     original?.category_allocations ?? [],
   );
@@ -145,18 +152,31 @@ export function FixedPayableDialog({
         category_allocations: allocationPayload(categories),
         cost_center_allocations: allocationPayload(centers),
       };
-      const { error } = occurrence
-        ? await fixedDb.rpc(
-            confirm ? "confirmar_previsao_conta_fixa" : "save_fixed_payable_occurrence",
-            { p_id: occurrence.id, p_expected_revision: occurrence.revision, p_payload: payload },
-          )
-        : await fixedDb.rpc("save_fixed_payable", {
-            p_id: template?.id ?? null,
-            p_expected_revision: template?.revision ?? null,
-            p_payload: payload,
-            p_apply_future: true,
-          });
-      if (error) throw error;
+      const uploaded = confirm ? await uploadPayableAttachments(attachments, companyId) : [];
+      try {
+        const { error } = occurrence
+          ? await fixedDb.rpc(
+              confirm ? "confirmar_previsao_conta_fixa" : "save_fixed_payable_occurrence",
+              {
+                p_id: occurrence.id,
+                p_expected_revision: occurrence.revision,
+                p_payload: {
+                  ...payload,
+                  ...(confirm ? { attachments: uploaded } : {}),
+                },
+              },
+            )
+          : await fixedDb.rpc("save_fixed_payable", {
+              p_id: template?.id ?? null,
+              p_expected_revision: template?.revision ?? null,
+              p_payload: payload,
+              p_apply_future: true,
+            });
+        if (error) throw error;
+      } catch (error) {
+        await discardPayableUploads(uploaded);
+        throw error;
+      }
     },
     onSuccess: async () => {
       toast.success(
@@ -175,6 +195,7 @@ export function FixedPayableDialog({
     },
   });
   const submit = form.handleSubmit((values) => {
+    if (mutation.isPending) return;
     if (confirm && values.document_number.length < 2) {
       form.setError("document_number", {
         message: "Informe o número do documento com pelo menos 2 caracteres.",
@@ -414,6 +435,13 @@ export function FixedPayableDialog({
                   />
                 </div>
               </section>
+              {confirm ? (
+                <PayableAttachmentEditor
+                  value={attachments}
+                  onChange={setAttachments}
+                  disabled={busy}
+                />
+              ) : null}
               <div className="space-y-1.5">
                 <Label htmlFor="fixed-notes">Observações</Label>
                 <Textarea id="fixed-notes" maxLength={4000} rows={3} {...form.register("notes")} />

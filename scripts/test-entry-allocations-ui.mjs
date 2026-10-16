@@ -22,6 +22,7 @@ let browser, active;
 async function choose(page, trigger, name) {
   await trigger.click();
   await page.getByRole("option", { name, exact: true }).click();
+  await page.getByRole("dialog", { name: "Selecionar opção", exact: true }).waitFor({ state: "hidden" });
 }
 async function percentages(dialog, dimension, values) {
   for (let i = 0; i < values.length; i++) await dialog.getByLabel(`${dimension} · percentual ${i + 1}`, { exact: true }).fill(String(values[i]));
@@ -31,7 +32,8 @@ try {
   mkdirSync("artifacts/entry-allocations", { recursive: true });
   browser = await chromium.launch({ channel: "msedge", headless: true });
   for (const width of [1440, 768, 390]) for (const kind of ["payable", "receivable"]) {
-    const writes = [], edits = [], errors = [], queriedDirections = [];
+    const writes = [], edits = [], errors = [], queriedDirections = [], uploads = [], cleanups = [];
+    let failUpload = false;
     let failSave = false, inactive = false, readOnly = false;
     const classification = { source_id: "entry", financial_category_id: categories[0].id, cost_center_id: centers[0].id, category_allocations: snapshots(categories, [70, 30]), cost_center_allocations: snapshots(centers, [60, 40]) };
     const page = await browser.newPage({ viewport: { width, height: 1000 } }); active = page;
@@ -45,7 +47,17 @@ try {
       const request = route.request(), url = request.url();
       if (url.includes("/_serverFn/")) return route.fulfill({ json: { result: url.includes(permissionId) ? ["financeiro", "financeiro_contas_pagar", "financeiro_contas_receber"].flatMap((module) => ["view", ...(readOnly ? [] : ["edit"])].map((action) => ({ module, action }))) : [], context: {} } });
       if (url.includes("/rest/v1/rpc/get_financial_settings")) return route.fulfill({ json: { use_payable_approvals: false, use_collection_rules: false } });
-      if (/\/rpc\/create_manual_(supplier_payable|receivable)_allocated/.test(url)) {
+      if (url.includes("/storage/v1/object/")) {
+        if (request.method() === "DELETE") { cleanups.push(request.postDataJSON()); return route.fulfill({ json: [] }); }
+        if (request.method() === "POST") {
+          uploads.push(url);
+          if (failUpload && uploads.length % 2 === 0) return route.fulfill({ status: 500, json: { message: "Falha simulada no envio do anexo." } });
+          return route.fulfill({ json: { Key: url.split("/object/")[1] } });
+        }
+        return route.fulfill({ body: "arquivo", contentType: "application/pdf" });
+      }
+      if (url.includes("/rest/v1/supplier_payable_attachments")) return route.fulfill({ json: (writes.at(-1)?.p_attachments ?? []).filter((a) => a.installment_number === (width === 1440 ? 2 : 1)).map((a, i) => ({ ...a, id: String(i) })) });
+      if (/\/rpc\/create_manual_(supplier_payable|receivable)_(allocated|with_attachments)/.test(url)) {
         if (failSave) return route.fulfill({ status: 400, json: { code: "P0001", message: "Falha simulada ao salvar rateios." } });
         writes.push(request.postDataJSON()); return route.fulfill({ json: "group" });
       }
@@ -143,6 +155,35 @@ try {
       await dialog.locator("#manual-entry-first-due").fill("2026-10-30");
       await dialog.getByRole("button", { name: "Calcular parcelas", exact: true }).click();
     }
+    if (kind === "payable") {
+      const picker = dialog.getByLabel("Selecionar arquivos para anexar", { exact: true });
+      await picker.setInputFiles([
+        { name: "boleto.pdf", mimeType: "application/pdf", buffer: Buffer.from("boleto") },
+        { name: "nota-fiscal.pdf", mimeType: "application/pdf", buffer: Buffer.from("nota") },
+        { name: "nota.xml", mimeType: "application/xml", buffer: Buffer.from("<nfe/>") },
+        { name: "contrato.pdf", mimeType: "application/pdf", buffer: Buffer.from("contrato") },
+        { name: "remover.pdf", mimeType: "application/pdf", buffer: Buffer.from("remover") },
+      ]);
+      await dialog.getByRole("button", { name: "Remover anexo remover.pdf", exact: true }).click();
+      const submitWithAttachments = dialog.getByRole("button", { name: width === 1440 ? "Incluir parcelas" : "Incluir conta", exact: true });
+      await submitWithAttachments.click();
+      await page.getByText("boleto.pdf: Selecione o tipo do anexo.", { exact: true }).waitFor();
+      assert.equal(uploads.length, 0);
+      for (const [i, label] of ["Boleto", "Nota Fiscal", "XML", "Outros"].entries())
+        await choose(page, dialog.getByRole("combobox", { name: `Tipo do anexo ${i + 1} *`, exact: true }), label);
+      await submitWithAttachments.click();
+      await page.getByText(width === 1440 ? "boleto.pdf: Selecione uma parcela válida para este anexo." : "contrato.pdf: Descreva o tipo do anexo.", { exact: true }).waitFor();
+      await dialog.getByLabel("Descrição do tipo 4 *", { exact: true }).fill("Contrato de prestação de serviços");
+      if (width === 1440) for (let i = 0; i < 4; i++)
+        await choose(page, dialog.getByRole("combobox", { name: `Parcela do anexo ${i + 1} *`, exact: true }), `Parcela ${i % 2 + 1} · ${i % 2 ? "29/11/2026" : "30/10/2026"}`);
+      await dialog.getByRole("region", { name: "Anexos da conta a pagar", exact: true }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `artifacts/entry-allocations/attachments-${width}.png`, animations: "disabled" });
+      assert.equal(await dialog.evaluate(el => el.scrollWidth > el.clientWidth), false);
+      failUpload = true; await submitWithAttachments.click();
+      await page.getByText("Falha simulada no envio do anexo.", { exact: true }).waitFor();
+      assert.equal(writes.length, 0); assert.equal(cleanups.length, 1);
+      failUpload = false;
+    }
     const bounds = await dialog.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1);
     await dialog.locator("fieldset").first().scrollIntoViewIfNeeded();
     await page.screenshot({ path: `artifacts/entry-allocations/new-${kind}-${width}.png`, animations: "disabled" });
@@ -154,6 +195,19 @@ try {
     assert.deepEqual(writes[0].p_category_allocations.map((a) => Number(a.percentage)), [70, 30]);
     assert.deepEqual(writes[0].p_cost_center_allocations.map((a) => Number(a.percentage)), [60, 40]);
     assert.equal(writes[0].p_installments.length, width === 1440 ? 2 : 1);
+    if (kind === "payable") {
+      assert.equal(writes[0].p_attachments.length, 4);
+      assert.deepEqual(writes[0].p_attachments.map(a => a.attachment_type), ["boleto", "nota_fiscal", "xml", "outros"]);
+      assert.deepEqual(writes[0].p_attachments.map(a => a.installment_number), width === 1440 ? [1,2,1,2] : [1,1,1,1]);
+      assert.equal(writes[0].p_attachments[3].type_description, "Contrato de prestação de serviços");
+      assert.equal(cleanups.length, 2, "cleans up failed upload and failed RPC");
+      await page.getByRole("button", { name: "Detalhar RATEIO", exact: true }).click();
+      const details = page.getByRole("dialog", { name: "Detalhes do lançamento", exact: true });
+      const download = page.waitForEvent("download");
+      await details.getByRole("button", { name: "Baixar anexo contrato.pdf", exact: true }).click();
+      assert.equal((await download).suggestedFilename(), "contrato.pdf");
+      await details.getByRole("button", { name: "Fechar", exact: true }).click();
+    }
     await classify().click();
     assert.equal(await dialog.getByLabel("Categorias financeiras · percentual 2", { exact: true }).inputValue(), "30");
     assert.equal(await dialog.getByLabel("Centros de custo · percentual 2", { exact: true }).inputValue(), "40");
