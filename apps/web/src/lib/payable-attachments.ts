@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { decodeSessionUser, getToken } from "@/lib/session";
 
@@ -27,7 +28,31 @@ export type UploadedPayableAttachment = {
   type_description: string | null;
   installment_number: number;
 };
+export type PayableAttachment = {
+  id: string;
+  storage_path: string;
+  file_name: string;
+  file_size: number;
+  attachment_type: keyof typeof payableAttachmentTypes;
+  type_description: string | null;
+};
 const db = supabase as unknown as SupabaseClient;
+
+export function usePayableAttachments(payableId: string) {
+  return useQuery({
+    queryKey: ["supplier-payable-attachments", payableId],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("supplier_payable_attachments")
+        .select("id,storage_path,file_name,file_size,attachment_type,type_description")
+        .eq("supplier_payable_id", payableId)
+        .is("deleted_at", null)
+        .order("created_at");
+      if (error) throw error;
+      return (data ?? []) as PayableAttachment[];
+    },
+  });
+}
 
 export function payableAttachmentError(item: PayableAttachmentDraft, count?: number) {
   if (!item.type) return "Selecione o tipo do anexo.";

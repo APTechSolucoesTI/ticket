@@ -11,6 +11,7 @@ import {
   Eye,
   Loader2,
   Pencil,
+  Paperclip,
   Plus,
   RefreshCw,
   Repeat2,
@@ -59,6 +60,7 @@ import { SupplierPaymentSection } from "@/components/supplier-payment-section";
 import { useFinancialSettings } from "@/lib/financial-settings";
 import { ManualPayableDialog } from "@/components/manual-financial-entry-dialogs";
 import { PayableAttachments } from "@/components/payable-attachments";
+import { PayableAttachmentsDialog } from "@/components/payable-attachments-dialog";
 import { useFinancialDocumentTypes } from "@/hooks/use-financial-document-types";
 import { FinancialEntryClassificationDialog } from "@/components/financial-entry-classification-dialog";
 import { EditPayableDialog, DeletePayableDialog } from "@/components/payable-mutation-dialogs";
@@ -93,6 +95,7 @@ type Payable = {
   document_type_id: string | null;
   installment_number: number | null;
   installment_count: number | null;
+  supplier_payable_attachments?: Array<{ id: string }>;
   document_number: string;
   description: string;
   cycle_start: string;
@@ -226,6 +229,7 @@ export function SupplierPayables({
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const financialSettings = useFinancialSettings();
   const [selected, setSelected] = useState<Payable>();
+  const [managingAttachments, setManagingAttachments] = useState<Payable>();
   const [editing, setEditing] = useState<Payable>();
   const [deleting, setDeleting] = useState<Payable>();
   const [classifying, setClassifying] = useState<Payable>();
@@ -241,7 +245,7 @@ export function SupplierPayables({
       const { data, error } = await db
         .from("supplier_payables")
         .select(
-          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_type_id,installment_number,installment_count,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot,revision,last_change_reason",
+          "id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,origin_type,document_type_id,installment_number,installment_count,document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,allocation_status,status,terms_snapshot,revision,last_change_reason,supplier_payable_attachments(id)",
         )
         .eq("operating_company_id", companyId)
         .is("deleted_at", null)
@@ -625,6 +629,7 @@ export function SupplierPayables({
                 ))}
                 {rows.map((item) => {
                   const status = effectiveStatus(item);
+                  const attachmentCount = item.supplier_payable_attachments?.length ?? 0;
                   const documentType = item.document_type_id
                     ? documentTypeById.get(item.document_type_id)
                     : undefined;
@@ -642,6 +647,30 @@ export function SupplierPayables({
                               <Tags className="size-4" />
                             </Button>
                           ) : null}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className={
+                              attachmentCount
+                                ? "border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                                : "text-muted-foreground/60 hover:text-muted-foreground"
+                            }
+                            aria-label={`Gerenciar anexos ${item.document_number}`}
+                            aria-description={
+                              attachmentCount
+                                ? `${attachmentCount} anexos no lançamento`
+                                : "Nenhum anexo no lançamento"
+                            }
+                            title={
+                              attachmentCount
+                                ? `${attachmentCount} anexos · Gerenciar anexos`
+                                : "Sem anexos · Gerenciar anexos"
+                            }
+                            data-has-attachments={attachmentCount > 0}
+                            onClick={() => setManagingAttachments(item)}
+                          >
+                            <Paperclip className="size-4" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -786,6 +815,13 @@ export function SupplierPayables({
           onSaved={() =>
             void queryClient.invalidateQueries({ queryKey: ["supplier-payables", companyId] })
           }
+        />
+      ) : null}
+      {managingAttachments ? (
+        <PayableAttachmentsDialog
+          payable={managingAttachments}
+          canEdit={canEdit}
+          onClose={() => setManagingAttachments(undefined)}
         />
       ) : null}
       {selected ? (

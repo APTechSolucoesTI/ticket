@@ -23,11 +23,13 @@ export function PayableAttachmentEditor({
   onChange,
   installments,
   disabled = false,
+  existingCount = 0,
 }: {
   value: PayableAttachmentDraft[];
   onChange(value: PayableAttachmentDraft[]): void;
   installments?: Array<{ number: number; dueDate: string }>;
   disabled?: boolean;
+  existingCount?: number;
 }) {
   const id = useId();
   const picker = useRef<HTMLInputElement>(null);
@@ -51,7 +53,7 @@ export function PayableAttachmentEditor({
           type="button"
           variant="outline"
           size="sm"
-          disabled={disabled || value.length >= payableAttachmentCountLimit}
+          disabled={disabled || value.length + existingCount >= payableAttachmentCountLimit}
           onClick={() => picker.current?.click()}
         >
           <Plus className="size-4" />
@@ -64,11 +66,11 @@ export function PayableAttachmentEditor({
           type="file"
           multiple
           className="sr-only"
-          disabled={disabled}
+          disabled={disabled || value.length + existingCount >= payableAttachmentCountLimit}
           onChange={(event) => {
             const files = Array.from(event.target.files ?? []);
             event.target.value = "";
-            if (files.length + value.length > payableAttachmentCountLimit) {
+            if (files.length + value.length + existingCount > payableAttachmentCountLimit) {
               setError("Inclua no máximo 20 anexos por lançamento.");
               return;
             }

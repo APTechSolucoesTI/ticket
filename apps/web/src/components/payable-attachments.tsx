@@ -1,38 +1,31 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Download, Loader2, Paperclip } from "lucide-react";
+import { Download, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { payableAttachmentBucket, payableAttachmentTypes } from "@/lib/payable-attachments";
+import {
+  payableAttachmentBucket,
+  payableAttachmentTypes,
+  usePayableAttachments,
+  type PayableAttachment,
+} from "@/lib/payable-attachments";
 import { getUserFacingError } from "@/lib/user-facing-error";
 
-type Attachment = {
-  id: string;
-  storage_path: string;
-  file_name: string;
-  file_size: number;
-  attachment_type: keyof typeof payableAttachmentTypes;
-  type_description: string | null;
-};
 const db = supabase as unknown as SupabaseClient;
-export function PayableAttachments({ payableId }: { payableId: string }) {
+export function PayableAttachments({
+  payableId,
+  onRemove,
+  disabled = false,
+}: {
+  payableId: string;
+  onRemove?: (item: PayableAttachment) => void;
+  disabled?: boolean;
+}) {
   const [downloading, setDownloading] = useState<string>();
-  const query = useQuery({
-    queryKey: ["supplier-payable-attachments", payableId],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("supplier_payable_attachments")
-        .select("id,storage_path,file_name,file_size,attachment_type,type_description")
-        .eq("supplier_payable_id", payableId)
-        .order("created_at");
-      if (error) throw error;
-      return (data ?? []) as Attachment[];
-    },
-  });
-  async function download(item: Attachment) {
+  const query = usePayableAttachments(payableId);
+  async function download(item: PayableAttachment) {
     setDownloading(item.id);
     try {
       const { data, error } = await db.storage
@@ -79,7 +72,7 @@ export function PayableAttachments({ payableId }: { payableId: string }) {
             <div className="min-w-0 space-y-1">
               <p className="break-all text-sm font-medium">{item.file_name}</p>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">
+                <Badge variant="outline" className="max-w-full break-all">
                   {payableAttachmentTypes[item.attachment_type]}
                   {item.type_description ? ` · ${item.type_description}` : ""}
                 </Badge>
@@ -88,20 +81,35 @@ export function PayableAttachments({ payableId }: { payableId: string }) {
                 </span>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              disabled={Boolean(downloading)}
-              aria-label={`Baixar anexo ${item.file_name}`}
-              onClick={() => void download(item)}
-            >
-              {downloading === item.id ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Download className="size-4" />
-              )}
-            </Button>
+            <div className="flex shrink-0 gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={disabled || Boolean(downloading)}
+                aria-label={`Baixar anexo ${item.file_name}`}
+                onClick={() => void download(item)}
+              >
+                {downloading === item.id ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+              </Button>
+              {onRemove ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive"
+                  aria-label={`Excluir anexo ${item.file_name}`}
+                  disabled={disabled || Boolean(downloading)}
+                  onClick={() => onRemove(item)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
         ))
       )}
