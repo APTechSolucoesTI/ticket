@@ -1,0 +1,16 @@
+{
+  "tool": "gitleaks 8.30.1",
+  "scope": "All reachable local Git history; no untracked env files",
+  "unresolvedFindings": 0,
+  "reviewedExceptions": [
+    {
+      "file": "apps/api/README.md",
+      "line": 5,
+      "commit": "0588731eb9576980fe18a1230ecde833e18946b1",
+      "rule": "generic-api-key",
+      "classification": "Public NestJS starter badge placeholder, verified in memory against official template",
+      "source": "https://github.com/nestjs/typescript-starter/blob/master/README.md",
+      "exception": "Exact historical fingerprint only"
+    }
+  ]
+}

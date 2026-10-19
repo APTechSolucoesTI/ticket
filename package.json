@@ -11,6 +11,14 @@
     "build:web": "pnpm --filter web build",
     "build:api": "pnpm --filter api build",
     "lint": "pnpm -r lint",
-    "format": "pnpm -r format"
+    "format": "pnpm -r format",
+    "lint:security": "eslint --config eslint.security.config.mjs apps packages supabase/functions",
+    "test:security-lint": "node scripts/security/test-lint-config.mjs",
+    "test:security-http": "node scripts/security/test-server-functions.mjs && node scripts/security/test-portal.mjs"
+  },
+  "devDependencies": {
+    "eslint": "9.39.5",
+    "eslint-plugin-security": "4.2.0",
+    "typescript-eslint": "8.67.0"
   }
 }

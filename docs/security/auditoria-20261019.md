@@ -1,10 +1,10 @@
-# APTicket — reconhecimento e modelo de ameaças
+# APTicket — auditoria AppSec em andamento
 
 Data: 19/10/2026, America/Sao_Paulo. Base analisada: `0241b4bd9673320f16c4a48520f9765f02aafc7e`.
 
 ## 1. Resumo executivo e limites
 
-**Estado: Fase 1 concluída; relatório inicial da Fase 2 registrado antes de alterações no aplicativo.** A investigação e a validação complementar continuam. Não constitui atestado de segurança. O risco identificado é **alto**, com dependência de runtime afetada por aviso crítico e falhas de autorização reproduzidas no portal. Severidades de avisos de dependências não equivalem automaticamente a exploração comprovada neste aplicativo.
+**Estado: Fase 1 concluída; achados iniciais da Fase 2 registrados antes das alterações; primeiro lote de correções validado localmente.** A investigação e a validação complementar continuam. Não constitui atestado de segurança. O risco residual é **alto**: os seis avisos críticos de dependências foram eliminados do lockfile local, mas permanecem avisos altos de SMTP e lacunas de autenticação, isolamento e integrações. Severidades de avisos de dependências não equivalem automaticamente a exploração comprovada neste aplicativo.
 
 O checkout contém três caminhos de execução com acesso a dados: navegador/PostgREST, servidor TanStack Start/Nitro e API NestJS com workers. Há também Edge Functions Deno, Storage, Realtime e funções PostgreSQL. A autenticação principal usa emissão própria de JWT compatível com PostgREST; o portal usa outro formato de sessão. Uma auditoria limitada a React e Edge Functions deixaria caminhos importantes sem análise.
 
@@ -30,12 +30,12 @@ O [inventário JSON](./inventario-20261019.json) registra arquivos, linhas de ch
 - [ ] Fase 2: completar matriz CRUD/tenant/empresa para todas as tabelas e fluxos.
 - [ ] Fase 2: auditar autenticação, sessão, autorização, APIs e integrações.
 - [ ] Fase 2: auditar XSS/injeção/uploads, segredos/histórico, dependências, configuração, abuso e dados pessoais.
-- [ ] Fase 2: produzir achados reproduzíveis, classificação e recomendações antes das correções.
+- [x] Fase 2: produzir achados iniciais reproduzíveis, classificação e recomendações antes das correções.
 - [x] Preparar banco descartável isolado e handlers HTTP locais com integrações fictícias.
 - [ ] Corrigir por severidade, com testes de regressão e commits locais separados por tema.
 - [ ] Submeter decisões de negócio e mudanças com risco de regressão ao responsável antes de implementá-las.
-- [ ] Verificação final: build, lint, typecheck, suíte de testes e checklist de segurança atualizado.
-- [ ] Entregar pendências externas, riscos residuais e checklist trimestral.
+- [x] Executar verificação deste lote: build, lint, typecheck e testes disponíveis, registrando falhas e cobertura incompleta.
+- [x] Registrar pendências externas, riscos residuais e checklist trimestral.
 
 ## 3. Mapa da arquitetura
 
@@ -226,7 +226,7 @@ Não foram executados build, lint, typecheck ou testes nesta etapa documental. O
 
 A matriz de isolamento deverá cobrir operações SELECT/INSERT/UPDATE/DELETE, mudança de tenant/empresa e soft delete; roles `anon`/`authenticated`, usuários de dois tenants, empresas distintas do mesmo tenant e contato com vínculos diferentes. Tabelas internas devem ser testadas como negativas para clientes comuns. RPCs, views, Storage, Realtime, server functions, API e jobs exigem casos próprios além de CRUD de tabelas.
 
-## 8. Achados, severidade e ações externas
+## 8. Registro histórico ao encerrar a Fase 1
 
 **Nenhum achado foi classificado nesta fase.** Isso não significa ausência de vulnerabilidades.
 
@@ -340,3 +340,58 @@ Teste: `node scripts/security/test-dependency-audit.mjs <json-do-pnpm-audit>`. F
 O typecheck completo da API, incluindo specs, identificou um matcher de erro parcial tipado como erro completo; corrigido para `Partial<CollectionDispatchError>`, preservando a asserção existente. Quatro erros de lint no worker Inter tratavam resposta de Edge como `any`; agora o retorno entra como `unknown` e seus campos são verificados antes de aceitar a sincronização. Não foi classificada vulnerabilidade nova com base apenas nesses erros estáticos.
 
 Regressão: sete casos adicionais do worker verificam respostas nulas/incompletas, estado negativo, erro de transporte e sincronização válida. As 12 suites da API passaram com 59 testes; build, typecheck incluindo specs e lint da API também passaram. Nenhuma chamada bancária ou mensagem real foi executada.
+
+### CI e varredura de segredos
+
+Workflow `.github/workflows/security.yml` preparado para PR, push em main e execução manual, com permissões somente de leitura e Actions fixadas por SHA verificado. Inclui build/typecheck, testes da API, HTTP local do portal/server functions, seis arquivos de teste Edge sem rede/ambiente, audit pnpm e lint de segurança. O projeto usa pnpm: não foi criado um lockfile npm concorrente.
+
+Gitleaks CLI 8.30.1 foi baixado da release oficial e conferido por SHA-256; scan de todo histórico local alcançável, com saída redigida. O único candidato era o parâmetro de exemplo do badge CircleCI no README do starter NestJS, confirmado por comparação em memória com o template público oficial. Exceção em `.gitleaksignore` limitada ao fingerprint histórico exato; arquivo, regra ou diretório não foram ignorados. Nova execução passou com zero candidatos não resolvidos. [Resultado sanitizado](./gitleaks-20261019.json). Isso não prova ausência de todo segredo e não exige rotação daquele exemplo público.
+
+`eslint-plugin-security` utiliza regras de bloqueio para eval dinâmico, Buffer inseguro, pseudoRandomBytes, escape desativado e caracteres bidirecionais. Heurísticas restantes geram avisos para triagem; não são classificadas automaticamente como vulnerabilidade. Inline disables não podem desativar esse perfil. Teste de configuração demonstra recusa dos exemplos inseguros, aceitação do uso seguro e resistência a desativação inline. Execução atual: zero erros, 119 avisos a revisar.
+
+**Limites:** o YAML e os comandos foram validados localmente; o workflow ainda não rodou no GitHub. O audit alto continuará falhando por Nodemailer e o lint geral do frontend continuará falhando pelo legado. A matriz SQL completa e seu bootstrap reproduzível ainda não foram incorporados ao CI; testes HTTP de caminhos entre tenants não substituem essa matriz. Configurar checks obrigatórios no GitHub e impedir deploy independente no Dokploy também exige configuração da implantação.
+
+## 12. Estado de cada achado após este lote
+
+| ID | Estado local | Pendência / risco residual |
+|---|---|---|
+| SEC-01 | Corrigido e validado localmente | Publicação ainda não realizada. |
+| SEC-02 | Corrigido e validado localmente | Publicação ainda não realizada; desativação do contato é revalidada em cada chamada. |
+| SEC-03 | Mitigado parcialmente | Vínculo imutável objeto–ticket/contato e migração dos caminhos legados ainda necessários dentro do tenant. |
+| SEC-04 | Mitigado parcialmente | Consumo condicional corrigido; contador de tentativas incorretas e limite distribuído ainda não atômicos/compartilhados. |
+| SEC-05 | Não corrigido; decisão solicitada | Confirmar destinos privados legítimos antes de bloquear rede interna; limitação de streaming também pendente. |
+| SEC-06 | Não corrigido | Política de tentativas, identidade de origem confiável e armazenamento compartilhado precisam ser implementados. |
+| SEC-07 | Não corrigido; decisão solicitada | Definir revogação de sessões após reset; implementar consumo transacional de convite/reset e testes dedicados. |
+| SEC-08 | Mitigado parcialmente | Zero críticos; dois avisos altos e três moderados do Nodemailer; atualização major solicitada ao responsável. |
+| SEC-09 | Não corrigido | Definir formatos e política de uploads/antivírus; adicionar validação real e leitura limitada. |
+| SEC-10 | Parcial: CI preparado; cobertura SQL incompleta | Fixtures antigas e bootstrap ainda bloqueiam vários testes; matriz de todas as tabelas/CRUD não concluída. Lint legado do frontend também permanece. |
+| SEC-11 | Não concluído | Conferir proxy/TLS/headers e origens de CSP; não impor política que bloqueie recursos legítimos sem inventário. |
+| SEC-12 | Não corrigido | Mapear consumidores das colunas cifradas antes de reduzir grants e tratar possível legado. Valores reais não consultados. |
+
+### Verificações e cobertura
+
+- Build web (preset Node) e API: aprovados. Typecheck web e API, incluindo specs: aprovados.
+- API: 59 testes aprovados em 12 suites. Edge: 54 testes aprovados em seis arquivos, executados por Deno 2.9.6 sem permissão de rede/ambiente.
+- HTTP local: quatro variantes de transporte GET/POST; contato inativo/erro/ativo; recusa de assinatura fora do tenant/traversal; persistência e concorrência de OTP: aprovados.
+- UI dos seletores: scroll, A–Z, Concluir por mouse/teclado/busca, categoria com código, opções desabilitadas, Escape e múltipla seleção, em 1440/768/390px: aprovados em ambos os scripts. O teste passou a aguardar a animação de fechamento antes de abrir outro seletor, evitando ambiguidade entre duas caixas de busca transitórias.
+- Lint API e lint dos seis arquivos web de segurança: aprovados. Lint de segurança: zero erros e 119 avisos heurísticos. Lint geral do web: falha legada; comparação dos 11 arquivos alterados com a base Git, normalizando EOL, não introduziu erros (quatro existentes no root, zero nos demais).
+- SQL: mantém a baseline documentada de 33 arquivos tentados, sete arquivos aprovados, 458 asserções aprovadas e 42 falhas, além de interrupções de setup. Nenhuma alegação de aprovação global de RLS, Realtime, RPCs, contract-gating ou de todas as tabelas.
+- Não foram executados todos os scripts UI históricos de módulos não alterados; não apresentar os testes executados como toda a suíte do monorepo.
+
+### Decisões e ações externas
+
+1. Responder às perguntas já apresentadas: destinos internos legítimos; atualização do Nodemailer para versão principal corrigida; revogação de sessões no reset.
+2. Especificar política de arquivos, origem de IP confiável, limites de tentativas e retenção/auditoria/LGPD com os responsáveis. Requerimentos de MFA para futuro backoffice continuam em aberto porque o componente não existe.
+3. Verificar Auth/provedores/redirects de apps compartilhados, backups/PITR e restauração, criptografia em repouso, headers/TLS no proxy e SPF/DKIM/DMARC. Esses controles não foram atestados por leitura de código.
+4. Completar matriz SQL e reconciliação das fixtures, revisão dos avisos heurísticos, cobertura de Realtime/jobs/idempotência/exportações e scanner de uploads. Wrapper central de Edge, auditoria imutável e MFA global não foram implementados neste lote; mudanças de contrato exigem desenho e compatibilidade.
+5. Confirmar o escopo de publicação: a solicitação de auditoria restringe produção; a autorização posterior liberou o uso do servidor para testes. O procedimento geral GitHub → Dokploy foi identificado e os dois aplicativos existem, mas não houve push/deploy nem migration de produção neste lote. Não há migration nova necessária para as correções atuais.
+
+### Checklist recorrente trimestral
+
+- Reexecutar audit, Gitleaks e lint de segurança; revisar exceções por fingerprint e dependências abandonadas/postinstall.
+- Executar matriz tenant/empresa/contato para CRUD, RPCs, views, Storage, Realtime e rotas privilegiadas, incluindo soft delete.
+- Revisar papéis/grants, contatos/perfis inativos, credenciais de integrações e contas de serviço; validar revogação/reset/MFA.
+- Testar restore em ambiente isolado e registrar tempo/recuperação; conferir backups, PITR e retenção sem copiar dados para serviços externos.
+- Verificar TLS/headers/CORS/CSP, limites públicos, filas, replay, idempotência financeira e loop de automações.
+- Exercitar uploads, exportações e sanitização com fixtures; revisar logs/auditoria e política de anonimização/LGPD.
+- Exigir checks antes da publicação e reavaliar o modelo de ameaças quando entrar módulo, integração, papel ou backoffice novo.
