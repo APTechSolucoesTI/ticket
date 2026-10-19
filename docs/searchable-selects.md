@@ -25,6 +25,6 @@ Aplicação compilada, APIs isoladas e navegadores em 1440, 768 e 390 pixels:
 
 Execução: definir `PLAYWRIGHT_MODULE` com o caminho do Playwright instalado e executar cada script com Node, após o build do frontend. Cada script inicia e encerra seu próprio servidor local. Capturas ficam em `artifacts/`, ignoradas pelo Git.
 
-Lint dos arquivos alterados e build do frontend. O typecheck completo mantém os erros anteriores em `payable-suppliers`, configurações Inter e contatos do portal, sem novos erros nos componentes alterados.
+Lint dos arquivos alterados e build do frontend. Os 17 erros anteriores de TypeScript em `payable-suppliers`, configurações Inter e contatos do portal foram corrigidos; os typechecks completos do frontend e do backend passam sem erros.
 
 Não há alteração no banco ou migration nesta entrega. Publicação somente do frontend, pelo fluxo GitHub → Dokploy.

@@ -1298,6 +1298,110 @@ export type Database = {
           },
         ];
       };
+      // Generated from the deployed apticket schema.
+      operating_companies: {
+        Row: {
+          address_city: string | null;
+          address_complement: string | null;
+          address_country: string;
+          address_district: string | null;
+          address_number: string | null;
+          address_state: string | null;
+          address_street: string | null;
+          cnaes: Json;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          email: string | null;
+          id: string;
+          is_active: boolean;
+          legal_name: string;
+          municipal_registration: string | null;
+          phone: string | null;
+          state_registration: string | null;
+          tax_id: string | null;
+          tenant_id: string;
+          trade_name: string | null;
+          updated_at: string;
+          updated_by: string | null;
+          website: string | null;
+          zip_code: string | null;
+        };
+        Insert: {
+          address_city?: string | null;
+          address_complement?: string | null;
+          address_country?: string;
+          address_district?: string | null;
+          address_number?: string | null;
+          address_state?: string | null;
+          address_street?: string | null;
+          cnaes?: Json;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          email?: string | null;
+          id?: string;
+          is_active?: boolean;
+          legal_name: string;
+          municipal_registration?: string | null;
+          phone?: string | null;
+          state_registration?: string | null;
+          tax_id?: string | null;
+          tenant_id: string;
+          trade_name?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          website?: string | null;
+          zip_code?: string | null;
+        };
+        Update: {
+          address_city?: string | null;
+          address_complement?: string | null;
+          address_country?: string;
+          address_district?: string | null;
+          address_number?: string | null;
+          address_state?: string | null;
+          address_street?: string | null;
+          cnaes?: Json;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          email?: string | null;
+          id?: string;
+          is_active?: boolean;
+          legal_name?: string;
+          municipal_registration?: string | null;
+          phone?: string | null;
+          state_registration?: string | null;
+          tax_id?: string | null;
+          tenant_id?: string;
+          trade_name?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          website?: string | null;
+          zip_code?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "operating_companies_created_by_fkey";
+            columns: ["created_by", "tenant_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id", "tenant_id"];
+          },
+          {
+            foreignKeyName: "operating_companies_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "operating_companies_updated_by_fkey";
+            columns: ["updated_by", "tenant_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id", "tenant_id"];
+          },
+        ];
+      };
       pause_reasons: {
         Row: {
           created_at: string;

@@ -481,7 +481,7 @@ function OperatingCompanyDialog({
   };
 
   const lookupCep = async () => {
-    const digits = unmask(form.zip_code);
+    const digits = unmask(form.zip_code ?? "");
     if (digits.length !== 8) {
       toast.error("Informe um CEP válido.");
       return;

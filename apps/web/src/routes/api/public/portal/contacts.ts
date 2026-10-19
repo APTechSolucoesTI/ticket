@@ -40,9 +40,8 @@ async function portalAdmin(request: Request) {
     .eq("id", session.contact_id)
     .eq("tenant_id", session.tenant_id)
     .maybeSingle();
-  return data?.is_active && data.is_portal_admin && data.company_id
-    ? { actor: data, supabaseAdmin }
-    : null;
+  if (!data?.is_active || !data.is_portal_admin || !data.company_id) return null;
+  return { actor: { ...data, company_id: data.company_id }, supabaseAdmin };
 }
 
 export const Route = createFileRoute("/api/public/portal/contacts")({
