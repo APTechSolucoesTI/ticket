@@ -1,0 +1,17 @@
+{
+  "environment": "Loopback-only application and fake Supabase; synthetic token/actors/paths.",
+  "results": [
+    {
+      "id": "SEC-02",
+      "observed": "Inactive fixture contact: session/detail/reply returned HTTP 200; message insert observed"
+    },
+    {
+      "id": "SEC-03",
+      "observed": "Storage signing received a different tenant namespace supplied in message metadata"
+    },
+    {
+      "id": "SEC-04",
+      "observed": "OTP returned session token after mocked consumption UPDATE failed"
+    }
+  ]
+}

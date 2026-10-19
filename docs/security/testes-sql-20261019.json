@@ -1,0 +1,209 @@
+{
+  "environment": "Disposable PostgreSQL container, network none, no published ports, schema-only + structural catalogs, synthetic fixtures only. Restore of unrelated global schema objects incomplete; legacy test signatures/required fields must be reconciled.",
+  "rows": [
+    {
+      "file": "avulso_billing_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "bank_statement_reconciliation_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "collection_rules_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "consolidated_cash_flow_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "contact_secondary_channels_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "contract_allocations_test.sql",
+      "exit": 0,
+      "passed": 42,
+      "failed": 2
+    },
+    {
+      "file": "contract_measurements_test.sql",
+      "exit": 3,
+      "passed": 3,
+      "failed": 2
+    },
+    {
+      "file": "financial_budgets_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "financial_category_integrity_test.sql",
+      "exit": 0,
+      "passed": 34,
+      "failed": 0
+    },
+    {
+      "file": "financial_cost_centers_and_categories_test.sql",
+      "exit": 0,
+      "passed": 55,
+      "failed": 0
+    },
+    {
+      "file": "financial_foundation_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "financial_management_statement_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "financial_period_closure_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "financial_profitability_projection_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "financial_settings_test.sql",
+      "exit": 0,
+      "passed": 55,
+      "failed": 0
+    },
+    {
+      "file": "fixed_payables_test.sql",
+      "exit": 3,
+      "passed": 60,
+      "failed": 0
+    },
+    {
+      "file": "fixed_supplier_allocation_rules_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "inter_charge_requests_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "inter_connection_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "inter_payer_snapshot_preflight_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "inter_sandbox_dispatch_processor_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "manual_entry_allocations_test.sql",
+      "exit": 0,
+      "passed": 56,
+      "failed": 0
+    },
+    {
+      "file": "operating_company_inter_binding_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "outbound_automations_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "payable_attachments_test.sql",
+      "exit": 0,
+      "passed": 64,
+      "failed": 0
+    },
+    {
+      "file": "payable_mutations_test.sql",
+      "exit": 0,
+      "passed": 68,
+      "failed": 0
+    },
+    {
+      "file": "payable_suppliers_test.sql",
+      "exit": 0,
+      "passed": 7,
+      "failed": 22
+    },
+    {
+      "file": "profile_avatar_storage_test.sql",
+      "exit": 0,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "recurring_cycle_closure_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "supplier_payable_approvals_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "supplier_payable_cycles_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "supplier_payment_settlement_test.sql",
+      "exit": 3,
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "file": "tenant_inter_configuration_test.sql",
+      "exit": 0,
+      "passed": 3,
+      "failed": 16
+    }
+  ],
+  "summary": {
+    "files": 33,
+    "passingFiles": 7,
+    "passedAssertions": 458,
+    "failedAssertions": 42
+  }
+}

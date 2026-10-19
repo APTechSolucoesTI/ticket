@@ -1,0 +1,1662 @@
+{
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 5,
+      "moderate": 17,
+      "high": 16,
+      "critical": 6
+    },
+    "dependencies": 609,
+    "devDependencies": 515,
+    "optionalDependencies": 127,
+    "totalDependencies": 1199
+  },
+  "advisories": [
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Process-global DNS cache reuses TLS `servername` across transports, enabling cross-tenant SMTP credential disclosure",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
+      "affected": ">=5.0.0 <10.0.2",
+      "patched": ">=10.0.2",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "dev": false,
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to Denial of Service via unhandled error in WebSocket permessage-deflate decompression",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-3wwx-pv8p-q78v",
+      "affected": ">=8.1.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "fast-uri",
+      "title": "fast-uri vulnerable to authority injection via an unvalidated port in serialize",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "affected": ">=3.0.0 <3.1.7",
+      "patched": ">=3.1.7",
+      "findings": [
+        {
+          "version": "3.1.6",
+          "dev": false,
+          "paths": [
+            "apps__api>@nestjs/cli>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@hookform/resolvers>ajv>fast-uri",
+            "apps__web>@hookform/resolvers>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "fast-uri",
+      "title": "fast-uri vulnerable to host confusion via an unclosed bracket in the URI authority",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-58mr-gqgx-xq4g",
+      "affected": "=3.1.6",
+      "findings": [
+        {
+          "version": "3.1.6",
+          "dev": false,
+          "paths": [
+            "apps__api>@nestjs/cli>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@hookform/resolvers>ajv>fast-uri",
+            "apps__web>@hookform/resolvers>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "ip-address",
+      "title": "ip-address: Address6.isLinkLocal() recognizes fe80::/64 rather than fe80::/10, allowing SSRF and trust-boundary bypass to on-link hosts",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-rpw4-54j3-4h4q",
+      "affected": "<=10.5.0",
+      "patched": ">=10.5.1",
+      "findings": [
+        {
+          "version": "10.5.0",
+          "dev": false,
+          "paths": [
+            "apps__api>imapflow>socks>ip-address"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "ip-address",
+      "title": "ip-address: no classifier recognizes the NAT64 local-use range 64:ff9b:1::/48, allowing SSRF and trust-boundary bypass",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc",
+      "affected": ">=10.2.0 <=10.5.0",
+      "patched": ">=10.5.1",
+      "findings": [
+        {
+          "version": "10.5.0",
+          "dev": false,
+          "paths": [
+            "apps__api>imapflow>socks>ip-address"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Nested structured recipient arrays bypass the parser depth limit and cause stack exhaustion DoS",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
+      "affected": "<10.0.2",
+      "patched": ">=10.0.2",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "dev": false,
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to Denial of Service via orphaned RetryHandler response body",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-pmjh-fq2x-6v4x",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to downstream response splitting via retry interceptor",
+      "severity": "low",
+      "url": "https://github.com/advisories/GHSA-r53p-7pc4-xj5r",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to Denial of Service via unrequested WebSocket subprotocol",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to Denial of Service via unbounded decompression of compressed responses",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-3xpg-4rpp-hhhm",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-2jfj-6hjv-fm6j",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to response truncation via oversized chunked responses in the dump interceptor",
+      "severity": "low",
+      "url": "https://github.com/advisories/GHSA-2gqq-gqf2-x968",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-w293-vg96-wgc3",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to caching and replay of unsafe HTTP method responses",
+      "severity": "low",
+      "url": "https://github.com/advisories/GHSA-8436-99hf-9mmv",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to cross-origin cache poisoning via missing origin isolation in interceptors",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-vp8m-p9jh-q5pm",
+      "affected": ">=8.10.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "undici",
+      "title": "undici vulnerable to Denial of Service via WebSocketStream unclean close",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-rx4f-c7p8-82vq",
+      "affected": ">=8.0.0 <8.10.2",
+      "patched": ">=8.10.2",
+      "findings": [
+        {
+          "version": "8.10.0",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>jsdom>undici"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "fast-uri",
+      "title": "fast-uri vulnerable to inconsistent host case normalization via percent-encoded octets",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "affected": ">=3.0.0 <3.1.8",
+      "patched": ">=3.1.8",
+      "findings": [
+        {
+          "version": "3.1.6",
+          "dev": false,
+          "paths": [
+            "apps__api>@nestjs/cli>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@angular-devkit/schematics-cli>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/cli>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv>fast-uri",
+            "apps__api>@nestjs/schematics>@angular-devkit/schematics>@angular-devkit/core>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@hookform/resolvers>ajv>fast-uri",
+            "apps__web>@hookform/resolvers>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>schema-utils>ajv-keywords>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-formats>ajv>fast-uri",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>schema-utils>ajv-keywords>ajv>fast-uri"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "ip-address",
+      "title": "ip-address: isInSubnet() and isHostInSubnet() compare addresses of different families as if they shared an address space, allowing an allowlist check to admit an address outside its range",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+      "affected": "<=10.7.0",
+      "patched": ">=10.7.1",
+      "findings": [
+        {
+          "version": "10.5.0",
+          "dev": false,
+          "paths": [
+            "apps__api>imapflow>socks>ip-address"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "ip-address",
+      "title": "ip-address: Address6 builds a parse diagnostic proportional to the input with no length bound, allowing a single long string to stall or crash the process",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+      "affected": "<=10.7.0",
+      "patched": ">=10.7.1",
+      "findings": [
+        {
+          "version": "10.5.0",
+          "dev": false,
+          "paths": [
+            "apps__api>imapflow>socks>ip-address"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "affected": "<1.1.21",
+      "patched": ">=1.1.21",
+      "findings": [
+        {
+          "version": "1.1.18",
+          "dev": true,
+          "paths": [
+            "apps__api>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>minimatch>brace-expansion",
+            "apps__api>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "affected": ">=2.0.0 <2.1.7",
+      "patched": ">=2.1.7",
+      "findings": [
+        {
+          "version": "2.1.4",
+          "dev": true,
+          "paths": [
+            "apps__api>jest>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "affected": ">=4.0.0 <5.0.12",
+      "patched": ">=5.0.12",
+      "findings": [
+        {
+          "version": "5.0.9",
+          "dev": true,
+          "paths": [
+            "apps__api>@nestjs/cli>glob>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "affected": "<1.1.20",
+      "patched": ">=1.1.20",
+      "findings": [
+        {
+          "version": "1.1.18",
+          "dev": true,
+          "paths": [
+            "apps__api>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>minimatch>brace-expansion",
+            "apps__api>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "affected": ">=2.0.0 <2.1.6",
+      "patched": ">=2.1.6",
+      "findings": [
+        {
+          "version": "2.1.4",
+          "dev": true,
+          "paths": [
+            "apps__api>jest>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "affected": ">=4.0.0 <5.0.11",
+      "patched": ">=5.0.11",
+      "findings": [
+        {
+          "version": "5.0.9",
+          "dev": true,
+          "paths": [
+            "apps__api>@nestjs/cli>glob>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "affected": "<1.1.19",
+      "patched": ">=1.1.19",
+      "findings": [
+        {
+          "version": "1.1.18",
+          "dev": true,
+          "paths": [
+            "apps__api>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>minimatch>brace-expansion",
+            "apps__api>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-config-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>@eslint/config-array>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            "apps__api>eslint-plugin-prettier>eslint-config-prettier>eslint>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>babel-jest>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-resolve-dependencies>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/globals>@jest/expect>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>jest-snapshot>@jest/transform>babel-plugin-istanbul>test-exclude>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "affected": ">=2.0.0 <2.1.5",
+      "patched": ">=2.1.5",
+      "findings": [
+        {
+          "version": "2.1.4",
+          "dev": true,
+          "paths": [
+            "apps__api>jest>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>jest>jest-cli>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>@jest/reporters>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-runner>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>@jest/core>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>jest-circus>jest-runtime>glob>minimatch>brace-expansion",
+            "apps__api>ts-jest>jest>jest-cli>jest-config>jest-runner>jest-runtime>glob>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "affected": ">=4.0.0 <5.0.10",
+      "patched": ">=5.0.10",
+      "findings": [
+        {
+          "version": "5.0.9",
+          "dev": true,
+          "paths": [
+            "apps__api>@nestjs/cli>glob>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__api>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            "apps__web>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "engine.io",
+      "title": "Socket.IO: Engine.IO Protocol Revision Mismatch DoS",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-2gc4-cqfq-p2gv",
+      "affected": ">=6.6.0 <6.6.10",
+      "patched": ">=6.6.10",
+      "findings": [
+        {
+          "version": "6.6.9",
+          "dev": false,
+          "paths": [
+            "apps__api>@nestjs/bullmq>@nestjs/bull-shared>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/bullmq>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/platform-express>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/swagger>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>socket.io>engine.io",
+            "apps__api>@nestjs/testing>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io",
+            "apps__api>@nestjs/testing>@nestjs/platform-express>@nestjs/core>@nestjs/websockets>@nestjs/platform-socket.io>socket.io>engine.io"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Quoted local-part can produce malformed envelope recipient through RFC 5322 comment parsing",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-g57g-f23g-4646",
+      "affected": ">=9.1.0 <10.0.9",
+      "patched": ">=10.0.9",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "dev": false,
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+      "affected": "<=10.0.5",
+      "patched": ">=10.0.6",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "dev": false,
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dompurify",
+      "title": "DOMPurify: IN_PLACE: node-removing afterSanitize hook leaves detached subtree event handlers armed, causing DOM XSS",
+      "severity": "low",
+      "url": "https://github.com/advisories/GHSA-p98j-92pf-mc4p",
+      "affected": ">=3.4.13 <=3.4.15",
+      "patched": ">=3.4.16",
+      "findings": [
+        {
+          "version": "3.4.13",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>dompurify",
+            "apps__web>jspdf>dompurify"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dompurify",
+      "title": "DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes",
+      "severity": "low",
+      "url": "https://github.com/advisories/GHSA-6688-9rhm-gjv2",
+      "affected": "<=3.4.15",
+      "patched": ">=3.4.16",
+      "findings": [
+        {
+          "version": "3.4.13",
+          "dev": false,
+          "paths": [
+            "apps__web>isomorphic-dompurify>dompurify",
+            "apps__web>jspdf>dompurify"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "seroval",
+      "title": "Seroval: Memory exhaustion via unchecked TypedArray length in JSON deserialization",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-jp82-f5mq-hwhp",
+      "affected": "<=1.6.2",
+      "patched": ">=1.6.3",
+      "findings": [
+        {
+          "version": "1.6.2",
+          "dev": false,
+          "paths": [
+            "apps__web>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-client>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-generator>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-generator>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-generator>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-generator>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-generator>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-generator>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-generator>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/router-generator>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/react-router>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>@tanstack/react-router>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-client-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-client-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>@tanstack/start-storage-context>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core>seroval",
+            "apps__web>@tanstack/router-plugin>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/router-plugin>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/router-plugin>@tanstack/router-generator>@tanstack/router-core>seroval",
+            "apps__web>@tanstack/router-plugin>@tanstack/router-generator>@tanstack/router-core>seroval-plugins>seroval",
+            "apps__web>@tanstack/router-plugin>@tanstack/react-router>@tanstack/router-core>seroval"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "source-map-js",
+      "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+      "affected": ">=1.0.0 <1.2.2",
+      "patched": ">=1.2.2",
+      "findings": [
+        {
+          "version": "1.2.1",
+          "dev": false,
+          "paths": [
+            "apps__api>@nestjs/cli>fork-ts-checker-webpack-plugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__api>@nestjs/cli>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__api>ts-loader>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@tailwindcss/vite>@tailwindcss/node>source-map-js",
+            "apps__web>@tailwindcss/vite>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>vitefu>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>vitefu>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>vite>postcss>source-map-js",
+            "apps__web>@tanstack/react-start>vite>postcss>source-map-js",
+            "apps__web>@tanstack/router-plugin>unplugin>vite>postcss>source-map-js",
+            "apps__web>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@tanstack/router-plugin>vite>postcss>source-map-js",
+            "apps__web>@tanstack/router-plugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>isomorphic-dompurify>jsdom>@asamuzakjp/dom-selector>css-tree>source-map-js",
+            "apps__web>isomorphic-dompurify>jsdom>@bramus/specificity>css-tree>source-map-js",
+            "apps__web>isomorphic-dompurify>jsdom>@csstools/css-syntax-patches-for-csstree>css-tree>source-map-js",
+            "apps__web>isomorphic-dompurify>jsdom>css-tree>source-map-js",
+            "apps__web>vite-tsconfig-paths>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@lovable.dev/vite-plugin-dev-server-bridge>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@lovable.dev/vite-plugin-hmr-gate>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tailwindcss/vite>@tailwindcss/node>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tailwindcss/vite>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/devtools-vite>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>vitefu>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>unplugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/router-plugin>webpack>terser-webpack-plugin>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>vitefu>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>@vitejs/plugin-react>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>vite-tsconfig-paths>vite>postcss>source-map-js",
+            "apps__web>@lovable.dev/vite-tanstack-config>nitro>vite>postcss>source-map-js",
+            "apps__web>@vitejs/plugin-react>vite>postcss>source-map-js",
+            "apps__web>nitro>vite>postcss>source-map-js",
+            "apps__web>vite>postcss>source-map-js"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "proxy-addr",
+      "title": "proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-jqcg-44mw-7w3h",
+      "affected": ">=1.1.0 <2.0.8",
+      "patched": ">=2.0.8",
+      "findings": [
+        {
+          "version": "2.0.7",
+          "dev": false,
+          "paths": [
+            "apps__api>@nestjs/bullmq>@nestjs/bull-shared>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/bullmq>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/platform-socket.io>@nestjs/websockets>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/websockets>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/testing>@nestjs/core>@nestjs/platform-express>express>proxy-addr",
+            "apps__api>@nestjs/testing>@nestjs/platform-express>express>proxy-addr"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer addressparser: O(n^2) on comment-joined addresses enables a remote DoS (reachable via mailparser)",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-prgh-xp8r-p3m5",
+      "affected": ">=9.1.0 <=10.0.4",
+      "patched": ">=10.0.5",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "dev": false,
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "shell-quote",
+      "title": "shell-quote: `quote()` command injection via a line terminator in a token after a `{ comment }` token",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-pqg4-j6r4-53mv",
+      "affected": ">=1.8.4 <1.11.0",
+      "patched": ">=1.11.0",
+      "findings": [
+        {
+          "version": "1.10.0",
+          "dev": true,
+          "paths": [
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/devtools-vite>@tanstack/devtools-bundler-core>launch-editor>shell-quote"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "handlebars",
+      "title": "Handlebars: JavaScript Injection via Unsafe Inline Embedding of Precompiled Templates",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-xw65-4hp5-5hc7",
+      "affected": ">=4.0.0 <=4.7.9",
+      "patched": ">=4.7.10",
+      "findings": [
+        {
+          "version": "4.7.9",
+          "dev": true,
+          "paths": [
+            "apps__api>ts-jest>handlebars"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "handlebars",
+      "title": "Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-8r5x-fm3f-whwj",
+      "affected": ">=4.0.0 <=4.7.9",
+      "patched": ">=4.7.10",
+      "findings": [
+        {
+          "version": "4.7.9",
+          "dev": true,
+          "paths": [
+            "apps__api>ts-jest>handlebars"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "handlebars",
+      "title": "Handlebars: JavaScript Injection via Own Property Check Bypass",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-p8wg-vrv2-v86f",
+      "affected": ">=3.0.0 <=4.7.9",
+      "patched": ">=4.7.10",
+      "findings": [
+        {
+          "version": "4.7.9",
+          "dev": true,
+          "paths": [
+            "apps__api>ts-jest>handlebars"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "@tanstack/react-start",
+      "title": "TanStack Router: Unauthenticated reflected XSS in TanStack Start server-function responses",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-qx66-fv34-fjm8",
+      "affected": ">=1.143.12 <1.168.60",
+      "patched": ">=1.168.60",
+      "findings": [
+        {
+          "version": "1.168.46",
+          "dev": false,
+          "paths": [
+            "apps__web>@tanstack/react-start",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "@tanstack/start-server-core",
+      "title": "TanStack Router: Unauthenticated reflected XSS in TanStack Start server-function responses",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-qx66-fv34-fjm8",
+      "affected": ">=1.143.12 <1.169.39",
+      "patched": ">=1.169.39",
+      "findings": [
+        {
+          "version": "1.169.28",
+          "dev": false,
+          "paths": [
+            "apps__web>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core",
+            "apps__web>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core",
+            "apps__web>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core",
+            "apps__web>@tanstack/react-start>@tanstack/start-server-core",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-rsc>@tanstack/start-plugin-core>@tanstack/start-server-core",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/react-start-server>@tanstack/start-server-core",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-plugin-core>@tanstack/start-server-core",
+            "apps__web>@lovable.dev/vite-tanstack-config>@tanstack/react-start>@tanstack/start-server-core"
+          ]
+        }
+      ]
+    }
+  ]
+}

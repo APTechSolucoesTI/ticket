@@ -1,0 +1,5 @@
+{
+  "scope": "All reachable git refs, text blobs <=3MB. Targeted token/private-key patterns; not a complete entropy scan or proof of absence.",
+  "blobsScanned": 1624,
+  "findings": []
+}
