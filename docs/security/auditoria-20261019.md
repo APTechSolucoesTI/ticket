@@ -320,3 +320,11 @@ Antes: qualquer caminho indicado no JSON da mensagem era encaminhado ao signer c
 Teste: `node scripts/security/test-portal.mjs SEC-03`. Falha antes: signer recebia outro tenant e variantes de traversal. Após: só recebe dois caminhos canônicos do tenant, e anexos recusados recebem `url:null`. Reversão por revert do commit, sem migration.
 
 Risco residual: o prefixo de tenant não estabelece a propriedade do objeto entre empresas/tickets do mesmo tenant. Anexos WhatsApp e pendências legadas não contêm o ticket no caminho. É necessário adicionar vínculo imutável objeto–ticket/contato no banco e validar no signer, com migração compatível do legado; não declarar BOLA de arquivos integralmente resolvido por esta mitigação.
+
+### SEC-04 — disputa de uso único do OTP (mitigação parcial)
+
+Antes: a rota emitia sessão mesmo se o UPDATE de consumo falhasse, e atualizava incondicionalmente após ler o código. Depois: UPDATE condicionado a ID/hash, `consumed_at IS NULL`, validade e menos de cinco tentativas; exige retorno do registro consumido e ausência de erro antes de assinar o token. PostgreSQL reavalia a condição após concorrência no UPDATE, permitindo somente um consumo.
+
+Teste: `node scripts/security/test-portal.mjs SEC-04`. Baseline falhou pois emitia token após erro simulado de gravação. Após: erro de gravação nega sessão; duas requisições liberadas simultaneamente após ler o mesmo código resultam em um HTTP 200 e um 401, com exatamente um token. O teste HTTP usa backend falso com comportamento de UPDATE condicional, não comprova por si só concorrência no PostgreSQL real. Reversão por revert do commit, sem migration.
+
+Risco residual: incremento de `attempts` em códigos incorretos ainda é read/modify/write e pode perder incrementos concorrentes. O limiter por e-mail/processo continua como mitigação parcial; exige operação atômica e limite compartilhado para cobertura completa.

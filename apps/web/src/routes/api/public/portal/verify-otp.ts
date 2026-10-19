@@ -80,10 +80,21 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
           return fail();
         }
 
-        await supabaseAdmin
+        const consumedAt = new Date().toISOString();
+        const { data: consumed, error: consumeError } = await supabaseAdmin
           .from("portal_otp_codes")
-          .update({ consumed_at: new Date().toISOString() })
-          .eq("id", otpRow.id);
+          .update({ consumed_at: consumedAt })
+          .eq("id", otpRow.id)
+          .eq("code_hash", codeHash)
+          .is("consumed_at", null)
+          .gt("expires_at", consumedAt)
+          .lt("attempts", MAX_ATTEMPTS)
+          .select("id")
+          .maybeSingle();
+
+        // A concurrent verifier may already have consumed this code. Never
+        // issue a session unless this request successfully claimed the row.
+        if (consumeError || !consumed) return fail();
 
         const token = signPortalToken({
           contact_id: otpRow.contact_id,
