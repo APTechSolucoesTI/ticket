@@ -130,9 +130,9 @@ describe('CollectionDispatchService', () => {
   });
 
   it('mantém SMS bloqueado sem provedor', async () => {
-    await expect(
-      service.dispatch(action('sms')),
-    ).rejects.toMatchObject<CollectionDispatchError>({
+    await expect(service.dispatch(action('sms'))).rejects.toMatchObject<
+      Partial<CollectionDispatchError>
+    >({
       retryable: false,
     });
   });
