@@ -12,7 +12,9 @@ export const Route = createFileRoute("/report/$token")({
   head: () => ({ meta: [{ title: "Relatório do atendimento - APTicket" }] }),
   component: ClosingReportPage,
   errorComponent: ({ error }) => (
-    <div className="p-8 text-center text-sm text-destructive">Erro: {error instanceof Error ? error.message : "Falha ao carregar."}</div>
+    <div className="p-8 text-center text-sm text-destructive">
+      Erro: {error instanceof Error ? error.message : "Falha ao carregar."}
+    </div>
   ),
   notFoundComponent: () => <div className="p-8 text-center text-sm">Relatório não encontrado.</div>,
 });

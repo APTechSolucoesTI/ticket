@@ -136,6 +136,7 @@ try {
       `${tenant}\\other\\private.pdf`, `${tenant}//private.pdf`,
       `https://fixture.invalid/${tenant}/private.pdf`,
       `${tenant}/%2fprivate.pdf`, `${tenant}/private.pdf?token=fixture`,
+      `${tenant}/bad\u0000name.pdf`, `${tenant}/bad\u007fname.pdf`,
     ];
     reset({ attachments: [valid, inbound, ...blocked].map(path => ({
       path, name: "fixture.pdf", size: 10, type: "application/pdf",

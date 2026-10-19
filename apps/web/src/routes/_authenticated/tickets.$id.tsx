@@ -51,7 +51,9 @@ export const Route = createFileRoute("/_authenticated/tickets/$id")({
   head: ({ params }) => ({ meta: [{ title: `Ticket #${params.id} - APTicket` }] }),
   component: TicketDetailPage,
   errorComponent: ({ error }) => (
-    <div className="p-6 text-sm text-destructive">Erro: {error instanceof Error ? error.message : "Falha ao carregar."}</div>
+    <div className="p-6 text-sm text-destructive">
+      Erro: {error instanceof Error ? error.message : "Falha ao carregar."}
+    </div>
   ),
   notFoundComponent: () => (
     <div className="p-6 text-sm">

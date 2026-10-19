@@ -113,6 +113,7 @@ try {
     await counterparty.click();
     await search.fill("Zulu");
     await search.press("Escape");
+    await popup.waitFor({ state: "hidden" });
     assert.match(await counterparty.innerText(), /beta/, "Escape discards the highlight");
     const categories = dialog.getByRole("group", { name: "Categorias financeiras *", exact: true });
     await categories.getByRole("button", { name: "Adicionar categoria", exact: true }).click();
@@ -123,6 +124,7 @@ try {
     await page.screenshot({ path: `artifacts/searchable-select/confirm-coded-${width}.png`, animations: "disabled" });
     await popup.getByRole("button", { name: "Concluir", exact: true }).click();
     assert.equal((await categories.getByRole("combobox").first().innerText()).trim(), categoryLabel);
+    await popup.waitFor({ state: "hidden" });
     await categories.getByRole("button", { name: "Adicionar categoria", exact: true }).click();
     const secondCategory = categories.getByRole("combobox").nth(1);
     const emptyCategory = await secondCategory.innerText();
@@ -131,6 +133,7 @@ try {
     assert.equal(await list.getByRole("option", { name: categoryLabel, exact: true }).getAttribute("data-disabled"), "true");
     await popup.getByRole("button", { name: "Concluir", exact: true }).click();
     assert.equal(await secondCategory.innerText(), emptyCategory, "Concluir never confirms a disabled duplicate");
+    await popup.waitFor({ state: "hidden" });
     await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
 
     await page.getByRole("combobox", { name: "Status", exact: true }).click();
