@@ -1,0 +1,122 @@
+{
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 3,
+      "high": 2,
+      "critical": 0
+    },
+    "dependencies": 619,
+    "devDependencies": 516,
+    "optionalDependencies": 127,
+    "totalDependencies": 1210
+  },
+  "advisories": [
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Process-global DNS cache reuses TLS `servername` across transports, enabling cross-tenant SMTP credential disclosure",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
+      "affected": ">=5.0.0 <10.0.2",
+      "patched": ">=10.0.2",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Nested structured recipient arrays bypass the parser depth limit and cause stack exhaustion DoS",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
+      "affected": "<10.0.2",
+      "patched": ">=10.0.2",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Quoted local-part can produce malformed envelope recipient through RFC 5322 comment parsing",
+      "severity": "moderate",
+      "url": "https://github.com/advisories/GHSA-g57g-f23g-4646",
+      "affected": ">=9.1.0 <10.0.9",
+      "patched": ">=10.0.9",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+      "affected": "<=10.0.5",
+      "patched": ">=10.0.6",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "title": "Nodemailer addressparser: O(n^2) on comment-joined addresses enables a remote DoS (reachable via mailparser)",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-prgh-xp8r-p3m5",
+      "affected": ">=9.1.0 <=10.0.4",
+      "patched": ">=10.0.5",
+      "findings": [
+        {
+          "version": "9.1.1",
+          "paths": [
+            "apps__api>mailparser>nodemailer",
+            "apps__api>nodemailer",
+            "apps__web>nodemailer"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    }
+  ]
+}
