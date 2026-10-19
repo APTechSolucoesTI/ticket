@@ -374,7 +374,7 @@ Gitleaks CLI 8.30.1 foi baixado da release oficial e conferido por SHA-256; scan
 - API: 59 testes aprovados em 12 suites. Edge: 54 testes aprovados em seis arquivos, executados por Deno 2.9.6 sem permissão de rede/ambiente.
 - HTTP local: quatro variantes de transporte GET/POST; contato inativo/erro/ativo; recusa de assinatura fora do tenant/traversal; persistência e concorrência de OTP: aprovados.
 - UI dos seletores: scroll, A–Z, Concluir por mouse/teclado/busca, categoria com código, opções desabilitadas, Escape e múltipla seleção, em 1440/768/390px: aprovados em ambos os scripts. O teste passou a aguardar a animação de fechamento antes de abrir outro seletor, evitando ambiguidade entre duas caixas de busca transitórias.
-- Lint API e lint dos seis arquivos web de segurança: aprovados. Lint de segurança: zero erros e 119 avisos heurísticos. Lint geral do web: falha legada; comparação dos 11 arquivos alterados com a base Git, normalizando EOL, não introduziu erros (quatro existentes no root, zero nos demais).
+- Lint API e lint dos seis arquivos web de segurança: aprovados. Lint de segurança: zero erros e 119 avisos heurísticos. Lint geral do web: 603 erros e 11 avisos legados; comparação dos 11 arquivos alterados com a base Git, normalizando EOL, não introduziu erros (quatro existentes no root, zero nos demais). Parte do total global depende da mistura de EOL do checkout Windows; não confundir uma comparação de conteúdo normalizado com o total bruto de formatação.
 - SQL: mantém a baseline documentada de 33 arquivos tentados, sete arquivos aprovados, 458 asserções aprovadas e 42 falhas, além de interrupções de setup. Nenhuma alegação de aprovação global de RLS, Realtime, RPCs, contract-gating ou de todas as tabelas.
 - Não foram executados todos os scripts UI históricos de módulos não alterados; não apresentar os testes executados como toda a suíte do monorepo.
 
@@ -385,6 +385,8 @@ Gitleaks CLI 8.30.1 foi baixado da release oficial e conferido por SHA-256; scan
 3. Verificar Auth/provedores/redirects de apps compartilhados, backups/PITR e restauração, criptografia em repouso, headers/TLS no proxy e SPF/DKIM/DMARC. Esses controles não foram atestados por leitura de código.
 4. Completar matriz SQL e reconciliação das fixtures, revisão dos avisos heurísticos, cobertura de Realtime/jobs/idempotência/exportações e scanner de uploads. Wrapper central de Edge, auditoria imutável e MFA global não foram implementados neste lote; mudanças de contrato exigem desenho e compatibilidade.
 5. Confirmar o escopo de publicação: a solicitação de auditoria restringe produção; a autorização posterior liberou o uso do servidor para testes. O procedimento geral GitHub → Dokploy foi identificado e os dois aplicativos existem, mas não houve push/deploy nem migration de produção neste lote. Não há migration nova necessária para as correções atuais.
+
+Encerramento do ambiente descartável: container de auditoria parado/removido após conferir nome, labels, rede `none` e ausência de volumes. Dump de esquema e arquivos SQL/logs temporários nomeados desta auditoria também removidos do servidor. Containers frontend/backend existentes permaneceram ativos. Relatórios sanitizados e fontes dos testes permanecem no repositório para reprodução.
 
 ### Checklist recorrente trimestral
 

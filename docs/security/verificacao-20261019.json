@@ -1,0 +1,141 @@
+{
+  "baseline": "0241b4bd9673320f16c4a48520f9765f02aafc7e",
+  "scope": "First local remediation batch; full audit remains incomplete",
+  "build": {
+    "web": "pass: Node preset",
+    "api": "pass"
+  },
+  "typecheck": {
+    "web": "pass",
+    "apiIncludingSpecs": "pass"
+  },
+  "tests": {
+    "api": {
+      "suites": 12,
+      "passed": 59
+    },
+    "edge": {
+      "files": 6,
+      "passed": 54,
+      "runtime": "Deno 2.9.6",
+      "runtimeNetworkAndEnvironmentPermissions": false
+    },
+    "httpSecurity": "pass: GET/POST response injection, active contact, tenant signer, OTP persistence/race",
+    "selectorUI": {
+      "passed": true,
+      "widths": [
+        1440,
+        768,
+        390
+      ],
+      "scripts": [
+        "scripts/test-select-options-ui.mjs",
+        "scripts/test-searchable-select-ui.mjs"
+      ]
+    },
+    "sqlBaseline": {
+      "filesAttempted": 33,
+      "filesPassed": 7,
+      "assertionsPassed": 458,
+      "assertionsFailed": 42,
+      "setupAborts": true,
+      "completeTenantCrudCoverage": false
+    }
+  },
+  "lint": {
+    "api": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "webChangedSecurityFiles": {
+      "errors": 0
+    },
+    "security": {
+      "errors": 0,
+      "warnings": 119
+    },
+    "webGlobal": {
+      "errors": 603,
+      "warnings": 11
+    },
+    "changedWebComparisonNormalizedEol": [
+      {
+        "file": "apps/web/src/lib/portal-auth.server.ts",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/lib/storage-path.ts",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/__root.tsx",
+        "before": 4,
+        "after": 4
+      },
+      {
+        "file": "apps/web/src/routes/_authenticated/tickets.$id.tsx",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/api/public/portal/session.ts",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/api/public/portal/ticket-detail.ts",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/api/public/portal/ticket-reply.ts",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/api/public/portal/verify-otp.ts",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/csat.$token.tsx",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/measurement-report.$token.tsx",
+        "before": 0,
+        "after": 0
+      },
+      {
+        "file": "apps/web/src/routes/report.$token.tsx",
+        "before": 0,
+        "after": 0
+      }
+    ]
+  },
+  "dependencies": {
+    "info": 0,
+    "low": 0,
+    "moderate": 3,
+    "high": 2,
+    "critical": 0
+  },
+  "ci": {
+    "yamlAndCommandsValidatedLocally": true,
+    "ranOnGitHub": false,
+    "knownBlockingChecks": [
+      "Nodemailer high advisories",
+      "legacy frontend lint"
+    ],
+    "sqlIsolationBootstrapIncluded": false
+  },
+  "production": {
+    "businessDataRead": false,
+    "applicationDeployed": false,
+    "migrationsAdded": 0,
+    "disposableContainerRemoved": true
+  }
+}
