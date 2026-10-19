@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { compareOptionLabels, filterOption } from "@/lib/select-options";
+import { compareOptionLabels, filterOption, getHighlightedOption } from "@/lib/select-options";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -33,8 +33,37 @@ export function MultiSelectFilter({
   compact?: boolean;
 }) {
   const id = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const explicitlyToggled = useRef(new Set<string>());
+  const pendingHighlight = useRef(false);
+  const setOpen = (next: boolean) => {
+    if (next) {
+      explicitlyToggled.current.clear();
+      pendingHighlight.current = false;
+    }
+    setOpenState(next);
+  };
+  const confirm = () => {
+    const highlighted = getHighlightedOption(list.current);
+    // Finishing must not undo a checkbox change made during this opening.
+    if (
+      highlighted !== undefined &&
+      !explicitlyToggled.current.has(highlighted) &&
+      (!explicitlyToggled.current.size || pendingHighlight.current)
+    ) {
+      if (highlighted === "__all__") {
+        if (value.length) onChange([]);
+      } else if (
+        options.some((option) => option.value === highlighted) &&
+        !value.includes(highlighted)
+      ) {
+        onChange([...value, highlighted]);
+      }
+    }
+    setOpen(false);
+  };
   const selection = value.length
     ? value.map((item) => options.find((option) => option.value === item)?.label ?? item).join(", ")
     : allLabel;
@@ -85,13 +114,29 @@ export function MultiSelectFilter({
             input.current?.focus();
           }}
         >
-          <Command label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`} filter={filterOption}>
+          <Command
+            label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
+            filter={filterOption}
+            onKeyDown={(event) => {
+              if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+                pendingHighlight.current = true;
+            }}
+          >
             <CommandInput
               ref={input}
               placeholder="Buscar opções…"
               aria-label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
+              onValueChange={(query) => {
+                // Clearing a search must not confirm cmdk's automatic first-item highlight.
+                pendingHighlight.current = Boolean(query.trim());
+              }}
             />
             <CommandList
+              ref={list}
+              onPointerMove={(event) => {
+                if (event.target instanceof Element && event.target.closest("[cmdk-item]"))
+                  pendingHighlight.current = true;
+              }}
               label={`Opções de ${label.toLocaleLowerCase("pt-BR")}`}
               aria-multiselectable
               className="max-h-52 overscroll-contain"
@@ -110,15 +155,17 @@ export function MultiSelectFilter({
                       value={option.value}
                       keywords={[option.label, ...(option.keywords ?? [])]}
                       aria-checked={checked}
-                      onSelect={() =>
+                      onSelect={() => {
+                        explicitlyToggled.current.add(option.value);
+                        pendingHighlight.current = false;
                         onChange(
                           option.value === "__all__"
                             ? []
                             : checked
                               ? value.filter((item) => item !== option.value)
                               : [...value, option.value],
-                        )
-                      }
+                        );
+                      }}
                       className="cursor-pointer"
                     >
                       <span
@@ -140,7 +187,7 @@ export function MultiSelectFilter({
             </CommandList>
           </Command>
           <div className="flex justify-end border-t px-3 py-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" size="sm" onClick={confirm}>
               Concluir
             </Button>
           </div>

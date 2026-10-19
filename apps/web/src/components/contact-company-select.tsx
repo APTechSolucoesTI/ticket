@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, ChevronsUpDown, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { compareOptionLabels, filterOption } from "@/lib/select-options";
+import { compareOptionLabels, filterOption, getHighlightedOption } from "@/lib/select-options";
 import {
   Command,
   CommandEmpty,
@@ -31,7 +31,32 @@ export function ContactCompanySelect({
   onRetry: () => void;
   invalid: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+  const list = useRef<HTMLDivElement>(null);
+  const explicitlyToggled = useRef(new Set<string>());
+  const pendingHighlight = useRef(false);
+  const setOpen = (next: boolean) => {
+    if (next) {
+      explicitlyToggled.current.clear();
+      pendingHighlight.current = false;
+    }
+    setOpenState(next);
+  };
+  const confirm = () => {
+    const highlighted = getHighlightedOption(list.current);
+    if (
+      !disabled &&
+      !loading &&
+      highlighted !== undefined &&
+      !explicitlyToggled.current.has(highlighted) &&
+      (!explicitlyToggled.current.size || pendingHighlight.current) &&
+      companies.some((company) => company.id === highlighted) &&
+      !value.includes(highlighted)
+    ) {
+      onChange([...value, highlighted]);
+    }
+    setOpen(false);
+  };
   return (
     <div className="space-y-2">
       <Popover open={open && !disabled} onOpenChange={setOpen}>
@@ -57,9 +82,29 @@ export function ContactCompanySelect({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
-          <Command filter={filterOption}>
-            <CommandInput placeholder="Buscar cliente pelo nome…" aria-label="Buscar cliente" />
-            <CommandList className="max-h-52 overscroll-contain">
+          <Command
+            filter={filterOption}
+            onKeyDown={(event) => {
+              if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+                pendingHighlight.current = true;
+            }}
+          >
+            <CommandInput
+              placeholder="Buscar cliente pelo nome…"
+              aria-label="Buscar cliente"
+              onValueChange={(query) => {
+                pendingHighlight.current = Boolean(query.trim());
+              }}
+            />
+            <CommandList
+              ref={list}
+              aria-multiselectable
+              className="max-h-52 overscroll-contain"
+              onPointerMove={(event) => {
+                if (event.target instanceof Element && event.target.closest("[cmdk-item]"))
+                  pendingHighlight.current = true;
+              }}
+            >
               <CommandEmpty>
                 {error ? "Não foi possível carregar os clientes." : "Nenhum cliente encontrado."}
               </CommandEmpty>
@@ -69,14 +114,18 @@ export function ContactCompanySelect({
                   .map((company) => (
                     <CommandItem
                       key={company.id}
-                      value={`${company.name} ${company.id}`}
-                      onSelect={() =>
+                      value={company.id}
+                      keywords={[company.name]}
+                      aria-checked={value.includes(company.id)}
+                      onSelect={() => {
+                        explicitlyToggled.current.add(company.id);
+                        pendingHighlight.current = false;
                         onChange(
                           value.includes(company.id)
                             ? value.filter((id) => id !== company.id)
                             : [...value, company.id],
-                        )
-                      }
+                        );
+                      }}
                     >
                       <span
                         className={`flex size-4 shrink-0 items-center justify-center rounded border ${value.includes(company.id) ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}
@@ -94,7 +143,7 @@ export function ContactCompanySelect({
           </Command>
           <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
             {value.length} selecionado(s)
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" size="sm" onClick={confirm}>
               Concluir
             </Button>
           </div>

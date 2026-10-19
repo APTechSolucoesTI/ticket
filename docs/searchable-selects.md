@@ -5,7 +5,8 @@ O `components/ui/select.tsx` utiliza Popover e Command, os mesmos componentes us
 - Pesquisa no topo, lista com rolagem e ação **Concluir**.
 - Busca por texto ou código, sem distinção de maiúsculas e acentos; informa quando não encontra opções.
 - Mantém os identificadores, callbacks, valores selecionados e permissões dos formulários existentes.
-- Campos de seleção única continuam escolhendo um único valor e fecham ao selecionar. **Concluir**, Escape e clique externo fecham sem alterar o valor.
+- Campos de seleção única escolhem um único valor e fecham ao clicar na opção ou pressionar Enter na pesquisa. **Concluir** confirma a opção destacada pelo mouse, pelas setas ou pela busca e fecha a lista. Escape e clique externo apenas fecham.
+- Nos filtros múltiplos e clientes dos contatos, **Concluir** inclui a opção destacada sem desmarcar itens já selecionados nem desfazer marcações/desmarcações feitas nessa abertura. A opção **Todos/Todas** continua removendo a restrição do filtro. Sem resultado ou com apenas itens desabilitados, **Concluir** fecha sem alterar o valor.
 - Foco inicial na pesquisa; setas e Enter navegam e selecionam; Escape retorna ao campo sem fechar o formulário.
 - O seletor de clientes dos contatos mantém sua seleção múltipla.
 - Opções em ordem alfabética pelo texto exibido, usando português do Brasil, sem diferenciar maiúsculas e acentos e com ordenação natural de números (Empresa 2 antes de Empresa 10). Filtros múltiplos mantêm a ação **Todos/Todas** no início.
@@ -19,7 +20,7 @@ Aplicação compilada, APIs isoladas e navegadores em 1440, 768 e 390 pixels:
 
 - `scripts/test-entry-allocations-ui.mjs`: contas a pagar e receber, busca com acentos, resultado vazio, lista longa, teclado, foco, descarte, rateios, itens desabilitados e gravação dos percentuais.
 - `scripts/test-searchable-select-ui.mjs`: status, repetição da mesma resposta padrão, motivo de pausa, identificação e remoção do técnico, somente leitura e troca de empresa operadora com reinício da confirmação.
-- `scripts/test-select-options-ui.mjs`: roda do mouse nas duas direções sem mover o formulário/página, ordenação A–Z com acentos e números, resultados filtrados, teclado, filtros múltiplos e preservação do cliente principal. Cobre seleção única, filtros múltiplos e clientes de contatos em 1440, 768 e 390 pixels.
+- `scripts/test-select-options-ui.mjs`: roda do mouse nas duas direções sem mover o formulário/página, ordenação A–Z com acentos e números, resultados filtrados, confirmação do destaque por **Concluir** via mouse e teclado, descarte com Escape, filtros múltiplos, desmarcação explícita e preservação do cliente principal. Cobre seleção única, filtros múltiplos e clientes de contatos em 1440, 768 e 390 pixels.
 - `scripts/test-financial-synthetic-ui.mjs`: criação e edição de categorias e centros de custo sintéticos e hierarquia.
 - `scripts/test-fixed-payables-ui.mjs`: contas fixas, classificações, filtros e confirmação de previsões.
 

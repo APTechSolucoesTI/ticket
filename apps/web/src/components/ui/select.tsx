@@ -4,7 +4,7 @@ import * as React from "react";
 import type * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { compareOptionLabels, filterOption } from "@/lib/select-options";
+import { compareOptionLabels, filterOption, getHighlightedOption } from "@/lib/select-options";
 import { useReadOnly } from "@/lib/permission-ui";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -243,6 +243,12 @@ const SelectContent = React.forwardRef<HTMLDivElement, ContentProps>(
   ) => {
     const select = useSelect();
     const input = React.useRef<HTMLInputElement>(null);
+    const list = React.useRef<HTMLDivElement>(null);
+    const confirm = () => {
+      const highlighted = getHighlightedOption(list.current);
+      if (highlighted !== undefined) select.select(highlighted);
+      else select.setOpen(false);
+    };
     return (
       <PopoverContent
         {...props}
@@ -264,6 +270,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, ContentProps>(
         <Command label="Buscar opções" defaultValue={select.value} filter={filterOption}>
           <CommandInput ref={input} placeholder={searchPlaceholder} aria-label="Buscar opções" />
           <CommandList
+            ref={list}
             label="Opções"
             className="max-h-52 overscroll-contain"
             style={{
@@ -275,7 +282,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, ContentProps>(
           </CommandList>
         </Command>
         <div className="flex justify-end border-t px-3 py-2">
-          <Button type="button" size="sm" variant="ghost" onClick={() => select.setOpen(false)}>
+          <Button type="button" size="sm" variant="ghost" onClick={confirm}>
             Concluir
           </Button>
         </div>

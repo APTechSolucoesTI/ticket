@@ -58,7 +58,8 @@ try {
     const search = page.getByRole("combobox", { name: "Buscar opções", exact: true });
     async function choose(trigger, query, label) {
       await trigger.click(); await search.fill(query);
-      await page.getByRole("option", { name: label, exact: true }).click();
+      await page.getByRole("option", { name: label, exact: true }).hover();
+      await popup.getByRole("button", { name: "Concluir", exact: true }).click();
       await popup.waitFor({ state: "hidden" });
     }
     await page.goto(`http://127.0.0.1:4174/tickets/${ticketId}`);
@@ -104,7 +105,7 @@ try {
     const bounds = await popup.boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= 1001);
     assert.deepEqual(errors, []);
-    console.log(`PASS ticket status, repeated canned response, pause reason, assignee ID/null, readonly, bank operator at ${width}px`);
+    console.log(`PASS Concluir for ticket status, repeated canned response, pause reason, assignee ID/null, readonly, bank operator at ${width}px`);
     await page.close();
   }
 } catch (error) {
