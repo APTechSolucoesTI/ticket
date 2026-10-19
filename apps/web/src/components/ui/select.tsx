@@ -4,6 +4,7 @@ import * as React from "react";
 import type * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { compareOptionLabels, filterOption } from "@/lib/select-options";
 import { useReadOnly } from "@/lib/permission-ui";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -67,11 +68,28 @@ function collectOptions(children: React.ReactNode): Option[] {
     return collectOptions(child.props.children);
   });
 }
-const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
+function sortOptionChildren(children: React.ReactNode): React.ReactNode {
+  const nodes = React.Children.toArray(children).map((child) => {
+    if (
+      React.isValidElement<{ children?: React.ReactNode }>(child) &&
+      child.type !== SelectItem &&
+      child.props.children !== undefined
+    ) {
+      return React.cloneElement(child, { children: sortOptionChildren(child.props.children) });
+    }
+    return child;
+  });
+  const isItem = (
+    child: React.ReactNode,
+  ): child is React.ReactElement<{ children?: React.ReactNode }> =>
+    React.isValidElement(child) && child.type === SelectItem;
+  const items = nodes
+    .filter(isItem)
+    .sort((a, b) => compareOptionLabels(nodeText(a.props.children), nodeText(b.props.children)));
+  let index = 0;
+  // Keep labels, separators and group boundaries in their original positions.
+  return nodes.map((child) => (isItem(child) ? items[index++] : child));
+}
 
 function Select({
   children,
@@ -243,19 +261,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, ContentProps>(
           }
         }}
       >
-        <Command
-          label="Buscar opções"
-          defaultValue={select.value}
-          filter={(value, query, keywords) => {
-            const text = normalize([value, ...(keywords ?? [])].join(" "));
-            return normalize(query)
-              .trim()
-              .split(/\s+/)
-              .every((word) => text.includes(word))
-              ? 1
-              : 0;
-          }}
-        >
+        <Command label="Buscar opções" defaultValue={select.value} filter={filterOption}>
           <CommandInput ref={input} placeholder={searchPlaceholder} aria-label="Buscar opções" />
           <CommandList
             label="Opções"
@@ -265,7 +271,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, ContentProps>(
             }}
           >
             <CommandEmpty>{emptyMessage}</CommandEmpty>
-            <CommandGroup>{children}</CommandGroup>
+            <CommandGroup>{sortOptionChildren(children)}</CommandGroup>
           </CommandList>
         </Command>
         <div className="flex justify-end border-t px-3 py-2">

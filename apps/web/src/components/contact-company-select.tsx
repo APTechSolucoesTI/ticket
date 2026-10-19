@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, ChevronsUpDown, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { compareOptionLabels, filterOption } from "@/lib/select-options";
 import {
   Command,
   CommandEmpty,
@@ -56,36 +57,38 @@ export function ContactCompanySelect({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
-          <Command>
+          <Command filter={filterOption}>
             <CommandInput placeholder="Buscar cliente pelo nome…" aria-label="Buscar cliente" />
-            <CommandList className="max-h-52">
+            <CommandList className="max-h-52 overscroll-contain">
               <CommandEmpty>
                 {error ? "Não foi possível carregar os clientes." : "Nenhum cliente encontrado."}
               </CommandEmpty>
               <CommandGroup>
-                {companies.map((company) => (
-                  <CommandItem
-                    key={company.id}
-                    value={`${company.name} ${company.id}`}
-                    onSelect={() =>
-                      onChange(
-                        value.includes(company.id)
-                          ? value.filter((id) => id !== company.id)
-                          : [...value, company.id],
-                      )
-                    }
-                  >
-                    <span
-                      className={`flex size-4 shrink-0 items-center justify-center rounded border ${value.includes(company.id) ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}
+                {[...companies]
+                  .sort((a, b) => compareOptionLabels(a.name, b.name))
+                  .map((company) => (
+                    <CommandItem
+                      key={company.id}
+                      value={`${company.name} ${company.id}`}
+                      onSelect={() =>
+                        onChange(
+                          value.includes(company.id)
+                            ? value.filter((id) => id !== company.id)
+                            : [...value, company.id],
+                        )
+                      }
                     >
-                      {value.includes(company.id) && <Check className="size-3" />}
-                    </span>
-                    <span className="min-w-0 flex-1 break-words">{company.name}</span>
-                    {value[0] === company.id && (
-                      <span className="text-xs text-primary">Principal</span>
-                    )}
-                  </CommandItem>
-                ))}
+                      <span
+                        className={`flex size-4 shrink-0 items-center justify-center rounded border ${value.includes(company.id) ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}
+                      >
+                        {value.includes(company.id) && <Check className="size-3" />}
+                      </span>
+                      <span className="min-w-0 flex-1 break-words">{company.name}</span>
+                      {value[0] === company.id && (
+                        <span className="text-xs text-primary">Principal</span>
+                      )}
+                    </CommandItem>
+                  ))}
               </CommandGroup>
             </CommandList>
           </Command>

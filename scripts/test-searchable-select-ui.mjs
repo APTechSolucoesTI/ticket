@@ -6,8 +6,12 @@ import assert from "node:assert/strict";
 const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href);
 const directory = "apps/web/.output/server/_ssr";
 function functionId(prefix, name) {
-  const source = readFileSync(`${directory}/${readdirSync(directory).find(file => file.startsWith(prefix))}`, "utf8");
-  return source.match(new RegExp(`id:\\s*"([^"]+)",\\s*name:\\s*"${name}"`))[1];
+  const match = readdirSync(directory)
+    .filter(file => file.startsWith(prefix))
+    .map(file => readFileSync(`${directory}/${file}`, "utf8").match(new RegExp(`id:\\s*"([^"]+)",\\s*name:\\s*"${name}"`)))
+    .find(Boolean);
+  assert.ok(match, `Compiled server function ${name} was not found`);
+  return match[1];
 }
 const permissionsId = functionId("permissions.functions-", "getMyPermissions");
 const companiesId = functionId("inter-binding.functions-", "listInterOperatingCompanies");

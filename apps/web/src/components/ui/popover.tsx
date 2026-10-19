@@ -12,7 +12,7 @@ const PopoverAnchor = PopoverPrimitive.Anchor;
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
+>(({ className, align = "center", sideOffset = 4, onWheel, onTouchMove, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
       ref={ref}
@@ -23,6 +23,15 @@ const PopoverContent = React.forwardRef<
         className,
       )}
       {...props}
+      onWheel={(event) => {
+        // Portalled popovers must scroll without the parent dialog's scroll lock cancelling it.
+        event.stopPropagation();
+        onWheel?.(event);
+      }}
+      onTouchMove={(event) => {
+        event.stopPropagation();
+        onTouchMove?.(event);
+      }}
     />
   </PopoverPrimitive.Portal>
 ));

@@ -8,6 +8,9 @@ O `components/ui/select.tsx` utiliza Popover e Command, os mesmos componentes us
 - Campos de seleção única continuam escolhendo um único valor e fecham ao selecionar. **Concluir**, Escape e clique externo fecham sem alterar o valor.
 - Foco inicial na pesquisa; setas e Enter navegam e selecionam; Escape retorna ao campo sem fechar o formulário.
 - O seletor de clientes dos contatos mantém sua seleção múltipla.
+- Opções em ordem alfabética pelo texto exibido, usando português do Brasil, sem diferenciar maiúsculas e acentos e com ordenação natural de números (Empresa 2 antes de Empresa 10). Filtros múltiplos mantêm a ação **Todos/Todas** no início.
+- A pesquisa mantém os resultados em ordem alfabética. A ordenação visual não altera os identificadores nem o cliente principal escolhido.
+- A roda do mouse movimenta a lista, inclusive nos seletores abertos dentro de formulários modais. O popover impede que o bloqueio de rolagem da janela cancele esse evento; a lista contém a rolagem nos seus limites.
 - O único `<select>` restante é invisível, interno ao componente, para compatibilidade com formulários nativos que usem `name` ou `required`.
 
 ## Validação
@@ -16,6 +19,7 @@ Aplicação compilada, APIs isoladas e navegadores em 1440, 768 e 390 pixels:
 
 - `scripts/test-entry-allocations-ui.mjs`: contas a pagar e receber, busca com acentos, resultado vazio, lista longa, teclado, foco, descarte, rateios, itens desabilitados e gravação dos percentuais.
 - `scripts/test-searchable-select-ui.mjs`: status, repetição da mesma resposta padrão, motivo de pausa, identificação e remoção do técnico, somente leitura e troca de empresa operadora com reinício da confirmação.
+- `scripts/test-select-options-ui.mjs`: roda do mouse nas duas direções sem mover o formulário/página, ordenação A–Z com acentos e números, resultados filtrados, teclado, filtros múltiplos e preservação do cliente principal. Cobre seleção única, filtros múltiplos e clientes de contatos em 1440, 768 e 390 pixels.
 - `scripts/test-financial-synthetic-ui.mjs`: criação e edição de categorias e centros de custo sintéticos e hierarquia.
 - `scripts/test-fixed-payables-ui.mjs`: contas fixas, classificações, filtros e confirmação de previsões.
 

@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { compareOptionLabels, filterOption } from "@/lib/select-options";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,11 +15,6 @@ import {
 } from "@/components/ui/command";
 
 type FilterOption = { value: string; label: string; keywords?: string[] };
-const normalize = (text: string) =>
-  text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
 
 // An empty selection means there is no restriction for this filter.
 export function MultiSelectFilter({
@@ -42,7 +38,10 @@ export function MultiSelectFilter({
   const selection = value.length
     ? value.map((item) => options.find((option) => option.value === item)?.label ?? item).join(", ")
     : allLabel;
-  const choices: FilterOption[] = [{ value: "__all__", label: allLabel }, ...options];
+  const choices: FilterOption[] = [
+    { value: "__all__", label: allLabel },
+    ...[...options].sort((a, b) => compareOptionLabels(a.label, b.label)),
+  ];
   return (
     <div className="min-w-0 space-y-1.5">
       <Label htmlFor={id} className={compact ? "text-xs" : undefined}>
@@ -86,18 +85,7 @@ export function MultiSelectFilter({
             input.current?.focus();
           }}
         >
-          <Command
-            label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
-            filter={(item, query, keywords) => {
-              const text = normalize([item, ...(keywords ?? [])].join(" "));
-              return normalize(query)
-                .trim()
-                .split(/\s+/)
-                .every((word) => text.includes(word))
-                ? 1
-                : 0;
-            }}
-          >
+          <Command label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`} filter={filterOption}>
             <CommandInput
               ref={input}
               placeholder="Buscar opções…"
