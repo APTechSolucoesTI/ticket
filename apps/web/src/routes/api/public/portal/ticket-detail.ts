@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
+import { isTenantStoragePath } from "@/lib/storage-path";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -93,7 +94,9 @@ export const Route = createFileRoute("/api/public/portal/ticket-detail")({
               : [];
             const signed = await Promise.all(
               atts.map(async (a) => {
-                if (!a.path) return { ...a, url: null };
+                if (!a || !isTenantStoragePath(a.path, session.tenant_id)) {
+                  return { ...a, url: null };
+                }
                 const { data } = await supabaseAdmin.storage
                   .from("ticket-attachments")
                   .createSignedUrl(a.path, 60 * 60);

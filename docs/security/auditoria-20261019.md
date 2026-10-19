@@ -312,3 +312,11 @@ Compatibilidade: o patch do Router passou a tipar `errorComponent.error` como `u
 Antes: o token HMAC era aceito por sessão/detalhe/resposta mesmo após desativar o contato. Depois: `portal-auth.server.ts` verifica a assinatura e consulta contato ativo por ID e tenant, com empresa vinculada; erro de consulta nega acesso. As três rotas usam esse helper antes de ler tickets/anexos ou inserir mensagens. Os filtros de ticket por tenant e contato continuam obrigatórios. As outras rotas já consultam atividade/papel ou delegam ao Edge que faz essa validação.
 
 Teste: `node scripts/security/test-portal.mjs SEC-02`. Baseline: falha (`200` em sessão de contato inativo). Após a mudança: HTTP 401 para inativo/erro de consulta nas três rotas, sem leitura de negócio nem escrita; contato ativo mantém sessão, detalhe e resposta; falta de token é negada. Reversão por revert do commit; não há migration.
+
+### SEC-03 — limite do signer por tenant (mitigação parcial)
+
+Antes: qualquer caminho indicado no JSON da mensagem era encaminhado ao signer com service role. Depois: helper `isTenantStoragePath` exige chave canônica dentro do tenant da sessão, recusando segmentos vazios, `.`/`..`, escapes `%`, barras invertidas, controle, query/fragmento e destinos externos. A rota mantém autorização de contato e propriedade do ticket. Caminhos atuais `tenant/ticket/...`, `tenant/whatsapp-inbound/...` e `tenant/pending/...` continuam compatíveis.
+
+Teste: `node scripts/security/test-portal.mjs SEC-03`. Falha antes: signer recebia outro tenant e variantes de traversal. Após: só recebe dois caminhos canônicos do tenant, e anexos recusados recebem `url:null`. Reversão por revert do commit, sem migration.
+
+Risco residual: o prefixo de tenant não estabelece a propriedade do objeto entre empresas/tickets do mesmo tenant. Anexos WhatsApp e pendências legadas não contêm o ticket no caminho. É necessário adicionar vínculo imutável objeto–ticket/contato no banco e validar no signer, com migração compatível do legado; não declarar BOLA de arquivos integralmente resolvido por esta mitigação.
