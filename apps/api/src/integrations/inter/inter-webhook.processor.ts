@@ -14,7 +14,7 @@ export class InterWebhookProcessor extends WorkerHost {
   }
 
   async process(job: Job<InterWebhookJobData>): Promise<void> {
-    const { data, error } = await this.supabase.client.functions.invoke(
+    const response = await this.supabase.client.functions.invoke<unknown>(
       'consultar-cobranca-inter',
       {
         body: {
@@ -24,7 +24,17 @@ export class InterWebhookProcessor extends WorkerHost {
         },
       },
     );
-    if (error || data?.ok !== true || data?.state !== 'synced') {
+    const data: unknown = response.data;
+    const error: unknown = response.error;
+    if (
+      error ||
+      typeof data !== 'object' ||
+      data === null ||
+      !('ok' in data) ||
+      data.ok !== true ||
+      !('state' in data) ||
+      data.state !== 'synced'
+    ) {
       throw new Error('inter_charge_reconciliation_pending');
     }
     this.logger.log(`event=${job.data.eventId} reconciled`);
