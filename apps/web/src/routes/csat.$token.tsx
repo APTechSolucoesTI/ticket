@@ -12,7 +12,7 @@ export const Route = createFileRoute("/csat/$token")({
   head: () => ({ meta: [{ title: "Avaliar atendimento - APTicket" }] }),
   component: CsatPage,
   errorComponent: ({ error }) => (
-    <div className="p-8 text-center text-sm text-destructive">Erro: {error.message}</div>
+    <div className="p-8 text-center text-sm text-destructive">Erro: {error instanceof Error ? error.message : "Falha ao carregar."}</div>
   ),
   notFoundComponent: () => (
     <div className="p-8 text-center text-sm">Pesquisa não encontrada ou já respondida.</div>
