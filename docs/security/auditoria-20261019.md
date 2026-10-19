@@ -296,3 +296,11 @@ A restauração inicial teve 39 erros: referências globais de outros sistemas c
 6. SEC-10: reconciliar a base SQL, adicionar CI e completar os testes negativos ainda ausentes.
 
 Não há backoffice implementado, conforme confirmação do responsável. Não será criado um painel novo como parte de uma correção de auditoria. MFA e privilégios do futuro backoffice devem fazer parte dos seus critérios de aceite. Não foi realizada alteração de configuração, migration ou deploy no aplicativo em produção.
+
+## 11. Correções incrementais e regressão
+
+### SEC-01 — transporte TanStack
+
+Antes: `react-start` 1.168.46 / `start-server-core` 1.169.28 constavam nas faixas vulneráveis publicadas. Depois: `react-start` 1.168.60 traz `start-server-core` 1.169.39; `react-router` 1.170.41 acompanha a versão requerida pelo pacote. Atualização restrita ao conjunto de patches compatível, com scripts de instalação desativados.
+
+Teste: `node scripts/security/test-server-functions.mjs`, sobre build Node local, envia `result` controlado pelo cliente em GET/POST, tanto navegação quanto RPC. Os quatro casos recusam transformar o erro de autorização/validação em HTML ou devolver o marcador injetado. O teste não envia requisições ao ambiente real. Baseline de versão vulnerável comprovada pelo lockfile/audit; não foi demonstrada execução de JavaScript no build anterior. Reversão: reverter o commit e reinstalar pelo lockfile, reconhecendo a reabertura do aviso.
