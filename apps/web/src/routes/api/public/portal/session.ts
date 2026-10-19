@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
-import { verifyPortalRequest } from "@/lib/portal-session";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -19,25 +18,14 @@ export const Route = createFileRoute("/api/public/portal/session")({
 
         // Identity comes from a token proven by OTP (see request-otp/verify-otp),
         // never from a client-supplied email - that was the account-takeover bug.
-        const session = verifyPortalRequest(request);
-        if (!session) {
+        const { authorizePortalRequest } = await import("@/lib/portal-auth.server");
+        const authorization = await authorizePortalRequest(request);
+        if (!authorization) {
           return Response.json({ error: "unauthorized" }, { status: 401, headers: CORS });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        const { data: contact } = await supabaseAdmin
-          .from("contacts")
-          .select(
-            "id, tenant_id, company_id, name, email, can_open_tickets, is_portal_admin, is_portal_financial, is_active, companies(name)",
-          )
-          .eq("id", session.contact_id)
-          .eq("tenant_id", session.tenant_id)
-          .maybeSingle();
-
-        if (!contact || !contact.company_id) {
-          return Response.json({ found: false }, { status: 200, headers: CORS });
-        }
+        const { contact } = authorization;
 
         const { data: contractsRaw } = await supabaseAdmin
           .from("contracts")

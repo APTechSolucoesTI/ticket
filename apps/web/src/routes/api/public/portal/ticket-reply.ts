@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
-import { verifyPortalRequest } from "@/lib/portal-session";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,10 +19,12 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
         const ipLimit = checkRateLimit(`portal-ticket-reply:ip:${ip}`, 40, 10 * 60 * 1000);
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
-        const session = verifyPortalRequest(request);
-        if (!session) {
+        const { authorizePortalRequest } = await import("@/lib/portal-auth.server");
+        const authorization = await authorizePortalRequest(request);
+        if (!authorization) {
           return Response.json({ error: "unauthorized" }, { status: 401, headers: CORS });
         }
+        const { session } = authorization;
 
         let form: FormData;
         try {

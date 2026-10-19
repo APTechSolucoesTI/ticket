@@ -306,3 +306,9 @@ Antes: `react-start` 1.168.46 / `start-server-core` 1.169.28 constavam nas faixa
 Teste: `node scripts/security/test-server-functions.mjs`, sobre build Node local, envia `result` controlado pelo cliente em GET/POST, tanto navegação quanto RPC. Os quatro casos recusam transformar o erro de autorização/validação em HTML ou devolver o marcador injetado. O teste não envia requisições ao ambiente real. Baseline de versão vulnerável comprovada pelo lockfile/audit; não foi demonstrada execução de JavaScript no build anterior. Reversão: reverter o commit e reinstalar pelo lockfile, reconhecendo a reabertura do aviso.
 
 Compatibilidade: o patch do Router passou a tipar `errorComponent.error` como `unknown`. Cinco incompatibilidades foram identificadas pelo typecheck e corrigidas com narrowing/assinatura apropriada; mensagens `Error` continuam disponíveis e outros valores recebem texto genérico.
+
+### SEC-02 — contato ativo no portal
+
+Antes: o token HMAC era aceito por sessão/detalhe/resposta mesmo após desativar o contato. Depois: `portal-auth.server.ts` verifica a assinatura e consulta contato ativo por ID e tenant, com empresa vinculada; erro de consulta nega acesso. As três rotas usam esse helper antes de ler tickets/anexos ou inserir mensagens. Os filtros de ticket por tenant e contato continuam obrigatórios. As outras rotas já consultam atividade/papel ou delegam ao Edge que faz essa validação.
+
+Teste: `node scripts/security/test-portal.mjs SEC-02`. Baseline: falha (`200` em sessão de contato inativo). Após a mudança: HTTP 401 para inativo/erro de consulta nas três rotas, sem leitura de negócio nem escrita; contato ativo mantém sessão, detalhe e resposta; falta de token é negada. Reversão por revert do commit; não há migration.
