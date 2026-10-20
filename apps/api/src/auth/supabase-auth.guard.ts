@@ -81,7 +81,7 @@ export class SupabaseAuthGuard implements CanActivate {
 
     const { data: profile, error } = await this.supabase.client
       .from('profiles')
-      .select('tenant_id, name, is_active')
+      .select('tenant_id, name, is_active, session_version')
       .eq('id', claims.sub)
       .maybeSingle();
     if (error) {
@@ -98,7 +98,8 @@ export class SupabaseAuthGuard implements CanActivate {
     if (
       !profile ||
       !profile.is_active ||
-      claims.tenantId !== profile.tenant_id
+      claims.tenantId !== profile.tenant_id ||
+      claims.sessionVersion !== profile.session_version
     ) {
       throw new UnauthorizedException('Usuário sem perfil ativo no tenant');
     }

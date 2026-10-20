@@ -20,6 +20,7 @@ export interface SessionClaims {
   name: string;
   tenantId: string;
   app: "apticket";
+  sessionVersion: number;
 }
 
 export function signSessionToken(profile: {
@@ -27,8 +28,12 @@ export function signSessionToken(profile: {
   email: string;
   name: string;
   tenantId: string;
+  sessionVersion: number;
 }): string {
   if (!SECRET) throw new Error("JWT_SECRET não configurado");
+  if (!Number.isSafeInteger(profile.sessionVersion) || profile.sessionVersion < 0) {
+    throw new Error("Invalid session version");
+  }
   return jwt.sign(
     {
       email: profile.email,
@@ -37,6 +42,7 @@ export function signSessionToken(profile: {
       aud: "authenticated",
       app: "apticket",
       tenant_id: profile.tenantId,
+      session_version: profile.sessionVersion,
     },
     SECRET,
     { subject: profile.id, expiresIn: "7d", algorithm: "HS256" },
@@ -50,13 +56,20 @@ export function verifySessionToken(token: string): SessionClaims | null {
       algorithms: ["HS256"],
       audience: "authenticated",
     });
+    const sessionVersion: unknown =
+      typeof decoded === "string" || decoded.session_version === undefined
+        ? 0
+        : decoded.session_version;
     if (
       typeof decoded === "string" ||
       !decoded.sub ||
       typeof decoded.email !== "string" ||
       decoded.role !== "authenticated" ||
       decoded.app !== "apticket" ||
-      typeof decoded.tenant_id !== "string"
+      typeof decoded.tenant_id !== "string" ||
+      typeof sessionVersion !== "number" ||
+      !Number.isSafeInteger(sessionVersion) ||
+      sessionVersion < 0
     ) {
       return null;
     }
@@ -66,6 +79,7 @@ export function verifySessionToken(token: string): SessionClaims | null {
       name: typeof decoded.name === "string" ? decoded.name : "",
       tenantId: decoded.tenant_id,
       app: "apticket",
+      sessionVersion,
     };
   } catch {
     return null;

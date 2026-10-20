@@ -13,6 +13,8 @@ export interface SessionClaims {
   email: string;
   tenantId: string;
   app: 'apticket';
+  sessionVersion: number;
+  expiresAt: number | null;
 }
 
 export function verifySessionToken(
@@ -24,13 +26,20 @@ export function verifySessionToken(
       algorithms: ['HS256'],
       audience: 'authenticated',
     });
+    const sessionVersion: unknown =
+      typeof decoded === 'string' || decoded.session_version === undefined
+        ? 0
+        : decoded.session_version;
     if (
       typeof decoded === 'string' ||
       !decoded.sub ||
       typeof decoded.email !== 'string' ||
       decoded.role !== 'authenticated' ||
       decoded.app !== 'apticket' ||
-      typeof decoded.tenant_id !== 'string'
+      typeof decoded.tenant_id !== 'string' ||
+      typeof sessionVersion !== 'number' ||
+      !Number.isSafeInteger(sessionVersion) ||
+      sessionVersion < 0
     ) {
       return null;
     }
@@ -39,6 +48,8 @@ export function verifySessionToken(
       email: decoded.email,
       tenantId: decoded.tenant_id,
       app: 'apticket',
+      sessionVersion,
+      expiresAt: typeof decoded.exp === 'number' ? decoded.exp : null,
     };
   } catch {
     return null;

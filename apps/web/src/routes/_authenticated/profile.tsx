@@ -133,7 +133,8 @@ function ProfilePage() {
 
   const passwordMutation = useMutation({
     mutationFn: (values: PasswordForm) => savePassword({ data: values }),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setToken(result.token);
       passwordForm.reset();
       setShowPasswords(false);
       toast.success("Senha alterada com segurança.");

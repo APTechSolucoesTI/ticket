@@ -27,6 +27,8 @@ describe('verifySessionToken', () => {
       email: 'agent@example.com',
       tenantId,
       app: 'apticket',
+      sessionVersion: 0,
+      expiresAt: null,
     });
   });
 
@@ -36,6 +38,14 @@ describe('verifySessionToken', () => {
     ['wrong role', { role: 'anon' }],
     ['wrong audience', { aud: 'another-audience' }],
     ['missing tenant', { tenant_id: undefined }],
+    ['negative session version', { session_version: -1 }],
+    ['string session version', { session_version: '1' }],
+    ['fractional session version', { session_version: 1.5 }],
+    ['null session version', { session_version: null }],
+    [
+      'unsafe session version',
+      { session_version: Number.MAX_SAFE_INTEGER + 1 },
+    ],
   ])('rejects %s', (_label, overrides) => {
     expect(verifySessionToken(sign(overrides), secret)).toBeNull();
   });

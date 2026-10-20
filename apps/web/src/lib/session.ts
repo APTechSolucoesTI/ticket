@@ -31,6 +31,12 @@ export function clearToken(): void {
   listeners.forEach((fn) => fn());
 }
 
+/** A delayed rejection of an old JWT must not clear a newly renewed session. */
+export function handleSessionResponse(response: Response, requestToken: string | null): Response {
+  if (response.status === 401 && requestToken && getToken() === requestToken) clearToken();
+  return response;
+}
+
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);

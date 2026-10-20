@@ -1503,6 +1503,7 @@ export type Database = {
           is_active: boolean;
           name: string;
           password_hash: string | null;
+          session_version: number;
           phone: string | null;
           tenant_id: string;
           tickets_auto_refresh_enabled: boolean;
@@ -1517,6 +1518,7 @@ export type Database = {
           is_active?: boolean;
           name: string;
           password_hash?: string | null;
+          session_version?: number;
           phone?: string | null;
           tenant_id: string;
           tickets_auto_refresh_enabled?: boolean;
@@ -1531,6 +1533,7 @@ export type Database = {
           is_active?: boolean;
           name?: string;
           password_hash?: string | null;
+          session_version?: number;
           phone?: string | null;
           tenant_id?: string;
           tickets_auto_refresh_enabled?: boolean;
@@ -2829,6 +2832,14 @@ export type Database = {
           p_tenant_id: string;
         };
         Returns: Database["apticket"]["Tables"]["medicoes_contrato"]["Row"];
+      };
+      complete_password_reset: {
+        Args: { _token_hash: string; _password_hash: string };
+        Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
+      };
+      complete_invite: {
+        Args: { _token_hash: string; _password_hash: string };
+        Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
       };
       current_tenant_id: { Args: never; Returns: string };
       get_closing_report_by_token: {

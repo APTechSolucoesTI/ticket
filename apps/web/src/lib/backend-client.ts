@@ -3,17 +3,18 @@
 // direto com o container da API. Anexa o JWT da sessão própria (session.ts)
 // como Bearer - é isso que o SupabaseAuthGuard da API valida (localmente,
 // mesmo JWT_SECRET, sem chamar o GoTrue).
-import { getToken } from "@/lib/session";
-
-function authHeader(): Record<string, string> {
-  const token = getToken();
-  if (!token) throw new Error("Sessão expirada - faça login novamente.");
-  return { Authorization: `Bearer ${token}` };
-}
+import { getToken, handleSessionResponse } from "@/lib/session";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = { ...authHeader(), "Content-Type": "application/json", ...init?.headers };
+  const token = getToken();
+  if (!token) throw new Error("Sessão expirada - faça login novamente.");
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    ...init?.headers,
+  };
   const res = await fetch(`/backend${path}`, { ...init, headers });
+  handleSessionResponse(res, token);
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {

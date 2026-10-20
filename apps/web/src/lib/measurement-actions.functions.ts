@@ -19,12 +19,16 @@ export const cancelContractMeasurement = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("id, tenant_id, password_hash, is_active")
+      .select("id, tenant_id, password_hash, is_active, session_version")
       .eq("id", claims.sub)
       .eq("tenant_id", claims.tenantId)
       .maybeSingle();
 
-    if (!profile?.is_active || !profile.password_hash) {
+    if (
+      !profile?.is_active ||
+      !profile.password_hash ||
+      profile.session_version !== claims.sessionVersion
+    ) {
       throw new Error("Não foi possível confirmar sua identidade.");
     }
 

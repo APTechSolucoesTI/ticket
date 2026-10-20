@@ -42,7 +42,7 @@ export const login = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("id, tenant_id, name, email, password_hash, is_active")
+      .select("id, tenant_id, name, email, password_hash, is_active, session_version")
       .eq("email", data.email.toLowerCase())
       .maybeSingle();
 
@@ -58,6 +58,7 @@ export const login = createServerFn({ method: "POST" })
       email: profile.email,
       name: profile.name,
       tenantId: profile.tenant_id,
+      sessionVersion: profile.session_version,
     });
     return { token };
   });
@@ -73,34 +74,18 @@ export const acceptInvite = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const tokenHash = hashToken(data.token);
 
-    const { data: invite } = await supabaseAdmin
-      .from("invites")
-      .select("id, profile_id, expires_at, accepted_at")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
-    if (!invite || invite.accepted_at || new Date(invite.expires_at) < new Date()) {
-      throw new Error("Convite inválido ou expirado.");
-    }
-
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     const { data: profile, error: profErr } = await supabaseAdmin
-      .from("profiles")
-      .update({ password_hash: passwordHash, is_active: true })
-      .eq("id", invite.profile_id)
-      .select("id, tenant_id, name, email")
+      .rpc("complete_invite", { _token_hash: tokenHash, _password_hash: passwordHash })
       .single();
-    if (profErr) throw new Error(profErr.message);
-
-    await supabaseAdmin
-      .from("invites")
-      .update({ accepted_at: new Date().toISOString() })
-      .eq("id", invite.id);
+    if (profErr || !profile) throw new Error("Convite inválido ou expirado.");
 
     const token = signSessionToken({
       id: profile.id,
       email: profile.email,
       name: profile.name,
       tenantId: profile.tenant_id,
+      sessionVersion: profile.session_version,
     });
     return { token };
   });
@@ -156,34 +141,18 @@ export const resetPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const tokenHash = hashToken(data.token);
 
-    const { data: reset } = await supabaseAdmin
-      .from("password_resets")
-      .select("id, profile_id, expires_at, accepted_at")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
-    if (!reset || reset.accepted_at || new Date(reset.expires_at) < new Date()) {
-      throw new Error("Link de redefinição inválido ou expirado.");
-    }
-
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     const { data: profile, error: profErr } = await supabaseAdmin
-      .from("profiles")
-      .update({ password_hash: passwordHash })
-      .eq("id", reset.profile_id)
-      .select("id, tenant_id, name, email")
+      .rpc("complete_password_reset", { _token_hash: tokenHash, _password_hash: passwordHash })
       .single();
-    if (profErr) throw new Error(profErr.message);
-
-    await supabaseAdmin
-      .from("password_resets")
-      .update({ accepted_at: new Date().toISOString() })
-      .eq("id", reset.id);
+    if (profErr || !profile) throw new Error("Link de redefinição inválido ou expirado.");
 
     const token = signSessionToken({
       id: profile.id,
       email: profile.email,
       name: profile.name,
       tenantId: profile.tenant_id,
+      sessionVersion: profile.session_version,
     });
     return { token };
   });
@@ -240,7 +209,7 @@ export const signUpTenant = createServerFn({ method: "POST" })
         password_hash: passwordHash,
         is_active: true,
       })
-      .select("id, tenant_id, name, email")
+      .select("id, tenant_id, name, email, session_version")
       .single();
     if (profErr) throw new Error(profErr.message);
 
@@ -265,6 +234,7 @@ export const signUpTenant = createServerFn({ method: "POST" })
       email: profile.email,
       name: profile.name,
       tenantId: profile.tenant_id,
+      sessionVersion: profile.session_version,
     });
     return { token };
   });

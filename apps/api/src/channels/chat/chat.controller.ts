@@ -29,7 +29,7 @@ export class ChatController {
       dto.ticketId,
       dto.content,
     );
-    this.gateway.publishMessage(message);
+    await this.gateway.publishMessage(message);
     return { ok: true as const, messageId: message.id };
   }
 }

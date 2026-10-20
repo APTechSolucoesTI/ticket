@@ -32,6 +32,8 @@ interface SocketAuth {
   userId: string;
   name: string;
   permissions: Set<string>;
+  sessionVersion: number;
+  expiresAt: number;
 }
 
 interface SocketData {
@@ -86,6 +88,21 @@ export class ChatGateway
             return;
           }
           setAuth(socket, auth);
+          socket.use((_packet, proceed) => {
+            this.sessionIsCurrent(socket).then(
+              (current) => {
+                if (current) proceed();
+                else {
+                  socket.disconnect(true);
+                  proceed(new Error('unauthorized'));
+                }
+              },
+              () => {
+                socket.disconnect(true);
+                proceed(new Error('unauthorized'));
+              },
+            );
+          });
           next();
         },
         (err: unknown) => {
@@ -103,17 +120,18 @@ export class ChatGateway
     if (!token) return null;
 
     const claims = verifySessionToken(token, this.jwtSecret);
-    if (!claims) return null;
+    if (!claims || claims.expiresAt === null) return null;
 
     const { data: profile } = await this.supabase.client
       .from('profiles')
-      .select('tenant_id, name, is_active')
+      .select('tenant_id, name, is_active, session_version')
       .eq('id', claims.sub)
       .maybeSingle();
     if (
       !profile?.tenant_id ||
       !profile.is_active ||
-      profile.tenant_id !== claims.tenantId
+      profile.tenant_id !== claims.tenantId ||
+      profile.session_version !== claims.sessionVersion
     )
       return null;
 
@@ -135,7 +153,65 @@ export class ChatGateway
       userId: claims.sub,
       name: profile.name,
       permissions,
+      sessionVersion: claims.sessionVersion,
+      expiresAt: claims.expiresAt,
     };
+  }
+
+  private async sessionIsCurrent(socket: Socket): Promise<boolean> {
+    const auth = getAuth(socket);
+    if (!auth || auth.expiresAt <= Math.floor(Date.now() / 1000)) return false;
+    const { data: profile, error } = await this.supabase.client
+      .from('profiles')
+      .select('tenant_id, is_active, session_version')
+      .eq('id', auth.userId)
+      .maybeSingle();
+    return (
+      !error &&
+      !!profile?.is_active &&
+      profile.tenant_id === auth.tenantId &&
+      profile.session_version === auth.sessionVersion
+    );
+  }
+
+  // Existing sockets must not receive privileged broadcasts after a reset.
+  // Check recipients in a batch, including remote replicas reached via Redis.
+  private async emitAuthorized(
+    room: string,
+    event: string,
+    payload: unknown,
+    excludeId?: string,
+  ) {
+    const sockets = await this.server.in(room).fetchSockets();
+    const userIds = [
+      ...new Set(
+        sockets
+          .map((socket) => (socket.data as SocketData).auth?.userId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    if (!userIds.length) return;
+    const { data: profiles, error } = await this.supabase.client
+      .from('profiles')
+      .select('id, tenant_id, is_active, session_version')
+      .in('id', userIds);
+    if (error) return; // Fail closed during a database outage.
+    const byId = new Map(
+      (profiles ?? []).map((profile) => [profile.id, profile] as const),
+    );
+    for (const socket of sockets) {
+      const auth = (socket.data as SocketData).auth;
+      const profile = auth ? byId.get(auth.userId) : undefined;
+      if (
+        !auth ||
+        !profile?.is_active ||
+        auth.tenantId !== profile.tenant_id ||
+        auth.sessionVersion !== profile.session_version ||
+        auth.expiresAt <= Math.floor(Date.now() / 1000)
+      ) {
+        socket.disconnect(true);
+      } else if (socket.id !== excludeId) socket.emit(event, payload);
+    }
   }
 
   async handleConnection(socket: Socket) {
@@ -153,7 +229,11 @@ export class ChatGateway
       PRESENCE_TTL_SECONDS,
     );
     const event: ChatPresenceEventDto = { userId: auth.userId, online: true };
-    this.server.to(`tenant:${auth.tenantId}`).emit('presence:update', event);
+    await this.emitAuthorized(
+      `tenant:${auth.tenantId}`,
+      'presence:update',
+      event,
+    );
   }
 
   async handleDisconnect(socket: Socket) {
@@ -163,7 +243,11 @@ export class ChatGateway
       `chat:presence:${auth.tenantId}:${auth.userId}`,
     );
     const event: ChatPresenceEventDto = { userId: auth.userId, online: false };
-    this.server.to(`tenant:${auth.tenantId}`).emit('presence:update', event);
+    await this.emitAuthorized(
+      `tenant:${auth.tenantId}`,
+      'presence:update',
+      event,
+    );
   }
 
   @SubscribeMessage('ticket:join')
@@ -218,7 +302,7 @@ export class ChatGateway
         body.content,
       );
       this.logger.log(`message:send ok, id=${message.id}`);
-      this.publishMessage(message);
+      await this.publishMessage(message);
       return { ok: true, messageId: message.id };
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -249,23 +333,31 @@ export class ChatGateway
       userId: auth.userId,
       isTyping: body.isTyping,
     };
-    socket.to(`ticket:${body.ticketId}`).emit('typing', event);
+    await this.emitAuthorized(
+      `ticket:${body.ticketId}`,
+      'typing',
+      event,
+      socket.id,
+    );
   }
 
   /** Chamado por outros módulos (ex.: ao reatribuir um ticket) - não gatilho ainda. */
-  notifyTicketAssigned(
+  async notifyTicketAssigned(
     tenantId: string,
     ticketId: string,
     assigneeId: string | null,
   ) {
-    this.server
-      .to(`tenant:${tenantId}`)
-      .emit('ticket:assigned', { ticketId, assigneeId });
+    await this.emitAuthorized(`tenant:${tenantId}`, 'ticket:assigned', {
+      ticketId,
+      assigneeId,
+    });
   }
 
-  publishMessage(message: PersistedChatMessage) {
-    this.server
-      .to(`ticket:${message.ticketId}`)
-      .emit('message:receive', message);
+  async publishMessage(message: PersistedChatMessage) {
+    await this.emitAuthorized(
+      `ticket:${message.ticketId}`,
+      'message:receive',
+      message,
+    );
   }
 }

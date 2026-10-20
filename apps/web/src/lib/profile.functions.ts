@@ -85,12 +85,18 @@ export const updateMyContact = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("id, tenant_id, name, email, phone, password_hash, is_active")
+      .select("id, tenant_id, name, email, phone, password_hash, is_active, session_version")
       .eq("id", context.userId)
       .eq("tenant_id", context.claims.tenantId)
       .maybeSingle();
 
-    if (profileError || !profile?.is_active) throw new Error("Perfil não encontrado ou inativo.");
+    if (
+      profileError ||
+      !profile?.is_active ||
+      profile.session_version !== context.claims.sessionVersion
+    ) {
+      throw new Error("Perfil não encontrado ou inativo.");
+    }
 
     const emailChanged = data.email !== profile.email.toLowerCase();
     if (emailChanged) {
@@ -116,7 +122,8 @@ export const updateMyContact = createServerFn({ method: "POST" })
       .update({ email: data.email, phone })
       .eq("id", profile.id)
       .eq("tenant_id", profile.tenant_id)
-      .select("id, tenant_id, name, email, phone, avatar_url")
+      .eq("session_version", context.claims.sessionVersion)
+      .select("id, tenant_id, name, email, phone, avatar_url, session_version")
       .single();
 
     if (error?.code === "23505") throw new Error("Este e-mail já está em uso.");
@@ -128,6 +135,7 @@ export const updateMyContact = createServerFn({ method: "POST" })
           tenantId: updated.tenant_id,
           name: updated.name,
           email: updated.email,
+          sessionVersion: updated.session_version,
         })
       : null;
 
@@ -252,12 +260,17 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("id, tenant_id, password_hash, is_active")
+      .select("id, tenant_id, name, email, password_hash, is_active, session_version")
       .eq("id", context.userId)
       .eq("tenant_id", context.claims.tenantId)
       .maybeSingle();
 
-    if (profileError || !profile?.is_active || !profile.password_hash) {
+    if (
+      profileError ||
+      !profile?.is_active ||
+      !profile.password_hash ||
+      profile.session_version !== context.claims.sessionVersion
+    ) {
       throw new Error("Não foi possível confirmar sua identidade.");
     }
 
@@ -276,12 +289,24 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     if (resetError) throw new Error("Não foi possível concluir a alteração da senha.");
 
     const passwordHash = await bcrypt.hash(data.newPassword, BCRYPT_ROUNDS);
-    const { error } = await supabaseAdmin
+    const { data: updated, error } = await supabaseAdmin
       .from("profiles")
       .update({ password_hash: passwordHash })
       .eq("id", profile.id)
-      .eq("tenant_id", profile.tenant_id);
-    if (error) throw new Error("Não foi possível alterar sua senha.");
+      .eq("tenant_id", profile.tenant_id)
+      .eq("session_version", context.claims.sessionVersion)
+      .select("id, tenant_id, name, email, session_version")
+      .single();
+    if (error || !updated) throw new Error("Não foi possível alterar sua senha.");
 
-    return { ok: true as const };
+    return {
+      ok: true as const,
+      token: signSessionToken({
+        id: updated.id,
+        tenantId: updated.tenant_id,
+        name: updated.name,
+        email: updated.email,
+        sessionVersion: updated.session_version,
+      }),
+    };
   });
