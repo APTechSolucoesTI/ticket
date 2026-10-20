@@ -40,6 +40,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@apticket/outbound-network':
+        specifier: workspace:*
+        version: link:../../packages/outbound-network
       '@apticket/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -191,6 +194,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@apticket/outbound-network':
+        specifier: workspace:*
+        version: link:../../packages/outbound-network
       '@apticket/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -456,6 +462,8 @@ importers:
       vite:
         specifier: ^8.0.16
         version: 8.2.1(@types/node@22.20.1)(jiti@2.7.0)(terser@5.50.0)
+
+  packages/outbound-network: {}
 
   packages/shared-types: {}
 

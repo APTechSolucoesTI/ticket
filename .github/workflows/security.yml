@@ -32,14 +32,19 @@ jobs:
       - run: pnpm --filter api exec tsc --noEmit
       - run: pnpm --filter api exec jest --runInBand
       - run: pnpm --filter api build
+      - run: node --test packages/outbound-network/test/network.test.cjs
+      - run: node packages/outbound-network/build.mjs --check
+      - run: node scripts/security/test-uazapi-egress.mjs
       - run: pnpm --filter web build
         env:
           NITRO_PRESET: node-server
       # Application test processes receive only loopback URLs and synthetic keys.
       - run: pnpm test:security-http
+      - run: node scripts/security/test-web-egress.mjs
       - run: node scripts/security/test-auth-session-http.mjs
       - run: node scripts/security/test-browser-session.mjs
       - run: node scripts/security/test-mail-compatibility.mjs
+      - run: node scripts/security/test-mail-tls.mjs
       - name: Edge handlers without runtime network or environment access
         run: pnpm dlx --allow-build=deno deno@2.9.6 test --no-config --no-lock --node-modules-dir=manual --no-prompt --deny-net --deny-env supabase/functions/*/handler.test.ts
       - run: pnpm test:security-lint

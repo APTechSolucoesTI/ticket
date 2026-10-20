@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { publicHttpRequest } from "@apticket/outbound-network";
 
 async function requirePermission(
   supabase: import("@supabase/supabase-js").SupabaseClient<
@@ -38,15 +39,21 @@ async function callUazapi(
   init?: RequestInit,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const url = `${normalizeBaseUrl(baseUrl)}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, {
-    ...init,
+  if (init?.body !== undefined && init.body !== null && typeof init.body !== "string") {
+    throw new Error("unsupported_request_body");
+  }
+  const res = await publicHttpRequest(url, {
+    method: init?.method,
+    body: init?.body ?? undefined,
+    signal: init?.signal ?? undefined,
+    credentials: true,
     headers: {
       "Content-Type": "application/json",
       token,
-      ...(init?.headers ?? {}),
+      ...Object.fromEntries(new Headers(init?.headers)),
     },
   });
-  const text = await res.text();
+  const text = res.text();
   let body: unknown = text;
   try {
     body = text ? JSON.parse(text) : null;

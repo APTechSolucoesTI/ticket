@@ -18,6 +18,7 @@ FROM base AS deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/outbound-network/package.json packages/outbound-network/package.json
 RUN pnpm install --frozen-lockfile --filter web...
 
 # ---- build: código de verdade entra aqui ----
@@ -25,6 +26,7 @@ FROM deps AS build
 
 COPY apps/web apps/web
 COPY packages/shared-types packages/shared-types
+COPY packages/outbound-network packages/outbound-network
 
 ARG VITE_API_URL
 ARG VITE_SUPABASE_URL

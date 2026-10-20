@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { publicHttpRequest } from '@apticket/outbound-network';
 
 // Portado de callUazapi + testUazapiConnection/connect/disconnect/send em
 // apps/web/src/lib/whatsapp.functions.ts. O token da uazapi só existe aqui
@@ -39,15 +40,25 @@ export class UazapiService {
     // de erro HTTP normal, esse throw sobe cru até o controller e vira 500
     // genérico em vez de avisar "não deu pra falar com a uazapi".
     try {
-      const res = await fetch(url, {
-        ...init,
+      if (
+        init?.body !== undefined &&
+        init.body !== null &&
+        typeof init.body !== 'string'
+      ) {
+        throw new Error('unsupported_request_body');
+      }
+      const res = await publicHttpRequest(url, {
+        method: init?.method,
+        body: init?.body ?? undefined,
+        signal: init?.signal ?? undefined,
+        credentials: true,
         headers: {
           'Content-Type': 'application/json',
           token,
-          ...(init?.headers ?? {}),
+          ...Object.fromEntries(new Headers(init?.headers)),
         },
       });
-      const text = await res.text();
+      const text = res.text();
       let body: unknown = text;
       try {
         body = text ? JSON.parse(text) : null;
@@ -55,9 +66,9 @@ export class UazapiService {
         /* keep as text */
       }
       return { ok: res.ok, status: res.status, body };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`chamada pra uazapi (${url}) falhou: ${message}`);
+    } catch {
+      const message = 'Destino externo inválido ou indisponível.';
+      this.logger.warn('chamada externa para uazapi recusada ou indisponível');
       return {
         ok: false,
         status: 0,

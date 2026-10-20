@@ -48,7 +48,12 @@ describe('EmailSenderService', () => {
       },
     );
 
-    expect(nodemailer.createTransport).toHaveBeenCalledWith({
+    const calls = (nodemailer.createTransport as jest.Mock).mock
+      .calls as unknown[][];
+    const actual = calls[0][0] as Record<string, unknown>;
+    const { getSocket, ...options } = actual;
+    expect(typeof getSocket).toBe('function');
+    expect(options).toEqual({
       name: 'apticket.aptechinfo.com.br',
       host: 'smtp.example.com',
       port: 587,

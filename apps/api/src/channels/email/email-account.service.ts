@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
+import { publicMailEndpoint } from '@apticket/outbound-network';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SecretsService } from '../../crypto/secrets.service';
 import { EmailSchedulerService } from './email-scheduler.service';
@@ -152,9 +153,18 @@ export class EmailAccountService {
       };
     }
 
+    let endpoint: Awaited<ReturnType<typeof publicMailEndpoint>>;
+    try {
+      endpoint = await publicMailEndpoint(host, port ?? 993);
+    } catch {
+      return {
+        imapOk: false,
+        smtpOk: false,
+        error: 'Destino externo inválido ou indisponível.',
+      };
+    }
     const client = new ImapFlow({
-      host,
-      port: port ?? 993,
+      ...endpoint,
       secure: secure ?? true,
       auth: { user, pass: password },
       logger: false,

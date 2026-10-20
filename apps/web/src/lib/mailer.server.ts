@@ -2,6 +2,7 @@
 // Separate from GoTrue's own mailer - this is used for portal_otp_codes delivery,
 // which is app-level (contacts are not Supabase Auth users).
 import nodemailer, { type SentMessageInfo, type Transporter } from "nodemailer";
+import { publicSmtpSocket } from "@apticket/outbound-network";
 
 let _transporter: Transporter | undefined;
 
@@ -40,6 +41,7 @@ function getTransporter(): Transporter {
     host,
     port,
     secure, // true = implicit TLS (port 465), false = STARTTLS (port 587)
+    getSocket: publicSmtpSocket(host, port),
     auth: { user, pass },
     connectionTimeout: 15_000,
     greetingTimeout: 15_000,

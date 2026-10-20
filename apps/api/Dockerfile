@@ -19,6 +19,7 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/outbound-network/package.json packages/outbound-network/package.json
 
 RUN pnpm install --frozen-lockfile --filter api...
 
@@ -30,6 +31,7 @@ FROM deps AS build
 
 COPY apps/api apps/api
 COPY packages/shared-types packages/shared-types
+COPY packages/outbound-network packages/outbound-network
 
 RUN pnpm --filter api build
 
@@ -48,6 +50,7 @@ WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/outbound-network packages/outbound-network
 
 RUN pnpm install --frozen-lockfile --prod --filter api...
 

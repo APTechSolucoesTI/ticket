@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:net";
 import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 // Real Nodemailer over a loopback SMTP fixture. No external mail connection.
 const apiRequire = createRequire(new URL("../../apps/api/package.json", import.meta.url));
 const webRequire = createRequire(new URL("../../apps/web/package.json", import.meta.url));
 const nodemailer = webRequire("nodemailer");
+const esmNodemailer = (await import(pathToFileURL(resolve(dirname(webRequire.resolve("nodemailer")), "../esm/nodemailer.js")).href)).default;
 const { simpleParser } = apiRequire("mailparser");
 const { EmailSenderService } = apiRequire("./dist/channels/email/email-sender.service.js");
 const sockets = new Set();
@@ -45,11 +48,16 @@ const server = createServer(socket => {
 });
 await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 const port = server.address().port;
-const originalCreateTransport = nodemailer.createTransport;
-nodemailer.createTransport = (...args) => {
+const mailers = [...new Set([nodemailer, esmNodemailer])];
+const originals = mailers.map(mailer => mailer.createTransport);
+for (const [index, mailer] of mailers.entries()) mailer.createTransport = (...args) => {
   assert.equal(args[0].host, "127.0.0.1", "SMTP fixture must never reach an external host");
   assert.equal(args[0].port, port);
-  const transport = originalCreateTransport(...args);
+  assert.equal(typeof args[0].getSocket, "function", "real consumers must install the outbound guard");
+  // This separate protocol compatibility fixture deliberately replaces the
+  // socket provider locally. Strict SSRF tests verify the production guard.
+  args[0] = { ...args[0], getSocket: undefined };
+  const transport = originals[index](...args);
   transports.push(transport);
   return transport;
 };
@@ -89,7 +97,7 @@ try {
   assert.equal(messages.length, 2, "refused delivery must not be reported as sent");
   console.log("PASS real Nodemailer: portal OTP, tenant reply, threading, attachment and SMTP refusal");
 } finally {
-  nodemailer.createTransport = originalCreateTransport;
+  for (const [index, mailer] of mailers.entries()) mailer.createTransport = originals[index];
   for (const transport of transports) transport.close();
   for (const socket of sockets) socket.destroy();
   await new Promise(resolve => server.close(resolve));

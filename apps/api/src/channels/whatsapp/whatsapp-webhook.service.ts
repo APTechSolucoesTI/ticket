@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import {
+  OutboundNetworkError,
+  publicHttpRequest,
+} from '@apticket/outbound-network';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { RedisService } from '../../queue/redis.service';
 import {
@@ -310,26 +314,15 @@ export class WhatsappWebhookService {
         }
 
         try {
-          const response = await fetch(attachment.url, {
-            redirect: 'follow',
-            signal: AbortSignal.timeout(30_000),
+          const response = await publicHttpRequest(attachment.url, {
+            timeoutMs: 30_000,
+            maxBytes: MAX_INBOUND_MEDIA_BYTES,
           });
           if (!response.ok) {
             throw new Error(`download_http_${response.status}`);
           }
 
-          const declaredSize = Number(response.headers.get('content-length'));
-          if (
-            Number.isFinite(declaredSize) &&
-            declaredSize > MAX_INBOUND_MEDIA_BYTES
-          ) {
-            throw new Error('media_exceeds_25mb');
-          }
-
-          const body = await response.arrayBuffer();
-          if (body.byteLength > MAX_INBOUND_MEDIA_BYTES) {
-            throw new Error('media_exceeds_25mb');
-          }
+          const body = response.bytes;
 
           const safeId = (externalId ?? randomUUID()).replace(
             /[^a-zA-Z0-9_-]/g,
@@ -365,6 +358,17 @@ export class WhatsappWebhookService {
           this.logger.warn(
             `inbound media persistence failed tenant=${tenantId} external=${externalId ?? 'none'}: ${message}`,
           );
+          if (
+            error instanceof OutboundNetworkError &&
+            [
+              'outbound_destination_blocked',
+              'outbound_invalid_url',
+              'outbound_invalid_host',
+              'outbound_redirect_blocked',
+            ].includes(error.code)
+          ) {
+            return { ...attachment, url: undefined };
+          }
           return attachment;
         }
       }),

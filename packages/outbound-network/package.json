@@ -1,0 +1,10 @@
+{
+  "name": "@apticket/outbound-network",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./index.cjs",
+  "types": "./index.d.cts",
+  "exports": { ".": { "types": "./index.d.cts", "import": "./index.mjs", "require": "./index.cjs" } },
+  "engines": { "node": ">=20" }
+}

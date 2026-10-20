@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 export default [
   { ignores: ["**/node_modules/**", "**/dist/**", "**/.output/**", "**/.tanstack/**"] },
   {
-    files: ["apps/**/*.{ts,tsx}", "packages/**/*.ts", "supabase/functions/**/*.ts"],
+    files: ["apps/**/*.{ts,tsx,mjs}", "packages/**/*.{ts,cjs,mjs}", "supabase/functions/**/*.ts"],
     linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off" },
     languageOptions: { parser: tseslint.parser },
     plugins: { security },

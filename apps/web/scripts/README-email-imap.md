@@ -1,44 +1,30 @@
-# Worker IMAP → APTicket
+# Worker IMAP externo (legado opcional)
 
-O backend do APTicket roda em Cloudflare Workers e **não suporta conexões TCP brutas (IMAP)**.
-Por isso a captura de e-mails é feita por este script Node externo, agendado via cron.
+O backend Node do APTicket j? faz polling IMAP com BullMQ. Este script ? uma alternativa para instala??es que usam o endpoint /api/public/hooks/email-ingest; n?o ative os dois coletores para a mesma caixa.
 
-## Como funciona
+Execute a partir de um checkout completo deste monorepo, com Node 22 e as depend?ncias do lockfile instaladas por corepack pnpm install --frozen-lockfile. O script compartilha ImapFlow/mailparser com a API e a prote??o de destinos externos com os aplicativos. Copiar apenas o arquivo .mjs n?o ? suficiente.
 
-1. **Configuração de canal E-mail** (`Configurações → Canais → E-mail → Configurar`): você cadastra IMAP/SMTP da caixa (armazenado localmente para referência).
-2. **Worker IMAP** (este script): roda em qualquer host com Node 20+, lê mensagens não-lidas via IMAP e faz `POST` para o endpoint público do APTicket.
-3. **Endpoint `/api/public/hooks/email-ingest`**: valida o token, localiza o **contato** pelo e-mail, exige **contrato ativo** da empresa e cria um **ticket** com a mensagem inicial. Deduplica por `Message-ID`.
-
-## Instalação (servidor Linux)
-
-```bash
-mkdir -p /opt/apticket && cd /opt/apticket
-curl -O https://<seu-host>/email-imap-worker.mjs   # ou copie via scp
-npm init -y && npm i imapflow mailparser
-```
-
-Crie `/opt/apticket/.env` (carregue antes do cron, p. ex. com `env $(cat .env | xargs)`):
+Configure um arquivo protegido, por exemplo /etc/apticket/imap-worker.env, leg?vel somente pelo usu?rio do servi?o:
 
 ```env
-APTICKET_INGEST_URL=https://project--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app/api/public/hooks/email-ingest
-APTICKET_INGEST_TOKEN=<valor do secret EMAIL_INGEST_SECRET>
-IMAP_HOST=imap.seu-provedor.com
+APTICKET_INGEST_URL=https://seu-apticket.example/api/public/hooks/email-ingest
+APTICKET_INGEST_TOKEN=<secret configurado no servidor>
+IMAP_HOST=imap.seu-provedor.example
 IMAP_PORT=993
 IMAP_SECURE=true
-IMAP_USER=suporte@empresa.com
-IMAP_PASS=********
+IMAP_USER=<conta de servi?o>
+IMAP_PASS=<senha da conta>
 IMAP_MAILBOX=INBOX
 ```
 
-## Cron (a cada 5 minutos)
+O host IMAP deve resolver exclusivamente para IPs p?blicos. O IP validado fica fixado na conex?o e o hostname original continua sendo usado para validar TLS. APTICKET_INGEST_URL ? um destino interno confi?vel definido pelo operador; o POST n?o segue redirecionamentos e tem timeout de 30 segundos.
 
-```cron
-*/5 * * * * cd /opt/apticket && env $(cat .env | xargs) node email-imap-worker.mjs >> /var/log/apticket-imap.log 2>&1
+No diret?rio raiz do checkout:
+
+```bash
+node --env-file=/etc/apticket/imap-worker.env apps/web/scripts/email-imap-worker.mjs
 ```
 
-## Comportamento
+Para agendamento, use o mesmo comando em um servi?o/timer com diret?rio de trabalho fixo e execu??es sem sobreposi??o. N?o carregue o arquivo de credenciais com xargs nem o versione. Este ajuste n?o instala ou agenda o worker.
 
-- E-mail de remetente sem contato cadastrado → ignorado (`skipped: unknown_contact`).
-- Empresa sem contrato `active` → ignorado (`skipped: no_active_contract`).
-- `Message-ID` já visto nos últimos 7 dias → ignorado (`duplicate`).
-- Sucesso → ticket criado com `channel = email`, prioridade `medium`, status `open`, vinculado ao contrato ativo mais recente, e a mensagem é marcada como lida no IMAP.
+O coletor consulta mensagens n?o lidas, envia o conte?do ao endpoint e marca como lida a mensagem aceita. A autoriza??o, deduplica??o e associa??o ao ticket s?o responsabilidade do endpoint de ingest?o configurado.

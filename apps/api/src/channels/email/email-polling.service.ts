@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
+import { publicMailEndpoint } from '@apticket/outbound-network';
 import { simpleParser } from 'mailparser';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SecretsService } from '../../crypto/secrets.service';
@@ -51,9 +52,20 @@ export class EmailPollingService {
       errors: [],
     };
 
+    let endpoint: Awaited<ReturnType<typeof publicMailEndpoint>>;
+    try {
+      endpoint = await publicMailEndpoint(
+        tenant.email_imap_host,
+        tenant.email_imap_port,
+      );
+    } catch {
+      result.errors.push(
+        'connect_failed: destino externo inválido ou indisponível',
+      );
+      return result;
+    }
     const client = new ImapFlow({
-      host: tenant.email_imap_host,
-      port: tenant.email_imap_port,
+      ...endpoint,
       secure: tenant.email_imap_secure,
       auth: { user: tenant.email_imap_user, pass: tenant.email_imap_password },
       logger: false,

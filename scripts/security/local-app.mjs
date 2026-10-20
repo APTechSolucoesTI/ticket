@@ -26,8 +26,12 @@ export async function startLocalApp(backend = (_request, response) => {
       JWT_SECRET: "isolated-security-test-jwt-key",
       PORTAL_SESSION_SECRET: "isolated-security-test-portal-key",
     },
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  let diagnostics = "";
+  const capture = chunk => { diagnostics = (diagnostics + chunk.toString()).slice(-64 * 1024); };
+  app.stdout.on("data", capture);
+  app.stderr.on("data", capture);
   const exited = once(app, "exit");
   const origin = `http://127.0.0.1:${port}`;
   async function close() {
@@ -41,7 +45,7 @@ export async function startLocalApp(backend = (_request, response) => {
       if (app.exitCode !== null) throw new Error("Local fixture application exited");
       try {
         await fetch(`${origin}/api/public/portal/session`, { method: "OPTIONS" });
-        return { origin, close };
+        return { origin, close, diagnostics: () => diagnostics };
       } catch {
         await new Promise(resolve => setTimeout(resolve, 100));
       }

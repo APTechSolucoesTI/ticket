@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
+import { publicSmtpSocket } from '@apticket/outbound-network';
 import type { Env } from '../../config/env.validation';
 
 // Portado de apps/web/src/lib/email-send.server.ts, sem mudança de lógica.
@@ -38,6 +39,7 @@ export class EmailSenderService {
       host: smtp.host,
       port: smtp.port,
       secure: smtp.secure,
+      getSocket: publicSmtpSocket(smtp.host, smtp.port),
       auth: { user: smtp.user, pass: smtp.password },
     });
 
