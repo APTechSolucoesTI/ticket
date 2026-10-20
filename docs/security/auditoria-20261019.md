@@ -361,7 +361,7 @@ Gitleaks CLI 8.30.1 foi baixado da release oficial e conferido por SHA-256; scan
 | SEC-02 | Corrigido e validado localmente | Publicação ainda não realizada; desativação do contato é revalidada em cada chamada. |
 | SEC-03 | Mitigado parcialmente | Vínculo imutável objeto–ticket/contato e migração dos caminhos legados ainda necessários dentro do tenant. |
 | SEC-04 | Mitigado parcialmente | Consumo condicional corrigido; contador de tentativas incorretas e limite distribuído ainda não atômicos/compartilhados. |
-| SEC-05 | Correção implementada e testada; publicação no complemento de 20/10 | Responsável confirmou apenas Supabase/API internos. Política de DNS/IP/redirects e streaming adicionada; ver [validação atual](./validacao-20261020.md). |
+| SEC-05 | Corrigido e implantado no lote de 20/10 | Responsável confirmou apenas Supabase/API internos. Política de DNS/IP/redirects e streaming adicionada; ver escopo, testes, deploy e limitações na [validação atual](./validacao-20261020.md). |
 | SEC-06 | Não corrigido | Política de tentativas, identidade de origem confiável e armazenamento compartilhado precisam ser implementados. |
 | SEC-07 | Não corrigido; decisão solicitada | Definir revogação de sessões após reset; implementar consumo transacional de convite/reset e testes dedicados. |
 | SEC-08 | Mitigado parcialmente | Zero críticos; dois avisos altos e três moderados do Nodemailer; atualização major solicitada ao responsável. |

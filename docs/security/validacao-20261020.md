@@ -105,4 +105,12 @@ Não há alteração de esquema ou migration neste lote. Rollback: revert do com
 
 Referências primárias: [OWASP SSRF](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html), [Nodemailer SMTP/TLS](https://nodemailer.com/smtp), [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/) e [IANA IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/). O contrato de conexão/TLS de ImapFlow e Nodemailer também foi conferido no código das versões instaladas.
 
-Publicação deste complemento: aguardando commit e deploy após a validação acima. Os demais riscos e limitações registrados na auditoria permanecem; este complemento não encerra a auditoria integral.
+Publicação deste complemento:
+
+- Correção no commit `b30eec1`, documentação no commit `8d036ef0434a1cf6dbabe938a77ac3a0cefec458`, ambos publicados em `main`. Varredura Gitleaks do histórico alcançável passou, com saída redigida e binário 8.30.1 conferido pelo checksum.
+- Frontend: deployment `done`, criado em `2026-10-20T18:22:45.121Z`; API: `done`, criado em `2026-10-20T18:24:25.561Z`. As atualizações dos dois serviços Swarm concluíram. O estado `done` do build pode anteceder a substituição do container; a verificação final foi feita nos containers novos.
+- Commit dos dois checkouts conferido como `8d036ef`. Os novos runtimes Node v22.23.3 responderam HTTP 200 em `/auth` e `/health`. A política compilada foi identificada no frontend; na API, o pacote instalado recusou loopback com `outbound_destination_blocked`.
+- A tentativa HTTPS pelos domínios a partir da estação de trabalho também foi inconclusiva: `UND_ERR_CONNECT_TIMEOUT` no frontend e `ENOTFOUND` no backend. Não foi desativada validação de certificado. Os checks internos não certificam acesso público, DNS externo ou TLS de borda.
+- O [CI do lote](https://github.com/APTechSolucoesTI/ticket/actions/runs/39474162603) passou em isolamento de sessão/OTP, dependências e segredos. No job da aplicação, todos os passos anteriores ao lint global web passaram, incluindo os novos testes de SSRF/TLS, API, HTTP, Edge, builds, typechecks e lint de segurança/API. O último passo falhou no legado de formatação do frontend: **263 erros e 11 avisos** nesta execução Linux. O workflow completo permanece reprovado por esse passo.
+
+SEC-05 fica corrigido e implantado no escopo descrito. Os demais riscos e limitações registrados na auditoria permanecem; este complemento não encerra a auditoria integral. Atualizações posteriores apenas deste relatório não exigem reconstrução dos aplicativos.
