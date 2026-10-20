@@ -12,7 +12,7 @@ Antes: dois avisos altos e três moderados remanescentes no Nodemailer 9. Depois
 
 ## Publicação anterior
 
-O lote `4151865` foi enviado ao GitHub e as duas aplicações do Dokploy concluíram o deploy em 19/10/2026. O estado de deployment foi consultado no Dokploy. A verificação HTTP por dentro da rede será registrada separadamente; conclusão de build, sozinha, não atesta disponibilidade pública.
+O lote `4151865` foi enviado ao GitHub e as duas aplicações do Dokploy concluíram o deploy em 19/10/2026. O lote seguinte e suas verificações de runtime estão registrados ao final deste documento.
 
 ## SEC-07 — credenciais e revogação de sessões
 
@@ -44,10 +44,24 @@ Após esse ajuste, o runner foi repetido com `supabase_admin` como bootstrap, `p
 
 O workflow recebeu os testes de credenciais, sessão do navegador e SMTP. Um job separado executa `scripts/security/run-session-isolation.py`: cria banco vazio e PostgREST em rede interna, testa migration/reversão/reaplicação, 34 asserções e concorrência HTTP, depois remove somente os recursos criados. O bootstrap `fixtures/session-contract.sql` representa o contrato mínimo de sessão; **não equivale ao esquema completo nem à matriz CRUD das 118 tabelas**. O runner completo passou no servidor, com dados sintéticos, antes de ser incluído no CI.
 
-Builds e typechecks web/API passaram. Lint completo da API e lint dos arquivos web alterados passaram. Lint de segurança: zero erros e 119 avisos heurísticos. O lint global do web foi reexecutado: **333 erros de formatação e 11 avisos preexistentes** permanecem em outros arquivos; o job de aplicação continuará bloqueado nesse passo. O CI remoto ainda precisa ser conferido após o push. Os testes HTTP anteriores de TanStack e portal também passaram no novo build. A suíte Edge e os seletores não foram alterados neste lote; seus resultados anteriores não substituem novos testes das áreas modificadas.
+Builds e typechecks web/API passaram. Lint completo da API e lint dos arquivos web alterados passaram. Lint de segurança: zero erros e 119 avisos heurísticos. O lint global do web foi reexecutado: **333 erros de formatação e 11 avisos preexistentes** permanecem em outros arquivos. Os testes HTTP anteriores de TanStack e portal também passaram no novo build. A suíte Edge e os seletores não foram alterados neste lote; os testes Edge foram novamente executados pelo CI.
+
+O [CI do commit implantado](https://github.com/APTechSolucoesTI/ticket/actions/runs/39408243306) foi conferido pela API do GitHub: `session-isolation`, `dependencies` e `secrets` concluídos com sucesso. No job `application`, build/typechecks, API, HTTP, SMTP, sessão do navegador, Edge e lint de segurança/API passaram; a falha ocorreu no último passo, `pnpm --filter web lint`, pelo legado descrito acima. Não declarar o workflow inteiro aprovado.
 
 ## Destinos de integrações e limitações restantes
 
 A consulta autorizada leu somente hosts/portas, sem tokens, senhas ou dados de clientes: SMTP `srv42.prodns.com.br:465`, IMAP `srv42.prodns.com.br:993` e uazapi/canais `apchat.uazapi.com:443`. Na resolução feita no servidor, esses hosts retornaram somente IPs públicos. Isso não define os destinos internos adicionais mencionados pelo responsável. SEC-05 continua pendente de allowlist operacional explícita; não foi aplicado bloqueio de rede que possa interromper uma integração interna não identificada.
 
 Os demais riscos da auditoria inicial permanecem conforme seus estados, incluindo contador distribuído de tentativas, vínculo imutável objeto–ticket, matriz SQL completa, arquivos/antivírus, MFA do futuro backoffice, CSP/TLS e acesso aos campos cifrados. O backoffice ainda não existe. Este lote não representa encerramento integral da auditoria.
+
+## Migration e deploy efetivados
+
+- Migration `20261019231722` aplicada e registrada no histórico na mesma transação, com lock timeout de 5s e statement timeout de 60s. SHA-256 do arquivo aplicado: `4302768b81609be9fbf2d1af792ef9644f6b929af791dd275c7749e84cda91b0`.
+- Verificação de catálogo em produção: 118 políticas de sessão em 118 tabelas, uma política restritiva para os oito buckets, zero helpers novos pertencentes a superuser e nenhuma permissão de reset direto para `anon`/`authenticated`.
+- Probe somente de leitura, com identidade sintética não cadastrada e sem solicitar linhas de negócio (`limit=0`), confirmou HTTP 401 / `PT401` do hook ativo. As consultas ao gateway anônimo e com JWT de outra aplicação mantiveram HTTP 200. Nenhuma senha real foi alterada nos testes.
+- Commit de aplicação `1fe952130a0be4aeb9e4c3127f4e402332560414` publicado em `main`; HEAD dos dois checkouts do Dokploy conferido. Frontend: deployment `done`, criado em `2026-10-20T10:29:24.365Z`. API: `done`, criado em `2026-10-20T10:30:50.841Z`.
+- Verificação dentro dos containers após implantação: frontend `/auth` e API `/health` responderam HTTP 200. A inspeção do código compilado confirmou as novas RPCs/versão de sessão; Nodemailer **10.1.7** confirmado nos dois runtimes.
+- A checagem HTTPS pública ficou inconclusiva a partir desse servidor: a conexão pública do frontend expirou, e o DNS desse servidor não resolveu o FQDN configurado do backend. A disponibilidade externa/TLS requer verificação por uma origem externa; os checks internos acima não a substituem.
+- Containers e rede descartáveis removidos após conferência de identidade, labels, rede interna e ausência de volumes/portas publicadas. Dumps de esquema e scripts temporários do teste removidos. Backup de esquema anterior à migration, com proprietários/grants, e os diagnósticos da aplicação foram mantidos no servidor com permissão `0600`; nenhum dump de dados de clientes foi criado.
+
+SEC-07 fica corrigido no escopo das sessões próprias de usuário do APTicket e dos fluxos de credenciais testados; SEC-08 não apresenta avisos no audit consultado. Os demais estados e limitações seguem descritos acima e na auditoria inicial. Atualizações apenas deste relatório após o deploy não exigem reconstruir os aplicativos.

@@ -2,6 +2,8 @@
 
 Data: 19/10/2026, America/Sao_Paulo. Base analisada: `0241b4bd9673320f16c4a48520f9765f02aafc7e`.
 
+Atualização em 20/10/2026: [validação, migration e publicação dos lotes seguintes](./validacao-20261020.md). Os estados abaixo registram o fechamento do lote inicial; consulte a continuação para o estado atual de SEC-07/08, CI e produção.
+
 ## 1. Resumo executivo e limites
 
 **Estado: Fase 1 concluída; achados iniciais da Fase 2 registrados antes das alterações; primeiro lote de correções validado localmente.** A investigação e a validação complementar continuam. Não constitui atestado de segurança. O risco residual é **alto**: os seis avisos críticos de dependências foram eliminados do lockfile local, mas permanecem avisos altos de SMTP e lacunas de autenticação, isolamento e integrações. Severidades de avisos de dependências não equivalem automaticamente a exploração comprovada neste aplicativo.
