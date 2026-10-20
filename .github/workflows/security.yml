@@ -37,6 +37,9 @@ jobs:
           NITRO_PRESET: node-server
       # Application test processes receive only loopback URLs and synthetic keys.
       - run: pnpm test:security-http
+      - run: node scripts/security/test-auth-session-http.mjs
+      - run: node scripts/security/test-browser-session.mjs
+      - run: node scripts/security/test-mail-compatibility.mjs
       - name: Edge handlers without runtime network or environment access
         run: pnpm dlx --allow-build=deno deno@2.9.6 test --no-config --no-lock --node-modules-dir=manual --no-prompt --deny-net --deny-env supabase/functions/*/handler.test.ts
       - run: pnpm test:security-lint
@@ -59,10 +62,19 @@ jobs:
         with:
           run_install: false
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      # This step currently fails on the documented Nodemailer advisories.
       - run: pnpm audit --audit-level high --json > "$RUNNER_TEMP/audit.json"
       - if: always()
         run: node scripts/security/test-dependency-audit.mjs "$RUNNER_TEMP/audit.json"
+
+  session-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # Scoped contract fixture; the full historical SQL/RLS matrix is separate.
+      - run: python3 scripts/security/run-session-isolation.py
 
   secrets:
     runs-on: ubuntu-latest
