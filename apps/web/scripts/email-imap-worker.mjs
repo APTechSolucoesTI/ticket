@@ -3,8 +3,8 @@
 /**
  * Coletor IMAP externo opcional. Execute no checkout completo com Node 22:
  * node --env-file=/etc/apticket/imap-worker.env apps/web/scripts/email-imap-worker.mjs
- * Instale as depend?ncias pelo lockfile do monorepo. Consulte README-email-imap.md.
- * O polling BullMQ da API ? o coletor padr?o; evite ativar ambos na mesma caixa.
+ * Instale as dependências pelo lockfile do monorepo. Consulte README-email-imap.md.
+ * O polling BullMQ da API é o coletor padrão; evite ativar ambos na mesma caixa.
  */
 import { createRequire } from 'node:module';
 import { publicMailEndpoint } from '@apticket/outbound-network';
