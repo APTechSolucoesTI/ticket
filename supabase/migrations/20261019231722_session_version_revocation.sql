@@ -6,6 +6,13 @@ set local lock_timeout = '5s';
 do $$
 declare existing_hook text;
 begin
+  if not (select rolsuper from pg_roles where rolname = current_user)
+     and exists (
+       select 1 from pg_tables where schemaname in ('apticket', 'storage')
+         and not pg_has_role(current_user, tableowner, 'USAGE')
+     ) then
+    raise insufficient_privilege using message = 'Migration requires ownership privileges for all application and Storage tables';
+  end if;
   select split_part(setting, '=', 2) into existing_hook
   from pg_roles r cross join lateral unnest(r.rolconfig) setting
   where r.rolname = 'authenticator' and setting like 'pgrst.db_pre_request=%';
@@ -172,6 +179,16 @@ revoke all on function apticket.complete_password_reset(text,text) from public, 
 revoke all on function apticket.complete_invite(text,text) from public, anon, authenticated;
 grant execute on function apticket.complete_password_reset(text,text) to service_role;
 grant execute on function apticket.complete_invite(text,text) to service_role;
+
+-- Self-hosted tables have mixed owners, so a privileged migration role is needed.
+-- Keep runtime helpers owned by the existing non-superuser BYPASSRLS role.
+alter schema apticket_auth_private owner to postgres;
+alter function apticket_auth_private.protect_session_version() owner to postgres;
+alter function apticket_auth_private.session_is_current() owner to postgres;
+alter function apticket_auth_private.check_session() owner to postgres;
+alter function apticket_auth_private.complete_credential(text,text,text) owner to postgres;
+alter function apticket.complete_password_reset(text,text) owner to postgres;
+alter function apticket.complete_invite(text,text) owner to postgres;
 
 alter role authenticator set pgrst.db_pre_request = 'apticket_auth_private.check_session';
 notify pgrst, 'reload config';

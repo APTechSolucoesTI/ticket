@@ -37,7 +37,7 @@ origin = "http://" + api["NetworkSettings"]["Networks"][network]["IPAddress"] + 
 
 def sql(statement):
     return subprocess.check_output([
-        "docker", "exec", db, "psql", "-h", "/run/postgresql", "-U", "postgres",
+        "docker", "exec", db, "psql", "-h", "/run/postgresql", "-U", "supabase_admin",
         "-d", "appsec_audit", "-At", "-v", "ON_ERROR_STOP=1", "-c", statement,
     ], text=True).strip()
 

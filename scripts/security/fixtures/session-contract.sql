@@ -4,6 +4,7 @@ create role anon nologin;
 create role authenticated nologin;
 create role service_role nologin bypassrls;
 create role authenticator login noinherit;
+create role postgres login nosuperuser bypassrls;
 grant anon, authenticated, service_role to authenticator;
 create schema extensions;
 create extension pgtap with schema extensions;
@@ -47,3 +48,12 @@ grant select(id,tenant_id,name,email,is_active),update(name,email) on apticket.p
 grant select,insert,update,delete on storage.objects to authenticated,anon;
 grant all on all tables in schema apticket,storage to service_role;
 alter default privileges in schema apticket grant all on tables to service_role;
+-- Match production's privilege boundary: mixed table ownership and a
+-- non-superuser postgres runtime owner with RLS bypass for private lookups.
+alter schema apticket owner to postgres;
+alter table apticket.tenants owner to postgres;
+alter table apticket.profiles owner to postgres;
+alter table apticket.password_resets owner to postgres;
+alter function apticket.current_tenant_id() owner to postgres;
+grant all on all tables in schema apticket,storage to postgres;
+grant usage on schema auth,storage,extensions to postgres;

@@ -14,6 +14,7 @@ purpose = "session-revocation-20261019"
 labels = ["--label", "appsec.project=apticket", "--label", f"appsec.purpose={purpose}"]
 created = []
 network_created = False
+admin_user = "supabase_admin"
 
 
 def run(*args, data=None):
@@ -21,7 +22,7 @@ def run(*args, data=None):
 
 
 def sql(data, database="appsec_audit"):
-    return run("docker", "exec", "-i", db, "psql", "-h", "/run/postgresql", "-U", "postgres",
+    return run("docker", "exec", "-i", db, "psql", "-h", "/run/postgresql", "-U", admin_user,
                "-d", database, "-At", "-v", "ON_ERROR_STOP=1", data=data)
 
 
@@ -40,11 +41,11 @@ try:
     run("docker", "run", "-d", "--name", db, *labels, "--network", network, "--network-alias", "appsec-db",
         "--cpus", "1", "--memory", "768m", "--user", "postgres", "--entrypoint", "/bin/bash",
         "supabase/postgres:17.6.1.136", "-c",
-        "initdb -D /tmp/appsec-pg --auth=trust --no-locale >/tmp/init.log && "
+        "initdb -D /tmp/appsec-pg --username=supabase_admin --auth=trust --no-locale >/tmp/init.log && "
         "exec postgres -D /tmp/appsec-pg -c listen_addresses='*' -c unix_socket_directories=/run/postgresql")
     created.append(db)
     for attempt in range(120):
-        ready = subprocess.run(["docker", "exec", db, "pg_isready", "-h", "/run/postgresql", "-U", "postgres"], capture_output=True)
+        ready = subprocess.run(["docker", "exec", db, "pg_isready", "-h", "/run/postgresql", "-U", "supabase_admin"], capture_output=True)
         if ready.returncode == 0:
             break
         time.sleep(0.25)
@@ -53,13 +54,20 @@ try:
     sql(b"create database appsec_audit;", "postgres")
     apply("scripts/security/fixtures/session-contract.sql")
     migration = "supabase/migrations/20261019231722_session_version_revocation.sql"
+    unprivileged = subprocess.run(["docker", "exec", "-i", db, "psql", "-h", "/run/postgresql",
+        "-U", "postgres", "-d", "appsec_audit", "-v", "ON_ERROR_STOP=1"],
+        input=(root / migration).read_bytes(), capture_output=True)
+    assert unprivileged.returncode != 0 and b"Migration requires ownership privileges" in unprivileged.stderr
+    assert sql(b"select count(*) from information_schema.columns where table_schema='apticket' and table_name='profiles' and column_name='session_version';").strip() == b"0"
     apply(migration)
     apply("supabase/rollbacks/20261019231722_session_version_revocation.sql")
     apply(migration)
     tap = apply("supabase/tests/session_revocation_test.sql").decode()
     assert not re.search(r"^not ok", tap, re.M), tap
     assert len(re.findall(r"^ok \d+", tap, re.M)) == 34, tap
-    print("PASS 34 SQL session assertions, including migration rollback/reapply", flush=True)
+    assert sql(b"select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='apticket_auth_private' and p.proowner <> 'postgres'::regrole;").strip() == b"0"
+    assert sql(b"select rolsuper from pg_roles where rolname='postgres';").strip() == b"f"
+    print("PASS migration privilege preflight, non-superuser function owner and 34 SQL session assertions including rollback/reapply", flush=True)
     run("docker", "run", "-d", "--name", rest, *labels, "--network", network,
         "--cpus", "0.5", "--memory", "256m",
         "-e", "PGRST_DB_URI=postgres://authenticator@appsec-db:5432/appsec_audit",
