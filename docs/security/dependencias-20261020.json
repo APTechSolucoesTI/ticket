@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-20",
+  "command": "pnpm audit --json",
+  "exitCode": 0,
+  "nodemailer": "10.1.7",
+  "advisories": 0,
+  "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 0 },
+  "scope": "Workspace lockfile, including development and optional dependencies"
+}

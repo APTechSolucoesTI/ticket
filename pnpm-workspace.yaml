@@ -18,7 +18,7 @@ overrides:
   brace-expansion@5: 5.0.12
   js-yaml: 4.3.2
   multer: 2.4.0
-  nodemailer: 9.1.1
+  nodemailer: 10.1.7
   qs: 6.16.0
 allowBuilds:
   # bullmq's anonymous-usage telemetry postinstall ping - no functional need, denied.
