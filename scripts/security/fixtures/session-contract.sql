@@ -27,6 +27,18 @@ create table apticket.password_resets(
 );
 create table apticket.invites(like apticket.password_resets including all);
 alter table apticket.invites add foreign key (profile_id) references apticket.profiles on delete cascade;
+create table apticket.contacts(
+  id uuid primary key, tenant_id uuid not null references apticket.tenants on delete cascade,
+  name text not null, email text
+);
+alter table apticket.contacts enable row level security;
+create table apticket.portal_otp_codes(
+  id uuid primary key default gen_random_uuid(), tenant_id uuid not null references apticket.tenants on delete cascade,
+  contact_id uuid not null references apticket.contacts on delete cascade, email text not null, code_hash text not null,
+  expires_at timestamptz not null, attempts integer not null default 0,
+  consumed_at timestamptz, created_at timestamptz not null default now()
+);
+alter table apticket.portal_otp_codes enable row level security;
 create function apticket.current_tenant_id() returns uuid language sql stable security definer set search_path=pg_catalog as $$
   select p.tenant_id from apticket.profiles p where p.id = auth.uid() and p.is_active;
 $$;

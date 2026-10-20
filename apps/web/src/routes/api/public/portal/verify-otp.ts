@@ -73,10 +73,9 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
         const matches = hashesEqual(codeHash, otpRow.code_hash);
 
         if (!matches) {
-          await supabaseAdmin
-            .from("portal_otp_codes")
-            .update({ attempts: otpRow.attempts + 1 })
-            .eq("id", otpRow.id);
+          // Increment the current database value under the row lock; parallel
+          // guesses must not overwrite one another with the same stale count.
+          await supabaseAdmin.rpc("increment_portal_otp_attempt", { _otp_id: otpRow.id });
           return fail();
         }
 

@@ -20,7 +20,7 @@ function reset(overrides = {}) {
   fixture = {
     active: true, contactError: false, attachments: [], signed: [], writes: 0,
     businessReads: 0, otpWriteError: false, consumed: false, otpReads: 0,
-    consumeQueries: [], ...overrides,
+    consumeQueries: [], attempts: 0, attemptWaiters: [], ...overrides,
   };
 }
 reset();
@@ -31,6 +31,18 @@ const app = await startLocalApp(async (request, response) => {
     response.writeHead(status, { "content-type": "application/json" });
     response.end(JSON.stringify(body));
   };
+  const readBody = async () => {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    return body ? JSON.parse(body) : {};
+  };
+  if (url.pathname.endsWith("/rpc/increment_portal_otp_attempt")) {
+    const body = await readBody();
+    assert.equal(body._otp_id, "otp-fixture");
+    if (fixture.otpWriteError) return json({ message: "fixture write failure" }, 500);
+    if (fixture.consumed || fixture.attempts >= 5) return json(null);
+    return json(++fixture.attempts);
+  }
   if (url.pathname.endsWith("/contacts")) {
     assert.equal(url.searchParams.get("id"), `eq.${contact}`);
     assert.equal(url.searchParams.get("tenant_id"), `eq.${tenant}`);
@@ -43,21 +55,32 @@ const app = await startLocalApp(async (request, response) => {
   if (url.pathname.endsWith("/portal_otp_codes")) {
     if (request.method === "GET") {
       fixture.otpReads++;
-      if (fixture.concurrent && fixture.otpReads === 1) {
+      const attempts = fixture.attempts;
+      if (fixture.wrongRace && fixture.otpReads <= 5) {
+        await new Promise(resolve => {
+          fixture.attemptWaiters.push(resolve);
+          if (fixture.attemptWaiters.length === 5) fixture.attemptWaiters.forEach(release => release());
+        });
+      } else if (fixture.concurrent && fixture.otpReads === 1) {
         await new Promise(resolve => { fixture.releaseRead = resolve; });
       } else if (fixture.concurrent) {
         fixture.releaseRead?.();
       }
       return json({ id: "otp-fixture", contact_id: contact, tenant_id: tenant,
         code_hash: codeHash, expires_at: new Date(Date.now() + 60_000).toISOString(),
-        attempts: 0, consumed_at: null });
+        attempts, consumed_at: null });
+    }
+    const body = await readBody();
+    if (body.attempts !== undefined) {
+      fixture.attempts = body.attempts;
+      return json(null);
     }
     fixture.consumeQueries.push(url.searchParams);
     if (fixture.otpWriteError) return json({ message: "fixture write failure" }, 500);
     const conditional = url.searchParams.get("consumed_at") === "is.null";
     const consumed = fixture.consumed;
     fixture.consumed = true;
-    return json(conditional && consumed ? [] : [{ id: "otp-fixture" }]);
+    return json((conditional && consumed) || fixture.attempts >= 5 ? [] : [{ id: "otp-fixture" }]);
   }
   if (url.pathname.startsWith("/storage/v1/object/sign/")) {
     fixture.signed.push(decodeURIComponent(url.pathname.split("ticket-attachments/")[1]));
@@ -165,6 +188,15 @@ try {
       assert.equal(query.get("attempts"), "lt.5");
     }
     console.log("PASS SEC-04: failed persistence and concurrent single-use consumption");
+    reset({ wrongRace: true });
+    const rejected = await Promise.all(Array.from({ length: 5 }, () =>
+      post("verify-otp", { email: "attempt-race@example.test", code: "000000" }, false)));
+    assert.ok(rejected.every(result => result.status === 401));
+    const exhausted = await post("verify-otp", { email: "attempt-race@example.test", code: "123456" }, false);
+    assert.equal(exhausted.status, 401, "five racing wrong guesses must block even a later correct code");
+    assert.equal(exhausted.body.token, undefined);
+    assert.equal(fixture.attempts, 5, "concurrent guesses must not lose increments");
+    console.log("PASS SEC-04: concurrent wrong guesses exhaust the existing five-attempt limit");
   }
 } finally {
   await app.close();

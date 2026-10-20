@@ -2837,6 +2837,10 @@ export type Database = {
         Args: { _token_hash: string; _password_hash: string };
         Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
       };
+      increment_portal_otp_attempt: {
+        Args: { _otp_id: string };
+        Returns: number | null;
+      };
       complete_invite: {
         Args: { _token_hash: string; _password_hash: string };
         Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];

@@ -60,6 +60,10 @@ try:
     assert unprivileged.returncode != 0 and b"Migration requires ownership privileges" in unprivileged.stderr
     assert sql(b"select count(*) from information_schema.columns where table_schema='apticket' and table_name='profiles' and column_name='session_version';").strip() == b"0"
     apply(migration)
+    otp_migration = "supabase/migrations/20261020103617_portal_otp_attempt_counter_atomic.sql"
+    apply(otp_migration)
+    apply("supabase/rollbacks/20261020103617_portal_otp_attempt_counter_atomic.sql")
+    apply(otp_migration)
     apply("supabase/rollbacks/20261019231722_session_version_revocation.sql")
     apply(migration)
     tap = apply("supabase/tests/session_revocation_test.sql").decode()
@@ -68,6 +72,10 @@ try:
     assert sql(b"select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='apticket_auth_private' and p.proowner <> 'postgres'::regrole;").strip() == b"0"
     assert sql(b"select rolsuper from pg_roles where rolname='postgres';").strip() == b"f"
     print("PASS migration privilege preflight, non-superuser function owner and 34 SQL session assertions including rollback/reapply", flush=True)
+    otp_tap = apply("supabase/tests/portal_otp_attempt_counter_test.sql").decode()
+    assert not re.search(r"^not ok", otp_tap, re.M), otp_tap
+    assert len(re.findall(r"^ok \d+", otp_tap, re.M)) == 18, otp_tap
+    print("PASS 18 SQL OTP attempt assertions, including migration rollback/reapply", flush=True)
     run("docker", "run", "-d", "--name", rest, *labels, "--network", network,
         "--cpus", "0.5", "--memory", "256m",
         "-e", "PGRST_DB_URI=postgres://authenticator@appsec-db:5432/appsec_audit",

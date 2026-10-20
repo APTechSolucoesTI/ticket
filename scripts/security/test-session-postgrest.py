@@ -76,6 +76,10 @@ try:
       ('{b}','{tb}','Fixture B','http-b@example.test','$2b$12$'||repeat('a',53),true);
     insert into apticket.password_resets(profile_id,token_hash,expires_at) values
       ('{a}',repeat('a',64),now()+interval '1 hour'),('{a}',repeat('b',64),now()+interval '1 hour');
+    insert into apticket.contacts(id,tenant_id,name,email) values
+      ('af500000-0000-4000-8000-000000000041','{ta}','OTP fixture','otp-http@example.test');
+    insert into apticket.portal_otp_codes(id,tenant_id,contact_id,email,code_hash,expires_at) values
+      ('af400000-0000-4000-8000-000000000041','{ta}','af500000-0000-4000-8000-000000000041','otp-http@example.test',repeat('d',64),now()+interval '1 hour');
     create function apticket.appsec_session_probe() returns integer language sql security definer set search_path=pg_catalog as 'select count(*)::integer from apticket.profiles';
     grant execute on function apticket.appsec_session_probe() to authenticated,anon;
     create function apticket_auth_private.appsec_slow_password() returns trigger language plpgsql as 'begin perform pg_sleep(0.25); return new; end';
@@ -123,6 +127,23 @@ try:
     assert request("/tenants?select=id", jwt(a, ta, 0))[0] == 401
     assert request("/tenants?select=id", jwt(a, ta, 2))[0] == 401
     assert request("/tenants?select=id", jwt(a, tb, 1))[0] == 401
+    otp_id = "af400000-0000-4000-8000-000000000041"
+    barrier = threading.Barrier(5)
+
+    def wrong_guess():
+        barrier.wait()
+        return request("/rpc/increment_portal_otp_attempt", service, {"_otp_id": otp_id})
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        guesses = list(executor.map(lambda _: wrong_guess(), range(5)))
+    assert all(status == 200 for status, _ in guesses)
+    assert sorted(value for _, value in guesses) == [1, 2, 3, 4, 5], "Concurrent increments must not be lost"
+    assert request("/rpc/increment_portal_otp_attempt", service, {"_otp_id": otp_id}) == (200, None)
+    assert sql(f"select attempts from apticket.portal_otp_codes where id='{otp_id}'") == "5"
+    assert request("/rpc/increment_portal_otp_attempt", fresh, {"_otp_id": otp_id})[0] == 403
+    anon_status, anon_error = request("/rpc/increment_portal_otp_attempt", jwt(role="anon"), {"_otp_id": otp_id})
+    assert anon_status == 401 and anon_error["code"] == "42501", (anon_status, anon_error)
+    print("PASS real PostgREST: five racing OTP increments, cap and restricted invocation")
     print("PASS real PostgREST: concurrent single-use reset, revoked/fresh JWT, tenant isolation, privileged RPC, grants, other apps and anonymous flows")
 finally:
     sql(f"""
