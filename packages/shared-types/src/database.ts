@@ -2803,6 +2803,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      consume_security_rate_limit: {
+        Args: { _key_hash: string; _limit: number; _window_ms: number };
+        Returns: Json;
+      };
       aprovar_medicao_contrato: {
         Args: { p_medicao_id: string };
         Returns: Json;

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
       POST: async ({ request }) => {
         const ip = clientIp(request);
         // Tight limits: this is the entry point of an auth flow.
-        const ipLimit = checkRateLimit(`portal-request-otp:ip:${ip}`, 8, 10 * 60 * 1000);
+        const ipLimit = await checkRateLimit(`portal-request-otp:ip:${ip}`, 8, 10 * 60 * 1000);
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
         let body: unknown;
@@ -35,7 +35,11 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
         }
         const email = parsed.data.email.toLowerCase();
 
-        const emailLimit = checkRateLimit(`portal-request-otp:email:${email}`, 5, 10 * 60 * 1000);
+        const emailLimit = await checkRateLimit(
+          `portal-request-otp:email:${email}`,
+          5,
+          10 * 60 * 1000,
+        );
         if (!emailLimit.allowed) return rateLimitedResponse(emailLimit.retryAfterSeconds, CORS);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

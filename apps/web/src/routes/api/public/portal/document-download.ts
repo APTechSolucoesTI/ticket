@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/public/portal/document-download")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
-        const limit = checkRateLimit(
+        const limit = await checkRateLimit(
           `portal-document-download:${clientIp(request)}`,
           40,
           10 * 60 * 1000,

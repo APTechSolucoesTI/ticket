@@ -13,7 +13,11 @@ export const Route = createFileRoute("/api/public/portal/documents")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
-        const limit = checkRateLimit(`portal-documents:${clientIp(request)}`, 60, 10 * 60 * 1000);
+        const limit = await checkRateLimit(
+          `portal-documents:${clientIp(request)}`,
+          60,
+          10 * 60 * 1000,
+        );
         if (!limit.allowed) return rateLimitedResponse(limit.retryAfterSeconds, CORS);
         const session = verifyPortalRequest(request);
         if (!session)

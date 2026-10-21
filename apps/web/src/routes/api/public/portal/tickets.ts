@@ -26,7 +26,7 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
         const ip = clientIp(request);
-        const ipLimit = checkRateLimit(`portal-tickets:ip:${ip}`, 30, 10 * 60 * 1000);
+        const ipLimit = await checkRateLimit(`portal-tickets:ip:${ip}`, 30, 10 * 60 * 1000);
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
         const session = verifyPortalRequest(request);

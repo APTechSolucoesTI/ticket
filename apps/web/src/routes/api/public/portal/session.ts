@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/public/portal/session")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
         const ip = clientIp(request);
-        const ipLimit = checkRateLimit(`portal-session:ip:${ip}`, 60, 10 * 60 * 1000);
+        const ipLimit = await checkRateLimit(`portal-session:ip:${ip}`, 60, 10 * 60 * 1000);
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
         // Identity comes from a token proven by OTP (see request-otp/verify-otp),

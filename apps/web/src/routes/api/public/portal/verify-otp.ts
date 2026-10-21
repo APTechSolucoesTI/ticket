@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
         const ip = clientIp(request);
-        const ipLimit = checkRateLimit(`portal-verify-otp:ip:${ip}`, 15, 10 * 60 * 1000);
+        const ipLimit = await checkRateLimit(`portal-verify-otp:ip:${ip}`, 15, 10 * 60 * 1000);
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
         let body: unknown;
@@ -45,7 +45,11 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
         const email = parsed.data.email.toLowerCase();
         const { code } = parsed.data;
 
-        const emailLimit = checkRateLimit(`portal-verify-otp:email:${email}`, 10, 10 * 60 * 1000);
+        const emailLimit = await checkRateLimit(
+          `portal-verify-otp:email:${email}`,
+          10,
+          10 * 60 * 1000,
+        );
         if (!emailLimit.allowed) return rateLimitedResponse(emailLimit.retryAfterSeconds, CORS);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

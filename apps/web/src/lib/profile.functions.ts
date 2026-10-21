@@ -37,7 +37,7 @@ function normalizePhone(value: string): string | null {
 }
 
 async function enforcePasswordAttemptLimit(userId: string) {
-  const result = checkRateLimit(
+  const result = await checkRateLimit(
     `profile-password:${userId}`,
     PASSWORD_ATTEMPTS,
     PASSWORD_WINDOW_MS,

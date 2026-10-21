@@ -49,7 +49,7 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       GET: async ({ request }) => {
-        const limit = checkRateLimit(
+        const limit = await checkRateLimit(
           `portal-contacts-list:${clientIp(request)}`,
           60,
           10 * 60 * 1000,
@@ -69,7 +69,7 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
         return Response.json({ contacts: data ?? [] }, { headers: CORS });
       },
       POST: async ({ request }) => {
-        const limit = checkRateLimit(
+        const limit = await checkRateLimit(
           `portal-contacts-create:${clientIp(request)}`,
           20,
           10 * 60 * 1000,
@@ -122,7 +122,7 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
         return Response.json({ id: data.id, invited }, { status: 201, headers: CORS });
       },
       PATCH: async ({ request }) => {
-        const limit = checkRateLimit(
+        const limit = await checkRateLimit(
           `portal-contacts-update:${clientIp(request)}`,
           40,
           10 * 60 * 1000,

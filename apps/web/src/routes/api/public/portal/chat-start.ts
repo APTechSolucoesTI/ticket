@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/public/portal/chat-start")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
         const ip = clientIp(request);
-        const ipLimit = checkRateLimit(`portal-chat-start:ip:${ip}`, 30, 10 * 60 * 1000);
+        const ipLimit = await checkRateLimit(`portal-chat-start:ip:${ip}`, 30, 10 * 60 * 1000);
         if (!ipLimit.allowed) return rateLimitedResponse(ipLimit.retryAfterSeconds, CORS);
 
         const session = verifyPortalRequest(request);

@@ -6,7 +6,24 @@ import { createServer } from "node:http";
 export async function startLocalApp(backend = (_request, response) => {
   response.writeHead(500).end();
 }) {
-  const upstream = createServer(backend);
+  const rateBuckets = new Map();
+  const upstream = createServer(async (request, response) => {
+    if (request.url === "/rest/v1/rpc/consume_security_rate_limit") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const { _key_hash: key, _limit: limit, _window_ms: windowMs } = JSON.parse(body);
+      const now = Date.now(), previous = rateBuckets.get(key);
+      const bucket = previous && previous.expires > now ? previous : { count: 0, expires: now + windowMs };
+      bucket.count++;
+      rateBuckets.set(key, bucket);
+      response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({
+        allowed: bucket.count <= limit,
+        retry_after_seconds: bucket.count <= limit ? 0 : Math.ceil((bucket.expires - now) / 1000),
+      }));
+      return;
+    }
+    return backend(request, response);
+  });
   await new Promise(resolve => upstream.listen(0, "127.0.0.1", resolve));
   const upstreamUrl = `http://127.0.0.1:${upstream.address().port}`;
   const reservation = createServer();
