@@ -128,7 +128,7 @@ reset role;
 
 set local role service_role;
 select set_config('test.webhook_prepared',apticket.prepare_inter_webhook_registration(
-  'fa200000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
+  'fa200000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001',
   'sandbox',1,'https://apticket.example.test/backend/webhooks/inter/sandbox'
 )::text,true);
 select set_config('test.webhook_attempt',current_setting('test.webhook_prepared')::jsonb->>'attempt_id',true);
@@ -210,7 +210,7 @@ insert into apticket.operating_company_inter_bindings(
 );
 set local role service_role;
 select set_config('test.production_webhook',apticket.prepare_inter_webhook_registration(
-  'fa200000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001',
+  'fa200000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001',
   'production',1,'https://apticket.example.test/backend/webhooks/inter/production'
 )::text,true);
 select apticket.finish_inter_webhook_registration(

@@ -73,8 +73,8 @@ reset role;
 update apticket.operating_companies set tax_id='98765432000198' where id='b6300000-0000-0000-0000-000000000001';
 set local role authenticated;
 select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"b6200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
-select is(apticket.review_inter_binding('b6300000-0000-0000-0000-000000000001','sandbox')->>'state','company_tax_mismatch','company identity change detected');
-select throws_ok($$select apticket.confirm_inter_binding('b6300000-0000-0000-0000-000000000001','sandbox',2,null,true)$$,'23514',null,'mismatched company denied');
+select is(apticket.review_inter_binding('b6300000-0000-0000-0000-000000000001','sandbox')->>'state','confirmation_outdated','changed operator identity requires a new review');
+select throws_ok($$select apticket.confirm_inter_binding('b6300000-0000-0000-0000-000000000001','sandbox',2,null,true)$$,'40001',null,'changed identity cannot be confirmed without reviewing previous binding');
 reset role;
 update apticket.operating_companies set tax_id='12345678000195' where id='b6300000-0000-0000-0000-000000000001';
 update apticket.tenant_inter_configurations set certificate_expires_at=now()-interval '1 day'
@@ -86,9 +86,9 @@ select throws_ok($$select apticket.review_inter_binding('b6300000-0000-0000-0000
 select throws_ok($$select apticket.confirm_inter_binding('b6300000-0000-0000-0000-000000000001','production',1,null,null)$$,'22023',null,'null confirmation rejected');
 reset role;
 -- The last-admin guard remains active: appoint another admin before disabling.
-insert into apticket.user_roles(user_id,tenant_id,role_id)
- select 'b6200000-0000-0000-0000-000000000002',tenant_id,id from apticket.roles
- where tenant_id='b6100000-0000-0000-0000-000000000001' and name='Admin';
+update apticket.user_roles set role_id=(select id from apticket.roles
+ where tenant_id='b6100000-0000-0000-0000-000000000001' and name='Admin')
+ where user_id='b6200000-0000-0000-0000-000000000002';
 update apticket.profiles set is_active=false where id='b6200000-0000-0000-0000-000000000001';
 set local role authenticated;
 select throws_ok($$select apticket.review_inter_binding('b6300000-0000-0000-0000-000000000001','production')$$,'42501',null,'inactive user denied with existing claims');

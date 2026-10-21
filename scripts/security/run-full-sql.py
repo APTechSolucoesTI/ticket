@@ -112,9 +112,12 @@ try:
             print(result.stderr.decode(errors='replace')[-2500:])
         else:
             print('PASS', path.name, passed, 'assertions', flush=True)
+    tables = json.loads(sql(b"select json_agg(c.relname order by c.relname) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='apticket' and c.relkind='r' and exists(select 1 from pg_attribute a where a.attrelid=c.oid and a.attname='tenant_id' and not a.attisdropped);").decode())
+    uncovered = sorted(set(tables) - set(coverage))
+    print('APPSEC_COVERAGE_JSON:' + json.dumps({'tables': coverage, 'uncovered': uncovered}, sort_keys=True), flush=True)
+    print(f'Cross-tenant SELECT/UPDATE/DELETE probes: {len(coverage)} tables; no fixture rows: {uncovered}', flush=True)
     if failures:
         raise RuntimeError('SQL suite failed: ' + ', '.join(failures))
-    print('Cross-tenant CRUD coverage:', json.dumps(coverage, sort_keys=True), flush=True)
     print(f'PASS complete SQL suite: {len(paths)} files, {assertions} TAP assertions', flush=True)
 except subprocess.CalledProcessError as error:
     print(error.output.decode(errors='replace'))
