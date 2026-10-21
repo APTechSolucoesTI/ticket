@@ -1,6 +1,12 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { createIsomorphicFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+
+const getCspNonce = createIsomorphicFn()
+  .server(() => getRequest().headers.get("x-apticket-csp-nonce") ?? undefined)
+  .client(() => document.querySelector<HTMLScriptElement>("script[nonce]")?.nonce);
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -22,6 +28,7 @@ export const getRouter = () => {
   });
 
   const router = createRouter({
+    ssr: { nonce: getCspNonce() },
     routeTree,
     context: { queryClient },
     scrollRestoration: true,

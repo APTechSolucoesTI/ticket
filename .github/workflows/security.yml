@@ -41,6 +41,7 @@ jobs:
       # Application test processes receive only loopback URLs and synthetic keys.
       - run: pnpm test:security-http
       - run: node scripts/security/test-web-egress.mjs
+      - run: node scripts/security/test-security-headers.mjs
       - run: node scripts/security/test-auth-session-http.mjs
       - run: node scripts/security/test-browser-session.mjs
       - run: node scripts/security/test-mail-compatibility.mjs

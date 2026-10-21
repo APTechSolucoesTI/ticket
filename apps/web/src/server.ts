@@ -1,4 +1,6 @@
 import "./lib/error-capture";
+import { randomBytes } from "node:crypto";
+import { withSecurityHeaders } from "./lib/security-headers.server";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -39,16 +41,23 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const nonce = randomBytes(24).toString("base64");
+    // Nitro wraps Request in a proxy; the native Request copy constructor
+    // cannot read its private Undici fields. Overwrite this per-request header.
+    request.headers.set("x-apticket-csp-nonce", nonce);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response), nonce);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return withSecurityHeaders(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+        nonce,
+      );
     }
   },
 };

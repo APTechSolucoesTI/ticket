@@ -9,6 +9,31 @@ import type { Env } from './config/env.validation';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService<Env, true>);
+  app.use(
+    (
+      _request: { url?: string },
+      response: { setHeader(name: string, value: string): void },
+      next: () => void,
+    ) => {
+      response.setHeader('X-Content-Type-Options', 'nosniff');
+      response.setHeader('X-Frame-Options', 'DENY');
+      response.setHeader('Referrer-Policy', 'no-referrer');
+      response.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=()',
+      );
+      response.setHeader(
+        'Content-Security-Policy',
+        _request.url?.startsWith('/docs')
+          ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'"
+          : "default-src 'none'; frame-ancestors 'none'",
+      );
+      if (config.get('CORS_ORIGIN', { infer: true }).startsWith('https://')) {
+        response.setHeader('Strict-Transport-Security', 'max-age=31536000');
+      }
+      next();
+    },
+  );
 
   const redisIoAdapter = new RedisIoAdapter(app);
   await redisIoAdapter.connectToRedis();

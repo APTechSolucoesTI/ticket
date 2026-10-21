@@ -141,9 +141,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const nonce = useRouter().options.ssr?.nonce;
   return (
     <html lang="pt-BR">
       <head>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: "globalThis.__zod_globalConfig={jitless:true};" }}
+        />
         <HeadContent />
       </head>
       <body>
