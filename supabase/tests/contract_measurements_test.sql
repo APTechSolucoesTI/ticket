@@ -2,6 +2,9 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, apticket, pg_catalog;
 select plan(36);
+-- National calendar is reference data, not part of a schema-only snapshot.
+insert into apticket.feriados(tenant_id,data,nome,abrangencia)
+values(null,'2026-09-07','Independência do Brasil','nacional') on conflict do nothing;
 
 select is(
   apticket.calcular_vencimento_medicao(
@@ -104,32 +107,7 @@ values (
   'Cliente snapshot'
 );
 
-insert into apticket.contracts (
-  id, tenant_id, company_id, status, starts_at, ends_at, billing_model,
-  tipo_medicao, tipo_vencimento, dia_vencimento, emite_nf, emite_boleto,
-  equipment_tiers, monthly_value
-) values (
-  '31000000-0000-0000-0000-000000000001',
-  '11000000-0000-0000-0000-000000000001',
-  '21000000-0000-0000-0000-000000000001',
-  'active', '2026-01-01', '2027-12-31', 'per_equipment',
-  'mensal', 'fixo', 15, true, true,
-  '[{"min":1,"max":10,"price":50}]', 0
-), (
-  '31000000-0000-0000-0000-000000000002',
-  '11000000-0000-0000-0000-000000000001',
-  '21000000-0000-0000-0000-000000000001',
-  'active', '2026-01-01', '2027-12-31', 'per_service',
-  'trimestral', 'util', 5, false, true,
-  '[]', 0
-), (
-  '31000000-0000-0000-0000-000000000003',
-  '11000000-0000-0000-0000-000000000001',
-  '21000000-0000-0000-0000-000000000001',
-  'active', '2026-01-01', '2027-12-31', 'hours_package',
-  'anual', 'fixo', 30, true, false,
-  '[]', 300
-);
+insert into apticket.contracts (id, tenant_id, company_id, status, starts_at, ends_at, billing_model, tipo_medicao, tipo_vencimento, dia_vencimento, emite_nf, emite_boleto, equipment_tiers, monthly_value, financial_category_id, cost_center_id, operating_company_id) values ('31000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2027-12-31', 'per_equipment', 'mensal', 'fixo', 15, true, true, '[{"min":1,"max":10,"price":50}]', 0, apticket_appsec.category('11000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('11000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001')), ('31000000-0000-0000-0000-000000000002', '11000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2027-12-31', 'per_service', 'trimestral', 'util', 5, false, true, '[]', 0, apticket_appsec.category('11000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('11000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001')), ('31000000-0000-0000-0000-000000000003', '11000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2027-12-31', 'hours_package', 'anual', 'fixo', 30, true, false, '[]', 300, apticket_appsec.category('11000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('11000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001'));
 
 update apticket.contracts
 set service_items = '[{"reference":"SERV-01","description":"Monitoramento","quantity":2,"price":75}]',
@@ -276,7 +254,7 @@ select ok(
   'usuário autenticado não insere itens diretamente'
 );
 
-select set_config('request.jwt.claim.sub', '12000000-0000-0000-0000-000000000001', true);
+select set_config('request.jwt.claims','{"sub":"12000000-0000-0000-0000-000000000001","tenant_id":"11000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select lives_ok(

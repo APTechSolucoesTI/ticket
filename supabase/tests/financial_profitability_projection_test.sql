@@ -21,11 +21,11 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('fa100000-0000-0000-0000-000000000002','fa200000-0000-0000-0000-000000000002','fa300000-0000-0000-0000-000000000002',true);
 insert into apticket.companies(id,tenant_id,name) values
  ('fa400000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','Cliente Rentável');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento)
-values ('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001','active',(date_trunc('month',current_date)-interval '1 year')::date,(date_trunc('month',current_date)+interval '2 years')::date,'hours_package',3000,10);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id)
+values ('fa500000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'fa400000-0000-0000-0000-000000000001', 'active', (date_trunc('month',current_date)-interval '1 year')::date, (date_trunc('month',current_date)+interval '2 years')::date, 'hours_package', 3000, 10, apticket_appsec.category('fa100000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('fa100000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('fa100000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,
  billing_interval_months,adjustment_base_date,billing_enabled,billing_anchor_month)
-values ('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001',3,(date_trunc('month',current_date)-interval '1 year')::date,true,date_trunc('month',current_date)::date);
+values ('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001',3,(date_trunc('month',current_date)-interval '1 year')::date,true,date_trunc('month',current_date)::date) on conflict (contract_id) do update set billing_interval_months=excluded.billing_interval_months, adjustment_base_date=excluded.adjustment_base_date, billing_enabled=excluded.billing_enabled, billing_anchor_month=excluded.billing_anchor_month;
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason)
 values ('fa600000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001',(date_trunc('month',current_date)-interval '1 year')::date,3000,'Valor inicial');
 insert into apticket.consumption_snapshots(id,tenant_id,operating_company_id,contract_id,value_version_id,
@@ -37,12 +37,11 @@ values ('fa800000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-00000000
 insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_company_id,contrato_id,company_id,
  cliente_nome,documento_referencia,descricao,competencia,valor_original,valor_aberto,vencimento_em,status_cobranca,aprovado_em)
 values ('fa900000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa800000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001','Cliente Rentável','REC-ANALYTICS','Receita contratual','2026-08-01',1000,200,'2026-08-10','faturado',now());
-select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
-insert into apticket.suppliers(id,tenant_id,operating_company_id,legal_name,category)
-values ('faa00000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','Fornecedor Analytics','software_licensing');
-insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,
- billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at)
-values ('fab00000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','faa00000-0000-0000-0000-000000000001','Custo direto','devices',1,0,400,10,'2026-01-01','2026-12-31');
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
+insert into apticket.suppliers(id, tenant_id, legal_name, category)
+values ('faa00000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('fa100000-0000-0000-0000-000000000001'), 'Fornecedor Analytics', 'software_licensing');
+insert into apticket.supplier_contracts(id, tenant_id, operating_company_id, supplier_id, description, billing_unit, billing_interval_months, base_amount, unit_price, due_day, starts_at, ends_at, financial_category_id, cost_center_id)
+values ('fab00000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'fa300000-0000-0000-0000-000000000001', 'faa00000-0000-0000-0000-000000000001', 'Custo direto', 'devices', 1, 0, 400, 10, '2026-01-01', '2026-12-31', apticket_appsec.category('fa100000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('fa100000-0000-0000-0000-000000000001'));
 insert into apticket.supplier_payables(id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,
  document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,total_amount,
  allocation_status,status,terms_snapshot)
@@ -52,7 +51,7 @@ insert into apticket.supplier_payable_allocations(tenant_id,operating_company_id
 values ('fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fac00000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001','fa700000-0000-0000-0000-000000000001','Cliente Rentável',(select numero_contrato from apticket.contracts where id='fa500000-0000-0000-0000-000000000001'),'devices',1,400,'{}');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.contract_profitability),1::bigint,'consolida uma linha de rentabilidade');
 select is((select gross_revenue from apticket.contract_profitability),1000::numeric,'totaliza a receita contratual');
 select is((select realized_revenue from apticket.contract_profitability),800::numeric,'separa a receita realizada');
@@ -63,7 +62,7 @@ select is((select customer_name from apticket.contract_profitability),'Cliente R
 select is((select count(*) from apticket.contract_mrr_projection),12::bigint,'projeta doze competências');
 select is((select min(baseline_mrr) from apticket.contract_mrr_projection),1000::numeric,'normaliza contrato trimestral em MRR');
 select ok(not exists(select 1 from apticket.contract_mrr_projection where missing_value_version),'projeção possui versão de valor');
-select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.contract_profitability),0::bigint,'RLS isola rentabilidade de outra tenant');
 select is((select count(*) from apticket.contract_mrr_projection),0::bigint,'RLS isola projeção de outra tenant');
 reset role;

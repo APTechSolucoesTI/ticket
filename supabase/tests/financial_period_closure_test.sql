@@ -27,10 +27,10 @@ insert into apticket.financial_cost_centers(id,tenant_id,operating_company_id,co
  ('fc500000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','ADM','Administrativo');
 insert into apticket.companies(id,tenant_id,name) values
  ('fc600000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','Cliente A');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento) values
- ('fc700000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc600000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',170,10);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id) values
+ ('fc700000-0000-0000-0000-000000000001', 'fc100000-0000-0000-0000-000000000001', 'fc600000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2026-12-31', 'hours_package', 170, 10, apticket_appsec.category('fc100000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('fc100000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('fc100000-0000-0000-0000-000000000001','fc600000-0000-0000-0000-000000000001'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date) values
- ('fc700000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','2026-01-01');
+ ('fc700000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','2026-01-01') on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date;
 insert into apticket.billing_cycles(id,tenant_id,operating_company_id,contract_id,cycle_start,cycle_end,
  service_start,service_end,total_amount,due_date,terms_snapshot) values
  ('fc800000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','fc700000-0000-0000-0000-000000000001','2026-01-01','2026-02-01','2026-01-01','2026-02-01',120,'2026-01-10','{}'),
@@ -42,7 +42,10 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  ('fc900000-0000-0000-0000-000000000002','fc100000-0000-0000-0000-000000000001','fc800000-0000-0000-0000-000000000002','fc300000-0000-0000-0000-000000000001','fc700000-0000-0000-0000-000000000001','fc600000-0000-0000-0000-000000000001','Cliente A','REC-FEC-002','Mensalidade sem classificação','2026-02-01',50,0,'2026-02-10','recebido',now(),'2026-02-20');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
+-- A source contract now supplies automatic allocations; explicitly clear the
+-- February entry to exercise the real unclassified state.
+select apticket.clear_financial_entry_classification('recurring_receivable','fc900000-0000-0000-0000-000000000002');
 select lives_ok($$select apticket.classify_financial_entry('recurring_receivable','fc900000-0000-0000-0000-000000000001','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',null)$$,'classifica receita de janeiro');
 select lives_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',100,null)$$,'inclui orçamento de receita');
 select lives_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','outflow','fc400000-0000-0000-0000-000000000002','fc500000-0000-0000-0000-000000000001',40,null)$$,'inclui orçamento de despesa');
@@ -59,7 +62,7 @@ reset role;
 update apticket.contas_receber set valor_aberto=120,updated_at='2026-01-25'
 where id='fc900000-0000-0000-0000-000000000001';
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select sum(realized_result_amount) from apticket.financial_management_statement where period_month='2026-01-01'),120.00::numeric,'alteração posterior não modifica período encerrado');
 select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',110,null)$$,'23514','A competência está encerrada. Reabra o período antes de alterar o orçamento.','bloqueia orçamento em período encerrado');
 select throws_ok($$select apticket.clear_financial_entry_classification('recurring_receivable','fc900000-0000-0000-0000-000000000001')$$,'23514','A competência está encerrada. Reabra o período antes de alterar a classificação.','bloqueia reclassificação em período encerrado');
@@ -74,7 +77,7 @@ select is((select revision from apticket.financial_period_closures where status=
 select is((select count(*) from apticket.financial_period_closures where status='reopened'),1::bigint,'preserva a revisão anterior');
 select throws_ok($$select apticket.close_financial_period('fc300000-0000-0000-0000-000000000001','2026-02-01',null)$$,'23514','Existem 1 movimento(s) sem classificação completa nesta competência.','impede fechamento com movimento sem classificação');
 
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.financial_period_closures),0::bigint,'RLS isola fechamentos de outra tenant');
 reset role;
 set local role anon;

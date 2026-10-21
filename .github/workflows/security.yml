@@ -42,6 +42,7 @@ jobs:
       - run: pnpm test:security-http
       - run: node scripts/security/test-web-egress.mjs
       - run: node scripts/security/test-security-headers.mjs
+      - run: node scripts/security/test-backend-streaming.mjs
       - run: node scripts/security/test-auth-session-http.mjs
       - run: node scripts/security/test-browser-session.mjs
       - run: node scripts/security/test-mail-compatibility.mjs
@@ -81,6 +82,15 @@ jobs:
           persist-credentials: false
       # Scoped contract fixture; the full historical SQL/RLS matrix is separate.
       - run: python3 scripts/security/run-session-isolation.py
+
+  full-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: python3 scripts/security/run-full-sql.py
 
   secrets:
     runs-on: ubuntu-latest

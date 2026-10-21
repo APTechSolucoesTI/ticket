@@ -18,13 +18,13 @@ insert into apticket.operating_companies(id,tenant_id,legal_name) values
 insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can_write) values
  ('fa100000-0000-0000-0000-000000000001','fa200000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001',true),
  ('fa100000-0000-0000-0000-000000000002','fa200000-0000-0000-0000-000000000002','fa300000-0000-0000-0000-000000000002',true);
-select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.companies(id,tenant_id,name) values
  ('fa400000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','Cliente A');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento) values
- ('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100,10);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id) values
+ ('fa500000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'fa400000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2026-12-31', 'hours_package', 100, 10, apticket_appsec.category('fa100000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('fa100000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('fa100000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date) values
- ('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','2026-01-01');
+ ('fa500000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','2026-01-01') on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date;
 insert into apticket.billing_cycles(id,tenant_id,operating_company_id,contract_id,cycle_start,cycle_end,
  service_start,service_end,total_amount,due_date,terms_snapshot) values
  ('fa600000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001','2026-01-01','2026-02-01','2026-01-01','2026-02-01',100,'2026-02-10','{}'),
@@ -35,11 +35,10 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  ('fa700000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa600000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001','Cliente A','REC-001','Mensalidade janeiro','2026-01-01',100,100,'2020-02-10','faturado',now(),now()),
  ('fa700000-0000-0000-0000-000000000002','fa100000-0000-0000-0000-000000000001','fa600000-0000-0000-0000-000000000002','fa300000-0000-0000-0000-000000000001','fa500000-0000-0000-0000-000000000001','fa400000-0000-0000-0000-000000000001','Cliente A','REC-002','Mensalidade fevereiro','2026-02-01',200,0,'2026-03-10','recebido',now(),'2026-03-08');
 
-insert into apticket.suppliers(id,tenant_id,operating_company_id,legal_name,category) values
- ('fa800000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','Fornecedor A','datacenter');
-insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,
- billing_interval_months,base_amount,unit_price,due_day,starts_at) values
- ('fa900000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fa800000-0000-0000-0000-000000000001','Cloud','fixed',1,80,0,15,'2026-01-01');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('fa800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('fa100000-0000-0000-0000-000000000001'), 'Fornecedor A', 'datacenter');
+insert into apticket.supplier_contracts(id, tenant_id, operating_company_id, supplier_id, description, billing_unit, billing_interval_months, base_amount, unit_price, due_day, starts_at, financial_category_id, cost_center_id) values
+ ('fa900000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'fa300000-0000-0000-0000-000000000001', 'fa800000-0000-0000-0000-000000000001', 'Cloud', 'fixed', 1, 80, 0, 15, '2026-01-01', apticket_appsec.category('fa100000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('fa100000-0000-0000-0000-000000000001'));
 insert into apticket.supplier_payables(id,tenant_id,operating_company_id,supplier_id,supplier_contract_id,
  document_number,description,cycle_start,cycle_end,due_date,billing_unit,measured_quantity,unit_price,
  total_amount,allocation_status,status,terms_snapshot) values
@@ -55,7 +54,7 @@ insert into apticket.supplier_payments(id,tenant_id,operating_company_id,supplie
  ('fac00000-0000-0000-0000-000000000001','fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','fa800000-0000-0000-0000-000000000001','faa00000-0000-0000-0000-000000000002','fab00000-0000-0000-0000-000000000001','paid','pix','2026-03-14',80,'{"label":"PIX"}','Financeiro A','2026-03-14 12:00:00+00',82,'difference',2,'TRX-2','supplier-payment-receipts','test/receipt.pdf','receipt.pdf','application/pdf',100,'fa200000-0000-0000-0000-000000000001','Financeiro A');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fa200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.cash_flow_entries),4::bigint,'consolida entradas e saidas');
 select is((select count(*) from apticket.cash_flow_entries where direction='inflow'),2::bigint,'lista recebiveis como entradas');
 select is((select count(*) from apticket.cash_flow_entries where direction='outflow'),2::bigint,'lista fornecedores como saidas');
@@ -77,7 +76,7 @@ select is((select sum(planned_amount) from apticket.cash_flow_entries where dire
 select is((select sum(realized_amount) from apticket.cash_flow_entries where direction='inflow'),200.00::numeric,'totaliza entradas realizadas');
 select is((select sum(realized_amount) from apticket.cash_flow_entries where direction='outflow'),82.00::numeric,'totaliza saidas realizadas');
 
-select set_config('request.jwt.claims','{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fa200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.cash_flow_entries),0::bigint,'RLS isola outra tenant');
 reset role;
 set local role anon;

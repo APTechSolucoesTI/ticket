@@ -25,11 +25,11 @@ insert into apticket.financial_cost_centers(id,tenant_id,operating_company_id,co
  ('af500000-0000-0000-0000-000000000002','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','20.01.0002','Centro B');
 insert into apticket.companies(id,tenant_id,name) values
  ('af600000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','Rateios cliente');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.contracts(id,tenant_id,operating_company_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento,financial_category_id,cost_center_id) values
  ('af700000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','af600000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100.01,10,'af400000-0000-0000-0000-000000000001','af500000-0000-0000-0000-000000000001');
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('af800000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','Rateios fornecedor','software_licensing');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('af800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('af100000-0000-0000-0000-000000000001'), 'Rateios fornecedor', 'software_licensing');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,financial_category_id,cost_center_id) values
  ('af900000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','af800000-0000-0000-0000-000000000001','Rateios fornecedor fixo','fixed',1,100.01,0,10,'2026-01-01','2026-12-31','af400000-0000-0000-0000-000000000001','af500000-0000-0000-0000-000000000001');
 
@@ -49,7 +49,7 @@ from apticket.fixed_payable_occurrences o where o.id=current_setting('test.occur
 $$;
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select set_config('test.fixed_id',apticket.save_fixed_payable(null,null,pg_temp.payload(),true)::text,true)$$,'cria conta fixa sem documento');
 select is((select count(*) from apticket.fixed_payable_occurrences),3::bigint,'gera todas as competências do limite inclusive');
 select is((select due_date from apticket.fixed_payable_occurrences where competence='2028-02-01'),'2028-02-29'::date,'dia 31 usa último dia em fevereiro bissexto');
@@ -119,14 +119,14 @@ set local role authenticated;
 select throws_ok($$select apticket_finance_private.maintain_fixed_payable_forecasts()$$,'42501',null,'cliente não executa rotina global multi-tenant');
 select throws_ok($$update apticket.fixed_payables set total_amount=1$$,'42501',null,'cliente não escreve diretamente nos modelos');
 select throws_ok($$insert into apticket.fixed_payable_occurrences(id) values(gen_random_uuid())$$,'42501',null,'cliente não cria ocorrência fora dos RPCs');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.fixed_payables),0::bigint,'RLS isola modelos de outro tenant');
 select is((select count(*) from apticket.fixed_payable_occurrences),0::bigint,'RLS isola ocorrências de outro tenant');
 select throws_ok($$select apticket.gerar_previsoes_conta_fixa(current_setting('test.unlimited_id')::uuid)$$,'P0002',null,'outro tenant não gera previsões');
 reset role;
 insert into apticket.profiles(id,tenant_id,name,email,is_active) values('af200000-0000-0000-0000-000000000003','af100000-0000-0000-0000-000000000001','Sem acesso','fixed-no-access@example.test',true);
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.fixed_payables),0::bigint,'usuário sem permissão não consulta modelos');
 select throws_ok($$select apticket.save_fixed_payable(null,null,pg_temp.payload())$$,'42501',null,'usuário sem permissão não cadastra conta fixa');
 select throws_ok($$select apticket.gerar_previsoes_conta_fixa(current_setting('test.unlimited_id')::uuid)$$,'42501',null,'usuário sem permissão não gera previsões');
@@ -137,15 +137,15 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
 insert into apticket.supplier_bank_accounts(id,tenant_id,operating_company_id,supplier_id,label,holder_name,holder_tax_id,pix_key_type,pix_key,is_default) values
  ('aff00000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','af800000-0000-0000-0000-000000000001','Principal','Fornecedor','12345678000190','email','fixed-payment@example.test',true);
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.schedule_supplier_payment(id,'aff00000-0000-0000-0000-000000000001',current_date,'pix') from apticket.fixed_payable_occurrences where fixed_payable_id=current_setting('test.unlimited_id')::uuid and deleted_at is null limit 1$$,'P0002',null,'previsão não pode ser paga diretamente');
 select lives_ok($$select apticket.save_financial_settings(true,true)$$,'habilita alçada normal');
 select lives_ok($$select apticket.save_supplier_approval_policy(null,'af300000-0000-0000-0000-000000000001','Alçada de fixas',0,null,'["af200000-0000-0000-0000-000000000004"]')$$,'configura alçada para título confirmado');
 select lives_ok($$select apticket.submit_supplier_payable_for_approval(current_setting('test.payable_id')::uuid)$$,'título confirmado segue aprovação normal');
 select is((select status from apticket.supplier_payables where id=current_setting('test.payable_id')::uuid),'awaiting_approval','título aguarda aprovação');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000004","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000004","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.approve_supplier_payable(id) from apticket.supplier_payable_approval_requests where supplier_payable_id=current_setting('test.payable_id')::uuid and status='pending'$$,'aprovador aprova título originado da fixa');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select set_config('test.payment_id',apticket.schedule_supplier_payment(current_setting('test.payable_id')::uuid,'aff00000-0000-0000-0000-000000000001',current_date,'pix')::text,true)$$,'título confirmado pode ser programado');
 insert into storage.objects(bucket_id,name) values('supplier-payment-receipts','af100000-0000-0000-0000-000000000001/af300000-0000-0000-0000-000000000001/'||current_setting('test.payment_id')||'/fixed-receipt.pdf');
 select lives_ok($$select apticket.settle_supplier_payment(current_setting('test.payment_id')::uuid,clock_timestamp(),123.45,'FIXED-TRX','af100000-0000-0000-0000-000000000001/af300000-0000-0000-0000-000000000001/'||current_setting('test.payment_id')||'/fixed-receipt.pdf','fixed-receipt.pdf','application/pdf',100)$$,'título confirmado recebe baixa e comprovante normais');

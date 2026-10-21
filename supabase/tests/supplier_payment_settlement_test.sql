@@ -10,9 +10,10 @@ insert into apticket.profiles(id,tenant_id,name,email,is_active) values
  ('e2000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001','Financeiro A','finance-a@example.test',true),
  ('e2000000-0000-0000-0000-000000000002','e1000000-0000-0000-0000-000000000001','Leitor A','reader-a@example.test',true),
  ('e2000000-0000-0000-0000-000000000003','e1000000-0000-0000-0000-000000000002','Financeiro B','finance-b@example.test',true);
+select apticket_appsec.financial_roles(id) from apticket.tenants;
 insert into apticket.user_roles(user_id,tenant_id,role_id)
 select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r
-  on r.tenant_id=p.tenant_id and r.name='Financeiro' where p.id::text like 'e2000000-%';
+  on r.tenant_id=p.tenant_id and r.name=case when p.id='e2000000-0000-0000-0000-000000000002' then 'SQL scoped reader' else 'SQL scoped writer' end where p.id::text like 'e2000000-%';
 insert into apticket.operating_companies(id,tenant_id,legal_name) values
  ('e3000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001','Operadora A'),
  ('e3000000-0000-0000-0000-000000000002','e1000000-0000-0000-0000-000000000002','Operadora B');
@@ -22,20 +23,19 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('e1000000-0000-0000-0000-000000000002','e2000000-0000-0000-0000-000000000003','e3000000-0000-0000-0000-000000000002',true);
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"e2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
-insert into apticket.suppliers(id,tenant_id,operating_company_id,legal_name,category) values
- ('e4000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','Fornecedor A','datacenter'),
- ('e4000000-0000-0000-0000-000000000002','e1000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','Fornecedor A2','other');
-insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,
- billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at) values
- ('e5000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','e4000000-0000-0000-0000-000000000001','Contrato A','fixed',1,100,0,10,'2026-01-01'),
- ('e5000000-0000-0000-0000-000000000002','e1000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','e4000000-0000-0000-0000-000000000002','Contrato A2','fixed',1,100,0,10,'2026-01-01');
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"e2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('e4000000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('e1000000-0000-0000-0000-000000000001'), 'Fornecedor A', 'datacenter'),
+ ('e4000000-0000-0000-0000-000000000002', apticket_appsec.fixture_actor('e1000000-0000-0000-0000-000000000001'), 'Fornecedor A2', 'other');
+insert into apticket.supplier_contracts(id, tenant_id, operating_company_id, supplier_id, description, billing_unit, billing_interval_months, base_amount, unit_price, due_day, starts_at, financial_category_id, cost_center_id) values
+ ('e5000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'e3000000-0000-0000-0000-000000000001', 'e4000000-0000-0000-0000-000000000001', 'Contrato A', 'fixed', 1, 100, 0, 10, '2026-01-01', apticket_appsec.category('e1000000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('e1000000-0000-0000-0000-000000000001')),
+ ('e5000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000001', 'e3000000-0000-0000-0000-000000000001', 'e4000000-0000-0000-0000-000000000002', 'Contrato A2', 'fixed', 1, 100, 0, 10, '2026-01-01', apticket_appsec.category('e1000000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('e1000000-0000-0000-0000-000000000001'));
 
-select throws_ok($$select apticket.save_supplier_bank_account(null,'e4000000-0000-0000-0000-000000000001','X','Titular','123',null,null,null,null,null,null,null,null,true)$$,'23514',null,'rejeita dado bancario incompleto');
-select lives_ok($$select apticket.save_supplier_bank_account(null,'e4000000-0000-0000-0000-000000000001','PIX principal','Fornecedor A','12.345.678/0001-90',null,null,null,null,null,null,'cnpj','12345678000190',true)$$,'salva conta PIX');
+select throws_ok($$select apticket.save_supplier_bank_account(null,'e4000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','X','Titular','123',null,null,null,null,null,null,null,null,true)$$,'23514',null,'rejeita dado bancario incompleto');
+select lives_ok($$select apticket.save_supplier_bank_account(null,'e4000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','PIX principal','Fornecedor A','12.345.678/0001-90',null,null,null,null,null,null,'cnpj','12345678000190',true)$$,'salva conta PIX');
 select is((select holder_tax_id from apticket.supplier_bank_accounts where supplier_id='e4000000-0000-0000-0000-000000000001'),'12345678000190','normaliza documento do titular');
 select ok((select is_default from apticket.supplier_bank_accounts where supplier_id='e4000000-0000-0000-0000-000000000001'),'primeira conta fica principal');
-select lives_ok($$select apticket.save_supplier_bank_account(null,'e4000000-0000-0000-0000-000000000001','Conta corrente','Fornecedor A','12345678000190','077','Banco Inter','0001','12345','6','checking',null,null,true)$$,'salva conta bancaria completa');
+select lives_ok($$select apticket.save_supplier_bank_account(null,'e4000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','Conta corrente','Fornecedor A','12345678000190','077','Banco Inter','0001','12345','6','checking',null,null,true)$$,'salva conta bancaria completa');
 select is((select count(*) from apticket.supplier_bank_accounts where supplier_id='e4000000-0000-0000-0000-000000000001' and is_default),1::bigint,'mantem uma conta principal');
 
 reset role;
@@ -46,7 +46,7 @@ insert into apticket.supplier_payables(id,tenant_id,operating_company_id,supplie
  ('e6000000-0000-0000-0000-000000000002','e1000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','e4000000-0000-0000-0000-000000000001','e5000000-0000-0000-0000-000000000001','PAG-002','Teste agendado','2026-09-01','2026-10-01','2026-10-10','fixed',1,100,100,'complete','scheduled','{}'),
  ('e6000000-0000-0000-0000-000000000003','e1000000-0000-0000-0000-000000000001','e3000000-0000-0000-0000-000000000001','e4000000-0000-0000-0000-000000000001','e5000000-0000-0000-0000-000000000001','PAG-003','Teste diferenca','2026-10-01','2026-11-01','2026-11-10','fixed',1,100,100,'complete','approved','{}');
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"e2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"e2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 
 select throws_ok($$select apticket.schedule_supplier_payment('e6000000-0000-0000-0000-000000000002',(select id from apticket.supplier_bank_accounts limit 1),'2026-09-10','pix')$$,'23514',null,'bloqueia lancamento nao aprovado');
 select throws_ok($$select apticket.schedule_supplier_payment('e6000000-0000-0000-0000-000000000001',gen_random_uuid(),'2026-09-10','pix')$$,'23514',null,'rejeita conta bancaria desconhecida');
@@ -74,9 +74,9 @@ select lives_ok($$select apticket.cancel_supplier_payment((select id from aptick
 select is((select status from apticket.supplier_payables where id='e6000000-0000-0000-0000-000000000003'),'approved','cancelamento mantem lancamento aprovado');
 select lives_ok($$select apticket.schedule_supplier_payment('e6000000-0000-0000-0000-000000000003',(select id from apticket.supplier_bank_accounts where is_default),'2026-11-11','pix')$$,'permite reprogramar depois do cancelamento');
 
-select set_config('request.jwt.claims','{"sub":"e2000000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"e2000000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.schedule_supplier_payment('e6000000-0000-0000-0000-000000000003',(select id from apticket.supplier_bank_accounts where is_default),'2026-11-12','pix')$$,'42501',null,'leitor nao programa pagamento');
-select set_config('request.jwt.claims','{"sub":"e2000000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"e2000000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.supplier_payments),0::bigint,'outra tenant nao le pagamentos');
 select is((select count(*) from apticket.supplier_bank_accounts),0::bigint,'outra tenant nao le dados bancarios');
 reset role;

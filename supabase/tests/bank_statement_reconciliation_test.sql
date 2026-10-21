@@ -21,10 +21,10 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('fb100000-0000-0000-0000-000000000002','fb200000-0000-0000-0000-000000000002','fb300000-0000-0000-0000-000000000002',true);
 insert into apticket.companies(id,tenant_id,name) values
  ('fb400000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','Cliente A');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento) values
- ('fb500000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb400000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',200,10);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id) values
+ ('fb500000-0000-0000-0000-000000000001', 'fb100000-0000-0000-0000-000000000001', 'fb400000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2026-12-31', 'hours_package', 200, 10, apticket_appsec.category('fb100000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('fb100000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('fb100000-0000-0000-0000-000000000001','fb400000-0000-0000-0000-000000000001'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date) values
- ('fb500000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','2026-01-01');
+ ('fb500000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','2026-01-01') on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date;
 insert into apticket.billing_cycles(id,tenant_id,operating_company_id,contract_id,cycle_start,cycle_end,
  service_start,service_end,total_amount,due_date,terms_snapshot) values
  ('fb600000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','fb500000-0000-0000-0000-000000000001','2026-03-01','2026-04-01','2026-03-01','2026-04-01',120,'2026-03-10','{}'),
@@ -35,7 +35,7 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  ('fb700000-0000-0000-0000-000000000002','fb100000-0000-0000-0000-000000000001','fb600000-0000-0000-0000-000000000002','fb300000-0000-0000-0000-000000000001','fb500000-0000-0000-0000-000000000001','fb400000-0000-0000-0000-000000000001','Cliente A','REC-080','Receita de abril','2026-04-01',80,80,'2026-04-10','faturado',now());
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.save_operating_bank_account(null,'fb300000-0000-0000-0000-000000000001','Conta principal','077','Banco Inter','0001','123456-7','checking',1000,true)$$,'cadastra conta operacional');
 select is((select count(*) from apticket.operating_bank_accounts),1::bigint,'grava a conta no escopo');
 select ok((select is_default from apticket.operating_bank_accounts),'primeira conta fica principal');
@@ -70,7 +70,7 @@ select lives_ok(format($$select apticket.ignore_bank_transaction('%s','Tarifa ba
 select is((select status from apticket.bank_statement_imports),'processed','conclui lote sem pendências');
 select throws_ok($$update apticket.bank_statement_transactions set amount=999 where fit_id='FIT-001'$$,'42501','permission denied for table bank_statement_transactions','usuário autenticado não altera movimento importado diretamente');
 
-select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fb200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.operating_bank_accounts),0::bigint,'RLS isola contas de outra tenant');
 select is((select count(*) from apticket.bank_statement_transactions),0::bigint,'RLS isola movimentos de outra tenant');
 reset role;

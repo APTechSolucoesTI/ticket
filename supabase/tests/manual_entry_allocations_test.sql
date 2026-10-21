@@ -25,11 +25,11 @@ insert into apticket.financial_cost_centers(id,tenant_id,operating_company_id,co
  ('ae500000-0000-0000-0000-000000000002','ae100000-0000-0000-0000-000000000001','ae300000-0000-0000-0000-000000000001','20.01.0002','Centro B');
 insert into apticket.companies(id,tenant_id,name) values
  ('ae600000-0000-0000-0000-000000000001','ae100000-0000-0000-0000-000000000001','Rateios cliente');
-select set_config('request.jwt.claims','{"sub":"ae200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ae200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.contracts(id,tenant_id,operating_company_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento,financial_category_id,cost_center_id) values
  ('ae700000-0000-0000-0000-000000000001','ae100000-0000-0000-0000-000000000001','ae300000-0000-0000-0000-000000000001','ae600000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100.01,10,'ae400000-0000-0000-0000-000000000001','ae500000-0000-0000-0000-000000000001');
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('ae800000-0000-0000-0000-000000000001','ae100000-0000-0000-0000-000000000001','Rateios fornecedor','software_licensing');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('ae800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('ae100000-0000-0000-0000-000000000001'), 'Rateios fornecedor', 'software_licensing');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,financial_category_id,cost_center_id) values
  ('ae900000-0000-0000-0000-000000000001','ae100000-0000-0000-0000-000000000001','ae300000-0000-0000-0000-000000000001','ae800000-0000-0000-0000-000000000001','Rateios fornecedor fixo','fixed',1,100.01,0,10,'2026-01-01','2026-12-31','ae400000-0000-0000-0000-000000000001','ae500000-0000-0000-0000-000000000001');
 
@@ -72,7 +72,7 @@ create function pg_temp.reclassify(p_categories jsonb,p_centers jsonb,p_kind tex
 $$;
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"ae200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ae200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select pg_temp.create_manual('receivable','REC-MULTI',pg_temp.categories(),pg_temp.centers())$$,'cria recebível com rateios');
 select lives_ok($$select pg_temp.create_manual('payable','PAG-MULTI',pg_temp.categories(),pg_temp.centers())$$,'cria conta a pagar com rateios');
 select set_config('test.receivable_id',(select id::text from apticket.contas_receber where document_base_number='REC-MULTI'),true);
@@ -126,10 +126,10 @@ select lives_ok($$select apticket.clear_financial_entry_classification('manual_r
 select is((select count(*) from apticket.financial_entry_classifications where source_id=current_setting('test.receivable_id')::uuid and replaced_at is null),0::bigint,'remoção mantém somente histórico');
 select lives_ok($$select pg_temp.reclassify(pg_temp.categories(),pg_temp.centers())$$,'permite classificar novamente');
 
-select set_config('request.jwt.claims','{"sub":"ae200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ae200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select pg_temp.reclassify(pg_temp.categories(),pg_temp.centers())$$,'42501',null,'usuário sem permissão não reclassifica');
 select throws_ok($$select pg_temp.create_manual('payable','PAG-SEM-ACESSO',pg_temp.categories(),pg_temp.centers())$$,'42501',null,'usuário sem permissão não cria');
-select set_config('request.jwt.claims','{"sub":"ae200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ae200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select pg_temp.reclassify(pg_temp.categories(),pg_temp.centers())$$,'P0002',null,'outro tenant não reclassifica');
 reset role;
 select ok(exists(select 1 from apticket.financial_audit_log where entity_table='financial_entry_classifications' and after_data->'category_allocations' is not null),'auditoria inclui rateios');

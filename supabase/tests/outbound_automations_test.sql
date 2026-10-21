@@ -84,8 +84,7 @@ select is((select status from apticket.automation_dispatch_outbox
   'dispatch concluido fica auditavel');
 
 set local role authenticated;
-select set_config('request.jwt.claims',
-  '{"sub":"a2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}', true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"a2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.outbound_channels), 1::bigint, 'RLS permite canal do proprio tenant');
 select is((select count(*) from apticket.automations), 1::bigint, 'RLS permite automacao do proprio tenant');
 select throws_ok($$select apticket.claim_automation_dispatches(10)$$, '42501', null,

@@ -1,5 +1,15 @@
 -- Run after the migration; fixtures and audit records are rolled back.
 begin;
+insert into apticket.tenants(id,name,slug) values
+ ('cc100000-0000-4000-8000-000000000001','Contact fixture A','contact-fixture-a'),
+ ('cc100000-0000-4000-8000-000000000002','Contact fixture B','contact-fixture-b');
+insert into apticket.profiles(id,tenant_id,name,email) values
+ ('cc200000-0000-4000-8000-000000000001','cc100000-0000-4000-8000-000000000001','Fixture A','fixture-contact-a@example.test'),
+ ('cc200000-0000-4000-8000-000000000002','cc100000-0000-4000-8000-000000000002','Fixture B','fixture-contact-b@example.test');
+insert into apticket.user_roles(user_id,tenant_id,role_id)
+select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r on r.tenant_id=p.tenant_id and r.name='Admin'
+where p.id::text like 'cc200000-%';
+insert into apticket.companies(tenant_id,name) values('cc100000-0000-4000-8000-000000000001','Contact fixture client');
 do $$
 declare
   tenant uuid;
@@ -66,7 +76,7 @@ begin
   if other_company is null then
     insert into apticket.companies(tenant_id,name) values(tenant,'Contact client selection test') returning id into other_company;
   end if;
-  perform set_config('request.jwt.claims',json_build_object('sub',actor,'role','authenticated')::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',actor,'role','authenticated','app','apticket','tenant_id',tenant)::text,true);
   execute 'set local role authenticated';
   update apticket.contacts set secondary_emails=array['authenticated@contact-test.invalid'] where id=contact;
   perform apticket.set_contact_companies(contact,array[other_company,company,other_company]);
@@ -78,7 +88,7 @@ begin
     perform apticket.set_contact_companies(contact,array[gen_random_uuid()]);
     raise exception 'Invalid client accepted';
   exception when foreign_key_violation then null; end;
-  perform set_config('request.jwt.claims',json_build_object('sub',gen_random_uuid(),'role','authenticated')::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub','cc200000-0000-4000-8000-000000000002','role','authenticated','app','apticket','tenant_id','cc100000-0000-4000-8000-000000000002')::text,true);
   if exists(select 1 from apticket.contacts where id=contact) then raise exception 'RLS exposed another tenant contact'; end if;
   begin
     perform apticket.set_contact_companies(contact,array[company]);

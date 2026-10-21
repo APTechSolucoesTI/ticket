@@ -22,7 +22,7 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('fe100000-0000-0000-0000-000000000001','fe200000-0000-0000-0000-000000000002','fe300000-0000-0000-0000-000000000001',false),
  ('fe100000-0000-0000-0000-000000000002','fe200000-0000-0000-0000-000000000003','fe300000-0000-0000-0000-000000000002',true);
 
-select set_config('request.jwt.claims','{"sub":"fe200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fe200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.companies(id,tenant_id,name) values
  ('fe400000-0000-0000-0000-000000000001','fe100000-0000-0000-0000-000000000001','Cliente A');
 -- Contratos novos exigem classificações analíticas, herdadas pelos movimentos.
@@ -39,8 +39,8 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  cliente_nome,documento_referencia,descricao,competencia,valor_original,valor_aberto,vencimento_em,
  status_cobranca,aprovado_em) values
  ('fe700000-0000-0000-0000-000000000001','fe100000-0000-0000-0000-000000000001','fe600000-0000-0000-0000-000000000001','fe300000-0000-0000-0000-000000000001','fe500000-0000-0000-0000-000000000001','fe400000-0000-0000-0000-000000000001','Cliente A','REC-CLASS-001','Mensalidade','2026-01-01',100,100,'2026-02-10','faturado',now());
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('fe800000-0000-0000-0000-000000000001','fe100000-0000-0000-0000-000000000001','Fornecedor A','datacenter');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('fe800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('fe100000-0000-0000-0000-000000000001'), 'Fornecedor A', 'datacenter');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,
  billing_interval_months,base_amount,unit_price,due_day,starts_at,financial_category_id,cost_center_id) values
  ('fe900000-0000-0000-0000-000000000001','fe100000-0000-0000-0000-000000000001','fe300000-0000-0000-0000-000000000001','fe800000-0000-0000-0000-000000000001','Cloud','fixed',1,80,0,15,'2026-01-01','feb00000-0000-0000-0000-000000000001','fec00000-0000-0000-0000-000000000001');
@@ -62,7 +62,7 @@ update apticket.contas_receber set status_cobranca='vencido' where id='fe700000-
 update apticket.financial_access set can_write=true where user_id='fe200000-0000-0000-0000-000000000002';
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fe200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fe200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is(apticket.get_financial_settings(),' {"use_payable_approvals":true,"use_collection_rules":true}'::jsonb,'padrão mantém ambas as funcionalidades habilitadas');
 select throws_ok($$select apticket.save_financial_settings(null,false)$$,'22023',null,'rejeita opção nula');
 select throws_ok($$insert into apticket.financial_settings(tenant_id) values('fe100000-0000-0000-0000-000000000001')$$,'42501',null,'não permite gravação direta');
@@ -86,25 +86,25 @@ select is(apticket.evaluate_collection_policy('fe300000-0000-0000-0000-000000000
 select is((select count(*) from apticket.collection_actions),0::bigint,'Não não cria novas ações');
 select is((select count(*) from apticket.financial_domain_events),0::bigint,'Não não cria suspensões');
 
-select set_config('request.jwt.claims','{"sub":"fe200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fe200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is(apticket.get_financial_settings()->>'use_collection_rules','false','financeiro consulta as opções');
 select throws_ok($$select apticket.save_financial_settings(true,true)$$,'42501',null,'financeiro sem permissão administrativa não altera configurações');
 select lives_ok($$select apticket.approve_supplier_payable((select id from apticket.supplier_payable_approval_requests where status='pending'))$$,'aprovação já iniciada pode ser concluída com opção Não');
 select is((select status from apticket.supplier_payables where id='fea00000-0000-0000-0000-000000000002'),'approved','fluxo iniciado preserva resultado da aprovação');
 
-select set_config('request.jwt.claims','{"sub":"fe200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fe200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is(apticket.get_financial_settings()->>'use_collection_rules','true','outro tenant mantém padrão Sim');
 select is((select count(*) from apticket.financial_settings),0::bigint,'RLS oculta configuração de outro tenant');
 select lives_ok($$select apticket.save_financial_settings(true,false)$$,'outro tenant pode salvar configuração própria');
 select is((select count(*) from apticket.financial_settings),1::bigint,'RLS mostra apenas configuração própria');
 
-select set_config('request.jwt.claims','{"sub":"fe200000-0000-0000-0000-000000000004","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fe200000-0000-0000-0000-000000000004","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.get_financial_settings()$$,'42501',null,'usuário sem acesso não consulta RPC');
 select is((select count(*) from apticket.financial_settings),0::bigint,'usuário sem acesso não consulta tabela');
 select throws_ok($$select apticket.save_financial_settings(true,true)$$,'42501',null,'usuário sem acesso não salva');
 select throws_ok($$select apticket.prepare_collection_action_dispatch(gen_random_uuid(),1)$$,'42501',null,'usuário não acessa despacho de serviço');
 
-select set_config('request.jwt.claims','{"sub":"fe200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fe200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.save_financial_settings(true,true)$$,'reativa funcionalidades sem perder políticas');
 select is(apticket.evaluate_collection_policy('fe300000-0000-0000-0000-000000000001',current_date)->>'actions','1','Sim volta a gerar lembrete');
 select is((select count(*) from apticket.financial_domain_events),1::bigint,'Sim volta a gerar evento de suspensão');

@@ -25,11 +25,11 @@ insert into apticket.financial_cost_centers(id,tenant_id,operating_company_id,co
  ('ca500000-0000-0000-0000-000000000002','ca100000-0000-0000-0000-000000000001','ca300000-0000-0000-0000-000000000001','20.01.0002','Centro B');
 insert into apticket.companies(id,tenant_id,name) values
  ('ca600000-0000-0000-0000-000000000001','ca100000-0000-0000-0000-000000000001','Rateios cliente');
-select set_config('request.jwt.claims','{"sub":"ca200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ca200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.contracts(id,tenant_id,operating_company_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento,financial_category_id,cost_center_id) values
  ('ca700000-0000-0000-0000-000000000001','ca100000-0000-0000-0000-000000000001','ca300000-0000-0000-0000-000000000001','ca600000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100.01,10,'ca400000-0000-0000-0000-000000000001','ca500000-0000-0000-0000-000000000001');
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('ca800000-0000-0000-0000-000000000001','ca100000-0000-0000-0000-000000000001','Rateios fornecedor','software_licensing');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('ca800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('ca100000-0000-0000-0000-000000000001'), 'Rateios fornecedor', 'software_licensing');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,financial_category_id,cost_center_id) values
  ('ca900000-0000-0000-0000-000000000001','ca100000-0000-0000-0000-000000000001','ca300000-0000-0000-0000-000000000001','ca800000-0000-0000-0000-000000000001','Rateios fornecedor fixo','fixed',1,100.01,0,10,'2026-01-01','2026-12-31','ca400000-0000-0000-0000-000000000001','ca500000-0000-0000-0000-000000000001');
 
@@ -47,6 +47,8 @@ create function pg_temp.centers(p_a numeric,p_b numeric default null) returns js
  select jsonb_build_array(jsonb_build_object('item_id','ca500000-0000-0000-0000-000000000001','percentage',p_a))||
  case when p_b is null then '[]'::jsonb else jsonb_build_array(jsonb_build_object('item_id','ca500000-0000-0000-0000-000000000002','percentage',p_b)) end;
 $$;
+insert into apticket.financial_categories(id,tenant_id,operating_company_id,code,name,direction,is_active)
+values('ca400000-0000-0000-0000-000000000005','ca100000-0000-0000-0000-000000000001','ca300000-0000-0000-0000-000000000001','10.01.0005','Categoria inativa','both',false);
 set local role authenticated;
 select lives_ok($$update apticket.contracts set category_allocations=pg_temp.categories(70,30),cost_center_allocations=pg_temp.centers(60,40) where id='ca700000-0000-0000-0000-000000000001'$$,'edita ambos os rateios cliente');
 select lives_ok($$update apticket.supplier_contracts set category_allocations=pg_temp.categories(70,30),cost_center_allocations=pg_temp.centers(60,40) where id='ca900000-0000-0000-0000-000000000001'$$,'edita ambos os rateios fornecedor');
@@ -88,10 +90,10 @@ select is((select sum(planned_amount) from apticket.cash_flow_allocation_entries
 select lives_ok($$update apticket.contracts set financial_category_id='ca400000-0000-0000-0000-000000000001',cost_center_id='ca500000-0000-0000-0000-000000000001' where id='ca700000-0000-0000-0000-000000000001'$$,'cliente antigo converte campos individuais em 100%');
 select is((select count(*) from apticket.contracts_category_allocations),1::bigint,'edição remove itens antigos atomicamente');
 select is((select percentage from apticket.contracts_category_allocations),100::numeric,'compatibilidade antiga mantém 100%');
-select lives_ok($$select apticket.archive_financial_dimension('category','ca400000-0000-0000-0000-000000000001')$$,'inativa categoria mantendo histórico');
-select throws_ok($$update apticket.contracts set category_allocations=pg_temp.categories(100) where id='ca700000-0000-0000-0000-000000000001'$$,'23514',null,'próxima edição exige substituir item inativo');
+select throws_ok($$select apticket.archive_financial_dimension('category','ca400000-0000-0000-0000-000000000001')$$,'23514',null,'vínculos ativos impedem arquivar categoria');
+select throws_ok($$update apticket.contracts set category_allocations='[{"item_id":"ca400000-0000-0000-0000-000000000005","percentage":100}]' where id='ca700000-0000-0000-0000-000000000001'$$,'23514',null,'edição recusa item inativo');
 select is((select sum(planned_amount) from apticket.cash_flow_allocation_entries where direction='inflow'),100.01::numeric,'histórico mantém valor depois da inativação');
-select set_config('request.jwt.claims','{"sub":"ca200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ca200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.contracts_category_allocations),0::bigint,'RLS isola filhos cliente');
 select is((select count(*) from apticket.supplier_contracts_category_allocations),0::bigint,'RLS isola filhos fornecedor');
 select is((select count(*) from apticket.cash_flow_allocation_entries),0::bigint,'RLS isola lançamentos rateados');

@@ -10,9 +10,10 @@ insert into apticket.profiles(id,tenant_id,name,email,is_active) values
  ('b2000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','Writer A','payable-writer-a@example.test',true),
  ('b2000000-0000-0000-0000-000000000002','b1000000-0000-0000-0000-000000000001','Reader A','payable-reader-a@example.test',true),
  ('b2000000-0000-0000-0000-000000000003','b1000000-0000-0000-0000-000000000002','Writer B','payable-writer-b@example.test',true);
+select apticket_appsec.financial_roles(id) from apticket.tenants;
 insert into apticket.user_roles(user_id,tenant_id,role_id)
 select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r
-  on r.tenant_id=p.tenant_id and r.name='Financeiro'
+  on r.tenant_id=p.tenant_id and r.name=case when p.id='b2000000-0000-0000-0000-000000000002' then 'SQL scoped reader' else 'SQL scoped writer' end
 where p.id::text like 'b2000000-%';
 insert into apticket.operating_companies(id,tenant_id,legal_name) values
  ('b3000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','Operator A'),
@@ -24,14 +25,14 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
 insert into apticket.companies(id,tenant_id,name) values
  ('b4000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','Cliente A'),
  ('b4000000-0000-0000-0000-000000000002','b1000000-0000-0000-0000-000000000001','Cliente B');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento)
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id)
 values
- ('b5000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','b4000000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100,10),
- ('b5000000-0000-0000-0000-000000000002','b1000000-0000-0000-0000-000000000001','b4000000-0000-0000-0000-000000000002','active','2026-01-01','2026-12-31','hours_package',100,10);
+ ('b5000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'b4000000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2026-12-31', 'hours_package', 100, 10, apticket_appsec.category('b1000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('b1000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('b1000000-0000-0000-0000-000000000001','b4000000-0000-0000-0000-000000000001')),
+ ('b5000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'b4000000-0000-0000-0000-000000000002', 'active', '2026-01-01', '2026-12-31', 'hours_package', 100, 10, apticket_appsec.category('b1000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('b1000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('b1000000-0000-0000-0000-000000000001','b4000000-0000-0000-0000-000000000002'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date)
 values
  ('b5000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','2026-01-01'),
- ('b5000000-0000-0000-0000-000000000002','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','2026-01-01');
+ ('b5000000-0000-0000-0000-000000000002','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','2026-01-01') on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date;
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason)
 values
  ('b6000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','b5000000-0000-0000-0000-000000000001','2026-01-01',100,'Inicial'),
@@ -44,15 +45,14 @@ values
 
 set local role authenticated;
 select set_config('request.jwt.claim.role','',true);
-select set_config('request.jwt.claims','{"sub":"b2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
-insert into apticket.suppliers(id,tenant_id,operating_company_id,legal_name,category) values
- ('b8000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','Fornecedor A','software_licensing');
-insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,
- billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at) values
- ('b9000000-0000-0000-0000-000000000001','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','b8000000-0000-0000-0000-000000000001','RMM','devices',1,0,12.3456,10,'2026-01-01','2026-12-31'),
- ('b9000000-0000-0000-0000-000000000002','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','b8000000-0000-0000-0000-000000000001','Licenca fixa','fixed',1,1200,0,31,'2026-01-01','2026-12-31'),
- ('b9000000-0000-0000-0000-000000000003','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','b8000000-0000-0000-0000-000000000001','Cloud trimestral','fixed',3,3000,0,15,'2026-01-01','2026-12-31'),
- ('b9000000-0000-0000-0000-000000000004','b1000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001','b8000000-0000-0000-0000-000000000001','Usuarios sem consumo','active_users',1,0,8,10,'2026-01-01','2026-12-31');
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"b2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('b8000000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('b1000000-0000-0000-0000-000000000001'), 'Fornecedor A', 'software_licensing');
+insert into apticket.supplier_contracts(id, tenant_id, operating_company_id, supplier_id, description, billing_unit, billing_interval_months, base_amount, unit_price, due_day, starts_at, ends_at, financial_category_id, cost_center_id) values
+ ('b9000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'b3000000-0000-0000-0000-000000000001', 'b8000000-0000-0000-0000-000000000001', 'RMM', 'devices', 1, 0, 12.3456, 10, '2026-01-01', '2026-12-31', apticket_appsec.category('b1000000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('b1000000-0000-0000-0000-000000000001')),
+ ('b9000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'b3000000-0000-0000-0000-000000000001', 'b8000000-0000-0000-0000-000000000001', 'Licenca fixa', 'fixed', 1, 1200, 0, 31, '2026-01-01', '2026-12-31', apticket_appsec.category('b1000000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('b1000000-0000-0000-0000-000000000001')),
+ ('b9000000-0000-0000-0000-000000000003', 'b1000000-0000-0000-0000-000000000001', 'b3000000-0000-0000-0000-000000000001', 'b8000000-0000-0000-0000-000000000001', 'Cloud trimestral', 'fixed', 3, 3000, 0, 15, '2026-01-01', '2026-12-31', apticket_appsec.category('b1000000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('b1000000-0000-0000-0000-000000000001')),
+ ('b9000000-0000-0000-0000-000000000004', 'b1000000-0000-0000-0000-000000000001', 'b3000000-0000-0000-0000-000000000001', 'b8000000-0000-0000-0000-000000000001', 'Usuarios sem consumo', 'active_users', 1, 0, 8, 10, '2026-01-01', '2026-12-31', apticket_appsec.category('b1000000-0000-0000-0000-000000000001','outflow'), apticket_appsec.cost_center('b1000000-0000-0000-0000-000000000001'));
 
 select lives_ok($$select apticket.generate_supplier_payable('b9000000-0000-0000-0000-000000000001','2026-02-01')$$,'gera lancamento por dispositivos');
 select is((select measured_quantity from apticket.supplier_payables where supplier_contract_id='b9000000-0000-0000-0000-000000000001'),10::numeric,'soma o consumo dos clientes');
@@ -77,13 +77,13 @@ select set_config('request.jwt.claim.role','service_role',true);
 select throws_ok($$update apticket.consumption_snapshots set deleted_at=now() where id='b7000000-0000-0000-0000-000000000001'$$,'23514',null,'snapshot rateado nao pode ser arquivado');
 set local role authenticated;
 select set_config('request.jwt.claim.role','',true);
-select set_config('request.jwt.claims','{"sub":"b2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"b2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$update apticket.supplier_contracts set unit_price=13 where id='b9000000-0000-0000-0000-000000000001'$$,'23514',null,'preco utilizado nao pode ser reescrito');
 
-select set_config('request.jwt.claims','{"sub":"b2000000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"b2000000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.generate_supplier_payable('b9000000-0000-0000-0000-000000000002','2026-03-01')$$,'42501',null,'acesso somente leitura nao gera lancamento');
 select is((select count(*) from apticket.supplier_payables),2::bigint,'leitor autorizado consulta os lancamentos');
-select set_config('request.jwt.claims','{"sub":"b2000000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"b2000000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.supplier_payables),0::bigint,'outro tenant nao enxerga os lancamentos');
 select throws_ok($$select apticket.generate_supplier_payable('b9000000-0000-0000-0000-000000000002','2026-03-01')$$,'42501',null,'outro tenant nao gera lancamento');
 reset role;

@@ -9,8 +9,9 @@ insert into apticket.tenants(id,name,slug,cnpj) values
 insert into apticket.profiles(id,tenant_id,name,email,is_active) values
  ('f8200000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001','Payer admin','payer-admin@example.test',true),
  ('f8200000-0000-0000-0000-000000000002','f8100000-0000-0000-0000-000000000001','No scope admin','payer-no-scope@example.test',true);
+select apticket_appsec.financial_roles(id) from apticket.tenants;
 insert into apticket.user_roles(user_id,tenant_id,role_id)
-select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r on r.tenant_id=p.tenant_id and r.name='Admin'
+select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r on r.tenant_id=p.tenant_id and r.name=case when p.id='f8200000-0000-0000-0000-000000000001' then 'Admin' else 'SQL scoped writer' end
 where p.id::text like 'f8200000-%';
 insert into apticket.operating_companies(id,tenant_id,legal_name,tax_id) values
  ('f8300000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001','Payer operator','12345678000195');
@@ -18,14 +19,12 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('f8100000-0000-0000-0000-000000000001','f8200000-0000-0000-0000-000000000001','f8300000-0000-0000-0000-000000000001',true);
 insert into apticket.companies(id,tenant_id,name) values
  ('f8400000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001','Cliente Pagador Ltda');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento)
-values('f8500000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001',
- 'f8400000-0000-0000-0000-000000000001','active',(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date,
- '2099-12-31','hours_package',100,28);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id)
+values('f8500000-0000-0000-0000-000000000001', 'f8100000-0000-0000-0000-000000000001', 'f8400000-0000-0000-0000-000000000001', 'active', (date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date, '2099-12-31', 'hours_package', 100, 28, apticket_appsec.category('f8100000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('f8100000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('f8100000-0000-0000-0000-000000000001','f8400000-0000-0000-0000-000000000001'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date,
  billing_enabled,billing_anchor_month)
 values('f8500000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001',
- 'f8300000-0000-0000-0000-000000000001',(now() at time zone 'America/Sao_Paulo')::date,true,(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date);
+ 'f8300000-0000-0000-0000-000000000001',(now() at time zone 'America/Sao_Paulo')::date,true,(date_trunc('month',(now() at time zone 'America/Sao_Paulo')::date)-interval '1 month')::date) on conflict (contract_id) do update set cutoff_day=1, billing_interval_months=1, adjustment_base_date=excluded.adjustment_base_date, billing_enabled=excluded.billing_enabled, billing_anchor_month=excluded.billing_anchor_month;
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason)
 values('f8600000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000001',
  'f8300000-0000-0000-0000-000000000001','f8500000-0000-0000-0000-000000000001',
@@ -34,12 +33,12 @@ select apticket.close_billing_cycles('f8500000-0000-0000-0000-000000000001',(now
 select set_config('test.receivable',(select id::text from apticket.contas_receber where contrato_id='f8500000-0000-0000-0000-000000000001'),true);
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"f8200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"f8200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select set_config('test.request',(apticket.prepare_inter_charge(current_setting('test.receivable')::uuid,'sandbox')->>'id'),true);
 reset role;
-insert into apticket.tenant_inter_configurations(tenant_id,environment,account,secret_id,certificate_expires_at,
+insert into apticket.tenant_inter_configurations(tenant_id,operating_company_id,environment,account,secret_id,certificate_expires_at,
  certificate_fingerprint,is_active,version,updated_by)
-values('f8100000-0000-0000-0000-000000000001','sandbox','12345678',vault.create_secret('{}'),
+values('f8100000-0000-0000-0000-000000000001','f8300000-0000-0000-0000-000000000001','sandbox','12345678',vault.create_secret('{}'),
  now()+interval '1 year','payer-fixture',true,1,'f8200000-0000-0000-0000-000000000001');
 insert into apticket.operating_company_inter_bindings(id,tenant_id,operating_company_id,environment,
  configuration_version,company_tax_id,account_last_four,created_by)
@@ -48,7 +47,7 @@ values('f8700000-0000-0000-0000-000000000001','f8100000-0000-0000-0000-000000000
  'f8200000-0000-0000-0000-000000000001');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"f8200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"f8200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is(apticket.review_inter_payer(current_setting('test.request')::uuid)->>'state','missing_data','incomplete payer blocked');
 select ok((apticket.review_inter_payer(current_setting('test.request')::uuid)->'missing_fields') @> '["tax_id","street","number","district","city","state","zip"]','missing fields identified');
 select is(length(apticket.review_inter_payer(current_setting('test.request')::uuid)->>'seu_numero'),15,'bank reference limited to 15 chars');
@@ -112,7 +111,7 @@ select is(apticket.confirm_inter_payer(current_setting('test.request')::uuid,
  'f8700000-0000-0000-0000-000000000001',current_setting('test.snapshot')::uuid,true)->>'reused','false','reconfirmation creates snapshot');
 select is((select count(*) from apticket.inter_payer_snapshots where deleted_at is not null),1::bigint,'old payer snapshot retained');
 select is((select count(*) from apticket.financial_audit_log where entity_table='inter_payer_snapshots' and actor_id=auth.uid()),3::bigint,'payer changes audited');
-select set_config('request.jwt.claims','{"sub":"f8200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"f8200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok(format($$select apticket.review_inter_payer(%L)$$,current_setting('test.request')),'42501',null,'admin without scope denied');
 select is((select count(*) from apticket.inter_payer_snapshots),0::bigint,'RLS hides snapshots without scope');
 set local role anon;

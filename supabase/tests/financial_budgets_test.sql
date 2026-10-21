@@ -10,9 +10,10 @@ insert into apticket.profiles(id,tenant_id,name,email,is_active) values
  ('fc200000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','Financeiro Escrita','budget-write@example.test',true),
  ('fc200000-0000-0000-0000-000000000002','fc100000-0000-0000-0000-000000000001','Financeiro Leitura','budget-read@example.test',true),
  ('fc200000-0000-0000-0000-000000000003','fc100000-0000-0000-0000-000000000002','Financeiro B','budget-b@example.test',true);
+select apticket_appsec.financial_roles(id) from apticket.tenants;
 insert into apticket.user_roles(user_id,tenant_id,role_id)
 select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r
-  on r.tenant_id=p.tenant_id and r.name='Financeiro' where p.id::text like 'fc200000-%';
+  on r.tenant_id=p.tenant_id and r.name=case when p.id='fc200000-0000-0000-0000-000000000002' then 'SQL scoped reader' else 'SQL scoped writer' end where p.id::text like 'fc200000-%';
 insert into apticket.operating_companies(id,tenant_id,legal_name) values
  ('fc300000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','Operadora A'),
  ('fc300000-0000-0000-0000-000000000002','fc100000-0000-0000-0000-000000000002','Operadora B');
@@ -26,13 +27,13 @@ insert into apticket.financial_categories(id,tenant_id,operating_company_id,code
 insert into apticket.financial_cost_centers(id,tenant_id,operating_company_id,code,name) values
  ('fc500000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','ADM','Administrativo');
 
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.companies(id,tenant_id,name) values
  ('fc600000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','Cliente A');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento) values
- ('fc700000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc600000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100,10);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id) values
+ ('fc700000-0000-0000-0000-000000000001', 'fc100000-0000-0000-0000-000000000001', 'fc600000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2026-12-31', 'hours_package', 100, 10, apticket_appsec.category('fc100000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('fc100000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('fc100000-0000-0000-0000-000000000001','fc600000-0000-0000-0000-000000000001'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date) values
- ('fc700000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','2026-01-01');
+ ('fc700000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','2026-01-01') on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date;
 insert into apticket.billing_cycles(id,tenant_id,operating_company_id,contract_id,cycle_start,cycle_end,
  service_start,service_end,total_amount,due_date,terms_snapshot) values
  ('fc800000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','fc700000-0000-0000-0000-000000000001','2026-01-01','2026-02-01','2026-01-01','2026-02-01',100,'2026-01-10','{}');
@@ -42,7 +43,7 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  ('fc900000-0000-0000-0000-000000000001','fc100000-0000-0000-0000-000000000001','fc800000-0000-0000-0000-000000000001','fc300000-0000-0000-0000-000000000001','fc700000-0000-0000-0000-000000000001','fc600000-0000-0000-0000-000000000001','Cliente A','REC-BUDGET-001','Mensalidade','2026-01-01',100,40,'2026-01-10','faturado',now(),'2026-01-20');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.classify_financial_entry('recurring_receivable','fc900000-0000-0000-0000-000000000001','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',null)$$,'prepara recebivel classificado');
 select lives_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',50,'Meta inicial')$$,'cadastra orcamento de entrada');
 select is((select budgeted_amount from apticket.financial_budget_variance where direction='inflow'),50.00::numeric,'expoe valor orcado');
@@ -55,7 +56,7 @@ select is((select count(*) from apticket.financial_budget_variance),2::bigint,'c
 select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-15','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',50,null)$$,'23514','Informe uma competencia mensal valida.','rejeita data fora do primeiro dia');
 select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','other','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',50,null)$$,'23514','Informe uma natureza valida para o orcamento.','rejeita natureza invalida');
 select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',0,null)$$,'23514','Informe um valor orcado maior que zero.','rejeita valor zerado');
-select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-02-01','inflow','fc400000-0000-0000-0000-000000000002','fc500000-0000-0000-0000-000000000001',50,null)$$,'23514','Selecione uma categoria ativa compativel com a natureza.','rejeita categoria incompativel');
+select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-02-01','inflow','fc400000-0000-0000-0000-000000000002','fc500000-0000-0000-0000-000000000001',50,null)$$,'23514','Selecione uma categoria analitica ativa compativel com a natureza.','rejeita categoria incompativel');
 select lives_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-01-01','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',70,'Meta revisada')$$,'revisa orcamento');
 select is((select count(*) from apticket.financial_budget_entries where direction='inflow'),2::bigint,'preserva historico de revisoes');
 select is((select count(*) from apticket.financial_budget_entries where direction='inflow' and replaced_at is null),1::bigint,'mantem uma versao vigente');
@@ -66,9 +67,9 @@ select throws_ok($$update apticket.financial_budget_entries set budgeted_amount=
 select lives_ok($$select apticket.clear_financial_budget_entry((select budget_entry_id from apticket.financial_budget_variance where direction='outflow'))$$,'remove item vigente');
 select is((select count(*) from apticket.financial_budget_variance),1::bigint,'item sem movimento deixa o comparativo');
 
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.save_financial_budget_entry('fc300000-0000-0000-0000-000000000001','2026-02-01','inflow','fc400000-0000-0000-0000-000000000001','fc500000-0000-0000-0000-000000000001',50,null)$$,'42501','Sem permissao financeira para alterar o orcamento.','acesso somente leitura nao altera orcamento');
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.financial_budget_entries),0::bigint,'RLS isola orcamento de outra tenant');
 reset role;
 set local role anon;

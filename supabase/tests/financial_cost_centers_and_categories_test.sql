@@ -22,7 +22,7 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('fb100000-0000-0000-0000-000000000001','fb200000-0000-0000-0000-000000000002','fb300000-0000-0000-0000-000000000001',false),
  ('fb100000-0000-0000-0000-000000000002','fb200000-0000-0000-0000-000000000003','fb300000-0000-0000-0000-000000000002',true);
 
-select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.companies(id,tenant_id,name) values
  ('fb400000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','Cliente A');
 -- Contratos novos exigem classificações analíticas, herdadas pelos movimentos.
@@ -39,8 +39,8 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  cliente_nome,documento_referencia,descricao,competencia,valor_original,valor_aberto,vencimento_em,
  status_cobranca,aprovado_em) values
  ('fb700000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb600000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','fb500000-0000-0000-0000-000000000001','fb400000-0000-0000-0000-000000000001','Cliente A','REC-CLASS-001','Mensalidade','2026-01-01',100,100,'2026-02-10','faturado',now());
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('fb800000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','Fornecedor A','datacenter');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('fb800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('fb100000-0000-0000-0000-000000000001'), 'Fornecedor A', 'datacenter');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,
  billing_interval_months,base_amount,unit_price,due_day,starts_at,financial_category_id,cost_center_id) values
  ('fb900000-0000-0000-0000-000000000001','fb100000-0000-0000-0000-000000000001','fb300000-0000-0000-0000-000000000001','fb800000-0000-0000-0000-000000000001','Cloud','fixed',1,80,0,15,'2026-01-01','fbb00000-0000-0000-0000-000000000001','fbc00000-0000-0000-0000-000000000001');
@@ -59,7 +59,7 @@ from (values ('01','Entradas','inflow',false),('01.00','Receitas de serviços','
  ('11','Grupo detalhado','inflow',false),('11.01','Subgrupo detalhado','inflow',false),
  ('07','Saídas globais','outflow',true),('07.00','Despesas globais','outflow',true)) v(code,name,direction,is_global);
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fb200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','01.01.0001','Administrativo','Custos administrativos')$$,'cadastra centro de custo');
 select is((select code from apticket.financial_cost_centers where name='Administrativo'),'01.01.0001','preserva codigo mascarado do centro de custo');
 select lives_ok($$select apticket.save_financial_category(null,'fb300000-0000-0000-0000-000000000001','01.00.0001','Receitas recorrentes','inflow',null)$$,'cadastra categoria de entrada');
@@ -111,9 +111,9 @@ select throws_ok($$select apticket.classify_financial_entry('supplier_payable','
 select lives_ok($$select apticket.clear_financial_entry_classification('recurring_receivable','fb700000-0000-0000-0000-000000000001')$$,'remove classificacao atual');
 select ok((select classification_id is null from apticket.cash_flow_entries where source_id='fb700000-0000-0000-0000-000000000001'),'fluxo volta a exibir movimento sem classificacao');
 
-select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fb200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.save_financial_cost_center(null,'fb300000-0000-0000-0000-000000000001','09.09.0001','Financeiro da tenant',null)$$,'papel Financeiro mantem acesso de escrita na tenant');
-select set_config('request.jwt.claims','{"sub":"fb200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fb200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.financial_categories),0::bigint,'RLS isola categorias de outra tenant');
 select is((select count(*) from apticket.financial_entry_classifications),0::bigint,'RLS isola historico de outra tenant');
 reset role;

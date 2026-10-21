@@ -24,14 +24,7 @@ insert into apticket.companies (id, tenant_id, name) values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Cliente sem contrato'),
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Cliente com contrato');
 
-insert into apticket.contracts (
-  id, tenant_id, company_id, status, starts_at, ends_at
-) values (
-  '30000000-0000-0000-0000-000000000001',
-  '10000000-0000-0000-0000-000000000001',
-  '20000000-0000-0000-0000-000000000002',
-  'active', current_date - 1, current_date + 30
-);
+insert into apticket.contracts (id, tenant_id, company_id, status, starts_at, ends_at, financial_category_id, cost_center_id, operating_company_id) values ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'active', current_date - 1, current_date + 30, apticket_appsec.category('10000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('10000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002'));
 
 insert into apticket.equipments (id, tenant_id, company_id, name) values
   ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'Ativo fora do contrato'),

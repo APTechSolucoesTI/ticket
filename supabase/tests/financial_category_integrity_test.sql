@@ -37,7 +37,7 @@ insert into apticket.financial_budget_entries(tenant_id,operating_company_id,per
  values('fc100000-0000-4000-8000-000000000001','fc300000-0000-4000-8000-000000000001','2026-10-01','inflow','fc400000-0000-4000-8000-000000000003','01.01.0001','Existing service','fc500000-0000-4000-8000-000000000001','01.01.0001','Operations',100,1,'Editor');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-4000-8000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-4000-8000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.create_financial_category('fc300000-0000-4000-8000-000000000001','fc400000-0000-4000-8000-000000000002','  New   service  ','inflow','Useful guidance',true,true,'analytic')$$,'creates a child and normalizes whitespace');
 select is((select code from apticket.financial_categories where name='New service'),'01.01.0002','reserves next code on server');
 select lives_ok($$select apticket.create_financial_category('fc300000-0000-4000-8000-000000000001','fc400000-0000-4000-8000-000000000002','Detailed grouping','inflow',null,true,true,'synthetic')$$,'third-level synthetic remains supported');
@@ -63,7 +63,7 @@ select lives_ok($$select apticket.archive_financial_dimension('category',(select
 select is((select count(*) from apticket.financial_categories where name='New service' and deleted_at is null),0::bigint,'archived leaf disappears from active catalog');
 select lives_ok($$select apticket.create_financial_category('fc300000-0000-4000-8000-000000000001','fc400000-0000-4000-8000-000000000002','After archive','inflow',null,true,true,'analytic')$$,'creation continues after archival');
 select is((select code from apticket.financial_categories where name='After archive'),'01.01.0004','archived code is not reused');
-select set_config('request.jwt.claims','{"sub":"fc200000-0000-4000-8000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"fc200000-0000-4000-8000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.create_financial_category('fc300000-0000-4000-8000-000000000001',null,'Read only','inflow',null,true,true,'synthetic')$$,'42501',null,'read-only user cannot create');
 select throws_ok($$select apticket.get_financial_category_dependencies('fc400000-0000-4000-8000-000000000001')$$,'42501',null,'read-only user cannot inspect maintenance dependencies');
 select throws_ok($$select apticket_finance_private.category_dependencies('fc100000-0000-4000-8000-000000000002','fc400000-0000-4000-8000-000000000005')$$,'42501',null,'private helper is not callable');

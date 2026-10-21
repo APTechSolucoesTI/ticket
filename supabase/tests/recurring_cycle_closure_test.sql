@@ -10,8 +10,9 @@ insert into apticket.profiles(id,tenant_id,name,email,is_active)
 select ('e2000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,
  case when n=3 then 'e1000000-0000-0000-0000-000000000002'::uuid else 'e1000000-0000-0000-0000-000000000001'::uuid end,
  'Cycle user '||n,'cycle-'||n||'@example.test',true from generate_series(1,3) n;
+select apticket_appsec.financial_roles(id) from apticket.tenants;
 insert into apticket.user_roles(user_id,tenant_id,role_id)
-select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r on r.tenant_id=p.tenant_id and r.name='Admin'
+select p.id,p.tenant_id,r.id from apticket.profiles p join apticket.roles r on r.tenant_id=p.tenant_id and r.name='SQL scoped writer'
 where p.id::text like 'e2000000-%';
 insert into apticket.operating_companies(id,tenant_id,legal_name)
 select ('e3000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,
@@ -24,13 +25,8 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
 insert into apticket.companies(id,tenant_id,name) values
  ('e4000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001','Cycle client A'),
  ('e4000000-0000-0000-0000-000000000002','e1000000-0000-0000-0000-000000000002','Cycle client B');
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento)
-select ('e5000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,
- case when n=10 then 'e1000000-0000-0000-0000-000000000002'::uuid else 'e1000000-0000-0000-0000-000000000001'::uuid end,
- case when n=10 then 'e4000000-0000-0000-0000-000000000002'::uuid else 'e4000000-0000-0000-0000-000000000001'::uuid end,
- 'active',case when n=2 then '2026-01-16'::date when n=9 then '2024-01-31'::date else '2026-01-01'::date end,
- case when n=3 then '2026-01-15'::date when n=9 then '2024-04-29'::date else '2026-12-31'::date end,
- 'hours_package',100,15 from generate_series(1,10) n;
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, dia_vencimento, financial_category_id, cost_center_id, operating_company_id)
+select ('e5000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid, case when n=10 then 'e1000000-0000-0000-0000-000000000002'::uuid else 'e1000000-0000-0000-0000-000000000001'::uuid end, case when n=10 then 'e4000000-0000-0000-0000-000000000002'::uuid else 'e4000000-0000-0000-0000-000000000001'::uuid end, 'active', case when n=2 then '2026-01-16'::date when n=9 then '2024-01-31'::date else '2026-01-01'::date end, case when n=3 then '2026-01-15'::date when n=9 then '2024-04-29'::date else '2026-12-31'::date end, 'hours_package', 100, 15, apticket_appsec.category(case when n=10 then 'e1000000-0000-0000-0000-000000000002'::uuid else 'e1000000-0000-0000-0000-000000000001'::uuid end,'inflow'), apticket_appsec.cost_center(case when n=10 then 'e1000000-0000-0000-0000-000000000002'::uuid else 'e1000000-0000-0000-0000-000000000001'::uuid end), case when n=10 then 'e3000000-0000-0000-0000-000000000003'::uuid when n=2 then 'e3000000-0000-0000-0000-000000000002'::uuid else 'e3000000-0000-0000-0000-000000000001'::uuid end from generate_series(1,10) n;
 
 -- Cobrança legada antes de ativar a recorrência do contrato 7.
 select set_config('request.jwt.claim.role','service_role',true);
@@ -49,7 +45,7 @@ select c.id,c.tenant_id,
  '2027-01-01',right(c.id::text,2)<>'08',case when right(c.id::text,2)='09' then '2024-01-01'::date else '2026-01-01'::date end,
  case when right(c.id::text,2) in ('05','06') then array['devices'] else '{}'::text[] end,
  case when right(c.id::text,2)='09' then 3 else 1 end,case when right(c.id::text,2)='09' then 31 else 1 end
-from apticket.contracts c where c.id::text like 'e5000000-%';
+from apticket.contracts c where c.id::text like 'e5000000-%' on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date, billing_enabled=excluded.billing_enabled, billing_anchor_month=excluded.billing_anchor_month, required_metrics=excluded.required_metrics, billing_interval_months=excluded.billing_interval_months, cutoff_day=excluded.cutoff_day;
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason)
 select ('e6000000-0000-0000-0000-'||right(c.id::text,12))::uuid,c.tenant_id,f.operating_company_id,c.id,c.starts_at,100,'Initial'
 from apticket.contracts c join apticket.contract_financial_terms f on f.contract_id=c.id where c.id::text like 'e5000000-%';
@@ -110,7 +106,7 @@ select throws_ok($$insert into apticket.contract_value_versions(tenant_id,operat
 select is((select count(*) from apticket.billing_cycles b where total_amount<>(select sum(amount) from apticket.billing_cycle_items i where i.billing_cycle_id=b.id)),0::bigint,'todos os totais conferem com os itens');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"e2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"e2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.close_billing_cycles()$$,'42501',null,'usuário não pode chamar job de serviço');
 select is((select count(*) from apticket.billing_cycles where operating_company_id<>'e3000000-0000-0000-0000-000000000001'),0::bigint,'RLS dos ciclos isola empresa');
 select is((select count(*) from apticket.billing_cycle_items where operating_company_id<>'e3000000-0000-0000-0000-000000000001'),0::bigint,'RLS dos itens isola empresa');
@@ -119,7 +115,7 @@ select lives_ok($$update apticket.contas_receber set status_cobranca='faturado' 
 select ok(exists(select 1 from apticket.financial_audit_log where entity_table='contas_receber' and operation='UPDATE'
  and actor_id='e2000000-0000-0000-0000-000000000001' and after_data->>'status_cobranca'='faturado'),'auditoria da mudança de status financeiro');
 select throws_ok($$update apticket.contas_receber set operating_company_id='e3000000-0000-0000-0000-000000000002' where contrato_id='e5000000-0000-0000-0000-000000000001'$$,'23514',null,'empresa do recebível não pode ser trocada');
-select set_config('request.jwt.claims','{"sub":"e2000000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"e2000000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.billing_cycles where operating_company_id='e3000000-0000-0000-0000-000000000002'),1::bigint,'grupo vê empresa irmã');
 select is((select count(*) from apticket.billing_cycles where tenant_id='e1000000-0000-0000-0000-000000000002'),0::bigint,'grupo não atravessa tenant');
 set local role anon;

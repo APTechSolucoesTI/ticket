@@ -22,7 +22,7 @@ insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can
  ('ed100000-0000-0000-0000-000000000001','ed200000-0000-0000-0000-000000000002','ed300000-0000-0000-0000-000000000001',false),
  ('ed100000-0000-0000-0000-000000000002','ed200000-0000-0000-0000-000000000003','ed300000-0000-0000-0000-000000000002',true);
 
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.companies(id,tenant_id,name) values
  ('ed400000-0000-0000-0000-000000000001','ed100000-0000-0000-0000-000000000001','Cliente A');
 -- Contratos novos exigem classificações analíticas, herdadas pelos movimentos.
@@ -39,8 +39,8 @@ insert into apticket.contas_receber(id,tenant_id,billing_cycle_id,operating_comp
  cliente_nome,documento_referencia,descricao,competencia,valor_original,valor_aberto,vencimento_em,
  status_cobranca,aprovado_em) values
  ('ed700000-0000-0000-0000-000000000001','ed100000-0000-0000-0000-000000000001','ed600000-0000-0000-0000-000000000001','ed300000-0000-0000-0000-000000000001','ed500000-0000-0000-0000-000000000001','ed400000-0000-0000-0000-000000000001','Cliente A','REC-CLASS-001','Mensalidade','2026-01-01',100,100,'2026-02-10','faturado',now());
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('ed800000-0000-0000-0000-000000000001','ed100000-0000-0000-0000-000000000001','Fornecedor A','datacenter');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('ed800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('ed100000-0000-0000-0000-000000000001'), 'Fornecedor A', 'datacenter');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,
  billing_interval_months,base_amount,unit_price,due_day,starts_at,financial_category_id,cost_center_id) values
  ('ed900000-0000-0000-0000-000000000001','ed100000-0000-0000-0000-000000000001','ed300000-0000-0000-0000-000000000001','ed800000-0000-0000-0000-000000000001','Cloud','fixed',1,80,0,15,'2026-01-01','edb00000-0000-0000-0000-000000000001','edc00000-0000-0000-0000-000000000001');
@@ -83,7 +83,7 @@ create function pg_temp.remove(p_id uuid) returns boolean language sql as $$
 $$;
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.create_manual_supplier_payable('ed300000-0000-0000-0000-000000000001','ed800000-0000-0000-0000-000000000001',(select id from apticket.financial_document_types where code='OUT'),'PARCELAS','Compra parcelada','2026-10-01',200,'[{"number":1,"due_date":"2026-10-30","amount":100},{"number":2,"due_date":"2026-11-30","amount":100}]',30,null)$$,'cria conta manual parcelada');
 select is((select revision from apticket.supplier_payables where id=pg_temp.manual_id(1)),0,'conta nova inicia revisão zero');
 select throws_ok($$select pg_temp.change(pg_temp.manual_id(1),'Descrição inválida',0)$$,'22023',null,'rejeita valor manual zero');
@@ -105,13 +105,13 @@ select lives_ok($$select pg_temp.change(pg_temp.manual_id(1),'Corrigida durante 
 select is((select status from apticket.supplier_payables where id=pg_temp.manual_id(1)),'scheduled','alteração volta lançamento para revisão');
 select is((select status from apticket.supplier_payable_approval_requests where supplier_payable_id=pg_temp.manual_id(1)),'cancelled','encerra aprovação anterior');
 select is((select status from apticket.supplier_payable_approval_steps where request_id in(select id from apticket.supplier_payable_approval_requests where supplier_payable_id=pg_temp.manual_id(1))),'cancelled','encerra etapa pendente');
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select apticket.approve_supplier_payable((select id from apticket.supplier_payable_approval_requests where supplier_payable_id=pg_temp.manual_id(1)))$$,'23514',null,'aprovação antiga não pode liberar nova versão');
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.submit_supplier_payable_for_approval(pg_temp.manual_id(1))$$,'permite novo envio para alçada');
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.approve_supplier_payable((select id from apticket.supplier_payable_approval_requests where supplier_payable_id=pg_temp.manual_id(1) and status='pending'))$$,'aprova a versão revisada');
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select pg_temp.change(pg_temp.manual_id(1),'Corrigida após aprovação',127)$$,'altera conta aprovada sem pagamento');
 select is((select status from apticket.supplier_payables where id=pg_temp.manual_id(1)),'scheduled','conta aprovada volta para revisão');
 select is((select count(*) from apticket.supplier_payable_approval_requests where supplier_payable_id=pg_temp.manual_id(1) and status='cancelled'),2::bigint,'histórico das duas versões preservado');
@@ -149,10 +149,10 @@ select is((select status from apticket.supplier_payable_approval_requests where 
 select throws_ok($$update apticket.supplier_payables set description='Alteração direta'$$,'42501',null,'cliente não pode alterar tabela diretamente');
 select throws_ok($$delete from apticket.supplier_payables$$,'42501',null,'cliente não apaga registros físicos');
 select throws_ok($$select apticket_finance_private.prepare_payable_mutation(pg_temp.manual_id(2),0)$$,'42501',null,'helper privado não é exposto');
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000004","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000004","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select pg_temp.change(pg_temp.manual_id(2))$$,'42501',null,'usuário sem permissão não altera');
 select throws_ok($$select pg_temp.remove(pg_temp.manual_id(2))$$,'42501',null,'usuário sem permissão não exclui');
-select set_config('request.jwt.claims','{"sub":"ed200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"ed200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select throws_ok($$select pg_temp.change('eda00000-0000-0000-0000-000000000002')$$,'P0002',null,'outro tenant não altera lançamento');
 select throws_ok($$select pg_temp.remove('eda00000-0000-0000-0000-000000000002')$$,'P0002',null,'outro tenant não exclui lançamento');
 reset role;

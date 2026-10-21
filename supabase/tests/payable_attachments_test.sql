@@ -25,11 +25,11 @@ insert into apticket.financial_cost_centers(id,tenant_id,operating_company_id,co
  ('af500000-0000-0000-0000-000000000002','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','20.01.0002','Centro B');
 insert into apticket.companies(id,tenant_id,name) values
  ('af600000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','Rateios cliente');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 insert into apticket.contracts(id,tenant_id,operating_company_id,company_id,status,starts_at,ends_at,billing_model,monthly_value,dia_vencimento,financial_category_id,cost_center_id) values
  ('af700000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','af600000-0000-0000-0000-000000000001','active','2026-01-01','2026-12-31','hours_package',100.01,10,'af400000-0000-0000-0000-000000000001','af500000-0000-0000-0000-000000000001');
-insert into apticket.suppliers(id,tenant_id,legal_name,category) values
- ('af800000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','Rateios fornecedor','software_licensing');
+insert into apticket.suppliers(id, tenant_id, legal_name, category) values
+ ('af800000-0000-0000-0000-000000000001', apticket_appsec.fixture_actor('af100000-0000-0000-0000-000000000001'), 'Rateios fornecedor', 'software_licensing');
 insert into apticket.supplier_contracts(id,tenant_id,operating_company_id,supplier_id,description,billing_unit,billing_interval_months,base_amount,unit_price,due_day,starts_at,ends_at,financial_category_id,cost_center_id) values
  ('af900000-0000-0000-0000-000000000001','af100000-0000-0000-0000-000000000001','af300000-0000-0000-0000-000000000001','af800000-0000-0000-0000-000000000001','Rateios fornecedor fixo','fixed',1,100.01,0,10,'2026-01-01','2026-12-31','af400000-0000-0000-0000-000000000001','af500000-0000-0000-0000-000000000001');
 
@@ -129,17 +129,17 @@ insert into apticket.role_permissions(role_id,permission_id) select 'afa00000-00
 insert into apticket.user_roles(user_id,tenant_id,role_id) values('af200000-0000-0000-0000-000000000003','af100000-0000-0000-0000-000000000001','afa00000-0000-0000-0000-000000000001');
 insert into apticket.financial_access(tenant_id,user_id,operating_company_id,can_write) values('af100000-0000-0000-0000-000000000001','af200000-0000-0000-0000-000000000003','af300000-0000-0000-0000-000000000001',false);
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000003","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.supplier_payable_attachments),3::bigint,'usuário com escopo somente de leitura consulta anexos ativos');
 select throws_ok($$select apticket.add_supplier_payable_attachments(current_setting('test.managed_payable')::uuid,jsonb_build_array(pg_temp.manage_attachment(3)))$$,'42501',null,'escopo somente de leitura não inclui anexos');
 select throws_ok($$select apticket.remove_supplier_payable_attachment(current_setting('test.managed_payable')::uuid,current_setting('test.removed_attachment')::uuid)$$,'42501',null,'escopo somente de leitura não exclui anexos');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.add_supplier_payable_attachments(current_setting('test.managed_payable')::uuid,(select jsonb_agg(pg_temp.manage_attachment(n)) from generate_series(3,20) n))$$,'permite completar limite de 20 anexos ativos');
 select is((select count(*) from apticket.supplier_payable_attachments where supplier_payable_id=current_setting('test.managed_payable')::uuid),20::bigint,'limite inclui os arquivos antigos');
 select throws_ok($$select apticket.add_supplier_payable_attachments(current_setting('test.managed_payable')::uuid,jsonb_build_array(pg_temp.manage_attachment(21)))$$,'22023',null,'rejeita exceder o limite do título');
 select lives_ok($$select apticket.remove_supplier_payable_attachment(current_setting('test.managed_payable')::uuid,(select id from apticket.supplier_payable_attachments where storage_path=pg_temp.manage_attachment(1)->>'storage_path'))$$,'excluir libera uma posição no limite');
 select lives_ok($$select apticket.add_supplier_payable_attachments(current_setting('test.managed_payable')::uuid,jsonb_build_array(pg_temp.manage_attachment(21)))$$,'inclui novo arquivo na posição liberada');
-select set_config('request.jwt.claims','{"sub":"af200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000002","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select is((select count(*) from apticket.supplier_payable_attachments),0::bigint,'RLS isola metadados por tenant');
 select is((select count(*) from storage.objects where bucket_id='supplier-payable-attachments'),0::bigint,'RLS isola arquivos por tenant');
 select throws_ok($$select apticket.add_supplier_payable_attachments(current_setting('test.managed_payable')::uuid,jsonb_build_array(pg_temp.manage_attachment(22)))$$,'42501',null,'outro tenant não inclui arquivo no título');
