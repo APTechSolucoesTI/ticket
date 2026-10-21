@@ -24,12 +24,12 @@ insert into apticket.companies(id,tenant_id,name) values
 insert into apticket.contacts(id,tenant_id,company_id,name,email,phone,is_active,can_open_tickets) values
  ('f4100000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001','Billing A','billing-a@example.test','+55 (19) 99999-0001',true,true),
  ('f4100000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f4000000-0000-0000-0000-000000000002','Billing B','billing-b@example.test','+55 (19) 99999-0002',true,true);
-insert into apticket.contracts(id,tenant_id,company_id,status,starts_at,ends_at,billing_model,monthly_value) values
- ('f5000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001','active','2026-01-01','2027-01-01','hours_package',100),
- ('f5000000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f4000000-0000-0000-0000-000000000002','active','2026-01-01','2027-01-01','hours_package',100);
+insert into apticket.contracts(id, tenant_id, company_id, status, starts_at, ends_at, billing_model, monthly_value, financial_category_id, cost_center_id, operating_company_id) values
+ ('f5000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001', 'active', '2026-01-01', '2027-01-01', 'hours_package', 100, apticket_appsec.category('f1000000-0000-0000-0000-000000000001','inflow'), apticket_appsec.cost_center('f1000000-0000-0000-0000-000000000001'), apticket_appsec.contract_operator('f1000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001')),
+ ('f5000000-0000-0000-0000-000000000002', 'f1000000-0000-0000-0000-000000000002', 'f4000000-0000-0000-0000-000000000002', 'active', '2026-01-01', '2027-01-01', 'hours_package', 100, apticket_appsec.category('f1000000-0000-0000-0000-000000000002','inflow'), apticket_appsec.cost_center('f1000000-0000-0000-0000-000000000002'), apticket_appsec.contract_operator('f1000000-0000-0000-0000-000000000002','f4000000-0000-0000-0000-000000000002'));
 insert into apticket.contract_financial_terms(contract_id,tenant_id,operating_company_id,adjustment_base_date,billing_enabled,billing_anchor_month) values
  ('f5000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','2026-01-01',true,'2026-01-01'),
- ('f5000000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f3000000-0000-0000-0000-000000000002','2026-01-01',true,'2026-01-01');
+ ('f5000000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f3000000-0000-0000-0000-000000000002','2026-01-01',true,'2026-01-01') on conflict (contract_id) do update set adjustment_base_date=excluded.adjustment_base_date, billing_enabled=excluded.billing_enabled, billing_anchor_month=excluded.billing_anchor_month;
 insert into apticket.contract_value_versions(id,tenant_id,operating_company_id,contract_id,effective_from,base_amount,reason) values
  ('f6000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001','2026-01-01',100,'Initial'),
  ('f6000000-0000-0000-0000-000000000002','f1000000-0000-0000-0000-000000000002','f3000000-0000-0000-0000-000000000002','f5000000-0000-0000-0000-000000000002','2026-01-01',100,'Initial');
@@ -41,7 +41,7 @@ update apticket.contas_receber set status_cobranca='vencido',vencimento_em='2026
 reset role;
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select apticket.save_collection_policy('f3000000-0000-0000-0000-000000000001',true,30,
  '[{"days_after_due":1,"channel":"email","subject":"Reminder","message_template":"Pay {{documento}}","enabled":true},{"days_after_due":5,"channel":"whatsapp","message_template":"Open {{valor}}","enabled":true}]')$$,'financeiro configura a régua');
 select is(apticket.get_collection_policy('f3000000-0000-0000-0000-000000000001')->>'configured','true','consulta retorna configuração');
@@ -57,7 +57,7 @@ select is((select count(*) from apticket.financial_domain_events),1::bigint,'eve
 select is((select count(*) from apticket.collection_actions where tenant_id='f1000000-0000-0000-0000-000000000002'),0::bigint,'processamento não atravessa tenant');
 select is((select count(*) from apticket.collection_actions where status='pending'),2::bigint,'ações aguardam processador externo');
 select is((select recipient_snapshot->>'email' from apticket.collection_actions where channel='email'),'billing-a@example.test','snapshot preserva e-mail do destinatário');
-select is((select recipient_snapshot->>'phone' from apticket.collection_actions where channel='whatsapp'),'+55 (19) 99999-0001','snapshot preserva telefone do destinatário');
+select is((select recipient_snapshot->>'phone' from apticket.collection_actions where channel='whatsapp'),'5519999990001','snapshot preserva telefone do destinatário');
 select throws_ok($$delete from apticket.collection_actions$$,'42501',null,'fila financeira não aceita exclusão física');
 select throws_ok($$select apticket.schedule_collection_policies('2026-03-15',10)$$,'42501',null,'usuário não executa rotina automática');
 select throws_ok($$select apticket_finance_private.claim_collection_actions(10)$$,'42501',null,'usuário não reivindica ações da fila');
@@ -77,7 +77,7 @@ select is((select status from apticket.financial_domain_events where event_type=
 select is((select count(*) from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000001' and status='active'),1::bigint,'bloqueio financeiro ativo fica registrado');
 select ok((select changed_contract_status from apticket.contract_financial_holds where contract_id='f5000000-0000-0000-0000-000000000001'),'bloqueio registra que o status pertence ao fluxo financeiro');
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}',true);
+select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select set_config('request.jwt.claim.role','authenticated',true);
 select throws_ok($$select apticket.process_contract_financial_events(10,'2026-03-15')$$,'42501',null,'usuario autenticado nao executa transicao automatica');
 set local role service_role;
