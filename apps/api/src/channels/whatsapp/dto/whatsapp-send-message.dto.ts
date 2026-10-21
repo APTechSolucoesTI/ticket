@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsInt,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -15,6 +16,16 @@ import {
 export class WhatsappSendMessageDto {
   @ApiProperty() @IsUUID() ticketId!: string;
   @ApiProperty() @IsString() @MinLength(1) @MaxLength(10000) content!: string;
+}
+
+export class WhatsappNotificationDto {
+  @IsUUID() ticketId!: string;
+  @IsIn(['in_progress', 'pending', 'resolved', 'closed'])
+  status!: 'in_progress' | 'pending' | 'resolved' | 'closed';
+}
+
+export class WhatsappCsatDto {
+  @IsUUID() ticketId!: string;
 }
 
 export class WhatsappSendMediaDto {

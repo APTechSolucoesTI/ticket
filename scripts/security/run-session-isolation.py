@@ -76,6 +76,33 @@ try:
     assert not re.search(r"^not ok", otp_tap, re.M), otp_tap
     assert len(re.findall(r"^ok \d+", otp_tap, re.M)) == 18, otp_tap
     print("PASS 18 SQL OTP attempt assertions, including migration rollback/reapply", flush=True)
+    rate_migration = "supabase/migrations/20261021193010_distributed_security_rate_limits.sql"
+    apply(rate_migration)
+    apply("supabase/rollbacks/20261021193010_distributed_security_rate_limits.sql")
+    apply(rate_migration)
+    rate_tap = apply("supabase/tests/distributed_security_rate_limits_test.sql").decode()
+    assert not re.search(r"^not ok", rate_tap, re.M), rate_tap
+    assert len(re.findall(r"^ok \d+", rate_tap, re.M)) == 14, rate_tap
+    print("PASS 14 SQL shared counter assertions, including rollback/reapply", flush=True)
+    sql(b"""
+    alter table apticket.tenants add column whatsapp_uazapi_token text,
+      add column email_imap_password text, add column whatsapp_webhook_secret text;
+    create table apticket.outbound_channels(id uuid primary key,tenant_id uuid references apticket.tenants,
+      name text,access_token text not null);
+    alter table apticket.outbound_channels enable row level security;
+    grant select,insert,update on apticket.outbound_channels to authenticated;
+    grant select(whatsapp_uazapi_token),insert on apticket.tenants to authenticated;
+    grant all on apticket.outbound_channels to service_role;
+    """)
+    secret_migration = "supabase/migrations/20261021193343_hide_integration_credentials.sql"
+    apply(secret_migration)
+    apply("supabase/rollbacks/20261021193343_hide_integration_credentials.sql")
+    assert sql(b"select has_column_privilege('authenticated','apticket.tenants','whatsapp_uazapi_token','select');").strip() == b"t"
+    apply(secret_migration)
+    secret_tap = apply("supabase/tests/integration_credentials_grants_test.sql").decode()
+    assert not re.search(r"^not ok", secret_tap, re.M), secret_tap
+    assert len(re.findall(r"^ok \d+", secret_tap, re.M)) == 14, secret_tap
+    print("PASS 14 SQL credential grant assertions, including rollback/reapply", flush=True)
     run("docker", "run", "-d", "--name", rest, *labels, "--network", network,
         "--cpus", "0.5", "--memory", "256m",
         "-e", "PGRST_DB_URI=postgres://authenticator@appsec-db:5432/appsec_audit",

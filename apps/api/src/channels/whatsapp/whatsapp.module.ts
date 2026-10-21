@@ -10,6 +10,7 @@ import { WhatsappInstanceService } from './whatsapp-instance.service';
 import { WhatsappWebhookService } from './whatsapp-webhook.service';
 import { WhatsappInboundProcessor } from './whatsapp-inbound.processor';
 import { WhatsappReplyService } from './whatsapp-reply.service';
+import { WhatsappNotificationService } from './whatsapp-notification.service';
 import { UazapiService } from './uazapi.service';
 import { OutboundChannelController } from './outbound-channel.controller';
 import { OutboundChannelService } from './outbound-channel.service';
@@ -31,6 +32,7 @@ import { OutboundChannelService } from './outbound-channel.service';
     WhatsappWebhookService,
     WhatsappInboundProcessor,
     WhatsappReplyService,
+    WhatsappNotificationService,
     UazapiService,
     OutboundChannelService,
   ],

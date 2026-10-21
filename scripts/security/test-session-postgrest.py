@@ -144,6 +144,20 @@ try:
     anon_status, anon_error = request("/rpc/increment_portal_otp_attempt", jwt(role="anon"), {"_otp_id": otp_id})
     assert anon_status == 401 and anon_error["code"] == "42501", (anon_status, anon_error)
     print("PASS real PostgREST: five racing OTP increments, cap and restricted invocation")
+    barrier = threading.Barrier(16)
+    def limited_request():
+        barrier.wait()
+        return request('/rpc/consume_security_rate_limit', service,
+            {'_key_hash': 'e' * 64, '_limit': 5, '_window_ms': 60000})
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        counters = list(executor.map(lambda _: limited_request(), range(16)))
+    assert all(status == 200 for status, _ in counters), counters
+    assert sum(result['allowed'] for _, result in counters) == 5, counters
+    assert request('/rpc/consume_security_rate_limit', service,
+        {'_key_hash': 'e' * 64, '_limit': 5, '_window_ms': 60000})[1]['allowed'] is False
+    assert request('/rpc/consume_security_rate_limit', fresh,
+        {'_key_hash': 'e' * 64, '_limit': 5, '_window_ms': 60000})[0] == 403
+    print('PASS real PostgREST: 16 concurrent shared quota requests allow exactly five, remaining denied')
     print("PASS real PostgREST: concurrent single-use reset, revoked/fresh JWT, tenant isolation, privileged RPC, grants, other apps and anonymous flows")
 finally:
     sql(f"""

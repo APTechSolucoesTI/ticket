@@ -5,9 +5,12 @@ import { RequirePermission } from '../../auth/require-permission.decorator';
 import type { AuthContext } from '../../auth/supabase-auth.guard';
 import { WhatsappInstanceService } from './whatsapp-instance.service';
 import { WhatsappReplyService } from './whatsapp-reply.service';
+import { WhatsappNotificationService } from './whatsapp-notification.service';
 import { UpsertWhatsappInstanceDto } from './dto/upsert-whatsapp-instance.dto';
 import {
   WhatsappCallDto,
+  WhatsappNotificationDto,
+  WhatsappCsatDto,
   WhatsappSendContactDto,
   WhatsappSendLocationDto,
   WhatsappSendMediaDto,
@@ -24,7 +27,23 @@ export class WhatsappController {
   constructor(
     private readonly instances: WhatsappInstanceService,
     private readonly reply: WhatsappReplyService,
+    private readonly notifications: WhatsappNotificationService,
   ) {}
+
+  @Post(':id/notify-status')
+  @RequirePermission('tickets', 'edit')
+  notify(
+    @CurrentUser() auth: AuthContext,
+    @Body() dto: WhatsappNotificationDto,
+  ) {
+    return this.notifications.notify(auth.tenantId, dto.ticketId, dto.status);
+  }
+
+  @Post(':id/csat')
+  @RequirePermission('tickets', 'edit')
+  invite(@CurrentUser() auth: AuthContext, @Body() dto: WhatsappCsatDto) {
+    return this.notifications.invite(auth.tenantId, dto.ticketId);
+  }
 
   @Get()
   @RequirePermission('canais', 'view')
