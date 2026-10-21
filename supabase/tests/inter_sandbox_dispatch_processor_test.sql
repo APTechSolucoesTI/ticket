@@ -195,9 +195,9 @@ update apticket.contas_receber set status_cobranca='a_faturar',valor_aberto=valo
 update apticket.tenant_inter_configurations set is_active=false
   where tenant_id='fa100000-0000-0000-0000-000000000001' and environment='sandbox';
 insert into apticket.tenant_inter_configurations(
-  tenant_id,environment,account,secret_id,certificate_expires_at,certificate_fingerprint,is_active,version,updated_by
+  tenant_id,operating_company_id,environment,account,secret_id,certificate_expires_at,certificate_fingerprint,is_active,version,updated_by
 ) values(
-  'fa100000-0000-0000-0000-000000000001','production','87654321',
+  'fa100000-0000-0000-0000-000000000001','fa300000-0000-0000-0000-000000000001','production','87654321',
   vault.create_secret('{"client_id":"prod-client","client_secret":"prod-secret","certificate":"prod-certificate","private_key":"prod-key"}'),
   now()+interval '1 year','production-dispatch-fixture',true,1,'fa200000-0000-0000-0000-000000000001'
 );
