@@ -355,6 +355,8 @@ Gitleaks CLI 8.30.1 foi baixado da release oficial e conferido por SHA-256; scan
 
 ## 12. Estado de cada achado após este lote
 
+Esta tabela registra o lote inicial. Para a implantação atual, inclusive a revogação de sessão, Nodemailer, SSRF e o CI integralmente aprovado, consultar [20/10](./validacao-20261020.md) e [21/10](./validacao-20261021.md). Itens de anexos, uploads e matriz SQL seguem em execução conforme o checklist atual.
+
 | ID | Estado local | Pendência / risco residual |
 |---|---|---|
 | SEC-01 | Corrigido e validado localmente | Publicação ainda não realizada. |

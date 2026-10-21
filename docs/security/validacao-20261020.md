@@ -1,5 +1,7 @@
 # Continuação da auditoria — 20/10/2026
 
+**Atualização de 21/10:** o bloqueio do lint foi corrigido e o CI do lote seguinte ficou integralmente aprovado. Headers/CSP, limites compartilhados existentes e restrição das credenciais já foram implantados. Estado atual e pendências na [validação de 21/10](./validacao-20261021.md); os resultados abaixo são o histórico dos lotes de 20/10.
+
 Este documento complementa [a auditoria inicial](./auditoria-20261019.md). O responsável autorizou a publicação do lote `4151865`, a atualização principal do Nodemailer, a revogação das sessões anteriores após reset e a consulta dos destinos configurados em produção. Testes de credenciais continuam usando somente fixtures locais ou containers descartáveis.
 
 ## SEC-08 — Nodemailer
