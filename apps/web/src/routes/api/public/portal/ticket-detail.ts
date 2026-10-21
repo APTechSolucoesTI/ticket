@@ -97,6 +97,16 @@ export const Route = createFileRoute("/api/public/portal/ticket-detail")({
                 if (!a || !isTenantStoragePath(a.path, session.tenant_id)) {
                   return { ...a, url: null };
                 }
+                const { data: permitted, error: bindingError } = await supabaseAdmin.rpc(
+                  "can_sign_ticket_attachment",
+                  {
+                    _tenant_id: session.tenant_id,
+                    _ticket_id: ticket_id,
+                    _contact_id: session.contact_id,
+                    _path: a.path,
+                  },
+                );
+                if (bindingError || permitted !== true) return { ...a, url: null };
                 const { data } = await supabaseAdmin.storage
                   .from("ticket-attachments")
                   .createSignedUrl(a.path, 60 * 60);

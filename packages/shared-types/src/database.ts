@@ -2803,6 +2803,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      can_sign_ticket_attachment: {
+        Args: { _tenant_id: string; _ticket_id: string; _contact_id: string; _path: string };
+        Returns: boolean;
+      };
       consume_security_rate_limit: {
         Args: { _key_hash: string; _limit: number; _window_ms: number };
         Returns: Json;

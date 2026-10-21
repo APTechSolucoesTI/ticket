@@ -247,30 +247,117 @@ export class WhatsappReplyService {
     return { ok: true as const, messageId: inserted.id };
   }
 
+  // Persist before signing/sending: the database binds the object to this ticket
+  // and refuses private/foreign attachments before any external side effect.
+  private async sendStoredMedia(
+    tenantId: string,
+    userId: string,
+    ctx: Awaited<ReturnType<WhatsappReplyService['context']>>,
+    file: {
+      path: string;
+      filename: string;
+      mimetype: string;
+      size: number;
+      caption?: string;
+    },
+    kind: 'image' | 'audio' | 'video' | 'document' | 'ptt' | 'sticker',
+  ) {
+    const path = file.path;
+    const scoped =
+      path.startsWith(tenantId + '/' + ctx.ticket.id + '/') ||
+      (kind === 'sticker' && path.startsWith(tenantId + '/_stickers/'));
+    if (
+      !scoped ||
+      /(^|\/)[.][.]?(\/|$)|[%?#\\]/.test(path) ||
+      [...path].some(
+        (character) =>
+          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      ) ||
+      path.includes('//')
+    ) {
+      throw new BadRequestException('Caminho de anexo inválido');
+    }
+    const { data: pending, error: insertError } = await this.supabase.client
+      .from('messages')
+      .insert({
+        tenant_id: tenantId,
+        ticket_id: ctx.ticket.id,
+        author_id: userId,
+        author_type: 'agent',
+        channel: 'whatsapp',
+        is_internal: false,
+        content:
+          file.caption ||
+          (kind === 'sticker'
+            ? 'Figurinha'
+            : '[' + kind + '] ' + file.filename),
+        delivery_status: 'sending',
+        delivery_attempts: 1,
+        attachments: [
+          {
+            path,
+            name: file.filename,
+            size: file.size,
+            type: file.mimetype,
+            ...(kind === 'sticker' ? { kind } : {}),
+          },
+        ],
+      })
+      .select('id')
+      .single();
+    if (insertError) throw insertError;
+    try {
+      // A browser-provided URL is never forwarded to the provider. Generate a
+      // short-lived capability for exactly the object validated by the insert.
+      const { data: signed, error: signError } =
+        await this.supabase.client.storage
+          .from('ticket-attachments')
+          .createSignedUrl(path, 120);
+      if (signError || !signed?.signedUrl)
+        throw new Error('Não foi possível carregar o anexo');
+      const response = await this.uazapi.sendMedia(ctx.baseUrl, ctx.token, {
+        number: ctx.phone,
+        type: kind,
+        file: signed.signedUrl,
+        text: file.caption,
+        docName: kind === 'document' ? file.filename : undefined,
+        mimetype: file.mimetype,
+      });
+      const details = this.responseDetails(response);
+      const { error: updateError } = await this.supabase.client
+        .from('messages')
+        .update({
+          external_id: details.externalId,
+          delivery_status: response.ok ? 'sent' : 'failed',
+          delivery_error: details.error,
+        })
+        .eq('id', pending.id)
+        .eq('tenant_id', tenantId);
+      if (updateError) throw updateError;
+      if (!response.ok) throw new Error(details.error ?? 'Falha UAZAPI');
+      return {
+        ok: true as const,
+        messageId: pending.id,
+        externalId: details.externalId,
+      };
+    } catch (error) {
+      await this.supabase.client
+        .from('messages')
+        .update({
+          delivery_status: 'failed',
+          delivery_error: 'Falha ao enviar mídia',
+        })
+        .eq('id', pending.id)
+        .eq('tenant_id', tenantId);
+      throw error;
+    }
+  }
+
   async replyMedia(
     tenantId: string,
     userId: string,
     data: WhatsappSendMediaDto,
   ) {
-    const { data: ticket, error: ticketError } = await this.supabase.client
-      .from('tickets')
-      .select('id, tenant_id, channel, contacts(phone)')
-      .eq('id', data.ticketId)
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
-    if (ticketError) throw ticketError;
-    if (!ticket) throw new NotFoundException('Ticket não encontrado');
-    if (ticket.channel !== 'whatsapp') {
-      throw new BadRequestException('Ticket não é de origem WhatsApp');
-    }
-    const phone = (
-      ticket as unknown as { contacts?: { phone?: string | null } | null }
-    ).contacts?.phone;
-    if (!phone) throw new BadRequestException('Contato sem número de telefone');
-    if (!data.path.startsWith(`${tenantId}/${ticket.id}/`)) {
-      throw new BadRequestException('Caminho de anexo inválido');
-    }
-
     const supported =
       data.mimetype.startsWith('image/') ||
       data.mimetype.startsWith('audio/') ||
@@ -280,29 +367,11 @@ export class WhatsappReplyService {
       data.mimetype.includes('officedocument') ||
       data.mimetype === 'text/plain' ||
       data.mimetype === 'application/zip';
-    if (!supported) {
+    if (!supported)
       throw new BadRequestException(
-        `Tipo de arquivo não suportado no WhatsApp: ${data.mimetype}`,
+        'Tipo de arquivo não suportado no WhatsApp: ' + data.mimetype,
       );
-    }
-
-    const { data: tenant } = await this.supabase.client
-      .from('tenants')
-      .select(
-        'whatsapp_enabled, whatsapp_uazapi_base_url, whatsapp_uazapi_token',
-      )
-      .eq('id', tenantId)
-      .maybeSingle();
-    if (
-      !tenant?.whatsapp_enabled ||
-      !tenant.whatsapp_uazapi_base_url ||
-      !tenant.whatsapp_uazapi_token
-    ) {
-      throw new BadRequestException(
-        'WhatsApp não configurado para este tenant',
-      );
-    }
-
+    const ctx = await this.context(tenantId, data.ticketId);
     const kind = data.mimetype.startsWith('image/')
       ? 'image'
       : data.mimetype.startsWith('audio/')
@@ -312,62 +381,7 @@ export class WhatsappReplyService {
         : data.mimetype.startsWith('video/')
           ? 'video'
           : 'document';
-    const token = this.secrets.decrypt(tenant.whatsapp_uazapi_token);
-    const response = await this.uazapi.sendMedia(
-      tenant.whatsapp_uazapi_base_url,
-      token,
-      {
-        number: phone,
-        type: kind,
-        file: data.url,
-        text: data.caption,
-        docName: kind === 'document' ? data.filename : undefined,
-        mimetype: data.mimetype,
-      },
-    );
-    const body = (response.body ?? {}) as Record<string, unknown>;
-    const externalId =
-      (body.messageid as string | undefined) ??
-      (body.id as string | undefined) ??
-      ((body.message as Record<string, unknown> | undefined)?.id as
-        string | undefined) ??
-      null;
-    const deliveryError = response.ok
-      ? null
-      : typeof response.body === 'string'
-        ? response.body
-        : JSON.stringify(response.body);
-
-    const { data: inserted, error: insertError } = await this.supabase.client
-      .from('messages')
-      .insert({
-        tenant_id: tenantId,
-        ticket_id: ticket.id,
-        author_id: userId,
-        author_type: 'agent',
-        channel: 'whatsapp',
-        is_internal: false,
-        content: data.caption || `[${kind}] ${data.filename}`,
-        external_id: externalId,
-        delivery_status: response.ok ? 'sent' : 'failed',
-        delivery_attempts: 1,
-        delivery_error: deliveryError,
-        attachments: [
-          {
-            path: data.path,
-            name: data.filename,
-            size: data.size,
-            type: data.mimetype,
-          },
-        ],
-      })
-      .select('id')
-      .single();
-    if (insertError) throw insertError;
-    if (!response.ok) {
-      throw new BadRequestException(`Falha ao enviar mídia: ${deliveryError}`);
-    }
-    return { ok: true as const, messageId: inserted.id, externalId };
+    return this.sendStoredMedia(tenantId, userId, ctx, data, kind);
   }
 
   async replyContact(
@@ -447,33 +461,12 @@ export class WhatsappReplyService {
     data: WhatsappSendStickerDto,
   ) {
     const ctx = await this.context(tenantId, data.ticketId);
-    const allowed =
-      data.path.startsWith(`${tenantId}/${ctx.ticket.id}/`) ||
-      data.path.startsWith(`${tenantId}/_stickers/`);
-    if (!allowed)
-      throw new BadRequestException('Caminho de figurinha inválido');
-    const response = await this.uazapi.sendMedia(ctx.baseUrl, ctx.token, {
-      number: ctx.phone,
-      type: 'sticker',
-      file: data.url,
-      mimetype: 'image/webp',
-    });
-    return this.persistSpecial(
+    return this.sendStoredMedia(
       tenantId,
       userId,
-      ctx.ticket.id,
-      'Figurinha',
-      response,
-      [
-        {
-          path: data.path,
-          url: data.url,
-          name: data.filename,
-          size: 0,
-          type: 'image/webp',
-          kind: 'sticker',
-        },
-      ],
+      ctx,
+      { ...data, mimetype: 'image/webp', size: 0 },
+      'sticker',
     );
   }
 

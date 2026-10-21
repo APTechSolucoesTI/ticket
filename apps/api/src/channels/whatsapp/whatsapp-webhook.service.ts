@@ -146,11 +146,7 @@ export class WhatsappWebhookService {
 
     // A UAZAPI entrega mídia por URL temporária do mmg.whatsapp.net. Copiar
     // agora evita anexos quebrados quando o usuário abre o ticket depois.
-    const attachments = await this.persistInboundAttachments(
-      tenantId,
-      extId,
-      extractedAttachments,
-    );
+    let attachments = extractedAttachments;
 
     const { data: contactMatches } = await this.supabase.client
       .from('contacts')
@@ -276,6 +272,12 @@ export class WhatsappWebhookService {
       ticketId = newT.id;
     }
 
+    attachments = await this.persistInboundAttachments(
+      tenantId,
+      extId,
+      extractedAttachments,
+      ticketId,
+    );
     const { error: msgErr } = await this.supabase.client
       .from('messages')
       .insert({
@@ -302,6 +304,7 @@ export class WhatsappWebhookService {
     tenantId: string,
     externalId: string | null,
     attachments: WhatsappStructuredAttachment[],
+    ticketId?: string,
   ): Promise<WhatsappStructuredAttachment[]> {
     return Promise.all(
       attachments.map(async (attachment, index) => {
@@ -332,7 +335,7 @@ export class WhatsappWebhookService {
             .normalize('NFKD')
             .replace(/[^a-zA-Z0-9._-]/g, '_')
             .slice(-120);
-          const path = `${tenantId}/whatsapp-inbound/${safeId}-${index}-${safeName || 'anexo'}`;
+          const path = `${tenantId}/${ticketId ?? 'whatsapp-inbound'}/${safeId}-${index}-${safeName || 'anexo'}`;
           const contentType =
             response.headers.get('content-type')?.split(';')[0] ||
             attachment.type ||
@@ -384,6 +387,11 @@ export class WhatsappWebhookService {
     payload: UnknownRec,
     attachments: ReturnType<typeof extractStructuredAttachments>,
   ) {
+    const storedAttachments = await this.persistInboundAttachments(
+      tenantId,
+      extId,
+      attachments,
+    );
     const { data: pending, error } = await this.supabase.client
       .from('whatsapp_pending_messages')
       .insert({
@@ -393,7 +401,7 @@ export class WhatsappWebhookService {
         content: text || '[anexo]',
         external_id: extId,
         payload: sanitizeWebhookPayload(payload) as never,
-        attachments: attachments as never,
+        attachments: storedAttachments as never,
       })
       .select('id')
       .maybeSingle();
