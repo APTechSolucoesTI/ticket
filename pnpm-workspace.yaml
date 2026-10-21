@@ -2,6 +2,8 @@ packages:
   - "apps/*"
   - "packages/*"
 overrides:
+  vite: 8.2.4
+  launch-editor: 2.14.2
   deepmerge-ts: 8.0.2
   fast-uri: 3.1.8
   proxy-addr: 2.0.8
