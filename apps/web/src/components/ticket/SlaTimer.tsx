@@ -51,12 +51,17 @@ export function SlaTimer({
     return () => clearInterval(i);
   }, [stoppedAt]);
 
-  if (!dueAt) return <span className={cn("font-mono text-xs text-muted-foreground", className)}>-</span>;
+  if (!dueAt)
+    return <span className={cn("font-mono text-xs text-muted-foreground", className)}>-</span>;
   const ref = stoppedAt ? new Date(stoppedAt).getTime() : Date.now();
   const remaining = new Date(dueAt).getTime() - ref;
   const remainingMin = remaining / 60_000;
   const state: SlaState =
-    remaining <= 0 ? "breached" : totalMinutes > 0 && remainingMin / totalMinutes < 0.3 ? "warn" : "ok";
+    remaining <= 0
+      ? "breached"
+      : totalMinutes > 0 && remainingMin / totalMinutes < 0.3
+        ? "warn"
+        : "ok";
   const color =
     state === "breached"
       ? "text-red-600 dark:text-red-400"
@@ -65,8 +70,12 @@ export function SlaTimer({
         : "text-green-600 dark:text-green-400";
 
   return (
-    <span className={cn("font-mono text-sm tabular-nums", color, className)} title={stoppedAt ? "SLA pausado" : undefined}>
-      {format(remaining)}{stoppedAt ? " ⏸" : ""}
+    <span
+      className={cn("font-mono text-sm tabular-nums", color, className)}
+      title={stoppedAt ? "SLA pausado" : undefined}
+    >
+      {format(remaining)}
+      {stoppedAt ? " ⏸" : ""}
     </span>
   );
 }

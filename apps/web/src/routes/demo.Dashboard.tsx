@@ -2,25 +2,59 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Inbox, AlertTriangle, Clock, FileCheck2, TrendingUp } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend } from "recharts";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { demoKPIs, demoVolume14d, demoStatusBreakdown, demoTickets } from "@/lib/demo-seed";
 
 export const Route = createFileRoute("/demo/Dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard - Demo APTicket" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Dashboard - Demo APTicket" }, { name: "robots", content: "noindex" }],
+  }),
   component: DemoDashboard,
 });
 
 function DemoDashboard() {
   const criadosSem1 = demoVolume14d.slice(0, 7).reduce((s, d) => s + d.criados, 0);
   const criadosSem2 = demoVolume14d.slice(7).reduce((s, d) => s + d.criados, 0);
-  const variacao = criadosSem1 === 0 ? 0 : Math.round(((criadosSem2 - criadosSem1) / criadosSem1) * 100);
+  const variacao =
+    criadosSem1 === 0 ? 0 : Math.round(((criadosSem2 - criadosSem1) / criadosSem1) * 100);
   const positivo = variacao >= 0;
 
   const kpis = [
-    { label: "Tickets abertos",   value: demoKPIs.ticketsAbertos, icon: Inbox,        color: "text-sky-600 bg-sky-50" },
-    { label: "SLA em risco",       value: demoKPIs.slaEmRisco,     icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
-    { label: "MTTR (horas)",       value: demoKPIs.mttrHoras,      icon: Clock,        color: "text-violet-600 bg-violet-50" },
-    { label: "Contratos ativos",   value: demoKPIs.contratosAtivos, icon: FileCheck2,  color: "text-emerald-600 bg-emerald-50" },
+    {
+      label: "Tickets abertos",
+      value: demoKPIs.ticketsAbertos,
+      icon: Inbox,
+      color: "text-sky-600 bg-sky-50",
+    },
+    {
+      label: "SLA em risco",
+      value: demoKPIs.slaEmRisco,
+      icon: AlertTriangle,
+      color: "text-amber-600 bg-amber-50",
+    },
+    {
+      label: "MTTR (horas)",
+      value: demoKPIs.mttrHoras,
+      icon: Clock,
+      color: "text-violet-600 bg-violet-50",
+    },
+    {
+      label: "Contratos ativos",
+      value: demoKPIs.contratosAtivos,
+      icon: FileCheck2,
+      color: "text-emerald-600 bg-emerald-50",
+    },
   ];
 
   return (
@@ -36,7 +70,9 @@ function DemoDashboard() {
           return (
             <Card key={k.label}>
               <CardContent className="p-4 flex items-center gap-3">
-                <div className={`size-10 rounded-lg grid place-items-center ${k.color}`}><Icon className="size-5" /></div>
+                <div className={`size-10 rounded-lg grid place-items-center ${k.color}`}>
+                  <Icon className="size-5" />
+                </div>
                 <div>
                   <div className="text-xs text-muted-foreground">{k.label}</div>
                   <div className="text-2xl font-bold">{k.value}</div>
@@ -52,11 +88,14 @@ function DemoDashboard() {
           <CardHeader className="flex flex-row items-start justify-between pb-2">
             <div>
               <CardTitle className="text-base font-bold">Volume de tickets</CardTitle>
-              <p className="text-xs text-muted-foreground">Últimos 14 dias · criados vs. resolvidos</p>
+              <p className="text-xs text-muted-foreground">
+                Últimos 14 dias · criados vs. resolvidos
+              </p>
             </div>
             <Badge variant={positivo ? "default" : "destructive"} className="gap-1">
               <TrendingUp className={`size-3 ${positivo ? "" : "rotate-180"}`} />
-              {positivo ? "+" : ""}{variacao}%
+              {positivo ? "+" : ""}
+              {variacao}%
             </Badge>
           </CardHeader>
           <CardContent>
@@ -64,19 +103,33 @@ function DemoDashboard() {
               <AreaChart data={demoVolume14d}>
                 <defs>
                   <linearGradient id="grad-criados" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"  stopColor="#0EA5E9" stopOpacity={0.4}/>
-                    <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0}/>
+                    <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="grad-resolvidos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"  stopColor="#10B981" stopOpacity={0.4}/>
-                    <stop offset="100%" stopColor="#10B981" stopOpacity={0}/>
+                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="criados"    stroke="#0EA5E9" strokeWidth={2.5} fill="url(#grad-criados)"    name="Criados" />
-                <Area type="monotone" dataKey="resolvidos" stroke="#10B981" strokeWidth={2.5} fill="url(#grad-resolvidos)" name="Resolvidos" />
+                <Area
+                  type="monotone"
+                  dataKey="criados"
+                  stroke="#0EA5E9"
+                  strokeWidth={2.5}
+                  fill="url(#grad-criados)"
+                  name="Criados"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="resolvidos"
+                  stroke="#10B981"
+                  strokeWidth={2.5}
+                  fill="url(#grad-resolvidos)"
+                  name="Resolvidos"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -90,8 +143,17 @@ function DemoDashboard() {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={demoStatusBreakdown} dataKey="count" nameKey="status" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                  {demoStatusBreakdown.map((entry) => <Cell key={entry.status} fill={entry.color} />)}
+                <Pie
+                  data={demoStatusBreakdown}
+                  dataKey="count"
+                  nameKey="status"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {demoStatusBreakdown.map((entry) => (
+                    <Cell key={entry.status} fill={entry.color} />
+                  ))}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Tooltip />
@@ -123,7 +185,11 @@ function DemoDashboard() {
                   <td className="py-2 px-4">{t.subject}</td>
                   <td className="py-2 px-4 text-muted-foreground">{t.companyName}</td>
                   <td className="py-2 px-4">{t.assigneeName}</td>
-                  <td className="py-2 px-4"><Badge variant="outline" className="text-[10px]">{t.status}</Badge></td>
+                  <td className="py-2 px-4">
+                    <Badge variant="outline" className="text-[10px]">
+                      {t.status}
+                    </Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>

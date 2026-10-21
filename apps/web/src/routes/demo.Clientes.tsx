@@ -5,7 +5,9 @@ import { Building2, MapPin } from "lucide-react";
 import { demoCompanies } from "@/lib/demo-seed";
 
 export const Route = createFileRoute("/demo/Clientes")({
-  head: () => ({ meta: [{ title: "Clientes - Demo APTicket" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Clientes - Demo APTicket" }, { name: "robots", content: "noindex" }],
+  }),
   component: DemoClientes,
 });
 
@@ -42,11 +44,15 @@ function DemoClientes() {
                   </td>
                   <td className="py-2 px-4">{c.contatos}</td>
                   <td className="py-2 px-4">
-                    {c.tickets_abertos > 0
-                      ? <Badge variant="destructive">{c.tickets_abertos}</Badge>
-                      : <span className="text-muted-foreground">0</span>}
+                    {c.tickets_abertos > 0 ? (
+                      <Badge variant="destructive">{c.tickets_abertos}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">0</span>
+                    )}
                   </td>
-                  <td className="py-2 px-4"><Badge variant="outline">{c.plano}</Badge></td>
+                  <td className="py-2 px-4">
+                    <Badge variant="outline">{c.plano}</Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -89,14 +89,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "APTicket - Help Desk & PSA para MSPs" },
       {
         property: "og:description",
-        content: "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
+        content:
+          "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "APTicket - Help Desk & PSA para MSPs" },
-      { name: "twitter:description", content: "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d2eaf795-2a64-4357-beac-8ff656f82229/id-preview-43b095b9--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app-1784051344873.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d2eaf795-2a64-4357-beac-8ff656f82229/id-preview-43b095b9--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app-1784051344873.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Centralize tickets de e-mail e WhatsApp, controle SLAs e registre horas por contrato. Help Desk + PSA para MSPs sérios.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d2eaf795-2a64-4357-beac-8ff656f82229/id-preview-43b095b9--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app-1784051344873.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d2eaf795-2a64-4357-beac-8ff656f82229/id-preview-43b095b9--fdf8522c-eec1-41c6-81ec-00eb19eff00d.lovable.app-1784051344873.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

@@ -8,7 +8,11 @@ export const Route = createFileRoute("/demo")({
   head: () => ({
     meta: [
       { title: "Demonstração - APTicket" },
-      { name: "description", content: "Explore o APTicket com dados fictícios: dashboard, tickets, clientes e contratos." },
+      {
+        name: "description",
+        content:
+          "Explore o APTicket com dados fictícios: dashboard, tickets, clientes e contratos.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -30,7 +34,10 @@ function DemoLayout() {
           </Button>
         </div>
         <header className="h-14 flex items-center border-b border-border bg-card px-4 gap-3 shrink-0">
-          <Link to="/" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="size-3.5" /> Voltar ao site
           </Link>
           <BrandLogo className="ml-2 size-8 drop-shadow-sm" alt="" />

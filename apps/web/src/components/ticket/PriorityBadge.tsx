@@ -10,11 +10,19 @@ const map: Record<TicketPriority, { label: string; className: string; Icon: type
   urgent: { label: "Urgente", className: "text-red-600 dark:text-red-400", Icon: Flame },
 };
 
-export function PriorityBadge({ priority, className }: { priority: TicketPriority; className?: string }) {
+export function PriorityBadge({
+  priority,
+  className,
+}: {
+  priority: TicketPriority;
+  className?: string;
+}) {
   const cfg = map[priority];
   const Icon = cfg.Icon;
   return (
-    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", cfg.className, className)}>
+    <span
+      className={cn("inline-flex items-center gap-1 text-xs font-medium", cfg.className, className)}
+    >
       <Icon className="h-3 w-3" />
       {cfg.label}
     </span>

@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
 
 const items = [
-  { to: "/demo/Dashboard", label: "Dashboard",  icon: LayoutDashboard },
-  { to: "/demo/Tickets",   label: "Tickets",    icon: Inbox },
-  { to: "/demo/Clientes",  label: "Clientes",   icon: Building2 },
-  { to: "/demo/Contratos", label: "Contratos",  icon: FileText },
+  { to: "/demo/Dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/demo/Tickets", label: "Tickets", icon: Inbox },
+  { to: "/demo/Clientes", label: "Clientes", icon: Building2 },
+  { to: "/demo/Contratos", label: "Contratos", icon: FileText },
 ] as const;
 
 export function SidebarDemo() {
@@ -18,7 +18,9 @@ export function SidebarDemo() {
         <BrandLogo className="size-9 drop-shadow-sm" />
         <div className="leading-tight">
           <div className="text-sm font-semibold">APTicket</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Modo demonstração</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+            Modo demonstração
+          </div>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-2 text-sm">
