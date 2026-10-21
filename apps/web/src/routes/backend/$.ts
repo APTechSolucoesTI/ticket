@@ -50,9 +50,12 @@ async function proxy(request: Request): Promise<Response> {
   const upstream = await fetch(target, {
     method: request.method,
     headers,
-    body: hasBody ? await request.arrayBuffer() : undefined,
+    // Stream with backpressure so the upstream parser can enforce its limit
+    // without first buffering the entire untrusted body in the web process.
+    body: hasBody ? request.body : undefined,
+    duplex: "half",
     redirect: "manual",
-  });
+  } as RequestInit & { duplex: "half" });
 
   const responseHeaders = new Headers();
   upstream.headers.forEach((value, key) => {
