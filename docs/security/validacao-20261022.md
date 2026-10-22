@@ -41,6 +41,11 @@ distinguem controles publicados, código validado e manutenção futura.
 
 ## SEC-09 — antivírus e fronteira de uploads em produção
 
+Guia para reproduzir esta implementação e integrar outros sistemas no mesmo
+servidor: [implementação e operação do ClamAV](./guia-implementacao-clamav.md).
+O guia também registra a conferência posterior de sincronização das assinaturas
+e sua limitação observada, além dos testes de publicação descritos abaixo.
+
 O serviço privado de ClamAV está implantado, saudável, sem porta publicada,
 com assinaturas persistentes, memória limitada a 4 GiB e imagem fixada por digest.
 O teste real de protocolo aceitou bytes sintéticos limpos e recusou EICAR.
