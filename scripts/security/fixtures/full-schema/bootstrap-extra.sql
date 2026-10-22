@@ -3,3 +3,5 @@ grant usage on schema auth to postgres,supabase_storage_admin; grant execute on 
 grant usage on schema vault to postgres;
 grant select on vault.secrets,vault.decrypted_secrets to postgres;
 grant execute on function vault._crypto_aead_det_decrypt(bytea,bytea,bigint,bytea,bytea) to postgres;
+grant usage on schema extensions to postgres;
+grant execute on function vault.create_secret(text,text,text,uuid),vault.update_secret(uuid,text,text,text,uuid) to postgres;
