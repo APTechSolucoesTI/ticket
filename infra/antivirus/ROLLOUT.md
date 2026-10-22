@@ -7,6 +7,9 @@ The ClamAV daemon itself is already deployed and tested with synthetic data.
 
 Apply only after the exact application commit passes all five CI jobs:
 
+Temporarily disable application autoDeploy before merging this batch. Publish
+API before web manually through Dokploy, then restore autoDeploy after validation.
+
 1. Confirm `apticket-antivirus:3310` is healthy from the API network and test a
    clean synthetic buffer and EICAR directly, without writing either to Storage.
 2. Apply and register `20261022162436_scanned_upload_boundary.sql` transactionally.

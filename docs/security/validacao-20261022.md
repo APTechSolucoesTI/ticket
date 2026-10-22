@@ -53,6 +53,9 @@ multipart, token revogado, tenant estrangeiro, recibo consumido uma única vez e
 limpeza dos arquivos novos quando a publicação falha. O corpo das server functions
 é limitado antes da desserialização, inclusive em transferências chunked.
 
+O complemento de autorização da galeria preserva o módulo `figurinhas.create`
+independentemente de `tickets.edit`, com quatro asserções adicionais no CI.
+
 **Esse lote de aplicação e suas duas migrations ainda não estão em produção.**
 A política aprovada não listou áudio/vídeo, que já são usados pelo WhatsApp.
 A pergunta sobre preservá-los está pendente; ativar a lista restrita agora

@@ -8,8 +8,8 @@ begin
  if auth.uid() is null or tenant is null or _path is null or _bucket is null or length(_path)>1024 or parts[1]<>tenant::text
   or array_length(parts,1)<3 or _path ~ '(^|/)[.][.]?(/|$)|[[:cntrl:]%?#\\]' or _path like '%//%' then return false; end if;
  if _bucket='ticket-attachments' then
+  if parts[2]='_stickers' then return apticket.has_permission(auth.uid(),'figurinhas','create'); end if;
   if not apticket.has_permission(auth.uid(),'tickets','edit') then return false; end if;
-  if parts[2]='_stickers' then return true; end if;
   if parts[2] !~ uuid_pattern then return false; end if;
   return exists(select 1 from apticket.tickets where id=parts[2]::uuid and tenant_id=tenant);
  elsif _bucket='kb-attachments' then

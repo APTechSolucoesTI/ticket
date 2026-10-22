@@ -32,6 +32,30 @@ select throws_ok($$select * from apticket_security_private.scanned_upload_permit
 select throws_ok($$insert into storage.objects(bucket_id,name) values('ticket-attachments','ae100000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000001/raw.pdf')$$,'42501',null,'direct upload cannot bypass scanner');
 
 reset role;
+insert into apticket.profiles(id,tenant_id,name,email) values
+ ('ae200000-0000-4000-8000-000000000002','ae100000-0000-4000-8000-000000000001','Scan scoped','scoped-scan@example.test');
+insert into apticket.roles(id,tenant_id,name) values
+ ('ae400000-0000-4000-8000-000000000001','ae100000-0000-4000-8000-000000000001','Scanner gallery'),
+ ('ae400000-0000-4000-8000-000000000002','ae100000-0000-4000-8000-000000000001','Scanner ticket');
+insert into apticket.role_permissions(role_id,permission_id)
+ select 'ae400000-0000-4000-8000-000000000001',id from apticket.permissions where module='figurinhas' and action='create';
+insert into apticket.role_permissions(role_id,permission_id)
+ select 'ae400000-0000-4000-8000-000000000002',id from apticket.permissions where module='tickets' and action in ('view','edit');
+insert into apticket.user_roles(user_id,tenant_id,role_id) values
+ ('ae200000-0000-4000-8000-000000000002','ae100000-0000-4000-8000-000000000001','ae400000-0000-4000-8000-000000000001');
+set local role authenticated;
+select set_config('request.jwt.claims','{"app":"apticket","role":"authenticated","sub":"ae200000-0000-4000-8000-000000000002","tenant_id":"ae100000-0000-4000-8000-000000000001"}',true);
+select ok(apticket.can_upload_apticket_object('ticket-attachments','ae100000-0000-4000-8000-000000000001/_stickers/fixture.webp'),'gallery creator does not need ticket edit');
+select ok(not apticket.can_upload_apticket_object('ticket-attachments','ae100000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000001/fixture.pdf'),'gallery permission cannot authorize ticket upload');
+reset role;
+delete from apticket.user_roles where user_id='ae200000-0000-4000-8000-000000000002';
+insert into apticket.user_roles(user_id,tenant_id,role_id) values
+ ('ae200000-0000-4000-8000-000000000002','ae100000-0000-4000-8000-000000000001','ae400000-0000-4000-8000-000000000002');
+set local role authenticated;
+select ok(not apticket.can_upload_apticket_object('ticket-attachments','ae100000-0000-4000-8000-000000000001/_stickers/fixture.webp'),'ticket edit cannot authorize gallery creation');
+select ok(apticket.can_upload_apticket_object('ticket-attachments','ae100000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000001/fixture.pdf'),'ticket writer retains authorized ticket upload');
+reset role;
+select set_config('request.jwt.claims','{"app":"apticket","role":"authenticated","sub":"ae200000-0000-4000-8000-000000000001","tenant_id":"ae100000-0000-4000-8000-000000000001"}',true);
 set local role service_role;
 select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('ticket-attachments','ae100000-0000-4000-8000-000000000001/ae300000-0000-4000-8000-000000000001/legacy.pdf','{"size":3,"mimetype":"application/pdf"}')$$,'42501',null,'legacy service-role producer also requires scanner receipt');
 select throws_ok($$select apticket.create_scanned_upload_permit('ticket-attachments','invalid',3,repeat('a',64))$$,'23514',null,'permit validates canonical path');
