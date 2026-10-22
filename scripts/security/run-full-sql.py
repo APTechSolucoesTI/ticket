@@ -118,6 +118,8 @@ try:
     print(f'Cross-tenant SELECT/UPDATE/DELETE probes: {len(coverage)} tables; no fixture rows: {uncovered}', flush=True)
     if failures:
         raise RuntimeError('SQL suite failed: ' + ', '.join(failures))
+    if uncovered:
+        raise RuntimeError('Tenant tables missing cross-tenant CRUD fixtures: ' + ', '.join(uncovered))
     print(f'PASS complete SQL suite: {len(paths)} files, {assertions} TAP assertions', flush=True)
 except subprocess.CalledProcessError as error:
     print(error.output.decode(errors='replace'))
