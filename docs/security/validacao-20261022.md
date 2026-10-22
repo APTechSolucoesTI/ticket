@@ -96,6 +96,13 @@ de cron antes de executar. Não instala backup recorrente. O resultado da janela
 deve ser conferido no status protegido do servidor; preparação/agendamento não
 equivalem à atualização concluída.
 
+**Agendamento confirmado em 22/10 às 17:25:27Z:** cron ativo, uma única entrada
+da janela, hashes dos dois scripts conferidos e demais entradas preservadas.
+Código do procedimento: `428f99e`. O início será às 23h de Brasília;
+`scheduled-status.log` e os diretórios de execução nessa área persistente
+registrarão conclusão ou reversão. Nenhuma reinicialização do banco de produção
+foi feita durante a preparação.
+
 O caminho da área remota de backup manual ainda foi solicitado ao operador;
 nenhuma cópia externa nova foi atestada. A cópia local persistente e os ensaios
 acima estão concluídos. Automação recorrente/PITR fica para o trabalho futuro
