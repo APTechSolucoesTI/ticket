@@ -4,31 +4,20 @@ export async function boundedFormData(request: Request): Promise<FormData> {
   if (Number(request.headers.get("content-length")) > max) {
     throw new Error("body_too_large");
   }
-  const reader = request.body?.getReader();
-  if (!reader) throw new Error("missing_body");
-  const chunks: Uint8Array[] = [];
+  if (!request.body) throw new Error("missing_body");
   let size = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > max) {
-        await reader.cancel();
-        throw new Error("body_too_large");
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new Response(bytes, {
+  // Enforce the real length while the native parser reads. Avoid holding a
+  // second complete copy of the multipart body in the Edge isolate.
+  const stream = request.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        size += chunk.byteLength;
+        if (size > max) throw new Error("body_too_large");
+        controller.enqueue(chunk);
+      },
+    }),
+  );
+  return new Response(stream, {
     headers: { "content-type": request.headers.get("content-type") || "" },
   }).formData();
 }

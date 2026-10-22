@@ -7,8 +7,19 @@ export async function boundedFormData(request: Request): Promise<FormData> {
   if (activeForms >= 4) throw new Error("Envio de arquivos ocupado. Tente novamente.");
   activeForms++;
   try {
-    const bytes = await boundedBody(request, MAX_FORM_BYTES);
-    return await new Response(bytes, {
+    if (Number(request.headers.get("content-length")) > MAX_FORM_BYTES || !request.body)
+      throw new Error("O envio excede o limite permitido.");
+    let length = 0;
+    const stream = request.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          length += chunk.byteLength;
+          if (length > MAX_FORM_BYTES) throw new Error("O envio excede o limite permitido.");
+          controller.enqueue(chunk);
+        },
+      }),
+    );
+    return await new Response(stream, {
       headers: { "content-type": request.headers.get("content-type") || "" },
     }).formData();
   } finally {
