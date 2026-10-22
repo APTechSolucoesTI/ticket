@@ -45,7 +45,7 @@ e SHA-256. A segunda migration fecha gravações diretas e exige esse comprovant
 também dos produtores com service role. Outros buckets do Supabase compartilhado
 permanecem fora desse controle.
 
-Validação local: **124 testes da API**, **58 testes Edge** sem rede/ambiente,
+Validação local: **132 testes da API**, **58 testes Edge** sem rede/ambiente,
 **41 arquivos e 1.570 asserções SQL**, reversão/reaplicação, typechecks/builds,
 HTTP de portal/credenciais e limites concorrentes. Inclui arquivo infectado,
 scanner offline, executável disfarçado, HTML/SVG, MIME incompatível, limites de
@@ -57,9 +57,11 @@ O complemento de autorização da galeria preserva o módulo `figurinhas.create`
 independentemente de `tickets.edit`, com quatro asserções adicionais no CI.
 
 **Esse lote de aplicação e suas duas migrations ainda não estão em produção.**
-A política aprovada não listou áudio/vídeo, que já são usados pelo WhatsApp.
-A pergunta sobre preservá-los está pendente; ativar a lista restrita agora
-interromperia esse recurso. A função Edge também precisa receber APTICKET_API_URL
+O operador confirmou em 22/10 que áudio/vídeo e gravações de voz do WhatsApp
+devem ser preservados. A validação foi ampliada para os contêineres de mídia,
+mantendo 25 MiB e antivírus; oito testes adicionais cobrem OGG/Opus, voz WebM,
+vídeos MP4/WebM, M4A/WAV e recusa de áudio infectado.
+A função Edge também precisa receber APTICKET_API_URL
 e ser publicada junto dos novos produtores. Sequência preparada:
 `20261022162436` → API → web/Edge → `20261022163913`. Reversão: retirar primeiro
 o fechamento de Storage; depois reverter produtores e o contrato de recibos.

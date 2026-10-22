@@ -11,6 +11,19 @@ describe('bounded content validation and ClamD protocol', () => {
   let received: Buffer[];
   const sockets = new Set<Socket>();
   const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n');
+  const opus = Buffer.alloc(64);
+  opus.write('OggS');
+  opus.write('OpusHead', 28);
+  const webm = Buffer.from('1a45dfa3874282847765626d', 'hex');
+  const mp4 = Buffer.alloc(32);
+  mp4.writeUInt32BE(24);
+  mp4.write('ftypisom', 4);
+  const m4a = Buffer.from(mp4);
+  m4a.write('M4A ', 8);
+  const wav = Buffer.alloc(64);
+  wav.write('RIFF');
+  wav.writeUInt32LE(56, 4);
+  wav.write('WAVE', 8);
 
   beforeEach(async () => {
     connections = 0;
@@ -84,6 +97,35 @@ describe('bounded content validation and ClamD protocol', () => {
         'application/octet-stream',
       ),
     ).resolves.toBe('text/plain');
+  });
+  it.each([
+    [opus, 'voice.ogg', 'audio/ogg; codecs=opus', 'audio/ogg'],
+    [opus, 'voice.opus', 'audio/opus', 'audio/ogg'],
+    [webm, 'voice.webm', 'audio/webm;codecs=opus', 'audio/webm'],
+    [webm, 'video.webm', 'video/webm', 'video/webm'],
+    [mp4, 'video.mp4', 'video/mp4', 'video/mp4'],
+    [m4a, 'voice.m4a', 'audio/mp4', 'audio/mp4'],
+    [wav, 'voice.wav', 'audio/wav', 'audio/wav'],
+  ])(
+    'scans approved voice/video bytes for %s / %s',
+    async (bytes, name, declared, mime) => {
+      await expect(
+        service.validate(
+          'ticket-attachments',
+          bytes as Buffer,
+          name,
+          declared,
+        ),
+      ).resolves.toBe(mime);
+      expect(connections).toBe(1);
+      expect(received).toEqual([bytes]);
+    },
+  );
+  it('never stores a voice attachment that the antivirus rejects', async () => {
+    verdict = 'stream: Synthetic.Test.Signature FOUND\0';
+    await expect(
+      service.validate('ticket-attachments', opus, 'voice.ogg', 'audio/ogg'),
+    ).rejects.toMatchObject({ status: 400 });
   });
   it.each([
     [Buffer.from('MZ' + 'x'.repeat(100)), 'fake.pdf', 'application/pdf'],

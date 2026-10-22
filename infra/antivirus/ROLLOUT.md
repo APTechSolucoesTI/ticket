@@ -1,9 +1,9 @@
 # Scanned upload rollout
 
-Application changes remain in draft until the operator answers whether existing
-WhatsApp audio/video must remain allowed. Current worker permits documents,
-images, text and ZIP; activating it now would reject existing audio/video.
-The ClamAV daemon itself is already deployed and tested with synthetic data.
+The operator approved preserving WhatsApp voice recordings, audio and video on
+22 October. The worker validates their actual containers, extensions and MIME,
+including OGG/Opus and audio WebM, with the same 25 MiB limit and antivirus.
+The ClamAV daemon is deployed and tested with synthetic data.
 
 Apply only after the exact application commit passes all five CI jobs:
 

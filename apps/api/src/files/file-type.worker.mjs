@@ -5,6 +5,7 @@ import { fileTypeFromBuffer } from 'file-type';
 try {
   const bytes = new Uint8Array(workerData.bytes);
   const extension = workerData.filename.toLowerCase().split('.').pop();
+  const declared = (workerData.mime || '').split(';')[0].trim().toLowerCase();
   const binary = {
     pdf: ['pdf', 'application/pdf'],
     jpg: ['jpg,jpeg', 'image/jpeg'],
@@ -32,6 +33,24 @@ try {
     ods: ['ods', 'application/vnd.oasis.opendocument.spreadsheet'],
     odp: ['odp', 'application/vnd.oasis.opendocument.presentation'],
     rtf: ['rtf', 'application/rtf'],
+    opus: ['opus,ogg,oga', 'audio/ogg'],
+    ogg: ['ogg,oga', 'audio/ogg'],
+    oga: ['oga,ogg', 'audio/ogg'],
+    ogv: ['ogv,ogg', 'video/ogg'],
+    mp3: ['mp3', 'audio/mpeg'],
+    m4a: ['m4a', 'audio/mp4'],
+    aac: ['aac', 'audio/aac'],
+    amr: ['amr', 'audio/amr'],
+    wav: ['wav', 'audio/wav'],
+    flac: ['flac', 'audio/flac'],
+    mp4: ['mp4', 'video/mp4'],
+    m4v: ['m4v,mp4', 'video/mp4'],
+    mov: ['mov', 'video/quicktime'],
+    webm: ['webm', declared === 'audio/webm' ? 'audio/webm' : 'video/webm'],
+    mkv: ['mkv', 'video/matroska'],
+    avi: ['avi', 'video/vnd.avi'],
+    '3gp': ['3gp', 'video/3gpp'],
+    mpg: ['mpg,mpeg', 'video/mpeg'],
   };
   const detected = await fileTypeFromBuffer(bytes);
   let mime;
@@ -78,7 +97,6 @@ try {
           ? 'text/csv'
           : 'text/plain';
   }
-  const declared = (workerData.mime || '').split(';')[0].trim().toLowerCase();
   const aliases = {
     'image/pjpeg': 'image/jpeg',
     'image/jpg': 'image/jpeg',
@@ -88,6 +106,12 @@ try {
     'text/markdown': 'text/plain',
     'application/json': 'text/plain',
     'text/rtf': 'application/rtf',
+    'audio/opus': 'audio/ogg',
+    'audio/x-m4a': 'audio/mp4',
+    'audio/x-wav': 'audio/wav',
+    'video/x-m4v': 'video/mp4',
+    'video/x-msvideo': 'video/vnd.avi',
+    'video/x-matroska': 'video/matroska',
   };
   if (
     declared &&
