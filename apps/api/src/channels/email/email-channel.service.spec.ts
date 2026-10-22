@@ -1,5 +1,6 @@
 import { EmailChannelService } from './email-channel.service';
 import type { SupabaseService } from '../../supabase/supabase.service';
+import type { FileUploadService } from '../../files/file-upload.service';
 
 describe('EmailChannelService contact channels', () => {
   function fixture(
@@ -18,9 +19,12 @@ describe('EmailChannelService contact channels', () => {
         .mockResolvedValueOnce({ data: secondary, error: secondaryError }),
     };
     const from = jest.fn().mockReturnValue(query);
-    const service = new EmailChannelService({
-      client: { from },
-    } as unknown as SupabaseService);
+    const service = new EmailChannelService(
+      {
+        client: { from },
+      } as unknown as SupabaseService,
+      { upload: jest.fn() } as unknown as FileUploadService,
+    );
     return { service, query, from };
   }
   const contact = {

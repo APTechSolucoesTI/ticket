@@ -56,10 +56,13 @@ select is((select bank_snapshot->>'bank_code' from apticket.supplier_payments wh
 select is((select scheduled_by_name from apticket.supplier_payments where supplier_payable_id='e6000000-0000-0000-0000-000000000001'),'Financeiro A','congela responsavel pela programacao');
 select is((select count(*) from apticket.supplier_payments where supplier_payable_id='e6000000-0000-0000-0000-000000000001'),1::bigint,'programacao e unica por lancamento');
 
+-- The scanner API now owns the physical write; this fixture seeds only metadata.
+reset role;
 insert into storage.objects(bucket_id,name) select 'supplier-payment-receipts',
  'e1000000-0000-0000-0000-000000000001/e3000000-0000-0000-0000-000000000001/'||id||'/receipt.pdf'
  from apticket.supplier_payments where supplier_payable_id='e6000000-0000-0000-0000-000000000001';
-select ok(exists(select 1 from storage.objects where name like '%/receipt.pdf'),'politica permite comprovante no escopo do pagamento');
+set local role authenticated;
+select ok(exists(select 1 from storage.objects where name like '%/receipt.pdf' and apticket.can_upload_apticket_object('supplier-payment-receipts',name)),'API permite comprovante no escopo do pagamento');
 select throws_ok($$select apticket.settle_supplier_payment((select id from apticket.supplier_payments where supplier_payable_id='e6000000-0000-0000-0000-000000000001'),clock_timestamp(),100,'TRX-1','outro/receipt.pdf','receipt.pdf','application/pdf',100)$$,'23514',null,'rejeita comprovante fora do caminho do pagamento');
 select lives_ok($$select apticket.settle_supplier_payment((select id from apticket.supplier_payments where supplier_payable_id='e6000000-0000-0000-0000-000000000001'),clock_timestamp(),100,'TRX-1',(select name from storage.objects where name like '%/receipt.pdf'),'receipt.pdf','application/pdf',100)$$,'baixa pagamento com comprovante');
 select is((select status from apticket.supplier_payables where id='e6000000-0000-0000-0000-000000000001'),'paid','baixa atualiza lancamento');

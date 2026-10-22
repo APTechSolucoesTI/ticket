@@ -47,6 +47,22 @@ try {
     }
   }
   console.log("PASS server function response injection: GET/POST, navigation/RPC");
+  for (const chunked of [false, true]) {
+    const bytes = Buffer.alloc(4 * 1024 * 1024 + 1, 32);
+    const body = chunked ? new ReadableStream({ start(controller) {
+      controller.enqueue(bytes.subarray(0, 1024));
+      controller.enqueue(bytes.subarray(1024));
+      controller.close();
+    } }) : bytes;
+    const response = await fetch(new URL(`/_serverFn/${functionId("uploadMyAvatar")}`, app.origin), {
+      method: "POST", headers: { "content-type": "application/json" }, body,
+      ...(chunked ? { duplex: "half" } : {}),
+    });
+    assert.equal(response.status, 413);
+    assert.equal((await response.json()).error, "request_body_too_large");
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  }
+  console.log("PASS SEC-09: declared and chunked oversized avatar bodies rejected before deserialization");
 } finally {
   await app.close();
 }

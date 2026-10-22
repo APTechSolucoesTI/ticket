@@ -1,3 +1,4 @@
+import { secureUpload } from "@/lib/secure-upload";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,10 +96,7 @@ export async function uploadPayableAttachments(
     for (const draft of drafts) {
       const safeName = draft.file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${user.tenantId}/${companyId}/${user.id}/${crypto.randomUUID()}/${safeName}`;
-      const { error } = await db.storage.from(payableAttachmentBucket).upload(path, draft.file, {
-        contentType: draft.file.type || "application/octet-stream",
-        upsert: false,
-      });
+      const { error } = await secureUpload(payableAttachmentBucket, path, draft.file);
       if (error) throw error;
       uploaded.push({
         storage_path: path,

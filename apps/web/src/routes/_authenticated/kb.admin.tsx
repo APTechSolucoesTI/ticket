@@ -1,3 +1,4 @@
+import { secureUpload } from "@/lib/secure-upload";
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -622,9 +623,7 @@ function ArticleDialog({
         }
         const safe = file.name.replace(/[^\w.-]+/g, "_");
         const path = `${tenant_id}/${editing?.id ?? "drafts"}/${Date.now()}-${safe}`;
-        const { error } = await supabase.storage
-          .from("kb-attachments")
-          .upload(path, file, { upsert: false });
+        const { error } = await secureUpload("kb-attachments", path, file);
         if (error) {
           toast.error(getUserFacingError(error, "Não foi possível enviar o anexo."));
           continue;

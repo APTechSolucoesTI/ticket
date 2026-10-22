@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
   OutboundNetworkError,
@@ -6,6 +10,7 @@ import {
 } from '@apticket/outbound-network';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { RedisService } from '../../queue/redis.service';
+import { FileUploadService } from '../../files/file-upload.service';
 import {
   asRecord,
   extractExternalId,
@@ -50,6 +55,7 @@ export class WhatsappWebhookService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly redis: RedisService,
+    private readonly uploads: FileUploadService,
   ) {}
 
   async handle(
@@ -306,7 +312,8 @@ export class WhatsappWebhookService {
     attachments: WhatsappStructuredAttachment[],
     ticketId?: string,
   ): Promise<WhatsappStructuredAttachment[]> {
-    return Promise.all(
+    const uploadedPaths: string[] = [];
+    const results = await Promise.allSettled(
       attachments.map(async (attachment, index) => {
         if (
           !attachment.url ||
@@ -340,13 +347,14 @@ export class WhatsappWebhookService {
             response.headers.get('content-type')?.split(';')[0] ||
             attachment.type ||
             'application/octet-stream';
-          const { error } = await this.supabase.client.storage
-            .from('ticket-attachments')
-            .upload(path, body, {
-              contentType,
-              upsert: false,
-            });
-          if (error) throw error;
+          await this.uploads.upload(
+            'ticket-attachments',
+            path,
+            Buffer.from(body),
+            attachment.name,
+            contentType,
+          );
+          uploadedPaths.push(path);
 
           return {
             ...attachment,
@@ -356,6 +364,7 @@ export class WhatsappWebhookService {
             type: contentType,
           };
         } catch (error) {
+          if (error instanceof ServiceUnavailableException) throw error;
           const message =
             error instanceof Error ? error.message : String(error);
           this.logger.warn(
@@ -372,9 +381,24 @@ export class WhatsappWebhookService {
           ) {
             return { ...attachment, url: undefined };
           }
-          return attachment;
+          // No external URL fallback can bypass a failed content/AV check.
+          return { ...attachment, path: '', url: undefined };
         }
       }),
+    );
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure?.status === 'rejected') {
+      // These paths were just created and have not been attached to a message.
+      // Wait for all uploads before cleanup so a retry cannot lose an earlier
+      // file or collide with a partially completed batch.
+      if (uploadedPaths.length)
+        await this.supabase.client.storage
+          .from('ticket-attachments')
+          .remove(uploadedPaths);
+      throw failure.reason;
+    }
+    return results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
     );
   }
 

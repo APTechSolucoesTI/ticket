@@ -1,3 +1,5 @@
+import { boundedFormData } from "@/lib/bounded-body.server";
+import { secureServerUpload } from "@/lib/secure-upload.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
@@ -41,7 +43,7 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
         if (contentType.includes("multipart/form-data")) {
           let form: FormData;
           try {
-            form = await request.formData();
+            form = await boundedFormData(request);
           } catch {
             return Response.json({ error: "invalid_form" }, { status: 400, headers: CORS });
           }
@@ -142,14 +144,24 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
           const path = `${contact.tenant_id}/${ticket.id}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
           const buf = new Uint8Array(await file.arrayBuffer());
-          const { error: upErr } = await supabaseAdmin.storage
-            .from("ticket-attachments")
-            .upload(path, buf, {
-              contentType: file.type || "application/octet-stream",
-              upsert: false,
-            });
+          const { error: upErr } = await secureServerUpload(
+            "ticket-attachments",
+            path,
+            buf,
+            file.type,
+          );
           if (upErr) {
             console.error("[portal/tickets] upload error", upErr);
+            if (attachments.length) {
+              await supabaseAdmin.storage
+                .from("ticket-attachments")
+                .remove(attachments.map((a) => a.path));
+            }
+            await supabaseAdmin
+              .from("tickets")
+              .delete()
+              .eq("id", ticket.id)
+              .eq("tenant_id", contact.tenant_id);
             return Response.json(
               { error: "upload_failed", detail: upErr.message },
               { status: 500, headers: CORS },
@@ -163,7 +175,7 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
           });
         }
 
-        await supabaseAdmin.from("messages").insert({
+        const { error: messageError } = await supabaseAdmin.from("messages").insert({
           tenant_id: contact.tenant_id,
           ticket_id: ticket.id,
           author_contact_id: contact.id,
@@ -173,6 +185,19 @@ export const Route = createFileRoute("/api/public/portal/tickets")({
           content: data.description,
           attachments,
         });
+        if (messageError) {
+          if (attachments.length) {
+            await supabaseAdmin.storage
+              .from("ticket-attachments")
+              .remove(attachments.map((a) => a.path));
+          }
+          await supabaseAdmin
+            .from("tickets")
+            .delete()
+            .eq("id", ticket.id)
+            .eq("tenant_id", contact.tenant_id);
+          return Response.json({ error: "message_failed" }, { status: 500, headers: CORS });
+        }
 
         if (data.equipment_ids && data.equipment_ids.length > 0) {
           const eqQuery = supabaseAdmin

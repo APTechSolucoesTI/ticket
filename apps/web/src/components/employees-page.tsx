@@ -1,3 +1,4 @@
+import { secureUpload } from "@/lib/secure-upload";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -2287,9 +2288,7 @@ function Benefits({
       const id = crypto.randomUUID();
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${tenant}/${employee.id}/${benefitId}/${id}/${safe}`;
-      const stored = await supabase.storage
-        .from("funcionario-beneficios")
-        .upload(path, file, { upsert: false, contentType: file.type });
+      const stored = await secureUpload("funcionario-beneficios", path, file);
       if (stored.error) throw stored.error;
       const { error } = await db.from("funcionario_beneficio_documentos").insert({
         id,
@@ -2533,9 +2532,7 @@ function Documents({
       const id = crypto.randomUUID();
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${tenant}/${employee.id}/${id}/${safe}`;
-      const stored = await supabase.storage
-        .from("funcionario-documentos")
-        .upload(path, file, { upsert: false, contentType: file.type });
+      const stored = await secureUpload("funcionario-documentos", path, file);
       if (stored.error) throw stored.error;
       const { error } = await db.from("funcionario_documentos").insert({
         id,

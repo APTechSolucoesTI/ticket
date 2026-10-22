@@ -45,7 +45,7 @@ e SHA-256. A segunda migration fecha gravações diretas e exige esse comprovant
 também dos produtores com service role. Outros buckets do Supabase compartilhado
 permanecem fora desse controle.
 
-Validação local: **122 testes da API**, **58 testes Edge** sem rede/ambiente,
+Validação local: **124 testes da API**, **58 testes Edge** sem rede/ambiente,
 **41 arquivos e 1.570 asserções SQL**, reversão/reaplicação, typechecks/builds,
 HTTP de portal/credenciais e limites concorrentes. Inclui arquivo infectado,
 scanner offline, executável disfarçado, HTML/SVG, MIME incompatível, limites de
