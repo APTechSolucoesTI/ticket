@@ -1,0 +1,567 @@
+{
+  "commit": "3643a181c747282818619f5033ccaebae5072232",
+  "ci": "https://github.com/APTechSolucoesTI/ticket/actions/runs/39819970926",
+  "tables": {
+    "automation_dispatch_outbox": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "automation_dispatch_outbox"
+    },
+    "automation_executions": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "automation_executions"
+    },
+    "automations": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "automations"
+    },
+    "bank_statement_imports": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "bank_statement_imports"
+    },
+    "bank_statement_transactions": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "bank_statement_transactions"
+    },
+    "billing_cycle_items": {
+      "client_read_granted": true,
+      "own_visible": 12,
+      "table": "billing_cycle_items"
+    },
+    "billing_cycles": {
+      "client_read_granted": true,
+      "own_visible": 8,
+      "table": "billing_cycles"
+    },
+    "canned_responses": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "canned_responses"
+    },
+    "client_documents": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "client_documents"
+    },
+    "collection_actions": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "collection_actions"
+    },
+    "collection_policies": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "collection_policies"
+    },
+    "collection_policy_steps": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "collection_policy_steps"
+    },
+    "companies": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "companies"
+    },
+    "consumption_snapshots": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "consumption_snapshots"
+    },
+    "contact_companies": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "contact_companies"
+    },
+    "contacts": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "contacts"
+    },
+    "contas_receber": {
+      "client_read_granted": true,
+      "own_visible": 9,
+      "table": "contas_receber"
+    },
+    "contract_equipments": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "contract_equipments"
+    },
+    "contract_financial_holds": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "contract_financial_holds"
+    },
+    "contract_financial_terms": {
+      "client_read_granted": true,
+      "own_visible": 9,
+      "table": "contract_financial_terms"
+    },
+    "contract_types": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "contract_types"
+    },
+    "contract_value_versions": {
+      "client_read_granted": true,
+      "own_visible": 10,
+      "table": "contract_value_versions"
+    },
+    "contracts": {
+      "client_read_granted": true,
+      "own_visible": 9,
+      "table": "contracts"
+    },
+    "contracts_category_allocations": {
+      "client_read_granted": true,
+      "own_visible": 9,
+      "table": "contracts_category_allocations"
+    },
+    "contracts_cost_center_allocations": {
+      "client_read_granted": true,
+      "own_visible": 9,
+      "table": "contracts_cost_center_allocations"
+    },
+    "contrato_sequencia": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "contrato_sequencia"
+    },
+    "csat_responses": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "csat_responses"
+    },
+    "departments": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "departments"
+    },
+    "document_downloads": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "document_downloads"
+    },
+    "email_pending_messages": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "email_pending_messages"
+    },
+    "equipments": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "equipments"
+    },
+    "feriados": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "feriados"
+    },
+    "financial_access": {
+      "client_read_granted": true,
+      "own_visible": 0,
+      "table": "financial_access"
+    },
+    "financial_audit_log": {
+      "client_read_granted": true,
+      "own_visible": 96,
+      "table": "financial_audit_log"
+    },
+    "financial_budget_entries": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "financial_budget_entries"
+    },
+    "financial_categories": {
+      "client_read_granted": true,
+      "own_visible": 20,
+      "table": "financial_categories"
+    },
+    "financial_cost_centers": {
+      "client_read_granted": true,
+      "own_visible": 9,
+      "table": "financial_cost_centers"
+    },
+    "financial_document_types": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "financial_document_types"
+    },
+    "financial_domain_events": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "financial_domain_events"
+    },
+    "financial_entry_classifications": {
+      "client_read_granted": true,
+      "own_visible": 10,
+      "table": "financial_entry_classifications"
+    },
+    "financial_manual_entry_groups": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "financial_manual_entry_groups"
+    },
+    "financial_period_closures": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "financial_period_closures"
+    },
+    "financial_period_snapshot_lines": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "financial_period_snapshot_lines"
+    },
+    "financial_settings": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "financial_settings"
+    },
+    "fixed_payable_occurrences": {
+      "client_read_granted": true,
+      "own_visible": 31,
+      "table": "fixed_payable_occurrences"
+    },
+    "fixed_payables": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "fixed_payables"
+    },
+    "funcionario_auditoria": {
+      "client_read_granted": true,
+      "own_visible": 12,
+      "table": "funcionario_auditoria"
+    },
+    "funcionario_banco_horas_saldo": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_banco_horas_saldo"
+    },
+    "funcionario_beneficio_documentos": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_beneficio_documentos"
+    },
+    "funcionario_beneficios": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_beneficios"
+    },
+    "funcionario_cargos_salarios": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_cargos_salarios"
+    },
+    "funcionario_dados_bancarios": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_dados_bancarios"
+    },
+    "funcionario_documentos": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_documentos"
+    },
+    "funcionario_enderecos": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_enderecos"
+    },
+    "funcionario_eventos_financeiros": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_eventos_financeiros"
+    },
+    "funcionario_eventos_financeiros_itens": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_eventos_financeiros_itens"
+    },
+    "funcionario_ferias": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_ferias"
+    },
+    "funcionario_tipos_documento": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionario_tipos_documento"
+    },
+    "funcionarios": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "funcionarios"
+    },
+    "inter_charge_dispatch_attempts": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "inter_charge_dispatch_attempts"
+    },
+    "inter_charge_requests": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "inter_charge_requests"
+    },
+    "inter_charge_sync_attempts": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "inter_charge_sync_attempts"
+    },
+    "inter_charge_webhook_events": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "inter_charge_webhook_events"
+    },
+    "inter_configuration_audit": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "inter_configuration_audit"
+    },
+    "inter_payer_snapshots": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "inter_payer_snapshots"
+    },
+    "inter_webhook_registration_attempts": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "inter_webhook_registration_attempts"
+    },
+    "kb_articles": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "kb_articles"
+    },
+    "kb_categories": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "kb_categories"
+    },
+    "medicao_itens": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "medicao_itens"
+    },
+    "medicoes_contrato": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "medicoes_contrato"
+    },
+    "messages": {
+      "client_read_granted": true,
+      "own_visible": 5,
+      "table": "messages"
+    },
+    "operating_bank_accounts": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "operating_bank_accounts"
+    },
+    "operating_companies": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "operating_companies"
+    },
+    "operating_company_inter_bindings": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "operating_company_inter_bindings"
+    },
+    "outbound_channels": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "outbound_channels"
+    },
+    "pause_reasons": {
+      "client_read_granted": true,
+      "own_visible": 5,
+      "table": "pause_reasons"
+    },
+    "permission_audit_log": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "permission_audit_log"
+    },
+    "portal_otp_codes": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "portal_otp_codes"
+    },
+    "profiles": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "profiles"
+    },
+    "provided_services": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "provided_services"
+    },
+    "roles": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "roles"
+    },
+    "service_families": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "service_families"
+    },
+    "sla_policies": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "sla_policies"
+    },
+    "stickers": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "stickers"
+    },
+    "supplier_allocation_rule_sets": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "supplier_allocation_rule_sets"
+    },
+    "supplier_allocation_rules": {
+      "client_read_granted": true,
+      "own_visible": 7,
+      "table": "supplier_allocation_rules"
+    },
+    "supplier_approval_policies": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "supplier_approval_policies"
+    },
+    "supplier_approval_policy_steps": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "supplier_approval_policy_steps"
+    },
+    "supplier_bank_accounts": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "supplier_bank_accounts"
+    },
+    "supplier_contracts": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "supplier_contracts"
+    },
+    "supplier_contracts_category_allocations": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "supplier_contracts_category_allocations"
+    },
+    "supplier_contracts_cost_center_allocations": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "supplier_contracts_cost_center_allocations"
+    },
+    "supplier_payable_allocations": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "supplier_payable_allocations"
+    },
+    "supplier_payable_approval_requests": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "supplier_payable_approval_requests"
+    },
+    "supplier_payable_approval_steps": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "supplier_payable_approval_steps"
+    },
+    "supplier_payable_attachments": {
+      "client_read_granted": true,
+      "own_visible": 21,
+      "table": "supplier_payable_attachments"
+    },
+    "supplier_payables": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "supplier_payables"
+    },
+    "supplier_payments": {
+      "client_read_granted": true,
+      "own_visible": 3,
+      "table": "supplier_payments"
+    },
+    "suppliers": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "suppliers"
+    },
+    "tabela_precos_avulso": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "tabela_precos_avulso"
+    },
+    "tenant_inter_configurations": {
+      "client_read_granted": false,
+      "own_visible": 0,
+      "table": "tenant_inter_configurations"
+    },
+    "ticket_closing_reports": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "ticket_closing_reports"
+    },
+    "ticket_equipments": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "ticket_equipments"
+    },
+    "ticket_pauses": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "ticket_pauses"
+    },
+    "ticket_services_performed": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "ticket_services_performed"
+    },
+    "tickets": {
+      "client_read_granted": true,
+      "own_visible": 4,
+      "table": "tickets"
+    },
+    "tickets_cobranca_avulsa": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "tickets_cobranca_avulsa"
+    },
+    "tickets_cobranca_avulsa_audit": {
+      "client_read_granted": true,
+      "own_visible": 2,
+      "table": "tickets_cobranca_avulsa_audit"
+    },
+    "time_entries": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "time_entries"
+    },
+    "user_permissions": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "user_permissions"
+    },
+    "user_roles": {
+      "client_read_granted": true,
+      "own_visible": 6,
+      "table": "user_roles"
+    },
+    "whatsapp_pending_messages": {
+      "client_read_granted": true,
+      "own_visible": 1,
+      "table": "whatsapp_pending_messages"
+    }
+  },
+  "uncovered": []
+}
