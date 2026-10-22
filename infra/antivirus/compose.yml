@@ -1,0 +1,27 @@
+services:
+  antivirus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: 1.5
+    volumes:
+      - signatures:/var/lib/clamav
+    networks:
+      dokploy-network:
+        aliases:
+          - apticket-antivirus
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+volumes:
+  signatures:
+
+networks:
+  dokploy-network:
+    external: true
