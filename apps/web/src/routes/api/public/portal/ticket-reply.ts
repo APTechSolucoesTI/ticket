@@ -1,3 +1,5 @@
+import { boundedFormData } from "@/lib/bounded-body.server";
+import { secureServerUpload } from "@/lib/secure-upload.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
 
@@ -28,7 +30,7 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
 
         let form: FormData;
         try {
-          form = await request.formData();
+          form = await boundedFormData(request);
         } catch {
           return Response.json({ error: "invalid_form" }, { status: 400, headers: CORS });
         }
@@ -70,12 +72,12 @@ export const Route = createFileRoute("/api/public/portal/ticket-reply")({
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
           const path = `${ticket.tenant_id}/${ticket.id}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
           const buf = new Uint8Array(await file.arrayBuffer());
-          const { error: upErr } = await supabaseAdmin.storage
-            .from("ticket-attachments")
-            .upload(path, buf, {
-              contentType: file.type || "application/octet-stream",
-              upsert: false,
-            });
+          const { error: upErr } = await secureServerUpload(
+            "ticket-attachments",
+            path,
+            buf,
+            file.type,
+          );
           if (upErr) {
             if (attachments.length > 0) {
               await supabaseAdmin.storage

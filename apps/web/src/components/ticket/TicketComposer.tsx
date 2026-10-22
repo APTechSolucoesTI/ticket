@@ -1,3 +1,4 @@
+import { secureUpload } from "@/lib/secure-upload";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -130,9 +131,7 @@ export function TicketComposer({
   const uploadFile = async (file: File): Promise<{ path: string; url: string }> => {
     const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
     const path = `${tenantId}/${ticketId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safe}`;
-    const { error } = await supabase.storage
-      .from("ticket-attachments")
-      .upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+    const { error } = await secureUpload("ticket-attachments", path, file);
     if (error) throw error;
     const { data: signed } = await supabase.storage
       .from("ticket-attachments")
@@ -1014,9 +1013,7 @@ function StickerDialog({
         if (!tenant_id) throw new Error("Tenant não encontrado");
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
         const path = `${tenant_id}/_stickers/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safe}`;
-        const { error: upErr } = await supabase.storage
-          .from("ticket-attachments")
-          .upload(path, file, { contentType: file.type, upsert: false });
+        const { error: upErr } = await secureUpload("ticket-attachments", path, file);
         if (upErr) throw upErr;
         const { error: insErr } = await supabase.from("stickers").insert({
           tenant_id,

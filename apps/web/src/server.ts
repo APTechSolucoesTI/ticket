@@ -2,6 +2,7 @@ import "./lib/error-capture";
 import { randomBytes } from "node:crypto";
 import { withSecurityHeaders } from "./lib/security-headers.server";
 import { withAuthRateLimitHeaders } from "./lib/auth-rate-limit.server";
+import { boundedBody } from "./lib/bounded-body.server";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -46,6 +47,24 @@ export default {
     // Nitro wraps Request in a proxy; the native Request copy constructor
     // cannot read its private Undici fields. Overwrite this per-request header.
     request.headers.set("x-apticket-csp-nonce", nonce);
+    if (request.method === "POST" && new URL(request.url).pathname.startsWith("/_serverFn/")) {
+      try {
+        // Avatar JSON is at most 2 MiB encoded as base64. Bound the actual
+        // stream before TanStack deserializes it, including chunked requests.
+        const bytes = await boundedBody(request, 4 * 1024 * 1024);
+        request = new Request(request.url, {
+          method: request.method,
+          headers: request.headers,
+          body: bytes,
+          signal: request.signal,
+        });
+      } catch {
+        return withSecurityHeaders(
+          Response.json({ error: "request_body_too_large" }, { status: 413 }),
+          nonce,
+        );
+      }
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

@@ -28,6 +28,9 @@ function reset(overrides = {}) {
     attachments: [],
     signed: [],
     writes: 0,
+    uploads: [],
+    ticketDeletes: 0,
+    storageDeletes: [],
     businessReads: 0,
     otpWriteError: false,
     consumed: false,
@@ -51,6 +54,20 @@ const app = await startLocalApp(async (request, response) => {
     for await (const chunk of request) body += chunk;
     return body ? JSON.parse(body) : {};
   };
+  if (url.pathname === "/files/internal-upload") {
+    assert.equal(request.headers["x-apticket-internal-key"], "fixture-service");
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const form = await new Response(Buffer.concat(chunks), {
+      headers: { "content-type": request.headers["content-type"] },
+    }).formData();
+    assert.equal(form.get("bucket"), "ticket-attachments");
+    assert.ok(form.get("path").startsWith(`${tenant}/${ticket}/`));
+    assert.equal(await form.get("file").text(), "Synthetic upload fixture");
+    if (fixture.scannerUnavailable) return json({ message: "Scanner unavailable" }, 503);
+    fixture.uploads.push(form.get("path"));
+    return json({ path: form.get("path") });
+  }
   if (url.pathname.endsWith("/rpc/can_sign_ticket_attachment")) {
     const body = await readBody();
     assert.equal(body._tenant_id, tenant);
@@ -129,6 +146,13 @@ const app = await startLocalApp(async (request, response) => {
     return json({ signedURL: "/object/sign/fixture?token=fixture" });
   }
   if (url.pathname.endsWith("/tickets")) {
+    if (request.method === "POST") return json({ id: ticket, number: 1 });
+    if (request.method === "DELETE") {
+      assert.equal(url.searchParams.get("id"), `eq.${ticket}`);
+      assert.equal(url.searchParams.get("tenant_id"), `eq.${tenant}`);
+      fixture.ticketDeletes++;
+      return json(null);
+    }
     if (request.method === "GET") {
       fixture.businessReads++;
       assert.equal(url.searchParams.get("tenant_id"), `eq.${tenant}`);
@@ -150,6 +174,7 @@ const app = await startLocalApp(async (request, response) => {
   }
   if (url.pathname.endsWith("/messages")) {
     if (request.method === "POST") {
+      if (fixture.messageWriteError) return json({ message: "fixture publication failure" }, 400);
       fixture.writes++;
       return json({ id: "message-fixture" });
     }
@@ -161,6 +186,10 @@ const app = await startLocalApp(async (request, response) => {
         attachments: fixture.attachments,
       },
     ]);
+  }
+  if (url.pathname === "/storage/v1/object/ticket-attachments" && request.method === "DELETE") {
+    fixture.storageDeletes.push(...(await readBody()).prefixes);
+    return json([]);
   }
   if (request.method === "GET") fixture.businessReads++;
   return json([]);
@@ -209,6 +238,31 @@ try {
     assert.equal(fixture.writes, 1, "active contact retains ability to reply");
     assert.equal((await post("ticket-detail", { ticket_id: ticket }, false)).status, 401);
     console.log("PASS SEC-02: inactive, lookup error, active, missing token");
+    reset();
+    const attachment = reply();
+    attachment.set("files", new File(["Synthetic upload fixture"], "fixture.txt", { type: "text/plain" }));
+    assert.equal((await post("ticket-reply", attachment)).status, 200);
+    assert.equal(fixture.uploads.length, 1);
+    assert.equal(fixture.writes, 1);
+    reset({ scannerUnavailable: true });
+    assert.equal((await post("ticket-reply", attachment)).status, 500);
+    assert.equal(fixture.uploads.length, 0);
+    assert.equal(fixture.writes, 0);
+    console.log("PASS SEC-09: portal delegates canonical bytes to scanner and fails closed before publishing");
+    for (const overrides of [{}, { scannerUnavailable: true }, { messageWriteError: true }]) {
+      reset(overrides);
+      const create = new FormData();
+      create.set("subject", "Synthetic ticket");
+      create.set("description", "Synthetic body");
+      create.set("files", new File(["Synthetic upload fixture"], "fixture.txt", { type: "text/plain" }));
+      const response = await post("tickets", create);
+      const failed = overrides.scannerUnavailable || overrides.messageWriteError;
+      assert.equal(response.status, failed ? 500 : 201);
+      assert.equal(fixture.ticketDeletes, failed ? 1 : 0);
+      if (overrides.messageWriteError) assert.deepEqual(fixture.storageDeletes, fixture.uploads);
+      if (overrides.scannerUnavailable) assert.equal(fixture.writes, 0);
+    }
+    console.log("PASS SEC-09: new ticket upload/publication failures remove only newly created resources");
   }
   if (!selected || selected === "SEC-03") {
     const valid = `${tenant}/${ticket}/fixture.pdf`;

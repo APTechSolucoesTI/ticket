@@ -1,3 +1,4 @@
+import { secureServerUpload } from "@/lib/secure-upload.server";
 import { createServerFn } from "@tanstack/react-start";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -181,9 +182,12 @@ export const uploadMyAvatar = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readError || !profile?.is_active) throw new Error("Perfil não encontrado ou inativo.");
     const path = `${profile.tenant_id}/${profile.id}/${randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(PROFILE_AVATAR_BUCKET)
-      .upload(path, bytes, { contentType: data.mimeType, cacheControl: "3600", upsert: false });
+    const { error: uploadError } = await secureServerUpload(
+      PROFILE_AVATAR_BUCKET,
+      path,
+      bytes,
+      data.mimeType,
+    );
     if (uploadError) throw new Error("Não foi possível enviar a foto. Tente novamente.");
     const avatarUrl = await resolveProfileAvatar(path, profile.tenant_id, profile.id);
     if (!avatarUrl) {

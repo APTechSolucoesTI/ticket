@@ -295,6 +295,14 @@ function extensionForMime(mimetype: string): string {
     'audio/ogg': '.ogg',
     'audio/opus': '.opus',
     'audio/mpeg': '.mp3',
+    'audio/mp4': '.m4a',
+    'audio/x-m4a': '.m4a',
+    'audio/aac': '.aac',
+    'audio/amr': '.amr',
+    'audio/wav': '.wav',
+    'audio/webm': '.webm',
+    'video/webm': '.webm',
+    'video/3gpp': '.3gp',
     'application/pdf': '.pdf',
   };
   return extensions[clean] ?? '';

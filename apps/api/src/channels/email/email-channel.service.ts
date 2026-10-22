@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { FileUploadService } from '../../files/file-upload.service';
 
 // Portado 1:1 de apps/web/src/lib/email-channel.server.ts (mesma regra de
 // negócio: remetentes autorizados viram tickets; sem contrato vigente, o
@@ -45,7 +46,10 @@ export type InboundEmailResult =
 export class EmailChannelService {
   private readonly logger = new Logger(EmailChannelService.name);
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly uploads: FileUploadService,
+  ) {}
 
   private async uploadAttachments(
     basePath: string,
@@ -57,20 +61,32 @@ export class EmailChannelService {
         .replace(/[^a-zA-Z0-9._-]/g, '_')
         .slice(0, 120);
       const path = `${basePath}/${Date.now()}-${randomUUID()}-${safeName}`;
-      const { error } = await this.supabase.client.storage
-        .from('ticket-attachments')
-        .upload(path, att.content, {
-          contentType: att.contentType || 'application/octet-stream',
-          upsert: false,
-        });
-      if (error) {
-        this.logger.error(`attachment upload failed: ${error.message}`);
+      try {
+        await this.uploads.upload(
+          'ticket-attachments',
+          path,
+          att.content,
+          att.filename || safeName,
+          att.contentType || 'application/octet-stream',
+        );
+      } catch (error) {
+        if (!(error instanceof BadRequestException)) {
+          if (uploaded.length) {
+            await this.supabase.client.storage
+              .from('ticket-attachments')
+              .remove(uploaded.map((file) => file.path));
+          }
+          throw error;
+        }
+        this.logger.warn(
+          'inbound attachment rejected by content/antivirus policy',
+        );
         continue;
       }
       uploaded.push({
         path,
         name: att.filename || safeName,
-        size: att.size,
+        size: att.content.byteLength,
         type: att.contentType || 'application/octet-stream',
       });
     }
@@ -297,12 +313,22 @@ export class EmailChannelService {
       return { status: 'error', reason: 'ticket_insert_failed' };
     }
 
-    const attachments = data.attachments?.length
-      ? await this.uploadAttachments(
-          `${contact.tenant_id}/${ticket.id}`,
-          data.attachments,
-        )
-      : [];
+    let attachments: StoredAttachment[];
+    try {
+      attachments = data.attachments?.length
+        ? await this.uploadAttachments(
+            `${contact.tenant_id}/${ticket.id}`,
+            data.attachments,
+          )
+        : [];
+    } catch (error) {
+      await this.supabase.client
+        .from('tickets')
+        .delete()
+        .eq('id', ticket.id)
+        .eq('tenant_id', contact.tenant_id);
+      throw error;
+    }
 
     const { error: msgErr } = await this.supabase.client
       .from('messages')
@@ -317,7 +343,18 @@ export class EmailChannelService {
         external_id: data.message_id,
         attachments,
       });
-    if (msgErr) this.logger.error(`message insert error: ${msgErr.message}`);
+    if (msgErr) {
+      if (attachments.length)
+        await this.supabase.client.storage
+          .from('ticket-attachments')
+          .remove(attachments.map((a) => a.path));
+      await this.supabase.client
+        .from('tickets')
+        .delete()
+        .eq('id', ticket.id)
+        .eq('tenant_id', contact.tenant_id);
+      return { status: 'error', reason: 'message_insert_failed' };
+    }
 
     return { status: 'created', ticket_id: ticket.id, number: ticket.number };
   }

@@ -2807,6 +2807,15 @@ export type Database = {
         Args: { _tenant_id: string; _ticket_id: string; _contact_id: string; _path: string };
         Returns: boolean;
       };
+      can_upload_apticket_object: {
+        Args: { _bucket: string; _path: string };
+        Returns: boolean;
+      };
+      create_scanned_upload_permit: {
+        Args: { _bucket: string; _path: string; _byte_length: number; _sha256: string };
+        Returns: string;
+      };
+      revoke_scanned_upload_permit: { Args: { _id: string }; Returns: undefined };
       consume_security_rate_limit: {
         Args: { _key_hash: string; _limit: number; _window_ms: number };
         Returns: Json;

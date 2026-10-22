@@ -47,7 +47,7 @@ def main():
         local=START.astimezone()
         config={
           'start':START.isoformat(),'end':END.isoformat(),
-          'files':{name:file_hash(name) for name in ['run-postgres-window.py','postgres-minor-maintenance.py']},
+          'files':{name:file_hash(name) for name in ['run-postgres-window.py','postgres-minor-maintenance.py','copy-maintenance-backup.py']},
         }
         fd=os.open(config_path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
         with os.fdopen(fd,'w') as out:json.dump(config,out,indent=2)

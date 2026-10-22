@@ -1,3 +1,4 @@
+import { secureUpload } from "@/lib/secure-upload";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -161,9 +162,7 @@ export function SupplierPaymentSection({
           .pop()
           ?.replace(/[^a-zA-Z0-9]/g, "") || "bin";
       const path = `${payable.tenant_id}/${payable.operating_company_id}/${current.id}/${crypto.randomUUID()}.${extension}`;
-      const upload = await supabase.storage
-        .from("supplier-payment-receipts")
-        .upload(path, receipt, { contentType: receipt.type, upsert: false });
+      const upload = await secureUpload("supplier-payment-receipts", path, receipt);
       if (upload.error) throw upload.error;
       const result = await db.rpc("settle_supplier_payment", {
         p_payment_id: current.id,

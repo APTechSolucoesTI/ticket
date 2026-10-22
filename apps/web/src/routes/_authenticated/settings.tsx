@@ -1,3 +1,4 @@
+import { secureUpload } from "@/lib/secure-upload";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -3042,9 +3043,7 @@ function StickersTab() {
         }
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
         const path = `${tenant_id}/_stickers/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safe}`;
-        const { error: upErr } = await supabase.storage
-          .from("ticket-attachments")
-          .upload(path, file, { contentType: file.type, upsert: false });
+        const { error: upErr } = await secureUpload("ticket-attachments", path, file);
         if (upErr) throw upErr;
         const { error: insErr } = await supabase.from("stickers").insert({
           tenant_id,

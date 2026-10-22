@@ -122,6 +122,8 @@ class Maintenance:
             assert self.sql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('pg_catalog','information_schema') and p.prokind='f' and p.prosrc ~* 'cipher-algo[[:space:]]*=[[:space:]]*(bf|blowfish|cast5)';",database) == '0'
         self.command('docker', 'image', 'inspect', TARGET)
         assert shutil.disk_usage(self.artifacts).free >= 10 * 1024**3
+        if not self.rehearsal:
+            self.command('python3',str(EVIDENCE/'copy-maintenance-backup.py'),'--check')
         self.original = (self.root / 'docker-compose.yml').read_text()
         replace_image(self.original, SOURCE, TARGET)
         self.baseline = self.catalog()
@@ -214,6 +216,13 @@ class Maintenance:
             archive_hash=digest(archive)
             self.command('tar','-tf',str(archive),timeout=120)
             self.state('cold-backup-verified',sha256=archive_hash,bytes=archive.stat().st_size)
+            if not self.rehearsal:
+                bundle=self.artifacts/'cold-recovery-bundle.tar'
+                members=['cold-cluster.tar','before-docker-compose-yml','before--env']
+                self.command('tar','-cf',str(bundle),'-C',str(self.artifacts),*members,timeout=120)
+                self.command('python3',str(EVIDENCE/'copy-maintenance-backup.py'),
+                             '--source',str(bundle),timeout=1800)
+                self.state('remote-cold-backup-verified')
             if dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=20) >= end:
                 raise RuntimeError('Insufficient remaining maintenance window')
             self.set_image(SOURCE,TARGET);self.changed=True

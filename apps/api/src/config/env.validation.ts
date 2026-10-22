@@ -21,6 +21,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(20),
 
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+  CLAMAV_HOST: z.string().min(1).default('apticket-antivirus'),
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
 
   // AES-256-GCM: chave de 32 bytes em hex (64 chars) usada pra criptografar
   // senha IMAP/SMTP e token da uazapi antes de gravar no Postgres.

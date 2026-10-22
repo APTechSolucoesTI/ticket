@@ -147,7 +147,10 @@ select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-
 select lives_ok($$select apticket.approve_supplier_payable(id) from apticket.supplier_payable_approval_requests where supplier_payable_id=current_setting('test.payable_id')::uuid and status='pending'$$,'aprovador aprova título originado da fixa');
 select set_config('request.jwt.claims',apticket_appsec.claims('{"sub":"af200000-0000-0000-0000-000000000001","role":"authenticated","app":"apticket"}'::jsonb)::text,true);
 select lives_ok($$select set_config('test.payment_id',apticket.schedule_supplier_payment(current_setting('test.payable_id')::uuid,'aff00000-0000-0000-0000-000000000001',current_date,'pix')::text,true)$$,'título confirmado pode ser programado');
+-- The scanner API now owns the physical write; this fixture seeds only metadata.
+reset role;
 insert into storage.objects(bucket_id,name) values('supplier-payment-receipts','af100000-0000-0000-0000-000000000001/af300000-0000-0000-0000-000000000001/'||current_setting('test.payment_id')||'/fixed-receipt.pdf');
+set local role authenticated;
 select lives_ok($$select apticket.settle_supplier_payment(current_setting('test.payment_id')::uuid,clock_timestamp(),123.45,'FIXED-TRX','af100000-0000-0000-0000-000000000001/af300000-0000-0000-0000-000000000001/'||current_setting('test.payment_id')||'/fixed-receipt.pdf','fixed-receipt.pdf','application/pdf',100)$$,'título confirmado recebe baixa e comprovante normais');
 select is((select status from apticket.supplier_payables where id=current_setting('test.payable_id')::uuid),'paid','baixa marca título como pago');
 select is((select confirmed_payable_id from apticket.fixed_payable_occurrences where id=current_setting('test.occurrence_id')::uuid),current_setting('test.payable_id')::uuid,'baixa preserva vínculo e histórico da fixa');

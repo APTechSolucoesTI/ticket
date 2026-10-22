@@ -12,6 +12,7 @@ import { ChatModule } from './channels/chat/chat.module';
 import { InterModule } from './integrations/inter/inter.module';
 import { FinanceModule } from './finance/finance.module';
 import { AutomationsModule } from './automations/automations.module';
+import { FilesModule } from './files/files.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AutomationsModule } from './automations/automations.module';
     CryptoModule,
     QueueModule,
     AuthModule,
+    FilesModule,
     EmailModule,
     WhatsappModule,
     ChatModule,
