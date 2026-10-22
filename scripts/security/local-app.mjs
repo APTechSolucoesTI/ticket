@@ -7,13 +7,20 @@ export async function startLocalApp(
   backend = (_request, response) => {
     response.writeHead(500).end();
   },
+  options = {},
 ) {
-  const rateBuckets = new Map();
+  const rateBuckets = options.rateBuckets ?? new Map();
   const upstream = createServer(async (request, response) => {
     if (request.url === "/rest/v1/rpc/consume_security_rate_limit") {
       let body = "";
       for await (const chunk of request) body += chunk;
-      const { _key_hash: key, _limit: limit, _window_ms: windowMs } = JSON.parse(body);
+      const payload = JSON.parse(body);
+      options.onRateLimitCall?.(payload);
+      if (options.rateLimitUnavailable?.()) {
+        response.writeHead(503).end();
+        return;
+      }
+      const { _key_hash: key, _limit: limit, _window_ms: windowMs } = payload;
       const now = Date.now(),
         previous = rateBuckets.get(key);
       const bucket =

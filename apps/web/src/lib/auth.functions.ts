@@ -12,6 +12,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signSessionToken } from "@/lib/jwt.server";
 import { resetEmailHtml, resetEmailText } from "@/lib/email-templates.server";
+import { enforceAuthRateLimit } from "@/lib/auth-rate-limit.server";
 
 const BCRYPT_ROUNDS = 12;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
@@ -39,6 +40,7 @@ const loginSchema = z.object({
 export const login = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => loginSchema.parse(input))
   .handler(async ({ data }) => {
+    await enforceAuthRateLimit("login", data.email.toLowerCase());
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -71,6 +73,7 @@ const inviteAcceptSchema = z.object({
 export const acceptInvite = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => inviteAcceptSchema.parse(input))
   .handler(async ({ data }) => {
+    await enforceAuthRateLimit("invite", hashToken(data.token));
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const tokenHash = hashToken(data.token);
 
@@ -97,6 +100,7 @@ const requestResetSchema = z.object({
 export const requestPasswordReset = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => requestResetSchema.parse(input))
   .handler(async ({ data }) => {
+    await enforceAuthRateLimit("recovery", data.email.toLowerCase());
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendMail } = await import("@/lib/mailer.server");
 
@@ -138,6 +142,7 @@ const resetPasswordSchema = z.object({
 export const resetPassword = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => resetPasswordSchema.parse(input))
   .handler(async ({ data }) => {
+    await enforceAuthRateLimit("reset", hashToken(data.token));
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const tokenHash = hashToken(data.token);
 
@@ -174,6 +179,7 @@ const signUpSchema = z.object({
 export const signUpTenant = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => signUpSchema.parse(input))
   .handler(async ({ data }) => {
+    await enforceAuthRateLimit("signup");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: existing } = await supabaseAdmin

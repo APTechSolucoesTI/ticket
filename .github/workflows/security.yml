@@ -44,6 +44,7 @@ jobs:
       - run: node scripts/security/test-security-headers.mjs
       - run: node scripts/security/test-backend-streaming.mjs
       - run: node scripts/security/test-auth-session-http.mjs
+      - run: node scripts/security/test-auth-rate-limits.mjs
       - run: node scripts/security/test-browser-session.mjs
       - run: node scripts/security/test-mail-compatibility.mjs
       - run: node scripts/security/test-mail-tls.mjs

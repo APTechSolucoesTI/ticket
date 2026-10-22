@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
         const emailLimit = await checkRateLimit(
           `portal-request-otp:email:${email}`,
           5,
-          10 * 60 * 1000,
+          15 * 60 * 1000,
         );
         if (!emailLimit.allowed) return rateLimitedResponse(emailLimit.retryAfterSeconds, CORS);
 
