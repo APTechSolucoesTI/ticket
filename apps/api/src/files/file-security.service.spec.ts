@@ -110,12 +110,7 @@ describe('bounded content validation and ClamD protocol', () => {
     'scans approved voice/video bytes for %s / %s',
     async (bytes, name, declared, mime) => {
       await expect(
-        service.validate(
-          'ticket-attachments',
-          bytes as Buffer,
-          name,
-          declared,
-        ),
+        service.validate('ticket-attachments', bytes as Buffer, name, declared),
       ).resolves.toBe(mime);
       expect(connections).toBe(1);
       expect(received).toEqual([bytes]);

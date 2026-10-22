@@ -30,7 +30,7 @@ def digest(path):
 
 def run(*command, **kwargs):
     result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,**kwargs)
-    if result.returncode:raise RuntimeError('Backup operation failed; no production data changed')
+    if result.returncode:raise RuntimeError(f'Backup {command[0]} exited {result.returncode}; no production data changed')
     return result.stdout
 
 
@@ -70,7 +70,25 @@ def copy(source):
     assert process.wait(timeout=60)==0 and value.hexdigest()==plain_hash
     cipher_hash=digest(encrypted)
     name=encrypted.name
-    result=helper('set -eu; target=/remote/'+REMOTE+'/$1; test ! -e "$target"; cp /input/"$1" "$target"; sync; sha256sum "$target"',name,source=encrypted.parent)
+    # CIFS dirty page cache can exceed a constrained helper's memory. Flush each
+    # bounded 8 MiB batch; expose the final filename only after hash validation.
+    copy_command='''set -eu
+    target=/remote/'''+REMOTE+'''/$1
+    partial="$target.partial"
+    test ! -e "$target"; test ! -e "$partial"
+    (set -C; : > "$partial")
+    size=$(stat -c %s /input/"$1")
+    offset=0
+    while [ $((offset * 1048576)) -lt "$size" ]; do
+      dd if=/input/"$1" of="$partial" bs=1048576 count=8 skip="$offset" seek="$offset" conv=notrunc,fsync status=none
+      offset=$((offset + 8))
+    done
+    actual=$(sha256sum "$partial")
+    test "${actual%% *}" = "$2"
+    mv "$partial" "$target"
+    sha256sum "$target"
+    '''
+    result=helper(copy_command,name,cipher_hash,source=encrypted.parent)
     assert result.decode().split()[0]==cipher_hash
     # A detached share must never be mistaken for a local backup directory.
     data=json.loads(run('findmnt','-T',str(MOUNT),'-J','-o','TARGET,SOURCE,FSTYPE'))['filesystems']
@@ -99,5 +117,5 @@ def main():
 if __name__=='__main__':
     try:main()
     except BaseException as error:
-        print(json.dumps({'backup':'failed','reason':type(error).__name__}),flush=True)
+        print(json.dumps({'backup':'failed','reason':type(error).__name__,'detail':str(error)}),flush=True)
         raise SystemExit(1)
