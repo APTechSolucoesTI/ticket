@@ -54,8 +54,7 @@ try {
       return route.continue();
     });
     async function visitSettings() {
-      await page.goto("http://127.0.0.1:4173/settings");
-      await page.getByRole("tab", { name: "Financeiro", exact: true }).click();
+      await page.goto("http://127.0.0.1:4173/settings/financial/preferences");
       await page.locator("#use-payable-approvals").waitFor();
     }
     async function choose(id, value) { await page.locator(`#${id}`).click(); await page.getByRole("option", { name: value, exact: true }).click(); }

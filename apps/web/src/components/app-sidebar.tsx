@@ -35,6 +35,7 @@ import { usePermissions } from "@/lib/use-permissions";
 import { isModuleLocked } from "@/lib/permission-catalog";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
+import { SettingsNavigation } from "@/components/settings/settings-navigation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sheet,
@@ -391,6 +392,9 @@ function NavItems({
   return (
     <div className="space-y-0.5">
       {items.map((item) => {
+        if (item.to === "/settings" && !collapsed) {
+          return <SettingsNavigation key={item.to} closeOnNavigate={closeOnNavigate} />;
+        }
         const active =
           pathname === item.to ||
           pathname.startsWith(`${item.to}/`) ||

@@ -51,9 +51,25 @@ import { Route as AuthenticatedFinancePayablesRouteImport } from './routes/_auth
 import { Route as AuthenticatedFinancePlanningRouteImport } from './routes/_authenticated/finance.planning'
 import { Route as AuthenticatedFinanceReceivablesRouteImport } from './routes/_authenticated/finance.receivables'
 import { Route as AuthenticatedKbAdminRouteImport } from './routes/_authenticated/kb.admin'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
+import { Route as AuthenticatedSettingsCompanyRouteImport } from './routes/_authenticated/settings.company'
 import { Route as AuthenticatedTicketsIdRouteImport } from './routes/_authenticated/tickets.$id'
 import { Route as DemoTicketsIdRouteImport } from './routes/demo.Tickets.$id'
 import { Route as AuthenticatedFinancePayablesFixedRouteImport } from './routes/_authenticated/finance.payables_.fixed'
+import { Route as AuthenticatedSettingsAccessPermissionsRouteImport } from './routes/_authenticated/settings.access.permissions'
+import { Route as AuthenticatedSettingsAccessRolesRouteImport } from './routes/_authenticated/settings.access.roles'
+import { Route as AuthenticatedSettingsAccessUsersRouteImport } from './routes/_authenticated/settings.access.users'
+import { Route as AuthenticatedSettingsCatalogsCannedResponsesRouteImport } from './routes/_authenticated/settings.catalogs.canned-responses'
+import { Route as AuthenticatedSettingsCatalogsContractTypesRouteImport } from './routes/_authenticated/settings.catalogs.contract-types'
+import { Route as AuthenticatedSettingsCatalogsDepartmentsRouteImport } from './routes/_authenticated/settings.catalogs.departments'
+import { Route as AuthenticatedSettingsCatalogsProvidedServicesRouteImport } from './routes/_authenticated/settings.catalogs.provided-services'
+import { Route as AuthenticatedSettingsCatalogsServiceFamiliesRouteImport } from './routes/_authenticated/settings.catalogs.service-families'
+import { Route as AuthenticatedSettingsCatalogsSlasRouteImport } from './routes/_authenticated/settings.catalogs.slas'
+import { Route as AuthenticatedSettingsCatalogsStickersRouteImport } from './routes/_authenticated/settings.catalogs.stickers'
+import { Route as AuthenticatedSettingsFinancialOperatingCompaniesRouteImport } from './routes/_authenticated/settings.financial.operating-companies'
+import { Route as AuthenticatedSettingsFinancialPreferencesRouteImport } from './routes/_authenticated/settings.financial.preferences'
+import { Route as AuthenticatedSettingsIntegrationsAutomationsRouteImport } from './routes/_authenticated/settings.integrations.automations'
+import { Route as AuthenticatedSettingsIntegrationsChannelsRouteImport } from './routes/_authenticated/settings.integrations.channels'
 import { Route as ApiPublicPortalChatStartRouteImport } from './routes/api/public/portal/chat-start'
 import { Route as ApiPublicPortalContactsRouteImport } from './routes/api/public/portal/contacts'
 import { Route as ApiPublicPortalDocumentDownloadRouteImport } from './routes/api/public/portal/document-download'
@@ -64,6 +80,7 @@ import { Route as ApiPublicPortalTicketDetailRouteImport } from './routes/api/pu
 import { Route as ApiPublicPortalTicketReplyRouteImport } from './routes/api/public/portal/ticket-reply'
 import { Route as ApiPublicPortalTicketsRouteImport } from './routes/api/public/portal/tickets'
 import { Route as ApiPublicPortalVerifyOtpRouteImport } from './routes/api/public/portal/verify-otp'
+import { Route as AuthenticatedSettingsFinancialBankingInterRouteImport } from './routes/_authenticated/settings.financial.banking.inter'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -286,6 +303,18 @@ const AuthenticatedKbAdminRoute = AuthenticatedKbAdminRouteImport.update({
   path: '/kb/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCompanyRoute =
+  AuthenticatedSettingsCompanyRouteImport.update({
+    id: '/company',
+    path: '/company',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedTicketsIdRoute = AuthenticatedTicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -301,6 +330,90 @@ const AuthenticatedFinancePayablesFixedRoute =
     id: '/payables_/fixed',
     path: '/payables/fixed',
     getParentRoute: () => AuthenticatedFinanceRoute,
+  } as any)
+const AuthenticatedSettingsAccessPermissionsRoute =
+  AuthenticatedSettingsAccessPermissionsRouteImport.update({
+    id: '/access/permissions',
+    path: '/access/permissions',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAccessRolesRoute =
+  AuthenticatedSettingsAccessRolesRouteImport.update({
+    id: '/access/roles',
+    path: '/access/roles',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAccessUsersRoute =
+  AuthenticatedSettingsAccessUsersRouteImport.update({
+    id: '/access/users',
+    path: '/access/users',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsCannedResponsesRoute =
+  AuthenticatedSettingsCatalogsCannedResponsesRouteImport.update({
+    id: '/catalogs/canned-responses',
+    path: '/catalogs/canned-responses',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsContractTypesRoute =
+  AuthenticatedSettingsCatalogsContractTypesRouteImport.update({
+    id: '/catalogs/contract-types',
+    path: '/catalogs/contract-types',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsDepartmentsRoute =
+  AuthenticatedSettingsCatalogsDepartmentsRouteImport.update({
+    id: '/catalogs/departments',
+    path: '/catalogs/departments',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsProvidedServicesRoute =
+  AuthenticatedSettingsCatalogsProvidedServicesRouteImport.update({
+    id: '/catalogs/provided-services',
+    path: '/catalogs/provided-services',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsServiceFamiliesRoute =
+  AuthenticatedSettingsCatalogsServiceFamiliesRouteImport.update({
+    id: '/catalogs/service-families',
+    path: '/catalogs/service-families',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsSlasRoute =
+  AuthenticatedSettingsCatalogsSlasRouteImport.update({
+    id: '/catalogs/slas',
+    path: '/catalogs/slas',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCatalogsStickersRoute =
+  AuthenticatedSettingsCatalogsStickersRouteImport.update({
+    id: '/catalogs/stickers',
+    path: '/catalogs/stickers',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsFinancialOperatingCompaniesRoute =
+  AuthenticatedSettingsFinancialOperatingCompaniesRouteImport.update({
+    id: '/financial/operating-companies',
+    path: '/financial/operating-companies',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsFinancialPreferencesRoute =
+  AuthenticatedSettingsFinancialPreferencesRouteImport.update({
+    id: '/financial/preferences',
+    path: '/financial/preferences',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsIntegrationsAutomationsRoute =
+  AuthenticatedSettingsIntegrationsAutomationsRouteImport.update({
+    id: '/integrations/automations',
+    path: '/integrations/automations',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsIntegrationsChannelsRoute =
+  AuthenticatedSettingsIntegrationsChannelsRouteImport.update({
+    id: '/integrations/channels',
+    path: '/integrations/channels',
+    getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const ApiPublicPortalChatStartRoute =
   ApiPublicPortalChatStartRouteImport.update({
@@ -359,6 +472,12 @@ const ApiPublicPortalVerifyOtpRoute =
     path: '/api/public/portal/verify-otp',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedSettingsFinancialBankingInterRoute =
+  AuthenticatedSettingsFinancialBankingInterRouteImport.update({
+    id: '/financial/banking/inter',
+    path: '/financial/banking/inter',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -376,7 +495,7 @@ export interface FileRoutesByFullPath {
   '/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/settings': typeof AuthenticatedSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -401,10 +520,26 @@ export interface FileRoutesByFullPath {
   '/finance/planning': typeof AuthenticatedFinancePlanningRoute
   '/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
+  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/finance/': typeof AuthenticatedFinanceIndexRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/finance/payables/fixed': typeof AuthenticatedFinancePayablesFixedRoute
+  '/settings/access/permissions': typeof AuthenticatedSettingsAccessPermissionsRoute
+  '/settings/access/roles': typeof AuthenticatedSettingsAccessRolesRoute
+  '/settings/access/users': typeof AuthenticatedSettingsAccessUsersRoute
+  '/settings/catalogs/canned-responses': typeof AuthenticatedSettingsCatalogsCannedResponsesRoute
+  '/settings/catalogs/contract-types': typeof AuthenticatedSettingsCatalogsContractTypesRoute
+  '/settings/catalogs/departments': typeof AuthenticatedSettingsCatalogsDepartmentsRoute
+  '/settings/catalogs/provided-services': typeof AuthenticatedSettingsCatalogsProvidedServicesRoute
+  '/settings/catalogs/service-families': typeof AuthenticatedSettingsCatalogsServiceFamiliesRoute
+  '/settings/catalogs/slas': typeof AuthenticatedSettingsCatalogsSlasRoute
+  '/settings/catalogs/stickers': typeof AuthenticatedSettingsCatalogsStickersRoute
+  '/settings/financial/operating-companies': typeof AuthenticatedSettingsFinancialOperatingCompaniesRoute
+  '/settings/financial/preferences': typeof AuthenticatedSettingsFinancialPreferencesRoute
+  '/settings/integrations/automations': typeof AuthenticatedSettingsIntegrationsAutomationsRoute
+  '/settings/integrations/channels': typeof AuthenticatedSettingsIntegrationsChannelsRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
   '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
@@ -415,6 +550,7 @@ export interface FileRoutesByFullPath {
   '/api/public/portal/ticket-reply': typeof ApiPublicPortalTicketReplyRoute
   '/api/public/portal/tickets': typeof ApiPublicPortalTicketsRoute
   '/api/public/portal/verify-otp': typeof ApiPublicPortalVerifyOtpRoute
+  '/settings/financial/banking/inter': typeof AuthenticatedSettingsFinancialBankingInterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -429,7 +565,6 @@ export interface FileRoutesByTo {
   '/equipments': typeof AuthenticatedEquipmentsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/settings': typeof AuthenticatedSettingsRoute
   '/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -454,10 +589,26 @@ export interface FileRoutesByTo {
   '/finance/planning': typeof AuthenticatedFinancePlanningRoute
   '/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
   '/kb/admin': typeof AuthenticatedKbAdminRoute
+  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
   '/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/finance': typeof AuthenticatedFinanceIndexRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
   '/finance/payables/fixed': typeof AuthenticatedFinancePayablesFixedRoute
+  '/settings/access/permissions': typeof AuthenticatedSettingsAccessPermissionsRoute
+  '/settings/access/roles': typeof AuthenticatedSettingsAccessRolesRoute
+  '/settings/access/users': typeof AuthenticatedSettingsAccessUsersRoute
+  '/settings/catalogs/canned-responses': typeof AuthenticatedSettingsCatalogsCannedResponsesRoute
+  '/settings/catalogs/contract-types': typeof AuthenticatedSettingsCatalogsContractTypesRoute
+  '/settings/catalogs/departments': typeof AuthenticatedSettingsCatalogsDepartmentsRoute
+  '/settings/catalogs/provided-services': typeof AuthenticatedSettingsCatalogsProvidedServicesRoute
+  '/settings/catalogs/service-families': typeof AuthenticatedSettingsCatalogsServiceFamiliesRoute
+  '/settings/catalogs/slas': typeof AuthenticatedSettingsCatalogsSlasRoute
+  '/settings/catalogs/stickers': typeof AuthenticatedSettingsCatalogsStickersRoute
+  '/settings/financial/operating-companies': typeof AuthenticatedSettingsFinancialOperatingCompaniesRoute
+  '/settings/financial/preferences': typeof AuthenticatedSettingsFinancialPreferencesRoute
+  '/settings/integrations/automations': typeof AuthenticatedSettingsIntegrationsAutomationsRoute
+  '/settings/integrations/channels': typeof AuthenticatedSettingsIntegrationsChannelsRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
   '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
@@ -468,6 +619,7 @@ export interface FileRoutesByTo {
   '/api/public/portal/ticket-reply': typeof ApiPublicPortalTicketReplyRoute
   '/api/public/portal/tickets': typeof ApiPublicPortalTicketsRoute
   '/api/public/portal/verify-otp': typeof ApiPublicPortalVerifyOtpRoute
+  '/settings/financial/banking/inter': typeof AuthenticatedSettingsFinancialBankingInterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -487,7 +639,7 @@ export interface FileRoutesById {
   '/_authenticated/finance': typeof AuthenticatedFinanceRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/supplier-contracts': typeof AuthenticatedSupplierContractsRoute
   '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
   '/_authenticated/tickets': typeof AuthenticatedTicketsRouteWithChildren
@@ -512,10 +664,26 @@ export interface FileRoutesById {
   '/_authenticated/finance/planning': typeof AuthenticatedFinancePlanningRoute
   '/_authenticated/finance/receivables': typeof AuthenticatedFinanceReceivablesRoute
   '/_authenticated/kb/admin': typeof AuthenticatedKbAdminRoute
+  '/_authenticated/settings/company': typeof AuthenticatedSettingsCompanyRoute
   '/_authenticated/tickets/$id': typeof AuthenticatedTicketsIdRoute
   '/demo/Tickets/$id': typeof DemoTicketsIdRoute
   '/_authenticated/finance/': typeof AuthenticatedFinanceIndexRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/finance/payables_/fixed': typeof AuthenticatedFinancePayablesFixedRoute
+  '/_authenticated/settings/access/permissions': typeof AuthenticatedSettingsAccessPermissionsRoute
+  '/_authenticated/settings/access/roles': typeof AuthenticatedSettingsAccessRolesRoute
+  '/_authenticated/settings/access/users': typeof AuthenticatedSettingsAccessUsersRoute
+  '/_authenticated/settings/catalogs/canned-responses': typeof AuthenticatedSettingsCatalogsCannedResponsesRoute
+  '/_authenticated/settings/catalogs/contract-types': typeof AuthenticatedSettingsCatalogsContractTypesRoute
+  '/_authenticated/settings/catalogs/departments': typeof AuthenticatedSettingsCatalogsDepartmentsRoute
+  '/_authenticated/settings/catalogs/provided-services': typeof AuthenticatedSettingsCatalogsProvidedServicesRoute
+  '/_authenticated/settings/catalogs/service-families': typeof AuthenticatedSettingsCatalogsServiceFamiliesRoute
+  '/_authenticated/settings/catalogs/slas': typeof AuthenticatedSettingsCatalogsSlasRoute
+  '/_authenticated/settings/catalogs/stickers': typeof AuthenticatedSettingsCatalogsStickersRoute
+  '/_authenticated/settings/financial/operating-companies': typeof AuthenticatedSettingsFinancialOperatingCompaniesRoute
+  '/_authenticated/settings/financial/preferences': typeof AuthenticatedSettingsFinancialPreferencesRoute
+  '/_authenticated/settings/integrations/automations': typeof AuthenticatedSettingsIntegrationsAutomationsRoute
+  '/_authenticated/settings/integrations/channels': typeof AuthenticatedSettingsIntegrationsChannelsRoute
   '/api/public/portal/chat-start': typeof ApiPublicPortalChatStartRoute
   '/api/public/portal/contacts': typeof ApiPublicPortalContactsRoute
   '/api/public/portal/document-download': typeof ApiPublicPortalDocumentDownloadRoute
@@ -526,6 +694,7 @@ export interface FileRoutesById {
   '/api/public/portal/ticket-reply': typeof ApiPublicPortalTicketReplyRoute
   '/api/public/portal/tickets': typeof ApiPublicPortalTicketsRoute
   '/api/public/portal/verify-otp': typeof ApiPublicPortalVerifyOtpRoute
+  '/_authenticated/settings/financial/banking/inter': typeof AuthenticatedSettingsFinancialBankingInterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -570,10 +739,26 @@ export interface FileRouteTypes {
     | '/finance/planning'
     | '/finance/receivables'
     | '/kb/admin'
+    | '/settings/company'
     | '/tickets/$id'
     | '/demo/Tickets/$id'
     | '/finance/'
+    | '/settings/'
     | '/finance/payables/fixed'
+    | '/settings/access/permissions'
+    | '/settings/access/roles'
+    | '/settings/access/users'
+    | '/settings/catalogs/canned-responses'
+    | '/settings/catalogs/contract-types'
+    | '/settings/catalogs/departments'
+    | '/settings/catalogs/provided-services'
+    | '/settings/catalogs/service-families'
+    | '/settings/catalogs/slas'
+    | '/settings/catalogs/stickers'
+    | '/settings/financial/operating-companies'
+    | '/settings/financial/preferences'
+    | '/settings/integrations/automations'
+    | '/settings/integrations/channels'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/contacts'
     | '/api/public/portal/document-download'
@@ -584,6 +769,7 @@ export interface FileRouteTypes {
     | '/api/public/portal/ticket-reply'
     | '/api/public/portal/tickets'
     | '/api/public/portal/verify-otp'
+    | '/settings/financial/banking/inter'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -598,7 +784,6 @@ export interface FileRouteTypes {
     | '/equipments'
     | '/profile'
     | '/reports'
-    | '/settings'
     | '/supplier-contracts'
     | '/suppliers'
     | '/tickets'
@@ -623,10 +808,26 @@ export interface FileRouteTypes {
     | '/finance/planning'
     | '/finance/receivables'
     | '/kb/admin'
+    | '/settings/company'
     | '/tickets/$id'
     | '/demo/Tickets/$id'
     | '/finance'
+    | '/settings'
     | '/finance/payables/fixed'
+    | '/settings/access/permissions'
+    | '/settings/access/roles'
+    | '/settings/access/users'
+    | '/settings/catalogs/canned-responses'
+    | '/settings/catalogs/contract-types'
+    | '/settings/catalogs/departments'
+    | '/settings/catalogs/provided-services'
+    | '/settings/catalogs/service-families'
+    | '/settings/catalogs/slas'
+    | '/settings/catalogs/stickers'
+    | '/settings/financial/operating-companies'
+    | '/settings/financial/preferences'
+    | '/settings/integrations/automations'
+    | '/settings/integrations/channels'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/contacts'
     | '/api/public/portal/document-download'
@@ -637,6 +838,7 @@ export interface FileRouteTypes {
     | '/api/public/portal/ticket-reply'
     | '/api/public/portal/tickets'
     | '/api/public/portal/verify-otp'
+    | '/settings/financial/banking/inter'
   id:
     | '__root__'
     | '/'
@@ -680,10 +882,26 @@ export interface FileRouteTypes {
     | '/_authenticated/finance/planning'
     | '/_authenticated/finance/receivables'
     | '/_authenticated/kb/admin'
+    | '/_authenticated/settings/company'
     | '/_authenticated/tickets/$id'
     | '/demo/Tickets/$id'
     | '/_authenticated/finance/'
+    | '/_authenticated/settings/'
     | '/_authenticated/finance/payables_/fixed'
+    | '/_authenticated/settings/access/permissions'
+    | '/_authenticated/settings/access/roles'
+    | '/_authenticated/settings/access/users'
+    | '/_authenticated/settings/catalogs/canned-responses'
+    | '/_authenticated/settings/catalogs/contract-types'
+    | '/_authenticated/settings/catalogs/departments'
+    | '/_authenticated/settings/catalogs/provided-services'
+    | '/_authenticated/settings/catalogs/service-families'
+    | '/_authenticated/settings/catalogs/slas'
+    | '/_authenticated/settings/catalogs/stickers'
+    | '/_authenticated/settings/financial/operating-companies'
+    | '/_authenticated/settings/financial/preferences'
+    | '/_authenticated/settings/integrations/automations'
+    | '/_authenticated/settings/integrations/channels'
     | '/api/public/portal/chat-start'
     | '/api/public/portal/contacts'
     | '/api/public/portal/document-download'
@@ -694,6 +912,7 @@ export interface FileRouteTypes {
     | '/api/public/portal/ticket-reply'
     | '/api/public/portal/tickets'
     | '/api/public/portal/verify-otp'
+    | '/_authenticated/settings/financial/banking/inter'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1015,6 +1234,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKbAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/company': {
+      id: '/_authenticated/settings/company'
+      path: '/company'
+      fullPath: '/settings/company'
+      preLoaderRoute: typeof AuthenticatedSettingsCompanyRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/tickets/$id': {
       id: '/_authenticated/tickets/$id'
       path: '/$id'
@@ -1035,6 +1268,104 @@ declare module '@tanstack/react-router' {
       fullPath: '/finance/payables/fixed'
       preLoaderRoute: typeof AuthenticatedFinancePayablesFixedRouteImport
       parentRoute: typeof AuthenticatedFinanceRoute
+    }
+    '/_authenticated/settings/access/permissions': {
+      id: '/_authenticated/settings/access/permissions'
+      path: '/access/permissions'
+      fullPath: '/settings/access/permissions'
+      preLoaderRoute: typeof AuthenticatedSettingsAccessPermissionsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/access/roles': {
+      id: '/_authenticated/settings/access/roles'
+      path: '/access/roles'
+      fullPath: '/settings/access/roles'
+      preLoaderRoute: typeof AuthenticatedSettingsAccessRolesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/access/users': {
+      id: '/_authenticated/settings/access/users'
+      path: '/access/users'
+      fullPath: '/settings/access/users'
+      preLoaderRoute: typeof AuthenticatedSettingsAccessUsersRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/canned-responses': {
+      id: '/_authenticated/settings/catalogs/canned-responses'
+      path: '/catalogs/canned-responses'
+      fullPath: '/settings/catalogs/canned-responses'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsCannedResponsesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/contract-types': {
+      id: '/_authenticated/settings/catalogs/contract-types'
+      path: '/catalogs/contract-types'
+      fullPath: '/settings/catalogs/contract-types'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsContractTypesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/departments': {
+      id: '/_authenticated/settings/catalogs/departments'
+      path: '/catalogs/departments'
+      fullPath: '/settings/catalogs/departments'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsDepartmentsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/provided-services': {
+      id: '/_authenticated/settings/catalogs/provided-services'
+      path: '/catalogs/provided-services'
+      fullPath: '/settings/catalogs/provided-services'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsProvidedServicesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/service-families': {
+      id: '/_authenticated/settings/catalogs/service-families'
+      path: '/catalogs/service-families'
+      fullPath: '/settings/catalogs/service-families'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsServiceFamiliesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/slas': {
+      id: '/_authenticated/settings/catalogs/slas'
+      path: '/catalogs/slas'
+      fullPath: '/settings/catalogs/slas'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsSlasRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/catalogs/stickers': {
+      id: '/_authenticated/settings/catalogs/stickers'
+      path: '/catalogs/stickers'
+      fullPath: '/settings/catalogs/stickers'
+      preLoaderRoute: typeof AuthenticatedSettingsCatalogsStickersRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/financial/operating-companies': {
+      id: '/_authenticated/settings/financial/operating-companies'
+      path: '/financial/operating-companies'
+      fullPath: '/settings/financial/operating-companies'
+      preLoaderRoute: typeof AuthenticatedSettingsFinancialOperatingCompaniesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/financial/preferences': {
+      id: '/_authenticated/settings/financial/preferences'
+      path: '/financial/preferences'
+      fullPath: '/settings/financial/preferences'
+      preLoaderRoute: typeof AuthenticatedSettingsFinancialPreferencesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/integrations/automations': {
+      id: '/_authenticated/settings/integrations/automations'
+      path: '/integrations/automations'
+      fullPath: '/settings/integrations/automations'
+      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsAutomationsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/integrations/channels': {
+      id: '/_authenticated/settings/integrations/channels'
+      path: '/integrations/channels'
+      fullPath: '/settings/integrations/channels'
+      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsChannelsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
     }
     '/api/public/portal/chat-start': {
       id: '/api/public/portal/chat-start'
@@ -1106,6 +1437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPortalVerifyOtpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings/financial/banking/inter': {
+      id: '/_authenticated/settings/financial/banking/inter'
+      path: '/financial/banking/inter'
+      fullPath: '/settings/financial/banking/inter'
+      preLoaderRoute: typeof AuthenticatedSettingsFinancialBankingInterRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
   }
 }
 
@@ -1139,6 +1477,64 @@ const AuthenticatedFinanceRouteChildren: AuthenticatedFinanceRouteChildren = {
 const AuthenticatedFinanceRouteWithChildren =
   AuthenticatedFinanceRoute._addFileChildren(AuthenticatedFinanceRouteChildren)
 
+interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsCompanyRoute: typeof AuthenticatedSettingsCompanyRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+  AuthenticatedSettingsAccessPermissionsRoute: typeof AuthenticatedSettingsAccessPermissionsRoute
+  AuthenticatedSettingsAccessRolesRoute: typeof AuthenticatedSettingsAccessRolesRoute
+  AuthenticatedSettingsAccessUsersRoute: typeof AuthenticatedSettingsAccessUsersRoute
+  AuthenticatedSettingsCatalogsCannedResponsesRoute: typeof AuthenticatedSettingsCatalogsCannedResponsesRoute
+  AuthenticatedSettingsCatalogsContractTypesRoute: typeof AuthenticatedSettingsCatalogsContractTypesRoute
+  AuthenticatedSettingsCatalogsDepartmentsRoute: typeof AuthenticatedSettingsCatalogsDepartmentsRoute
+  AuthenticatedSettingsCatalogsProvidedServicesRoute: typeof AuthenticatedSettingsCatalogsProvidedServicesRoute
+  AuthenticatedSettingsCatalogsServiceFamiliesRoute: typeof AuthenticatedSettingsCatalogsServiceFamiliesRoute
+  AuthenticatedSettingsCatalogsSlasRoute: typeof AuthenticatedSettingsCatalogsSlasRoute
+  AuthenticatedSettingsCatalogsStickersRoute: typeof AuthenticatedSettingsCatalogsStickersRoute
+  AuthenticatedSettingsFinancialOperatingCompaniesRoute: typeof AuthenticatedSettingsFinancialOperatingCompaniesRoute
+  AuthenticatedSettingsFinancialPreferencesRoute: typeof AuthenticatedSettingsFinancialPreferencesRoute
+  AuthenticatedSettingsIntegrationsAutomationsRoute: typeof AuthenticatedSettingsIntegrationsAutomationsRoute
+  AuthenticatedSettingsIntegrationsChannelsRoute: typeof AuthenticatedSettingsIntegrationsChannelsRoute
+  AuthenticatedSettingsFinancialBankingInterRoute: typeof AuthenticatedSettingsFinancialBankingInterRoute
+}
+
+const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsCompanyRoute: AuthenticatedSettingsCompanyRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+  AuthenticatedSettingsAccessPermissionsRoute:
+    AuthenticatedSettingsAccessPermissionsRoute,
+  AuthenticatedSettingsAccessRolesRoute: AuthenticatedSettingsAccessRolesRoute,
+  AuthenticatedSettingsAccessUsersRoute: AuthenticatedSettingsAccessUsersRoute,
+  AuthenticatedSettingsCatalogsCannedResponsesRoute:
+    AuthenticatedSettingsCatalogsCannedResponsesRoute,
+  AuthenticatedSettingsCatalogsContractTypesRoute:
+    AuthenticatedSettingsCatalogsContractTypesRoute,
+  AuthenticatedSettingsCatalogsDepartmentsRoute:
+    AuthenticatedSettingsCatalogsDepartmentsRoute,
+  AuthenticatedSettingsCatalogsProvidedServicesRoute:
+    AuthenticatedSettingsCatalogsProvidedServicesRoute,
+  AuthenticatedSettingsCatalogsServiceFamiliesRoute:
+    AuthenticatedSettingsCatalogsServiceFamiliesRoute,
+  AuthenticatedSettingsCatalogsSlasRoute:
+    AuthenticatedSettingsCatalogsSlasRoute,
+  AuthenticatedSettingsCatalogsStickersRoute:
+    AuthenticatedSettingsCatalogsStickersRoute,
+  AuthenticatedSettingsFinancialOperatingCompaniesRoute:
+    AuthenticatedSettingsFinancialOperatingCompaniesRoute,
+  AuthenticatedSettingsFinancialPreferencesRoute:
+    AuthenticatedSettingsFinancialPreferencesRoute,
+  AuthenticatedSettingsIntegrationsAutomationsRoute:
+    AuthenticatedSettingsIntegrationsAutomationsRoute,
+  AuthenticatedSettingsIntegrationsChannelsRoute:
+    AuthenticatedSettingsIntegrationsChannelsRoute,
+  AuthenticatedSettingsFinancialBankingInterRoute:
+    AuthenticatedSettingsFinancialBankingInterRoute,
+}
+
+const AuthenticatedSettingsRouteWithChildren =
+  AuthenticatedSettingsRoute._addFileChildren(
+    AuthenticatedSettingsRouteChildren,
+  )
+
 interface AuthenticatedTicketsRouteChildren {
   AuthenticatedTicketsIdRoute: typeof AuthenticatedTicketsIdRoute
 }
@@ -1161,7 +1557,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedSupplierContractsRoute: typeof AuthenticatedSupplierContractsRoute
   AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
   AuthenticatedTicketsRoute: typeof AuthenticatedTicketsRouteWithChildren
@@ -1180,7 +1576,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceRoute: AuthenticatedFinanceRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedSupplierContractsRoute: AuthenticatedSupplierContractsRoute,
   AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
   AuthenticatedTicketsRoute: AuthenticatedTicketsRouteWithChildren,
