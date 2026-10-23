@@ -57,4 +57,12 @@ Não há alteração de esquema, catálogo de permissões ou dados; esta entrega
 - Inspeção visual em 1440, 820 e 390 pixels, sem erros JavaScript. Capturas ficam na pasta temporária apticket-settings-navigation, ou no destino informado em SETTINGS_SCREENSHOTS.
 - O teste existente scripts/test-financial-settings-ui.mjs foi atualizado para o novo endereço das preferências financeiras.
 
-Publicação pelo fluxo GitHub → Dokploy após os checks do lote.
+## Publicação em produção
+
+- Código publicado em main no commit dec77f524a4b076fc89ab5eef325c1fcc5448510.
+- [CI do lote](https://github.com/APTechSolucoesTI/ticket/actions/runs/39946184632): cinco jobs aprovados, incluindo aplicação, suíte SQL completa, isolamento de sessão, dependências e segredos. O lint global do frontend passou no Linux.
+- Deploy do frontend pelo fluxo GitHub → Dokploy: nkqH4iWo0AfjIOB6MZKx3, iniciado em 23/10/2026 às 11:30:02 UTC e concluído. Atualização do serviço Swarm concluída; container novo saudável, com Node v22.23.4.
+- As 16 rotas foram identificadas no JavaScript compilado do container. Conferência do checkout confirmou o mesmo commit aprovado no CI.
+- Visão geral e 16 URLs internas responderam HTTP 200 pelo domínio de produção, com TLS validado e cabeçalhos CSP, HSTS e nosniff. Esse check sem autenticação verifica publicação e roteamento; a navegação autenticada e os bloqueios por perfil foram testados na aplicação local com dados fictícios.
+- Revisão somente de leitura no banco de produção: dois administradores de sistema ativos, nenhuma permissão do catálogo ausente.
+- Não houve migration ou deploy da API neste lote. Atualizações somente deste registro de publicação não exigem recompilar a aplicação.
