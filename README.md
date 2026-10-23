@@ -1,5 +1,7 @@
 # APTicket - monorepo
 
+Documentação consolidada: [arquitetura, stack, padrões técnicos e segurança](docs/arquitetura-e-padroes-tecnicos.md). O guia descreve a implementação atual; os relatos de migração abaixo preservam o contexto histórico.
+
 Sistema de atendimento/tickets. Monorepo pnpm com dois apps:
 
 - **`apps/web`** - frontend (TanStack Start/React/Vite), o app original, movido pra cá sem
