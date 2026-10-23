@@ -91,3 +91,27 @@ O rollback suspende apenas o trigger de proteção de exclusão dos vínculos de
 papéis de sistema durante a remoção transacional do catálogo e o reativa na
 mesma transação. Não desabilita RLS, verificação de sessão ou controles de outros
 sistemas no Supabase compartilhado.
+
+## Publicação de 23/10/2026
+
+- Código publicado: `487f5639f0092ce6eb077635869f076eb1f54524`.
+- [CI aprovado nos cinco jobs](https://github.com/APTechSolucoesTI/ticket/actions/runs/39943249125),
+  incluindo lint global Linux, builds, tipos, sessões, dependências e segredos.
+- Suíte SQL completa: **42 arquivos e 1.606 asserções**, mais quatro verificações
+  do backfill de anexos e nove do backfill de permissões. O novo arquivo de
+  permissões contém 32 verificações. Reversão/reaplicação também aprovadas.
+- Verificação visual com dados fictícios em desktop, tablet e celular, incluindo
+  o aviso de acesso integral do Admin e o menu de usuário exclusivo de fornecedores.
+- Migration aplicada e registrada transacionalmente em **23/10 às 08:09:33 de
+  Brasília** (`11:09:33Z`). SHA-256 canônico do SQL:
+  `9e0a0e1c9ddaea20b49d2b96b0cd36075f2ec35c630f95d2153f9ec2548578f0`.
+- Revisão em produção: **dois administradores ativos, zero permissões ausentes**,
+  quatro permissões de fornecedores e nenhum vínculo faltante nos papéis de
+  sistema. A consulta de referências funcionou no contexto autenticado desses
+  administradores e o escopo de outro tenant foi recusado.
+- Frontend publicado via GitHub → Dokploy, deployment `done` criado em
+  `2026-10-23T11:09:44.079Z`. Swarm concluído, novo container e commit conferidos;
+  frontend/API HTTP 200. HTTPS público validado com CSP com nonce, HSTS e nosniff.
+- Backup prévio do schema e das configurações de acesso, SQL de reversão e
+  registros da execução restritos à área de backup do servidor. Nenhuma linha
+  de cliente foi exportada para a estação nos testes ou na revisão dos usuários.
