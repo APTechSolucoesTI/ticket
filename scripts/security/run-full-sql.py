@@ -68,6 +68,13 @@ try:
             assert not re.search(r'^not ok|^# Looks like', tap, re.M), tap
             assert len(re.findall(r'^ok \d+', tap, re.M)) == 4, tap
             print('PASS 4 legacy attachment backfill assertions', flush=True)
+        if path.name.startswith('20261023103945_'):
+            before = ROOT / 'scripts/security/fixtures/contract-permissions-before.sql'
+            after = ROOT / 'scripts/security/fixtures/contract-permissions-after.sql'
+            tap = sql(b'begin;\n' + before.read_bytes() + path.read_bytes() + after.read_bytes() + b'\nrollback;').decode()
+            assert not re.search(r'^not ok|^# Looks like', tap, re.M), tap
+            assert len(re.findall(r'^ok \d+', tap, re.M)) == 9, tap
+            print('PASS 9 contract permission backfill assertions', flush=True)
         sql(b'begin;\n' + path.read_bytes() + b'\ncommit;')
         rollback = ROOT / 'supabase/rollbacks' / path.name
         if not rollback.exists():

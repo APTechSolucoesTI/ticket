@@ -8,12 +8,16 @@ export const Route = createFileRoute("/_authenticated/supplier-contracts")({
 });
 
 function SupplierContractsPage() {
-  const access = useModulePermissions("financeiro_contas_pagar");
+  const access = useModulePermissions("contratos_fornecedores");
 
   return (
-    <ReadOnlyProvider readOnly={!access.edit}>
-      <ReadOnlyNotice show={!access.edit} />
-      <SupplierContractsContent canEdit={access.edit} />
+    <ReadOnlyProvider readOnly={!access.edit && !access.create}>
+      <ReadOnlyNotice show={!access.edit && !access.create} />
+      <SupplierContractsContent
+        canCreate={access.create}
+        canEdit={access.edit}
+        canDelete={access.delete}
+      />
     </ReadOnlyProvider>
   );
 }

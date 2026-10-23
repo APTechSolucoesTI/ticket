@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyTenantId } from "@/lib/tenant";
 import { getUserFacingError, getValidationErrorMessage } from "@/lib/user-facing-error";
 import { formatCurrency } from "@/lib/number-format";
+import { ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 import { PageHeader, EmptyStub } from "@/components/empty-stub";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
 import { SupplierContractMeasurements } from "@/components/supplier-contract-measurements";
@@ -188,7 +189,15 @@ function formatDate(value: string | null) {
     : "Não informado";
 }
 
-export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
+export function SupplierContractsPage({
+  canCreate,
+  canEdit,
+  canDelete,
+}: {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Contract | null>(null);
@@ -196,25 +205,9 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
   const options = useQuery({
     queryKey: ["supplier-contract-options"],
     queryFn: async () => {
-      const [companies, suppliers] = await Promise.all([
-        db
-          .from("operating_companies")
-          .select("id,legal_name,trade_name")
-          .eq("is_active", true)
-          .is("deleted_at", null)
-          .order("legal_name"),
-        db
-          .from("suppliers")
-          .select("id,legal_name,trade_name,is_active")
-          .is("deleted_at", null)
-          .order("legal_name"),
-      ]);
-      if (companies.error) throw companies.error;
-      if (suppliers.error) throw suppliers.error;
-      return {
-        companies: (companies.data ?? []) as Company[],
-        suppliers: (suppliers.data ?? []) as Supplier[],
-      };
+      const { data, error } = await db.rpc("get_supplier_contract_options");
+      if (error) throw error;
+      return data as { companies: Company[]; suppliers: Supplier[] };
     },
   });
   const contracts = useQuery({
@@ -353,7 +346,7 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
         subtitle="Condições de fornecimento, vigência, medições e custos por contrato de cliente."
         icon={FileText}
         actions={
-          canEdit ? (
+          canCreate ? (
             <Button
               size="sm"
               onClick={() => {
@@ -397,20 +390,20 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
               "status",
             ]}
             columns={columns}
-            rowActions={(row) =>
-              canEdit ? (
-                <>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Editar contrato ${row.numero_contrato}`}
-                    onClick={() => {
-                      setEditing(row);
-                      setOpen(true);
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
+            rowActions={(row) => (
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`${canEdit ? "Editar" : "Visualizar"} contrato ${row.numero_contrato}`}
+                  onClick={() => {
+                    setEditing(row);
+                    setOpen(true);
+                  }}
+                >
+                  {canEdit ? <Pencil className="size-4" /> : <Eye className="size-4" />}
+                </Button>
+                {canDelete && (
                   <Button
                     size="icon"
                     variant="ghost"
@@ -419,21 +412,9 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
                   >
                     <Trash2 className="size-4" />
                   </Button>
-                </>
-              ) : (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Visualizar contrato ${row.numero_contrato}`}
-                  onClick={() => {
-                    setEditing(row);
-                    setOpen(true);
-                  }}
-                >
-                  <Eye className="size-4" />
-                </Button>
-              )
-            }
+                )}
+              </>
+            )}
           />
         </Card>
       )}
@@ -441,7 +422,7 @@ export function SupplierContractsPage({ canEdit }: { canEdit: boolean }) {
         open={open}
         onOpenChange={setOpen}
         editing={editing}
-        canEdit={canEdit}
+        canEdit={editing ? canEdit : canCreate}
         companies={options.data?.companies ?? []}
         suppliers={options.data?.suppliers ?? []}
         onSaved={() => void queryClient.invalidateQueries({ queryKey: ["supplier-contracts"] })}
@@ -487,6 +468,7 @@ function SupplierContractDialog({
   suppliers: Supplier[];
   onSaved(): void;
 }) {
+  const paymentAccess = useModulePermissions("financeiro_contas_pagar");
   const [form, setForm] = useState<FormState>({
     operating_company_id: "",
     supplier_id: "",
@@ -616,7 +598,7 @@ function SupplierContractDialog({
         <Tabs key={editing?.id ?? "new"} defaultValue="registration">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="registration">Cadastro</TabsTrigger>
-            <TabsTrigger value="measurements" disabled={!editing}>
+            <TabsTrigger value="measurements" disabled={!editing || !paymentAccess.view}>
               Histórico de Medições
             </TabsTrigger>
           </TabsList>
@@ -744,6 +726,7 @@ function SupplierContractDialog({
               <div className="lg:col-span-4">
                 <div className="grid gap-3 lg:grid-cols-2">
                   <ContractAllocationEditor
+                    permissionModule="contratos_fornecedores"
                     companyId={form.operating_company_id}
                     direction="outflow"
                     dimension="category"
@@ -753,6 +736,7 @@ function SupplierContractDialog({
                     disabled={readOnly || save.isPending}
                   />
                   <ContractAllocationEditor
+                    permissionModule="contratos_fornecedores"
                     companyId={form.operating_company_id}
                     direction="outflow"
                     dimension="cost_center"
@@ -876,10 +860,12 @@ function SupplierContractDialog({
               </div>
               <div className="lg:col-span-4">
                 <Label>Observações</Label>
-                <RichTextEditor
-                  value={form.notes}
-                  onChange={(notes) => setForm({ ...form, notes })}
-                />
+                <ReadOnlyProvider readOnly={readOnly}>
+                  <RichTextEditor
+                    value={form.notes}
+                    onChange={(notes) => setForm({ ...form, notes })}
+                  />
+                </ReadOnlyProvider>
               </div>
               <DialogFooter className="lg:col-span-4">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -898,7 +884,7 @@ function SupplierContractDialog({
               <SupplierContractMeasurements
                 contract={editing}
                 supplierName={editing.supplier_name}
-                canGenerate={canEdit && editing.status === "active"}
+                canGenerate={canEdit && paymentAccess.edit && editing.status === "active"}
               />
             ) : null}
           </TabsContent>

@@ -31,6 +31,7 @@ export function ContractAllocationEditor({
   onChange,
   onValidityChange,
   disabled = false,
+  permissionModule = "contratos",
 }: {
   companyId: string;
   direction: "inflow" | "outflow";
@@ -39,13 +40,21 @@ export function ContractAllocationEditor({
   onChange(value: ContractAllocation[]): void;
   onValidityChange(valid: boolean): void;
   disabled?: boolean;
+  permissionModule?: "contratos" | "contratos_fornecedores";
 }) {
   const id = useId();
   const label = dimension === "category" ? "Categorias financeiras" : "Centros de custo";
   const query = useQuery({
-    queryKey: ["contract-allocation-options", companyId, direction, dimension],
+    queryKey: ["contract-allocation-options", companyId, direction, dimension, permissionModule],
     enabled: Boolean(companyId),
     queryFn: async () => {
+      if (permissionModule === "contratos_fornecedores") {
+        const { data, error } = await db.rpc("get_supplier_contract_options", {
+          _company_id: companyId,
+        });
+        if (error) throw error;
+        return (data?.[dimension === "category" ? "categories" : "cost_centers"] ?? []) as Option[];
+      }
       let request = db
         .from(dimension === "category" ? "financial_categories" : "financial_cost_centers")
         .select("id,code,name")

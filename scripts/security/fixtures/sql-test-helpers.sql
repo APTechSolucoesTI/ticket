@@ -7,7 +7,7 @@ language sql security definer set search_path=pg_catalog as $$
     values(tenant,'SQL scoped writer'),(tenant,'SQL scoped reader') on conflict do nothing;
   insert into apticket.role_permissions(role_id,permission_id)
     select r.id,p.id from apticket.roles r cross join apticket.permissions p
-    where r.tenant_id=tenant and (p.module like 'financeiro%' or p.module='fornecedores')
+    where r.tenant_id=tenant and (p.module like 'financeiro%' or p.module in ('fornecedores','contratos_fornecedores'))
       and (r.name='SQL scoped writer' or (r.name='SQL scoped reader' and p.action='view'))
     on conflict do nothing;
 $$;

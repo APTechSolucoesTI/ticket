@@ -100,14 +100,14 @@ const NAV_SECTIONS: NavSection[] = [
         to: "/contracts",
         label: "Contratos",
         icon: FileText,
-        module: "contratos",
+        module: null,
         children: [
           { to: "/contracts", label: "Clientes", icon: Building2, module: "contratos" },
           {
             to: "/supplier-contracts",
             label: "Fornecedores",
             icon: Truck,
-            module: "financeiro_contas_pagar",
+            module: "contratos_fornecedores",
           },
         ],
       },
@@ -198,7 +198,14 @@ function getInitialOpenSections(pathname: string): OpenSections {
     NAV_SECTIONS.map((section) => [
       section.id,
       !section.collapsible ||
-        section.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`)),
+        section.items.some(
+          (item) =>
+            pathname === item.to ||
+            pathname.startsWith(`${item.to}/`) ||
+            item.children?.some(
+              (child) => pathname === child.to || pathname.startsWith(`${child.to}/`),
+            ),
+        ),
     ]),
   ) as OpenSections;
 }
@@ -271,7 +278,16 @@ function SidebarNavigation({
     >
       {NAV_SECTIONS.map((section) => {
         const items = section.items
-          .filter((item) => item.module === null || permissions.has(item.module, "view"))
+          .filter((item) =>
+            item.children
+              ? (item.module === null || permissions.has(item.module, "view")) &&
+                item.children.some(
+                  (child) =>
+                    permissions.has(child.module, "view") &&
+                    !isModuleLocked(child.module, (module) => permissions.has(module, "view")),
+                )
+              : item.module === null || permissions.has(item.module, "view"),
+          )
           .map((item) => ({
             ...item,
             children: item.children?.filter(
@@ -386,7 +402,7 @@ function NavItems({
         const Icon = item.icon;
         const link = (
           <Link
-            to={item.to}
+            to={item.module === null && item.children?.length ? item.children[0].to : item.to}
             className={cn(
               "flex h-8 items-center rounded-md text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
               collapsed ? "justify-center px-2" : "gap-2.5 px-3",

@@ -1013,6 +1013,7 @@ function UserPermissionsTab() {
 
   const user = users?.find((u) => u.id === selectedUser) ?? null;
   const currentRoleId = user?.user_roles?.role_id ?? "";
+  const isAdminUser = roles?.some((role) => role.id === currentRoleId && role.is_system) ?? false;
 
   const changeRole = useMutation({
     mutationFn: (roleId: string) => {
@@ -1116,8 +1117,9 @@ function UserPermissionsTab() {
               </Select>
             </div>
             <p className="text-xs text-muted-foreground">
-              Cinza = herdado do papel · verde = concedido individualmente · vermelho = revogado
-              individualmente.
+              {isAdminUser
+                ? "Administradores têm acesso integral a todas as áreas e funcionalidades. Para restringir o acesso, atribua outro papel."
+                : "Cinza = herdado do papel · verde = concedido individualmente · vermelho = revogado individualmente."}
             </p>
             <div className="space-y-3">
               {MODULE_ORDER.filter((m) => !m.parent).map((m) => (
@@ -1131,7 +1133,7 @@ function UserPermissionsTab() {
                     onGrant={(id) => override.mutate({ permissionId: id, granted: true })}
                     onRevoke={(id) => override.mutate({ permissionId: id, granted: false })}
                     onRestore={(id) => restore.mutate(id)}
-                    editable={access.edit}
+                    editable={access.edit && !isAdminUser}
                   />
                   {childModules(m.key).length > 0 && (
                     <div className="ml-5 mt-2 space-y-2 border-l pl-3">
@@ -1146,7 +1148,7 @@ function UserPermissionsTab() {
                           onGrant={(id) => override.mutate({ permissionId: id, granted: true })}
                           onRevoke={(id) => override.mutate({ permissionId: id, granted: false })}
                           onRestore={(id) => restore.mutate(id)}
-                          editable={access.edit}
+                          editable={access.edit && !isAdminUser}
                         />
                       ))}
                     </div>

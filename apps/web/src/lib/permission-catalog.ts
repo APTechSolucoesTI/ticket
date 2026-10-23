@@ -27,7 +27,16 @@ export const MODULE_ORDER: readonly ModuleMeta[] = [
   },
   { key: "contatos", label: "Contatos", actions: ["view", "create", "edit", "delete"] },
   { key: "equipamentos", label: "Equipamentos", actions: ["view", "create", "edit", "delete"] },
-  { key: "contratos", label: "Contratos", actions: ["view", "create", "edit", "delete"] },
+  {
+    key: "contratos",
+    label: "Contratos de clientes",
+    actions: ["view", "create", "edit", "delete"],
+  },
+  {
+    key: "contratos_fornecedores",
+    label: "Contratos de fornecedores",
+    actions: ["view", "create", "edit", "delete"],
+  },
   {
     key: "base_conhecimento",
     label: "Base de Conhecimento",
@@ -197,7 +206,7 @@ export const ROUTE_MODULE_MAP: readonly { prefix: string; module: string }[] = [
   { prefix: "/finance/receivables", module: "financeiro_contas_receber" },
   { prefix: "/finance/payables/fixed", module: "financeiro_contas_fixas" },
   { prefix: "/finance/payables", module: "financeiro_contas_pagar" },
-  { prefix: "/supplier-contracts", module: "financeiro_contas_pagar" },
+  { prefix: "/supplier-contracts", module: "contratos_fornecedores" },
   { prefix: "/finance/banking", module: "financeiro_bancos" },
   { prefix: "/finance/cash-flow", module: "financeiro_fluxo_caixa" },
   { prefix: "/finance/planning", module: "financeiro_planejamento" },

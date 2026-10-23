@@ -61,6 +61,18 @@ export const getRolePermissions = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => z.object({ roleId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    const { data: role, error: roleError } = await supabase
+      .from("roles")
+      .select("is_system")
+      .eq("id", data.roleId)
+      .maybeSingle();
+    if (roleError) throw new Error(roleError.message);
+    if (!role) throw new Error("Papel não encontrado nesta organização.");
+    if (role.is_system) {
+      const { data: permissions, error } = await supabase.from("permissions").select("id");
+      if (error) throw new Error(error.message);
+      return (permissions ?? []).map((permission) => permission.id);
+    }
     const { data: rows, error } = await supabase
       .from("role_permissions")
       .select("permission_id")

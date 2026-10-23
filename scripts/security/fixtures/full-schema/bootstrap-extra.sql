@@ -5,3 +5,11 @@ grant select on vault.secrets,vault.decrypted_secrets to postgres;
 grant execute on function vault._crypto_aead_det_decrypt(bytea,bytea,bigint,bytea,bytea) to postgres;
 grant usage on schema extensions to postgres;
 grant execute on function vault.create_secret(text,text,text,uuid),vault.update_secret(uuid,text,text,text,uuid) to postgres;
+-- Model the effective read privileges verified in production for this
+-- non-superuser function owner; no customer rows or broader grants are needed.
+grant select(id,tenant_id,legal_name,trade_name,is_active,deleted_at) on apticket.suppliers to postgres;
+grant select(id,tenant_id,legal_name,trade_name,is_active,deleted_at) on apticket.operating_companies to postgres;
+grant select(id,tenant_id,operating_company_id,code,name,direction,is_active,deleted_at,is_global,classification_type)
+ on apticket.financial_categories to postgres;
+grant select(id,tenant_id,operating_company_id,code,name,is_active,deleted_at,is_global,classification_type)
+ on apticket.financial_cost_centers to postgres;
