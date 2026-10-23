@@ -1,6 +1,29 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronDown, Settings } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  CircleDollarSign,
+  FileText,
+  FolderTree,
+  KeyRound,
+  Landmark,
+  LayoutGrid,
+  ListTree,
+  MessageCircle,
+  MessageSquare,
+  Network,
+  Plug,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sticker,
+  Timer,
+  Users,
+  Wrench,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -9,7 +32,35 @@ import {
   SETTINGS_SECTIONS,
   visibleSettingsNavigation,
   type SettingsNode,
+  type SettingsSectionKey,
 } from "@/lib/settings-navigation";
+
+const SECTION_ICONS = {
+  company: Building2,
+  financial: SlidersHorizontal,
+  "operating-companies": Building2,
+  inter: Landmark,
+  departments: Network,
+  "service-families": FolderTree,
+  "provided-services": Wrench,
+  "contract-types": FileText,
+  slas: Timer,
+  canned: MessageSquare,
+  stickers: Sticker,
+  channels: MessageCircle,
+  automations: Zap,
+  users: Users,
+  roles: ShieldCheck,
+  "user-permissions": KeyRound,
+} satisfies Record<SettingsSectionKey, LucideIcon>;
+
+const GROUP_ICONS: Record<string, LucideIcon> = {
+  financial: CircleDollarSign,
+  banking: Landmark,
+  catalogs: ListTree,
+  integrations: Plug,
+  access: ShieldCheck,
+};
 
 function containsPath(nodes: readonly SettingsNode[], pathname: string): boolean {
   return nodes.some((node) =>
@@ -23,11 +74,13 @@ function SettingsGroup({
   label,
   active,
   children,
+  icon: Icon,
   root = false,
 }: {
   label: string;
   active: boolean;
   children: React.ReactNode;
+  icon: LucideIcon;
   root?: boolean;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -45,7 +98,7 @@ function SettingsGroup({
             active ? "font-semibold text-primary" : "text-sidebar-foreground",
           )}
         >
-          {root && <Settings className="size-4 shrink-0" aria-hidden="true" />}
+          <Icon className={cn("shrink-0", root ? "size-4" : "size-3.5")} aria-hidden="true" />
           <span className="min-w-0 flex-1">{label}</span>
           <ChevronDown
             className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-180")}
@@ -77,6 +130,7 @@ function SettingsLinks({
         <SettingsGroup
           key={node.id}
           label={node.label}
+          icon={GROUP_ICONS[node.id] ?? Settings}
           active={containsPath(node.children, pathname)}
         >
           <SettingsLinks
@@ -87,19 +141,21 @@ function SettingsLinks({
         </SettingsGroup>
       );
     const section = SETTINGS_SECTIONS[node];
+    const Icon = SECTION_ICONS[node];
     const active = section.path === pathname.replace(/\/$/, "");
     const link = (
       <Link
         to={section.path}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex min-h-8 items-center rounded-md px-2 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+          "flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
           active
             ? "bg-primary/10 font-semibold text-primary"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
-        {section.label}
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+        <span>{section.label}</span>
       </Link>
     );
     return closeOnNavigate ? (
@@ -121,14 +177,16 @@ export function SettingsNavigation({ closeOnNavigate }: { closeOnNavigate: boole
       to="/settings"
       activeOptions={{ exact: true }}
       aria-current={pathname === "/settings" || pathname === "/settings/" ? "page" : undefined}
-      className="flex min-h-8 items-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:font-semibold aria-[current=page]:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+      className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:font-semibold aria-[current=page]:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
     >
-      Visão geral
+      <LayoutGrid className="size-3.5 shrink-0" aria-hidden="true" />
+      <span>Visão geral</span>
     </Link>
   );
   return (
     <SettingsGroup
       label="Configurações"
+      icon={Settings}
       active={pathname === "/settings" || pathname.startsWith("/settings/")}
       root
     >
