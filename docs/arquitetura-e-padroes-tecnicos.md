@@ -14,6 +14,8 @@
 
 **Ciclo de vida Redis em 17/11/2026:** startup Pub/Sub limitado a 5 s, cancelamento e liberação dos clientes do adapter, SIGTERM/SIGINT no Nest e Redis compartilhado encerrado após os consumidores, com QUIT limitado a 2 s. Compose prevê graça de 60 s. Evidências e validação pendente com Redis/BullMQ real: [ciclo de vida da API e Redis](./security/ciclo-vida-redis-20261117.md).
 
+**TypeScript estrito da API em 17/11/2026:** `strict: true` e `noFallthroughCasesInSwitch: true`, com remoção dos overrides permissivos. Typecheck inclui produção e testes; build herda a configuração. Evidências e limites: [TypeScript estrito da API](./security/typescript-estrito-api-20261117.md).
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.
@@ -490,7 +492,7 @@ O healthcheck do daemon e um teste EICAR não certificam atualização das assin
 ### 10.1 Linguagem, estilo e organização
 
 - TypeScript para contratos e implementação; SQL para schema e transações de banco.
-- `strict: true` no web. A API habilita `strictNullChecks`, mas não todo o modo strict; não descrevê-la como totalmente strict.
+- `strict: true` no web e na API. A API também verifica `noFallthroughCasesInSwitch`. Isso não elimina `any` explícito nem substitui validação de dados externos.
 - ESLint e Prettier conforme a configuração de cada app. Há também configuração de lint de segurança na raiz.
 - Alias `@/` no web. Nest segue imports relativos e módulos de domínio.
 - Separar arquivos de servidor e código que pode alcançar o browser. O projeto não usa o pacote `server-only` de Next.js; seguir a convenção `*.server.ts` e os mecanismos do TanStack.
@@ -697,7 +699,7 @@ Há scripts específicos de manutenção em `scripts/security`; não executá-lo
 | Sessão no navegador   | Token em localStorage e validade de sete dias; proteção contra XSS e revogação são partes importantes desse modelo                                                                                      |
 | MFA                   | O fluxo de login descrito verifica senha; não demonstra etapa obrigatória de MFA                                                                                                                        |
 | Privilégios da API    | Service role exige disciplina de autorização e filtro em cada novo fluxo                                                                                                                                |
-| TypeScript API        | Configuração não habilita todas as opções strict                                                                                                                                                        |
+| TypeScript API        | Pendência de configuração corrigida: `strict` completo e `noFallthroughCasesInSwitch` ativos. `any` explícito e validação das fronteiras continuam sujeitos a revisão                                     |
 | Dependência Nitro     | Versão beta fixada; mudanças de versão requerem regressão de SSR, serialização, CSP e proxy                                                                                                             |
 | Credenciais legadas   | `SecretsService.decrypt` ainda aceita formato legado sem cifra; evidência anterior de banco sem valores nesse formato não elimina essa compatibilidade no código                                        |
 | Observabilidade       | Logs/healthchecks existem; alertas, centralização e recuperação precisam de evidência própria                                                                                                           |
