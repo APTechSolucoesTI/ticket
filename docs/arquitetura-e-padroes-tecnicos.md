@@ -12,6 +12,8 @@
 
 **Prontidão e Redis em 17/11/2026:** `/health` conserva o sinal de processo ativo; `/health/ready` verifica Redis e PostgREST com orçamento de 2 s, cancelamento e cache/coalescência de 1 s. Docker/compose usam prontidão. O limitador da API utiliza Lua para contador/TTL sem intervalo entre comandos do cliente. Evidências e limites: [prontidão da API e Redis](./security/prontidao-api-redis-20261117.md).
 
+**Ciclo de vida Redis em 17/11/2026:** startup Pub/Sub limitado a 5 s, cancelamento e liberação dos clientes do adapter, SIGTERM/SIGINT no Nest e Redis compartilhado encerrado após os consumidores, com QUIT limitado a 2 s. Compose prevê graça de 60 s. Evidências e validação pendente com Redis/BullMQ real: [ciclo de vida da API e Redis](./security/ciclo-vida-redis-20261117.md).
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.

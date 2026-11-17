@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './channels/chat/redis-io.adapter';
 import type { Env } from './config/env.validation';
+import { startApplication } from './runtime/application-lifecycle';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,8 +37,6 @@ async function bootstrap() {
   );
 
   const redisIoAdapter = new RedisIoAdapter(app);
-  await redisIoAdapter.connectToRedis();
-  app.useWebSocketAdapter(redisIoAdapter);
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({
@@ -65,10 +64,13 @@ async function bootstrap() {
   }
 
   const port = config.get('PORT', { infer: true });
-  await app.listen(port);
+  await startApplication(app, redisIoAdapter, port);
   console.log(
     `[api] ouvindo em :${port} (docs: ${config.get('SWAGGER_ENABLED', { infer: true }) ? `/docs` : 'desabilitado'})`,
   );
 }
 
-void bootstrap();
+void bootstrap().catch(() => {
+  console.error('[api] api_startup_failed');
+  process.exit(1);
+});

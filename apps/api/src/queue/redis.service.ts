@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import type { Env } from '../config/env.validation';
@@ -7,6 +7,7 @@ import {
   validateRateLimit,
   rateLimitResult,
 } from './redis-rate-limit';
+import { closeRedis } from './redis-lifecycle';
 
 /**
  * Client Redis "cru" (fora do BullMQ) pra tudo que não é fila: dedupe de
@@ -14,15 +15,19 @@ import {
  * da uazapi, presença/typing/não-lidas do chat.
  */
 @Injectable()
-export class RedisService implements OnModuleDestroy {
+export class RedisService implements OnApplicationShutdown {
   readonly client: Redis;
+  private shutdown: Promise<void> | undefined;
 
   constructor(config: ConfigService<Env, true>) {
-    this.client = new Redis(config.get('REDIS_URL', { infer: true }));
+    this.client = new Redis(config.get('REDIS_URL', { infer: true }), {
+      disconnectTimeout: 0,
+    });
   }
 
-  onModuleDestroy() {
-    return this.client.quit();
+  onApplicationShutdown(): Promise<void> {
+    // This global provider must outlive the consumers' shutdown hooks.
+    return (this.shutdown ??= closeRedis(this.client));
   }
 
   /** true se a chave foi definida agora (primeira vez); false se já existia. */

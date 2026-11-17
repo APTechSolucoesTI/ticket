@@ -43,7 +43,11 @@ jobs:
       - run: pnpm --filter api exec jest --runInBand
       - run: pnpm --filter api build
       - run: node scripts/security/test-api-readiness.mjs
+      - run: node scripts/security/test-api-lifecycle.mjs
       - run: node scripts/security/test-redis-rate-limit.mjs
+        env:
+          APTICKET_TEST_REDIS_URL: redis://127.0.0.1:6379
+      - run: node scripts/security/test-bullmq-shutdown.mjs
         env:
           APTICKET_TEST_REDIS_URL: redis://127.0.0.1:6379
       - run: node --test packages/outbound-network/test/network.test.cjs
