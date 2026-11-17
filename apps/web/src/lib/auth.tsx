@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   getToken,
   clearToken,
@@ -26,23 +27,51 @@ function readUser(): SessionUser | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const initialClient = useQueryClient();
+  const [{ user, client }, setSession] = useState<{
+    user: SessionUser | null;
+    client: QueryClient;
+  }>({
+    user: null,
+    client: initialClient,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(readUser());
+    let current = { user: readUser(), client: initialClient };
+    setSession(current);
     setLoading(false);
-    return subscribe(() => setUser(readUser()));
-  }, []);
+    return subscribe(() => {
+      const nextUser = readUser();
+      if (current.user?.id !== nextUser?.id || current.user?.tenantId !== nextUser?.tenantId) {
+        // Cancel before clearing: a response from the previous identity must
+        // not repopulate legacy query keys after the account changes.
+        void current.client.cancelQueries();
+        current.client.clear();
+        // Pending mutation callbacks retain their original client. Retire it
+        // completely so optimistic rollbacks cannot write into the new scope.
+        current = {
+          user: nextUser,
+          client: new QueryClient({ defaultOptions: initialClient.getDefaultOptions() }),
+        };
+      } else {
+        current = { ...current, user: nextUser };
+      }
+      setSession(current);
+    });
+  }, [initialClient]);
 
   const signOut = async () => {
     clearToken();
-    setUser(null);
   };
 
   return (
-    <Ctx.Provider value={{ user, session: user ? { user } : null, loading, signOut }}>
-      {children}
+    <Ctx.Provider
+      key={JSON.stringify([user?.tenantId, user?.id])}
+      value={{ user, session: user ? { user } : null, loading, signOut }}
+    >
+      {/* Remount observers and local state that may still hold private data. */}
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
     </Ctx.Provider>
   );
 }

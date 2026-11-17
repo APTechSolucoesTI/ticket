@@ -119,191 +119,214 @@ export class WhatsappWebhookService {
       return { kind: 'ignored', reason: 'no_content' };
     }
 
-    // Dedup rápido via Redis (idempotência de reentrega de webhook) - a
-    // checagem definitiva por external_id no Postgres continua abaixo,
-    // esse SETNX só evita processar duas vezes em paralelo/picos.
-    if (extId) {
-      const isNew = await this.redis.setIfNotExists(
-        `whatsapp:dedup:${tenantId}:${extId}`,
-        DEDUP_TTL_SECONDS,
-      );
-      if (!isNew) return { kind: 'duplicate' };
+    const reservationKey = extId ? `whatsapp:dedup:${tenantId}:${extId}` : null;
+    const reservationOwner = randomUUID();
+    let ownsReservation = false;
 
-      const [{ data: existingMessage }, { data: existingPending }] =
-        await Promise.all([
+    try {
+      // Only persisted messages are acknowledged as duplicates. An in-flight
+      // Redis reservation is not evidence that the message reached Postgres.
+      if (extId) {
+        const [messageResult, pendingResult] = await Promise.all([
           this.supabase.client
             .from('messages')
             .select('id, ticket_id')
             .eq('tenant_id', tenantId)
             .eq('external_id', extId)
+            .limit(1)
             .maybeSingle(),
           this.supabase.client
             .from('whatsapp_pending_messages')
             .select('id')
             .eq('tenant_id', tenantId)
             .eq('external_id', extId)
+            .limit(1)
             .maybeSingle(),
         ]);
-      if (existingMessage?.ticket_id)
-        return { kind: 'duplicate', ticketId: existingMessage.ticket_id };
-      if (existingPending?.id)
-        return { kind: 'duplicate', pendingId: existingPending.id };
-    }
+        if (messageResult.error || pendingResult.error) {
+          throw new Error('dedup_lookup_failed');
+        }
+        const existingMessage = messageResult.data;
+        const existingPending = pendingResult.data;
+        if (existingMessage?.ticket_id)
+          return { kind: 'duplicate', ticketId: existingMessage.ticket_id };
+        if (existingPending?.id)
+          return { kind: 'duplicate', pendingId: existingPending.id };
 
-    // A UAZAPI entrega mídia por URL temporária do mmg.whatsapp.net. Copiar
-    // agora evita anexos quebrados quando o usuário abre o ticket depois.
-    let attachments = extractedAttachments;
+        ownsReservation = await this.redis.setIfNotExists(
+          reservationKey!,
+          DEDUP_TTL_SECONDS,
+          reservationOwner,
+        );
+        if (!ownsReservation) {
+          throw new ServiceUnavailableException('whatsapp_message_in_progress');
+        }
+      }
 
-    const { data: contactMatches } = await this.supabase.client
-      .from('contacts')
-      .select(
-        'id, tenant_id, company_id, name, phone, secondary_phones, can_open_tickets, is_active',
-      )
-      .eq('tenant_id', tenantId);
+      // A UAZAPI entrega mídia por URL temporária do mmg.whatsapp.net. Copiar
+      // agora evita anexos quebrados quando o usuário abre o ticket depois.
+      let attachments = extractedAttachments;
 
-    let contact =
-      (contactMatches ?? []).find(
-        (c) =>
-          samePhone(c.phone, phone) ||
-          c.secondary_phones.some((value) => samePhone(value, phone)),
-      ) ?? null;
-
-    if (!contact) {
-      const { data: newContact, error: cErr } = await this.supabase.client
+      const { data: contactMatches } = await this.supabase.client
         .from('contacts')
-        .insert({
-          tenant_id: tenantId,
-          company_id: null,
-          name: pushName || `WhatsApp ${phone}`,
-          phone,
-          email: null,
-          is_active: true,
-          can_open_tickets: false,
-          notes:
-            'Contato criado automaticamente via WhatsApp - aguardando vínculo com cliente.',
-        })
         .select(
           'id, tenant_id, company_id, name, phone, secondary_phones, can_open_tickets, is_active',
         )
-        .single();
-      if (cErr || !newContact) {
-        this.logger.error(`create pending contact failed: ${cErr?.message}`);
-        throw new Error('create_contact_failed');
+        .eq('tenant_id', tenantId);
+
+      let contact =
+        (contactMatches ?? []).find(
+          (c) =>
+            samePhone(c.phone, phone) ||
+            c.secondary_phones.some((value) => samePhone(value, phone)),
+        ) ?? null;
+
+      if (!contact) {
+        const { data: newContact, error: cErr } = await this.supabase.client
+          .from('contacts')
+          .insert({
+            tenant_id: tenantId,
+            company_id: null,
+            name: pushName || `WhatsApp ${phone}`,
+            phone,
+            email: null,
+            is_active: true,
+            can_open_tickets: false,
+            notes:
+              'Contato criado automaticamente via WhatsApp - aguardando vínculo com cliente.',
+          })
+          .select(
+            'id, tenant_id, company_id, name, phone, secondary_phones, can_open_tickets, is_active',
+          )
+          .single();
+        if (cErr || !newContact) {
+          this.logger.error(`create pending contact failed: ${cErr?.message}`);
+          throw new Error('create_contact_failed');
+        }
+        contact = newContact;
       }
-      contact = newContact;
-    }
 
-    if (!contact.company_id) {
-      const pendingId = await this.queuePending(
-        tenantId,
-        contact.id,
-        phone,
-        content,
-        extId,
-        payload,
-        attachments,
+      if (!contact.company_id) {
+        const pendingId = await this.queuePending(
+          tenantId,
+          contact.id,
+          phone,
+          content,
+          extId,
+          payload,
+          attachments,
+        );
+        return {
+          kind: 'pending',
+          reason: 'contact_not_linked_to_company',
+          contactId: contact.id,
+          pendingId,
+        };
+      }
+
+      if (contact.is_active === false || contact.can_open_tickets === false) {
+        const pendingId = await this.queuePending(
+          tenantId,
+          contact.id,
+          phone,
+          content,
+          extId,
+          payload,
+          attachments,
+        );
+        return {
+          kind: 'pending',
+          reason: 'contact_blocked',
+          contactId: contact.id,
+          pendingId,
+        };
+      }
+
+      const { data: contracts } = await this.supabase.client
+        .from('contracts')
+        .select(
+          'id, sla_policy_id, includes_remote, includes_lab, includes_onsite',
+        )
+        .eq('tenant_id', tenantId)
+        .eq('company_id', contact.company_id)
+        .eq('status', 'active')
+        .order('starts_at', { ascending: false });
+
+      const contract = (contracts ?? []).find(
+        (c) => c.includes_remote || c.includes_lab || c.includes_onsite,
       );
-      return {
-        kind: 'pending',
-        reason: 'contact_not_linked_to_company',
-        contactId: contact.id,
-        pendingId,
-      };
-    }
-
-    if (contact.is_active === false || contact.can_open_tickets === false) {
-      const pendingId = await this.queuePending(
-        tenantId,
-        contact.id,
-        phone,
-        content,
-        extId,
-        payload,
-        attachments,
-      );
-      return {
-        kind: 'pending',
-        reason: 'contact_blocked',
-        contactId: contact.id,
-        pendingId,
-      };
-    }
-
-    const { data: contracts } = await this.supabase.client
-      .from('contracts')
-      .select(
-        'id, sla_policy_id, includes_remote, includes_lab, includes_onsite',
-      )
-      .eq('tenant_id', tenantId)
-      .eq('company_id', contact.company_id)
-      .eq('status', 'active')
-      .order('starts_at', { ascending: false });
-
-    const contract = (contracts ?? []).find(
-      (c) => c.includes_remote || c.includes_lab || c.includes_onsite,
-    );
-    const { data: openTickets } = await this.supabase.client
-      .from('tickets')
-      .select('id, status')
-      .eq('tenant_id', tenantId)
-      .eq('contact_id', contact.id)
-      .eq('channel', 'whatsapp')
-      .not('status', 'in', '(resolved,closed)')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    let ticketId = openTickets?.[0]?.id ?? null;
-    if (!ticketId) {
-      const subject = (content || 'Mensagem via WhatsApp').slice(0, 200);
-      const { data: newT, error: tErr } = await this.supabase.client
+      const { data: openTickets } = await this.supabase.client
         .from('tickets')
+        .select('id, status')
+        .eq('tenant_id', tenantId)
+        .eq('contact_id', contact.id)
+        .eq('channel', 'whatsapp')
+        .not('status', 'in', '(resolved,closed)')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let ticketId = openTickets?.[0]?.id ?? null;
+      if (!ticketId) {
+        const subject = (content || 'Mensagem via WhatsApp').slice(0, 200);
+        const { data: newT, error: tErr } = await this.supabase.client
+          .from('tickets')
+          .insert({
+            tenant_id: tenantId,
+            subject,
+            status: 'new',
+            priority: 'medium',
+            channel: 'whatsapp',
+            contact_id: contact.id,
+            company_id: contact.company_id,
+            contract_id: contract?.id ?? null,
+            sla_policy_id: contract?.sla_policy_id ?? null,
+            pending_type: 'awaiting_tech',
+          })
+          .select('id')
+          .single();
+        if (tErr || !newT) {
+          this.logger.error(`create ticket failed: ${tErr?.message}`);
+          throw new Error('create_ticket_failed');
+        }
+        ticketId = newT.id;
+      }
+
+      attachments = await this.persistInboundAttachments(
+        tenantId,
+        extId,
+        extractedAttachments,
+        ticketId,
+      );
+      const { error: msgErr } = await this.supabase.client
+        .from('messages')
         .insert({
           tenant_id: tenantId,
-          subject,
-          status: 'new',
-          priority: 'medium',
+          ticket_id: ticketId,
+          author_contact_id: contact.id,
+          author_type: 'contact',
           channel: 'whatsapp',
-          contact_id: contact.id,
-          company_id: contact.company_id,
-          contract_id: contract?.id ?? null,
-          sla_policy_id: contract?.sla_policy_id ?? null,
-          pending_type: 'awaiting_tech',
-        })
-        .select('id')
-        .single();
-      if (tErr || !newT) {
-        this.logger.error(`create ticket failed: ${tErr?.message}`);
-        throw new Error('create_ticket_failed');
+          is_internal: false,
+          content,
+          external_id: extId,
+          delivery_status: 'received',
+          attachments,
+        });
+      if (msgErr) {
+        this.logger.error(`insert message failed: ${msgErr.message}`);
+        throw new Error('insert_message_failed');
       }
-      ticketId = newT.id;
-    }
 
-    attachments = await this.persistInboundAttachments(
-      tenantId,
-      extId,
-      extractedAttachments,
-      ticketId,
-    );
-    const { error: msgErr } = await this.supabase.client
-      .from('messages')
-      .insert({
-        tenant_id: tenantId,
-        ticket_id: ticketId,
-        author_contact_id: contact.id,
-        author_type: 'contact',
-        channel: 'whatsapp',
-        is_internal: false,
-        content,
-        external_id: extId,
-        delivery_status: 'received',
-        attachments,
-      });
-    if (msgErr) {
-      this.logger.error(`insert message failed: ${msgErr.message}`);
-      throw new Error('insert_message_failed');
+      return { kind: 'ticket', ticketId };
+    } catch (error) {
+      if (ownsReservation && reservationKey) {
+        try {
+          await this.redis.deleteIfValue(reservationKey, reservationOwner);
+        } catch {
+          this.logger.error('failed to release WhatsApp ingestion reservation');
+        }
+      }
+      throw error;
     }
-
-    return { kind: 'ticket', ticketId };
   }
 
   private async persistInboundAttachments(
@@ -342,7 +365,9 @@ export class WhatsappWebhookService {
             .normalize('NFKD')
             .replace(/[^a-zA-Z0-9._-]/g, '_')
             .slice(-120);
-          const path = `${tenantId}/${ticketId ?? 'whatsapp-inbound'}/${safeId}-${index}-${safeName || 'anexo'}`;
+          // A previous insert may have failed after the upload, or its outcome
+          // may be uncertain. Never overwrite/delete that object on retry.
+          const path = `${tenantId}/${ticketId ?? 'whatsapp-inbound'}/${safeId}-${randomUUID()}-${index}-${safeName || 'anexo'}`;
           const contentType =
             response.headers.get('content-type')?.split(';')[0] ||
             attachment.type ||
@@ -429,8 +454,13 @@ export class WhatsappWebhookService {
       })
       .select('id')
       .maybeSingle();
-    if (error) this.logger.error(`pending insert failed: ${error.message}`);
-    return pending?.id ?? null;
+    if (error || !pending?.id) {
+      this.logger.error(
+        `pending insert failed: ${error?.message ?? 'missing row'}`,
+      );
+      throw new Error('insert_pending_failed');
+    }
+    return pending.id;
   }
 }
 

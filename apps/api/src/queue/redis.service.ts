@@ -21,9 +21,24 @@ export class RedisService implements OnModuleDestroy {
   }
 
   /** true se a chave foi definida agora (primeira vez); false se já existia. */
-  async setIfNotExists(key: string, ttlSeconds: number): Promise<boolean> {
-    const result = await this.client.set(key, '1', 'EX', ttlSeconds, 'NX');
+  async setIfNotExists(
+    key: string,
+    ttlSeconds: number,
+    value = '1',
+  ): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
     return result === 'OK';
+  }
+
+  /** Release only the caller's reservation, atomically across API replicas. */
+  async deleteIfValue(key: string, value: string): Promise<boolean> {
+    const deleted = await this.client.eval(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
+      1,
+      key,
+      value,
+    );
+    return deleted === 1;
   }
 
   /**

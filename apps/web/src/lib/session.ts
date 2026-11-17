@@ -39,7 +39,16 @@ export function handleSessionResponse(response: Response, requestToken: string |
 
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);
-  return () => listeners.delete(fn);
+  const onStorage = (event: StorageEvent) => {
+    if (event.storageArea === localStorage && (event.key === STORAGE_KEY || event.key === null)) {
+      fn();
+    }
+  };
+  if (typeof window !== "undefined") window.addEventListener?.("storage", onStorage);
+  return () => {
+    listeners.delete(fn);
+    if (typeof window !== "undefined") window.removeEventListener?.("storage", onStorage);
+  };
 }
 
 export interface SessionUser {
