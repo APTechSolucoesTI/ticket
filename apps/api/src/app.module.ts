@@ -13,6 +13,7 @@ import { InterModule } from './integrations/inter/inter.module';
 import { FinanceModule } from './finance/finance.module';
 import { AutomationsModule } from './automations/automations.module';
 import { FilesModule } from './files/files.module';
+import { ReadinessService } from './health/readiness.service';
 
 @Module({
   imports: [
@@ -30,5 +31,6 @@ import { FilesModule } from './files/files.module';
     AutomationsModule,
   ],
   controllers: [AppController],
+  providers: [ReadinessService],
 })
 export class AppModule {}

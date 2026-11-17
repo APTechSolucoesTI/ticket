@@ -1,6 +1,8 @@
-import { Controller, Get, Header } from '@nestjs/common';
+import { Controller, Get, Header, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { Public } from './auth/public.decorator';
+import type { Response } from 'express';
+import { ReadinessService } from './health/readiness.service';
 
 // Templates de e-mail do GoTrue (Supabase Auth self-hosted) em pt-BR. Esse
 // Supabase é compartilhado com outro sistema, então GOTRUE_SITE_URL não
@@ -29,14 +31,25 @@ const BUTTON = (url: string, label: string) => `
   </a>
 `;
 
-/** Usado pelo healthcheck do docker-compose - sem JWT, sem ficar no Swagger. */
+/** Saúde pública e templates de autenticação; fora do Swagger. */
 @ApiExcludeController()
 @Controller()
 export class AppController {
+  constructor(private readonly readiness: ReadinessService) {}
   @Public()
   @Get('health')
+  @Header('Cache-Control', 'no-store')
   health() {
     return { ok: true };
+  }
+
+  @Public()
+  @Get('health/ready')
+  @Header('Cache-Control', 'no-store')
+  async ready(@Res({ passthrough: true }) response: Response) {
+    const report = await this.readiness.check();
+    response.status(report.ok ? 200 : 503);
+    return report;
   }
 
   @Public()

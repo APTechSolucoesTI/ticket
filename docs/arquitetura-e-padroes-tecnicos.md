@@ -10,6 +10,8 @@
 
 **Preferências das listagens em 17/11/2026:** configuração versionada por tenant/usuário/listagem, identificadores e colunas obrigatórias preservados, rascunho estável e restauração fiel dos defaults. Nos tickets, a URL explícita prevalece sobre o tamanho salvo; ausência é resolvida no navegador antes da consulta. Contratos e evidências: [preferências das listagens](./security/preferencias-listagens-20261117.md).
 
+**Prontidão e Redis em 17/11/2026:** `/health` conserva o sinal de processo ativo; `/health/ready` verifica Redis e PostgREST com orçamento de 2 s, cancelamento e cache/coalescência de 1 s. Docker/compose usam prontidão. O limitador da API utiliza Lua para contador/TTL sem intervalo entre comandos do cliente. Evidências e limites: [prontidão da API e Redis](./security/prontidao-api-redis-20261117.md).
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.
@@ -664,7 +666,7 @@ A entrada pública utiliza Traefik/HTTPS. REST da API passa por `/backend` no we
 | Área        | O que acompanhar                                                          |
 | ----------- | ------------------------------------------------------------------------- |
 | Web         | Resposta de páginas, erros SSR, falhas de sessão e limites                |
-| API         | `/health`, erros de integração, latência e saturação                      |
+| API         | `/health` (processo), `/health/ready` (Redis/PostgREST), erros de integração, latência e saturação |
 | Filas       | Jobs com falha, retries, atraso e ausência de processamento               |
 | Redis       | Disponibilidade, persistência e uso de memória                            |
 | Banco       | Conexões, espaço, duração de queries, falhas de transação e grants/RLS    |

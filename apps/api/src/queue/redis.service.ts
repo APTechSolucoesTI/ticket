@@ -2,6 +2,11 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import type { Env } from '../config/env.validation';
+import {
+  FIXED_WINDOW_RATE_LIMIT_SCRIPT,
+  validateRateLimit,
+  rateLimitResult,
+} from './redis-rate-limit';
 
 /**
  * Client Redis "cru" (fora do BullMQ) pra tudo que não é fila: dedupe de
@@ -42,19 +47,22 @@ export class RedisService implements OnModuleDestroy {
   }
 
   /**
-   * Rate limit de janela fixa (INCR + EXPIRE) - substitui o contador em
-   * memória de apps/web/src/lib/rate-limit.ts por um que funciona certo com
-   * várias réplicas da API atrás de um load balancer.
+   * Janela fixa compartilhada pelas réplicas e consumidores da API.
+   * Contador e expiração são tratados pela mesma execução Lua, incluindo
+   * recuperação de contadores legados sem TTL.
    */
   async checkRateLimit(
     key: string,
     limit: number,
     windowSeconds: number,
   ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
-    const count = await this.client.incr(key);
-    if (count === 1) await this.client.expire(key, windowSeconds);
-    if (count <= limit) return { allowed: true, retryAfterSeconds: 0 };
-    const ttl = await this.client.ttl(key);
-    return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : windowSeconds };
+    validateRateLimit(limit, windowSeconds);
+    const result: unknown = await this.client.eval(
+      FIXED_WINDOW_RATE_LIMIT_SCRIPT,
+      1,
+      key,
+      windowSeconds,
+    );
+    return rateLimitResult(result, limit);
   }
 }
