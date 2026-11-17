@@ -15,6 +15,10 @@ insert into apticket.tickets(id,tenant_id,subject,status,priority,channel,create
 select ('ba400000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,c.tenant_id,'Chamado '||n,
   'new','medium','manual',now()-interval '1 hour',c.id
 from generate_series(1,1205) n cross join apticket.companies c where c.id='ba300000-0000-4000-8000-000000000001';
+insert into apticket.contacts(id,tenant_id,name)
+select 'ba500000-0000-4000-8000-000000000001',tenant_id,'Contato recente' from apticket.companies where id='ba300000-0000-4000-8000-000000000001';
+update apticket.tickets t set contact_id='ba500000-0000-4000-8000-000000000001',assigned_to=f.profile_id
+from ticket_query_fixture f where t.id='ba400000-0000-4000-8000-000000000001' and f.tenant_id=t.tenant_id;
 insert into apticket.tickets(tenant_id,subject,status,channel,created_at)
 select tenant_id,'Other tenant private','new','manual',now() from ticket_query_fixture where tenant_id<>(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
 set local session_replication_role=origin;
@@ -40,6 +44,9 @@ begin
   assert (m->>'openCount')::int=1205 and (m->>'currentPeriodCount')::int=1205;
   assert (m->'summary'->>'last7Count')::int=1205;
   assert jsonb_array_length(m->'latest')=6 and jsonb_array_length(m->'volume')=14;
+  assert m->'latest'=jsonb_path_query_array(apticket.list_ticket_inbox(1,10,'','{}','created_at','desc')->'items','$[0 to 5]'), 'recent rows preserve full inbox contract and stable tie ordering';
+  assert m->'latest'->0->'companies'->>'name'='Ação Clínica' and m->'latest'->0->'contacts'->>'name'='Contato recente';
+  assert m->'latest'->0->>'assigneeName' is not null, 'authorized related names remain present';
   assert (select sum((x->>'criados')::int) from jsonb_array_elements(m->'volume') x)=1205;
   begin perform apticket.list_ticket_inbox(1,11,'','{}','number','asc'); raise exception 'invalid size accepted'; exception when invalid_parameter_value then null; end;
   begin perform apticket.list_ticket_inbox(1,10,'','{}','number;drop table tickets','asc'); raise exception 'invalid sort accepted'; exception when invalid_parameter_value then null; end;
@@ -48,6 +55,35 @@ begin
 end $test$;
 reset role;
 select pass('server queries count all 1205 visible tickets, paginate stably, combine filters and bound payload');
+-- Metrics should not need the full inbox endpoint (which counts and sorts the
+-- entire visible list just to discard all but six rows).
+revoke execute on function apticket.list_ticket_inbox(integer,integer,text,jsonb,text,text) from authenticated;
+set local role authenticated;
+do $test$
+declare m jsonb;
+begin
+  m:=apticket.get_ticket_metrics(14);
+  assert (m->>'openCount')::int=1205 and jsonb_array_length(m->'latest')=6, 'dashboard is independent of the full inbox endpoint';
+end $test$;
+reset role;
+grant execute on function apticket.list_ticket_inbox(integer,integer,text,jsonb,text,text) to authenticated;
+select pass('metrics fetch at most six recent rows without calling the full inbox endpoint');
+insert into apticket.user_permissions(user_id,tenant_id,permission_id,granted)
+select f.profile_id,f.tenant_id,p.id,false from ticket_query_fixture f cross join apticket.permissions p
+where f.tenant_id=(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001') and p.module='clientes' and p.action='view';
+set local role authenticated;
+do $test$
+declare m jsonb;
+begin
+  m:=apticket.get_ticket_metrics(30);
+  assert m->'latest'->0->'companies'='null'::jsonb, 'ticket visibility does not bypass company RLS';
+  assert m->'latest'=jsonb_path_query_array(apticket.list_ticket_inbox(1,10,'','{}','created_at','desc')->'items','$[0 to 5]');
+end $test$;
+reset role;
+delete from apticket.user_permissions u using apticket.permissions p,ticket_query_fixture f
+where u.user_id=f.profile_id and u.permission_id=p.id and p.module='clientes' and p.action='view'
+and f.tenant_id=(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
+select pass('recent ticket names follow related-table RLS');
 select set_config('request.jwt.claims',jsonb_build_object('sub',p.id,'tenant_id',p.tenant_id,'app','apticket','role','authenticated','session_version',p.session_version)::text,true)
 from apticket.profiles p where p.tenant_id<>(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
 set local role authenticated;
@@ -55,9 +91,23 @@ do $test$
 begin
   assert (apticket.list_ticket_inbox(1,10,'','{}','number','asc')->>'total')::int=1;
   assert (apticket.get_ticket_metrics(7)->>'openCount')::int=1;
+  assert jsonb_array_length(apticket.get_ticket_metrics(7)->'latest')=1;
+  assert apticket.get_ticket_metrics(7)->'latest'=apticket.list_ticket_inbox(1,10,'','{}','created_at','desc')->'items';
 end $test$;
 reset role;
 select pass('another tenant cannot see counts or rows from the first tenant');
+create policy dashboard_test_hide_all on apticket.tickets as restrictive for select to authenticated using(false);
+set local role authenticated;
+do $test$
+declare m jsonb;
+begin
+  m:=apticket.get_ticket_metrics(7);
+  assert (m->>'openCount')::int=0 and m->'latest'='[]'::jsonb;
+  assert jsonb_array_length(m->'volume')=7;
+end $test$;
+reset role;
+drop policy dashboard_test_hide_all on apticket.tickets;
+select pass('empty RLS-visible set returns no recent tickets');
 -- Historical completions, invalid durations and SLA pauses must not be lost
 -- behind the most recent 500/1000 tickets. Calendar buckets use Sao Paulo.
 set local session_replication_role=replica;

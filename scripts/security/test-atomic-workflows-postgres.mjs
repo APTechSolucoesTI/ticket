@@ -198,6 +198,33 @@ try {
       );
       await client.query(nextMigration);
     }
+    const beforeLatest = (
+      await client.query(
+        "select pg_get_functiondef('apticket.get_ticket_metrics(integer)'::regprocedure) definition",
+      )
+    ).rows[0].definition;
+    const latestMigration = await readFile(
+      path.join(root, "supabase/migrations/20261117180000_dashboard_latest_query.sql"),
+      "utf8",
+    );
+    await client.query(latestMigration);
+    await client.query(
+      await readFile(
+        path.join(root, "supabase/rollbacks/20261117180000_dashboard_latest_query.sql"),
+        "utf8",
+      ),
+    );
+    const rolledBackLatest = (
+      await client.query(
+        "select pg_get_functiondef('apticket.get_ticket_metrics(integer)'::regprocedure) definition",
+      )
+    ).rows[0].definition;
+    assert.equal(
+      rolledBackLatest,
+      beforeLatest,
+      "dashboard rollback restores the previous metrics function exactly",
+    );
+    await client.query(latestMigration);
     const ticketTests = (
       await readFile(path.join(root, "supabase/tests/ticket_pagination_metrics_test.sql"), "utf8")
     )
@@ -205,7 +232,7 @@ try {
       .replace(/^select (?:no_plan\(\)|pass\([^\r\n]+\)|\* from finish\(\));\r?$/gm, "");
     await client.query(ticketTests);
     console.log(
-      "PASS ticket pagination/metrics: >1000 rows, RLS, literal search, stable ordering, bounded payload and rollback/reapply",
+      "PASS ticket pagination/metrics: >1000 rows, RLS, literal search, stable ordering, bounded recent query, names/empty sets and exact rollback/reapply",
     );
   }
   const second = await connect();

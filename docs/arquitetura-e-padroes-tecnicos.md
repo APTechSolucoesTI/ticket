@@ -16,6 +16,8 @@
 
 **TypeScript estrito da API em 17/11/2026:** `strict: true` e `noFallthroughCasesInSwitch: true`, com remoção dos overrides permissivos. Typecheck inclui produção e testes; build herda a configuração. Evidências e limites: [TypeScript estrito da API](./security/typescript-estrito-api-20261117.md).
 
+**Tickets recentes do dashboard em 17/11/2026:** a RPC de métricas seleciona até seis tickets antes de resolver nomes e JSON, preservando contrato, ordem e RLS. Deixa de executar o pipeline completo da listagem; os agregados históricos permanecem iguais. Migration, rollback e evidências: [consulta de recentes](./security/consulta-recentes-dashboard-20261117.md).
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.
