@@ -39,12 +39,17 @@ import { TicketFilters, type TicketFilterState } from "@/components/ticket/inbox
 import { TicketInboxList } from "@/components/ticket/inbox/TicketInboxList";
 import { TicketInboxKanban } from "@/components/ticket/inbox/TicketInboxKanban";
 import { useTicketMetrics, useTicketsInboxData } from "@/hooks/use-tickets-inbox";
-import { emptyTicketSummary, ticketListSearchSchema } from "@/lib/ticket-query";
+import {
+  emptyTicketSummary,
+  ticketListSearchSchema,
+  validateTicketRouteSearch,
+} from "@/lib/ticket-query";
 import { PaginationControls, type RemoteTableState } from "@/components/configurable-table";
 import { PageHeader } from "@/components/empty-stub";
+import { useSavedTablePageSize } from "@/hooks/use-column-preferences";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
-  validateSearch: ticketListSearchSchema,
+  validateSearch: validateTicketRouteSearch,
   head: () => ({ meta: [{ title: "Tickets - APTicket" }] }),
   component: TicketsLayout,
 });
@@ -61,8 +66,18 @@ function TicketsInbox() {
   const emailQueueAccess = useModulePermissions("fila_email");
   const whatsappQueueAccess = useModulePermissions("fila_whatsapp");
   const qc = useQueryClient();
-  const query = Route.useSearch();
+  const routeSearch = Route.useSearch();
+  const query = ticketListSearchSchema.parse(routeSearch);
   const navigate = Route.useNavigate();
+  const pageSizeExplicit = routeSearch.pageSize !== undefined;
+  const savedPageSize = useSavedTablePageSize("tickets");
+  useEffect(() => {
+    if (!pageSizeExplicit)
+      void navigate({
+        search: (previous) => ({ ...previous, pageSize: savedPageSize }),
+        replace: true,
+      });
+  }, [pageSizeExplicit, savedPageSize, navigate]);
   const view = query.view;
   const [searchDraft, setSearchDraft] = useState(query.search);
   useEffect(() => setSearchDraft(query.search), [query.search]);
@@ -104,13 +119,15 @@ function TicketsInbox() {
     canViewEmailQueue: emailQueueAccess.view,
     canViewWhatsappQueue: whatsappQueueAccess.view,
     query,
+    enabled: pageSizeExplicit,
   });
   const tickets = ticketsQuery.data?.items ?? [];
   const metricsQuery = useTicketMetrics(7, access.view);
   const remote: RemoteTableState = {
-    busy: ticketsQuery.isFetching || ticketsQuery.isPlaceholderData,
+    busy: !pageSizeExplicit || ticketsQuery.isFetching || ticketsQuery.isPlaceholderData,
     page: ticketsQuery.data?.page ?? query.page,
     pageSize: ticketsQuery.data?.pageSize ?? query.pageSize,
+    requestedPageSize: query.pageSize,
     total: ticketsQuery.data?.total ?? 0,
     sort: query.sortKey ? { key: query.sortKey, dir: query.sortDirection } : null,
     onPageChange: (page) => void navigate({ search: (previous) => ({ ...previous, page }) }),
@@ -128,6 +145,7 @@ function TicketsInbox() {
   };
   useEffect(() => {
     if (
+      pageSizeExplicit &&
       ticketsQuery.data &&
       !ticketsQuery.isPlaceholderData &&
       ticketsQuery.data.page !== query.page
@@ -136,7 +154,7 @@ function TicketsInbox() {
         search: (previous) => ({ ...previous, page: ticketsQuery.data!.page }),
         replace: true,
       });
-  }, [ticketsQuery.data, ticketsQuery.isPlaceholderData, query.page, navigate]);
+  }, [pageSizeExplicit, ticketsQuery.data, ticketsQuery.isPlaceholderData, query.page, navigate]);
   const departments = departmentsQuery.data ?? [];
   const agents = agentsQuery.data ?? [];
 
@@ -261,7 +279,7 @@ function TicketsInbox() {
         </p>
       )}
       <div className="flex-1 overflow-auto" aria-busy={ticketsQuery.isFetching}>
-        {ticketsQuery.isLoading ? (
+        {!pageSizeExplicit || ticketsQuery.isLoading ? (
           <LoadingState label="Carregando tickets…" />
         ) : ticketsQuery.isError && !ticketsQuery.data ? (
           <ErrorState

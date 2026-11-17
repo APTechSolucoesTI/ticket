@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { SearchSchemaInput } from "@tanstack/react-router";
 
 const statuses = z.enum(["new", "in_progress", "pending", "resolved", "closed"]);
 const priorities = z.enum(["low", "medium", "high", "urgent"]);
@@ -40,6 +41,14 @@ export const ticketListSearchSchema = z.object({
   view: z.enum(["list", "kanban"]).default("list").catch("list"),
 });
 export type TicketListQuery = z.infer<typeof ticketListSearchSchema>;
+// SSR canonicalizes validated search parameters before browser preferences can
+// load. Preserve omission here so it cannot turn an implicit size into 10.
+export function validateTicketRouteSearch(
+  input: z.input<typeof ticketListSearchSchema> & SearchSchemaInput,
+) {
+  const parsed = ticketListSearchSchema.parse(input);
+  return { ...parsed, pageSize: input.pageSize === undefined ? undefined : parsed.pageSize };
+}
 export const ticketRowSchema = z.object({
   id: z.uuid(),
   tenant_id: z.uuid(),

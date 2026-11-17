@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +22,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ColumnSettingsDialog } from "@/components/column-settings-dialog";
 import { useColumnPreferences, type ColumnDef } from "@/hooks/use-column-preferences";
+import { normalizeTablePreferences } from "@/lib/table-preferences";
 
 export type ListColumn<T> = ColumnDef & {
   className?: string;
@@ -49,6 +50,7 @@ export type RemoteTableState = {
   busy?: boolean;
   page: number;
   pageSize: number;
+  requestedPageSize?: number;
   total: number;
   sort: SortState;
   onPageChange: (page: number) => void;
@@ -142,21 +144,20 @@ export function ConfigurableTable<T>({
   remote,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const settingsTrigger = useRef<HTMLButtonElement>(null);
   const [localSort, setLocalSort] = useState<SortState>(null);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [localPage, setLocalPage] = useState(1);
-  const [localPageSize, setLocalPageSize] = useState(10);
   const sort = remote ? remote.sort : localSort;
   const page = remote ? remote.page : localPage;
-  const pageSize = remote ? remote.pageSize : localPageSize;
   const setPage = remote ? remote.onPageChange : setLocalPage;
-  const setPageSize = remote ? remote.onPageSizeChange : setLocalPageSize;
-
-  const { visibleOrder, setVisibleOrder, allColumns } = useColumnPreferences(
+  const preferences = useColumnPreferences(
     listKey,
-    columns.map((c) => ({ key: c.key, label: c.label })),
+    columns.map(({ key, label, identifier, required }) => ({ key, label, identifier, required })),
     defaultColumns ?? columns.map((c) => c.key),
   );
+  const { visibleOrder } = preferences;
+  const pageSize = remote ? remote.pageSize : preferences.pageSize;
   const colMap = useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns]);
 
   const getValue = (row: T, key: string) => {
@@ -244,7 +245,14 @@ export function ConfigurableTable<T>({
               <X className="mr-1 h-4 w-4" /> Limpar filtros ({activeFilterCount})
             </Button>
           )}
-          <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => setOpen(true)}>
+          <Button
+            ref={settingsTrigger}
+            size="sm"
+            variant="outline"
+            className="h-11 sm:h-8"
+            onClick={() => setOpen(true)}
+            disabled={remote?.busy}
+          >
             <Settings2 className="mr-1 h-4 w-4" /> Colunas
           </Button>
         </div>
@@ -385,15 +393,27 @@ export function ConfigurableTable<T>({
           busy={remote?.busy}
         />
       </div>
-      <ColumnSettingsDialog
-        open={open}
-        onOpenChange={setOpen}
-        allColumns={allColumns}
-        value={visibleOrder}
-        onSave={setVisibleOrder}
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
-      />
+      {open && (
+        <ColumnSettingsDialog
+          open={open}
+          onOpenChange={setOpen}
+          policy={preferences.policy}
+          value={normalizeTablePreferences(
+            { visibleOrder, pageSize: remote?.requestedPageSize ?? pageSize },
+            preferences.policy,
+          )}
+          onApply={(next, pageSizeChanged) => {
+            preferences.applyPreferences(next);
+            if (
+              remote &&
+              pageSizeChanged &&
+              next.pageSize !== (remote.requestedPageSize ?? remote.pageSize)
+            )
+              remote.onPageSizeChange(next.pageSize);
+          }}
+          onRestoreFocus={() => settingsTrigger.current?.focus()}
+        />
+      )}
     </>
   );
 }

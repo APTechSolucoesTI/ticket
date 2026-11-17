@@ -170,12 +170,71 @@ async function waitForText(text) {
   await page.getByText(text, { exact: true }).first().waitFor({ timeout: 20000 });
 }
 try {
+  const canonical = await fetch(`${app.origin}/tickets`, { redirect: "manual" });
+  assert.ok([200, 307].includes(canonical.status));
+  assert.equal(
+    new URL(canonical.headers.get("location") ?? "/tickets", app.origin).searchParams.has(
+      "pageSize",
+    ),
+    false,
+    "SSR must preserve an omitted page size",
+  );
   await page.goto(`${app.origin}/tickets`);
   await waitForText("1–10 de 1205");
   assert.equal(await page.locator("tbody tr").count(), 10);
+  await page.getByRole("button", { name: "Colunas", exact: true }).click();
+  const draftTechnician = page
+    .getByRole("dialog")
+    .getByText("Técnico", { exact: true })
+    .locator("..")
+    .getByRole("checkbox");
+  await draftTechnician.uncheck();
+  const refetched = page.waitForResponse((response) =>
+    response.url().endsWith("/list_ticket_inbox"),
+  );
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await refetched;
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  assert.equal(
+    await draftTechnician.isChecked(),
+    false,
+    "a background refresh must preserve the draft",
+  );
+  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await page.waitForFunction(() => document.activeElement?.textContent?.includes("Colunas"));
   await page.getByRole("button", { name: "Próxima página", exact: true }).first().click();
   await waitForText("11–20 de 1205");
   assert.equal(new URL(page.url()).searchParams.get("page"), "2");
+  await page.getByRole("button", { name: "Colunas", exact: true }).click();
+  assert.equal(
+    await page.getByRole("checkbox", { name: "Exibir #", exact: true }).isDisabled(),
+    true,
+  );
+  await page.getByRole("checkbox", { name: "Exibir Técnico", exact: true }).uncheck();
+  await page.getByRole("button", { name: "Mover Assunto para cima", exact: true }).click();
+  await page.getByRole("button", { name: "Aplicar", exact: true }).click();
+  await waitForText("11–20 de 1205");
+  assert.equal(await page.getByRole("columnheader", { name: "Técnico", exact: true }).count(), 0);
+  assert.equal(await page.locator("th").first().textContent(), "Assunto");
+  await page.getByRole("button", { name: "Colunas", exact: true }).click();
+  await page.getByRole("button", { name: "Restaurar padrão", exact: true }).click();
+  assert.equal(
+    await page.getByRole("checkbox", { name: "Exibir Empresa", exact: true }).isChecked(),
+    false,
+  );
+  assert.equal(
+    await page.getByRole("checkbox", { name: "Exibir Técnico", exact: true }).isChecked(),
+    true,
+  );
+  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  assert.equal(await page.getByRole("columnheader", { name: "Técnico", exact: true }).count(), 0);
+  await page.getByRole("button", { name: "Colunas", exact: true }).click();
+  await page.getByRole("button", { name: "Restaurar padrão", exact: true }).click();
+  await page.getByRole("button", { name: "Aplicar", exact: true }).click();
+  await waitForText("11–20 de 1205");
+  assert.equal(await page.locator("th").first().textContent(), "#");
   await page.getByRole("columnheader", { name: "#" }).getByRole("button").focus();
   await page.keyboard.press("Enter");
   await waitForText("1–10 de 1205");
@@ -217,6 +276,11 @@ try {
     ),
   );
   assert.equal(new URL(page.url()).searchParams.get("pageSize"), "100");
+  assert.equal(
+    await page.getByRole("button", { name: "Colunas", exact: true }).isDisabled(),
+    true,
+    "cannot open settings on a pending snapshot",
+  );
   await page
     .getByRole("button", { name: "Próxima página", exact: true })
     .first()
@@ -237,7 +301,19 @@ try {
   delayedSize = null;
   await waitForText("1–100 de 1205");
   assert.equal(await page.locator("tbody tr").count(), 100);
+  const restoreStart = requests.length;
   await page.goto(`${app.origin}/tickets`);
+  await waitForText("1–100 de 1205");
+  assert.ok(
+    requests.slice(restoreStart).every((request) => request._page_size === 100),
+    "restoring a preference must not query a provisional size",
+  );
+  assert.equal(new URL(page.url()).searchParams.get("pageSize"), "100");
+  await page.goto(`${app.origin}/tickets?pageSize=20`);
+  await waitForText("1–20 de 1205");
+  await page.goto(`${app.origin}/tickets`);
+  await waitForText("1–100 de 1205");
+  await page.goto(`${app.origin}/tickets?pageSize=10`);
   await waitForText("1–10 de 1205");
   for (const [name, width, height] of [
     ["desktop", 1440, 1000],
@@ -265,6 +341,9 @@ try {
       )
         await page.getByRole("button", { name: "Alternar tema" }).click();
       await page.screenshot({ path: `${directory}/tickets-${name}-${theme}.png`, fullPage: true });
+      await page.getByRole("button", { name: "Colunas", exact: true }).click();
+      await page.screenshot({ path: `${directory}/columns-${name}-${theme}.png`, fullPage: true });
+      await page.keyboard.press("Escape");
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         `${name}: page must not overflow horizontally`,
@@ -320,10 +399,20 @@ try {
   assert.ok(!(await page.locator("body").textContent()).includes("private database detail"));
   assert.deepEqual(errors, []);
   console.log(
-    "PASS browser QA: full totals, remote navigation/sort/search, delayed/offline page-size changes, list/kanban, sanitized errors; desktop/tablet/mobile, light/dark, fallback fonts",
+    "PASS browser QA: draft retention, identifiers, apply/cancel/defaults, persisted sizes and explicit URLs; remote/offline pagination, list/kanban and safe errors; desktop/tablet/mobile, light/dark, keyboard and fallback fonts",
   );
   console.log(`Screenshots: ${directory}`);
 } catch (error) {
+  console.error(
+    "Table preference diagnostics",
+    await page.evaluate(() =>
+      Object.fromEntries(
+        Object.keys(localStorage)
+          .filter((key) => key.startsWith("table:") || key.startsWith("cols:"))
+          .map((key) => [key, localStorage.getItem(key)]),
+      ),
+    ),
+  );
   await page.screenshot({ path: `${directory}/failure.png`, fullPage: true });
   console.error(
     "Browser errors",

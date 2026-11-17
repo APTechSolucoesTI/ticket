@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 const columns: ListColumn<TicketRow>[] = [
   {
     key: "number",
+    identifier: true,
     label: "#",
     className:
       "sticky left-0 z-10 w-16 bg-card font-mono text-muted-foreground sm:static sm:z-auto",

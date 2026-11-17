@@ -8,6 +8,8 @@
 
 **Paginação e indicadores em 17/11/2026:** a caixa de tickets consulta `list_ticket_inbox` com página/filtros/ordenação na URL; dashboard e visão geral usam `get_ticket_metrics` sobre todo o histórico visível, sem corte de 500 registros. Ambas as RPCs são invoker, exigem `tickets.view` e respeitam RLS. Migração, contratos, evidências e limites: [paginação e indicadores](./security/paginacao-indicadores-20261117.md).
 
+**Preferências das listagens em 17/11/2026:** configuração versionada por tenant/usuário/listagem, identificadores e colunas obrigatórias preservados, rascunho estável e restauração fiel dos defaults. Nos tickets, a URL explícita prevalece sobre o tamanho salvo; ausência é resolvida no navegador antes da consulta. Contratos e evidências: [preferências das listagens](./security/preferencias-listagens-20261117.md).
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.

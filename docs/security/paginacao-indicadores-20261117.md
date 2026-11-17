@@ -68,7 +68,7 @@ Evidências da entrega:
 
 O runner PostgreSQL local usa DDL/políticas reais selecionados do snapshot; não reproduz todo o Supabase. O teste SQL entra automaticamente no job completo do CI, que não foi executado localmente. O ensaio de navegador usa respostas HTTP sintéticas, complementando os testes reais de autorização no banco; não valida a configuração do servidor de produção.
 
-Próximos pontos estruturais: avaliar índices e planos com a distribuição real de dados antes de grandes volumes; a contagem exata e filtros textuais ainda percorrem os registros visíveis, e o dashboard faz uma consulta adicional para os últimos chamados. Preferências globais de colunas ainda precisam impedir ocultação de todos os identificadores e persistir tamanho por usuário/listagem. Não são declaradas resolvidas nesta entrega.
+Próximos pontos estruturais: avaliar índices e planos com a distribuição real de dados antes de grandes volumes; a contagem exata e filtros textuais ainda percorrem os registros visíveis, e o dashboard faz uma consulta adicional para os últimos chamados. A pendência de identificação e tamanho nas preferências globais foi corrigida na [entrega posterior de preferências](./preferencias-listagens-20261117.md), com evidências próprias.
 
 Nenhuma conexão, migration ou publicação em produção foi realizada.
 

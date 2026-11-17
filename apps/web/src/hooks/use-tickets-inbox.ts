@@ -27,10 +27,12 @@ export function useTicketsInboxData({
   canViewEmailQueue,
   canViewWhatsappQueue,
   query,
+  enabled = true,
 }: {
   canViewEmailQueue: boolean;
   canViewWhatsappQueue: boolean;
   query: TicketListQuery;
+  enabled?: boolean;
 }) {
   const { user } = useAuth();
   const { status, attendanceType, priority, channel, assignee, department } = query;
@@ -48,7 +50,7 @@ export function useTicketsInboxData({
       query.sortKey,
       query.sortDirection,
     ],
-    enabled: !!user,
+    enabled: !!user && enabled,
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => {
       const { data, error } = await supabase

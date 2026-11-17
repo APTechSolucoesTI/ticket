@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 // Query state is a runtime boundary, not just a TypeScript declaration.
-const { ticketListSearchSchema, ticketInboxResultSchema } =
+const { ticketListSearchSchema, ticketInboxResultSchema, validateTicketRouteSearch } =
   await import("../../apps/web/src/lib/ticket-query.ts");
 const defaults = ticketListSearchSchema.parse({});
+assert.equal(
+  validateTicketRouteSearch({}).pageSize,
+  undefined,
+  "SSR must not materialize a size before browser preferences load",
+);
+assert.equal(validateTicketRouteSearch({ pageSize: 50 }).pageSize, 50);
+assert.equal(validateTicketRouteSearch({ pageSize: 11 }).pageSize, 10);
 assert.equal(defaults.page, 1);
 assert.equal(defaults.pageSize, 10);
 assert.deepEqual(defaults.status, ["new", "in_progress", "pending"]);
