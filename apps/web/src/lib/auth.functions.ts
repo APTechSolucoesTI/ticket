@@ -7,7 +7,7 @@
 // com o PostgREST (mesmo JWT_SECRET que o GoTrue já usa) - nenhuma das
 // chamadas supabase.from(...) existentes no app precisa mudar.
 import { createServerFn } from "@tanstack/react-start";
-import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signSessionToken } from "@/lib/jwt.server";
@@ -173,7 +173,7 @@ const signUpSchema = z.object({
  * Cadastro público de empresa nova (aba "Criar conta"). Antes disso vivia
  * inteiro no trigger apticket.handle_new_user(), disparado por INSERT em
  * auth.users - sem auth.users pra cadastro novo, a lógica de "cria tenant +
- * profile admin" precisa virar código de aplicação mesmo. O trigger continua
+ * profile admin" passa a ser uma transação RPC restrita ao servidor. O trigger continua
  * existindo (não precisa remover), só fica sem uso pra contas novas.
  */
 export const signUpTenant = createServerFn({ method: "POST" })
@@ -182,58 +182,20 @@ export const signUpTenant = createServerFn({ method: "POST" })
     await enforceAuthRateLimit("signup");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: existing } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("email", data.email.toLowerCase())
-      .maybeSingle();
-    if (existing) throw new Error("Este e-mail já está cadastrado.");
-
-    const slug =
-      data.company
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") +
-      "-" +
-      randomBytes(3).toString("hex");
-
-    const { data: tenant, error: tenantErr } = await supabaseAdmin
-      .from("tenants")
-      .insert({ name: data.company, slug })
-      .select("id")
-      .single();
-    if (tenantErr) throw new Error(tenantErr.message);
-
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-    const { data: profile, error: profErr } = await supabaseAdmin
-      .from("profiles")
-      .insert({
-        id: randomUUID(),
-        tenant_id: tenant.id,
-        name: data.name,
-        email: data.email.toLowerCase(),
-        password_hash: passwordHash,
-        is_active: true,
+    const { data: profile, error } = await supabaseAdmin
+      .rpc("provision_tenant", {
+        _company_name: data.company,
+        _name: data.name,
+        _email: data.email.toLowerCase(),
+        _password_hash: passwordHash,
       })
-      .select("id, tenant_id, name, email, session_version")
       .single();
-    if (profErr) throw new Error(profErr.message);
-
-    // O papel "Admin" já existe aqui - o trigger tenants_seed_default_roles
-    // (Bloco 2, migration 20260821000000) roda síncrono na própria inserção
-    // do tenant acima, antes deste ponto do código.
-    const { data: adminRole, error: adminRoleErr } = await supabaseAdmin
-      .from("roles")
-      .select("id")
-      .eq("tenant_id", tenant.id)
-      .eq("name", "Admin")
-      .single();
-    if (adminRoleErr) throw new Error(adminRoleErr.message);
-
-    const { error: roleErr } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: profile.id, tenant_id: tenant.id, role_id: adminRole.id });
-    if (roleErr) throw new Error(roleErr.message);
+    if (error || !profile) {
+      if (error?.code === "23505") throw new Error("Este e-mail já está cadastrado.");
+      console.error("[signUpTenant] provisioning failed", { code: error?.code });
+      throw new Error("Não foi possível criar sua conta. Tente novamente.");
+    }
 
     const token = signSessionToken({
       id: profile.id,

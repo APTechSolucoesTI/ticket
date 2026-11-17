@@ -4,6 +4,8 @@
 
 **Código analisado:** commit `e14fcb8dc533e5a224ae129bc6e09957aa6ff472`.
 
+**Atualização incremental em 17/11/2026:** isolamento de cache por identidade e fluxos transacionais de cadastro/chat. Ver [primeira entrega](./security/melhorias-prioritarias-20261117.md) e [migração dos fluxos transacionais](./security/fluxos-transacionais-20261117.md). A referência original acima permanece como base documental.
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.
@@ -302,6 +304,8 @@ Operações de negócio que exigem atomicidade devem usar transação/RPC adequa
 
 O login atual consulta `apticket.profiles`, exige perfil ativo e `password_hash`, verifica bcrypt e emite JWT próprio. O custo bcrypt configurado é 12.
 
+O cadastro usa a RPC `provision_tenant`, restrita ao servidor, para criar tenant, defaults, perfil e papel Admin na mesma transação. IDs e slug são gerados no banco; falhas no perfil/papel não deixam tenant parcial.
+
 | Propriedade                         | Implementação atual                                                                               |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Assinatura de sessão                | HS256 com `JWT_SECRET`                                                                            |
@@ -323,6 +327,8 @@ A API e o gateway comparam versão, atividade e tenant. O hook PostgREST `aptick
 
 Respostas 401 da API/PostgREST removem a sessão rejeitada do navegador; uma resposta atrasada de um token antigo preserva uma sessão que já tenha sido renovada.
 
+Mudanças de usuário/tenant cancelam consultas e aposentam o QueryClient anterior. Os consumidores são remontados com um client novo, impedindo que respostas e rollbacks antigos repovoem o cache da nova identidade. A renovação da mesma identidade preserva o cache; eventos de storage sincronizam a mudança entre abas.
+
 ### 7.3 Papéis e permissões
 
 O catálogo associa módulos a ações como `view`, `create`, `edit` e `delete`, além de ações específicas de certos domínios. Papéis agregam concessões; exceções individuais complementam a resolução efetiva em `get_effective_permissions`.
@@ -342,6 +348,8 @@ O portal usa identidade de contato, distinta da sessão dos usuários da equipe:
 5. Aplicação do escopo do ticket/documento antes de consultar ou assinar objetos.
 
 Os endpoints de portal ficam sob `/api/public/portal`; “public” no caminho não significa acesso irrestrito aos dados.
+
+A abertura de chat chama `create_portal_chat`: contato/cliente/contrato são revalidados e protegidos por locks, e ticket/mensagem inicial são gravados juntos. Para chat sem equipamento, a classificação preserva contrato válido explicitamente selecionado e exclui contratos removidos ou fora da vigência. A migration deve preceder a publicação da versão web que utiliza as RPCs.
 
 ## 8. Políticas e controles de segurança
 

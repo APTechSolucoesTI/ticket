@@ -35,13 +35,17 @@ const backend = async (request, response) => {
     response.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(data));
   if (path.endsWith("/profiles")) {
     lookups++;
-    // All login/recovery identities are absent. Signup's duplicate profile
-    // stops before any tenant insertion or external side effect.
+    // Login/recovery identities are absent; signup uses its atomic RPC below.
     return json(request.url.includes("signup%40") ? { id: "duplicate" } : null);
   }
   if (path.endsWith("/contacts")) {
     otpLookups++;
     return json([]);
+  }
+  if (path.endsWith("/rpc/provision_tenant")) {
+    lookups++;
+    assert.match(body._password_hash, /^\$2[aby]\$12\$/);
+    return json({ code: "23505", message: "Synthetic duplicate email" }, 409);
   }
   if (/\/rpc\/complete_(invite|password_reset)$/.test(path)) {
     completions++;

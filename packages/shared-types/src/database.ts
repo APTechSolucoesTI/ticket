@@ -2803,6 +2803,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      provision_tenant: {
+        Args: { _company_name: string; _name: string; _email: string; _password_hash: string };
+        Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
+      };
+      create_portal_chat: {
+        Args: { _tenant_id: string; _contact_id: string; _message: string; _subject?: string | null; _contract_id?: string | null };
+        Returns: { ticket_id: string; number: number }[];
+      };
       can_sign_ticket_attachment: {
         Args: { _tenant_id: string; _ticket_id: string; _contact_id: string; _path: string };
         Returns: boolean;
