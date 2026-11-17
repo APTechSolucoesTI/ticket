@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -38,33 +38,17 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketBadge, type TicketStatus } from "@/components/ticket/TicketBadge";
 import { PageHeader } from "@/components/empty-stub";
+import { useTicketMetrics } from "@/hooks/use-tickets-inbox";
+import { emptyTicketMetrics } from "@/lib/ticket-query";
+import { ErrorState } from "@/components/data-state";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard - APTicket" }] }),
   component: DashboardPage,
 });
 
-type TicketRow = {
-  id: string;
-  number: number;
-  subject: string;
-  status: string;
-  priority: string;
-  created_at: string;
-  resolved_at: string | null;
-  sla_resolution_due_at: string | null;
-  assigned_to: string | null;
-  company_id: string | null;
-};
-
 const PERIOD_OPTIONS = [7, 14, 30] as const;
 type PeriodDays = (typeof PERIOD_OPTIONS)[number];
-
-function startOfDay(date: Date) {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
 
 function formatHours(hours: number) {
   if (!Number.isFinite(hours) || hours <= 0) return "0 min";
@@ -83,41 +67,7 @@ function DashboardPage() {
   const canUsers = permissions.has("usuarios", "view");
   const canContracts = permissions.has("contratos", "view");
 
-  const ticketsQuery = useQuery({
-    queryKey: ["dashboard", "tickets"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tickets")
-        .select(
-          "id, number, subject, status, priority, created_at, resolved_at, sla_resolution_due_at, assigned_to, company_id",
-        )
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as TicketRow[];
-    },
-    enabled: !permissions.loading && canTickets,
-  });
-
-  const companiesQuery = useQuery({
-    queryKey: ["dashboard", "companies"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id, name");
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !permissions.loading && canTickets && canCompanies,
-  });
-
-  const profilesQuery = useQuery({
-    queryKey: ["dashboard", "profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, name");
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !permissions.loading && canTickets && canUsers,
-  });
+  const ticketsQuery = useTicketMetrics(periodDays, !permissions.loading && canTickets);
 
   const contractsQuery = useQuery({
     queryKey: ["dashboard", "contracts-active"],
@@ -132,75 +82,18 @@ function DashboardPage() {
     enabled: !permissions.loading && canContracts,
   });
 
-  const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
-  const companyMap = useMemo(
-    () =>
-      Object.fromEntries((companiesQuery.data ?? []).map((company) => [company.id, company.name])),
-    [companiesQuery.data],
-  );
-  const profileMap = useMemo(
-    () =>
-      Object.fromEntries((profilesQuery.data ?? []).map((profile) => [profile.id, profile.name])),
-    [profilesQuery.data],
-  );
-
-  const now = Date.now();
-  const open = tickets.filter((ticket) => !["resolved", "closed"].includes(ticket.status));
-  const inProgress = tickets.filter((ticket) => ticket.status === "in_progress").length;
-  const pending = tickets.filter((ticket) => ticket.status === "pending").length;
-  const finished = tickets.filter((ticket) =>
-    ["resolved", "closed"].includes(ticket.status),
-  ).length;
-  const slaAtRisk = open.filter(
-    (ticket) =>
-      ticket.sla_resolution_due_at && new Date(ticket.sla_resolution_due_at).getTime() < now,
-  ).length;
-  const resolvedDurations = tickets
-    .filter((ticket) => ticket.resolved_at)
-    .map(
-      (ticket) =>
-        (new Date(ticket.resolved_at!).getTime() - new Date(ticket.created_at).getTime()) /
-        3_600_000,
-    );
-  const averageResolutionHours = resolvedDurations.length
-    ? resolvedDurations.reduce((sum, duration) => sum + duration, 0) / resolvedDurations.length
-    : 0;
-
-  const volumeData = useMemo(() => {
-    const buckets: Array<{ date: string; iso: string; criados: number; resolvidos: number }> = [];
-    for (let index = periodDays - 1; index >= 0; index--) {
-      const date = startOfDay(new Date());
-      date.setDate(date.getDate() - index);
-      buckets.push({
-        date: date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-        iso: date.toISOString().slice(0, 10),
-        criados: 0,
-        resolvidos: 0,
-      });
-    }
-    const byDate = Object.fromEntries(buckets.map((bucket, index) => [bucket.iso, index]));
-    for (const ticket of tickets) {
-      const createdIndex = byDate[ticket.created_at?.slice(0, 10)];
-      if (createdIndex !== undefined) buckets[createdIndex].criados += 1;
-      const resolvedIndex = ticket.resolved_at
-        ? byDate[ticket.resolved_at.slice(0, 10)]
-        : undefined;
-      if (resolvedIndex !== undefined) buckets[resolvedIndex].resolvidos += 1;
-    }
-    return buckets;
-  }, [periodDays, tickets]);
-
-  const currentPeriodStart = startOfDay(new Date());
-  currentPeriodStart.setDate(currentPeriodStart.getDate() - periodDays + 1);
-  const previousPeriodStart = new Date(currentPeriodStart);
-  previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays);
-  const currentPeriodCount = tickets.filter(
-    (ticket) => new Date(ticket.created_at) >= currentPeriodStart,
-  ).length;
-  const previousPeriodCount = tickets.filter((ticket) => {
-    const createdAt = new Date(ticket.created_at);
-    return createdAt >= previousPeriodStart && createdAt < currentPeriodStart;
-  }).length;
+  const metrics = ticketsQuery.data ?? emptyTicketMetrics;
+  const {
+    openCount,
+    inProgress,
+    pending,
+    finished,
+    slaAtRisk,
+    averageResolutionHours,
+    currentPeriodCount,
+    previousPeriodCount,
+  } = metrics;
+  const volumeData = metrics.volume;
   const periodVariation =
     previousPeriodCount === 0
       ? currentPeriodCount > 0
@@ -211,18 +104,30 @@ function DashboardPage() {
   const statusBreakdown = [
     {
       status: "Novos",
-      count: tickets.filter((ticket) => ticket.status === "new").length,
+      count: metrics.newCount,
       color: "#45BDD6",
     },
     { status: "Em atendimento", count: inProgress, color: "#6366F1" },
     { status: "Pendentes", count: pending, color: "#F59E0B" },
     { status: "Concluídos", count: finished, color: "#10B981" },
   ];
-  const latest = tickets.slice(0, 6);
+  const latest = metrics.latest;
   const displayName = user?.name?.trim() || user?.email?.split("@")[0] || "usuário";
 
   if (permissions.loading || (canTickets && ticketsQuery.isLoading)) {
     return <DashboardSkeleton />;
+  }
+  if (canTickets && ticketsQuery.isError && !ticketsQuery.data) {
+    return (
+      <section className="p-6 space-y-4">
+        <PageHeader title="Dashboard" subtitle="Indicadores operacionais" icon={LayoutDashboard} />
+        <ErrorState
+          title="Indicadores indisponíveis"
+          description="Não foi possível consultar os indicadores de atendimento."
+          action={{ label: "Tentar novamente", onClick: () => void ticketsQuery.refetch() }}
+        />
+      </section>
+    );
   }
 
   return (
@@ -241,7 +146,7 @@ function DashboardPage() {
                   aria-pressed={periodDays === days}
                   onClick={() => setPeriodDays(days)}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    "min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0",
                     periodDays === days
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -254,9 +159,10 @@ function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
+              className="h-11 sm:h-8"
               onClick={() => {
-                void ticketsQuery.refetch();
-                void contractsQuery.refetch();
+                if (canTickets) void ticketsQuery.refetch();
+                if (canContracts) void contractsQuery.refetch();
               }}
             >
               <RefreshCw className={cn("size-3.5", ticketsQuery.isFetching && "animate-spin")} />
@@ -266,13 +172,24 @@ function DashboardPage() {
         }
       />
 
+      {canTickets && ticketsQuery.isFetching && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Atualizando indicadores do período selecionado…
+        </p>
+      )}
+      {canTickets && ticketsQuery.isError && ticketsQuery.data && (
+        <p role="alert" className="text-xs text-destructive">
+          Não foi possível atualizar os indicadores. Os dados anteriores foram mantidos.
+        </p>
+      )}
+
       {canTickets && (
         <section
           aria-labelledby="operation-summary-title"
-          className="rounded-xl border border-violet-200/70 bg-gradient-to-r from-violet-50 to-fuchsia-50/60 px-4 py-3 dark:border-violet-500/20 dark:from-violet-500/10 dark:to-fuchsia-500/5"
+          className="rounded-xl border border-border bg-card px-4 py-3 text-card-foreground"
         >
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 rounded-lg bg-violet-500/10 p-2 text-violet-600 dark:text-violet-300">
+            <span className="mt-0.5 rounded-lg bg-accent p-2 text-accent-foreground">
               <Sparkles className="size-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -280,7 +197,7 @@ function DashboardPage() {
                 Resumo da operação
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {open.length} ticket(s) em aberto, {slaAtRisk} fora do prazo de resolução e{" "}
+                {openCount} ticket(s) em aberto, {slaAtRisk} fora do prazo de resolução e{" "}
                 {currentPeriodCount} criado(s) nos últimos {periodDays} dias.
               </p>
             </div>
@@ -306,7 +223,7 @@ function DashboardPage() {
             />
             <MetricCard
               label="Tickets abertos"
-              value={open.length}
+              value={openCount}
               description="Demanda ativa neste momento"
               icon={Inbox}
               tone="blue"
@@ -335,7 +252,7 @@ function DashboardPage() {
             <MetricCard
               label="Tempo médio de resolução"
               value={formatHours(averageResolutionHours)}
-              description={`${resolvedDurations.length} atendimento(s) na amostra`}
+              description={`${metrics.summary.resolutionSample} atendimento(s) na amostra`}
               icon={Clock3}
               tone="violet"
             />
@@ -512,10 +429,10 @@ function DashboardPage() {
                           </Link>
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">
-                          {ticket.company_id ? (companyMap[ticket.company_id] ?? "-") : "-"}
+                          {canCompanies ? (ticket.companies?.name ?? "-") : "-"}
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">
-                          {ticket.assigned_to ? (profileMap[ticket.assigned_to] ?? "-") : "-"}
+                          {canUsers ? (ticket.assigneeName ?? "-") : "-"}
                         </td>
                         <td className="px-4 py-2">
                           <TicketBadge status={ticket.status as TicketStatus} />

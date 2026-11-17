@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleDollarSign, Headset, Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -38,11 +38,13 @@ import { TicketOverview } from "@/components/ticket/inbox/TicketOverview";
 import { TicketFilters, type TicketFilterState } from "@/components/ticket/inbox/TicketFilters";
 import { TicketInboxList } from "@/components/ticket/inbox/TicketInboxList";
 import { TicketInboxKanban } from "@/components/ticket/inbox/TicketInboxKanban";
-import { useTicketsInboxData } from "@/hooks/use-tickets-inbox";
-import { calculateTicketSummary } from "@/lib/ticket-inbox";
+import { useTicketMetrics, useTicketsInboxData } from "@/hooks/use-tickets-inbox";
+import { emptyTicketSummary, ticketListSearchSchema } from "@/lib/ticket-query";
+import { PaginationControls, type RemoteTableState } from "@/components/configurable-table";
 import { PageHeader } from "@/components/empty-stub";
 
 export const Route = createFileRoute("/_authenticated/tickets")({
+  validateSearch: ticketListSearchSchema,
   head: () => ({ meta: [{ title: "Tickets - APTicket" }] }),
   component: TicketsLayout,
 });
@@ -59,24 +61,82 @@ function TicketsInbox() {
   const emailQueueAccess = useModulePermissions("fila_email");
   const whatsappQueueAccess = useModulePermissions("fila_whatsapp");
   const qc = useQueryClient();
-  const [view, setView] = useState<"list" | "kanban">("list");
-  const [filters, setFilters] = useState<TicketFilterState>({
-    attendanceType: [],
-    status: ["new", "in_progress", "pending"],
-    priority: [],
-    assignee: [],
-    channel: [],
-    department: [],
-    search: "",
-  });
+  const query = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const view = query.view;
+  const [searchDraft, setSearchDraft] = useState(query.search);
+  useEffect(() => setSearchDraft(query.search), [query.search]);
+  useEffect(() => {
+    if (searchDraft === query.search) return;
+    const timer = setTimeout(
+      () =>
+        void navigate({
+          search: (previous) => ({ ...previous, search: searchDraft, page: 1 }),
+          replace: true,
+        }),
+      350,
+    );
+    return () => clearTimeout(timer);
+  }, [searchDraft, query.search, navigate]);
+  const filters: TicketFilterState = {
+    status: query.status,
+    attendanceType: query.attendanceType,
+    priority: query.priority,
+    channel: query.channel,
+    assignee: query.assignee,
+    department: query.department,
+    search: searchDraft,
+  };
+  const setFilters = (next: TicketFilterState) => {
+    if (next.search !== searchDraft) {
+      setSearchDraft(next.search);
+      return;
+    }
+    void navigate({
+      search: (previous) => ({ ...previous, ...next, search: previous.search, page: 1 }),
+    });
+  };
   const [openNew, setOpenNew] = useState(false);
   const filterRef = useRef<HTMLButtonElement>(null);
+  const mobileFilterRef = useRef<HTMLButtonElement>(null);
 
   const { ticketsQuery, departmentsQuery, agentsQuery, queueSummaryQuery } = useTicketsInboxData({
     canViewEmailQueue: emailQueueAccess.view,
     canViewWhatsappQueue: whatsappQueueAccess.view,
+    query,
   });
-  const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
+  const tickets = ticketsQuery.data?.items ?? [];
+  const metricsQuery = useTicketMetrics(7, access.view);
+  const remote: RemoteTableState = {
+    busy: ticketsQuery.isFetching || ticketsQuery.isPlaceholderData,
+    page: ticketsQuery.data?.page ?? query.page,
+    pageSize: ticketsQuery.data?.pageSize ?? query.pageSize,
+    total: ticketsQuery.data?.total ?? 0,
+    sort: query.sortKey ? { key: query.sortKey, dir: query.sortDirection } : null,
+    onPageChange: (page) => void navigate({ search: (previous) => ({ ...previous, page }) }),
+    onPageSizeChange: (pageSize) =>
+      void navigate({ search: (previous) => ({ ...previous, pageSize, page: 1 }) }),
+    onSortChange: (sort) =>
+      void navigate({
+        search: (previous) => ({
+          ...previous,
+          sortKey: ticketListSearchSchema.shape.sortKey.parse(sort?.key ?? ""),
+          sortDirection: sort?.dir ?? "desc",
+          page: 1,
+        }),
+      }),
+  };
+  useEffect(() => {
+    if (
+      ticketsQuery.data &&
+      !ticketsQuery.isPlaceholderData &&
+      ticketsQuery.data.page !== query.page
+    )
+      void navigate({
+        search: (previous) => ({ ...previous, page: ticketsQuery.data!.page }),
+        replace: true,
+      });
+  }, [ticketsQuery.data, ticketsQuery.isPlaceholderData, query.page, navigate]);
   const departments = departmentsQuery.data ?? [];
   const agents = agentsQuery.data ?? [];
 
@@ -86,7 +146,8 @@ function TicketsInbox() {
       if (t && ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return;
       if (e.key.toLowerCase() === "f") {
         e.preventDefault();
-        filterRef.current?.focus();
+        if (filterRef.current?.getClientRects().length) filterRef.current.focus();
+        else mobileFilterRef.current?.focus();
       }
       if (e.key.toLowerCase() === "n" && access.create) {
         e.preventDefault();
@@ -97,28 +158,7 @@ function TicketsInbox() {
     return () => window.removeEventListener("keydown", handler);
   }, [access.create]);
 
-  const summary = useMemo(() => calculateTicketSummary(tickets), [tickets]);
-
-  const filtered = useMemo(
-    () =>
-      tickets.filter(
-        (t) =>
-          (filters.status.length === 0 || filters.status.includes(t.status)) &&
-          (filters.attendanceType.length === 0 ||
-            filters.attendanceType.includes(t.tipo_atendimento)) &&
-          (filters.priority.length === 0 || filters.priority.includes(t.priority)) &&
-          (filters.assignee.length === 0 ||
-            (t.assigned_to !== null && filters.assignee.includes(t.assigned_to))) &&
-          (filters.channel.length === 0 || filters.channel.includes(t.channel)) &&
-          (filters.department.length === 0 ||
-            (t.department_id !== null && filters.department.includes(t.department_id))) &&
-          (!filters.search ||
-            `${t.number} ${t.subject} ${t.companies?.name ?? ""}`
-              .toLowerCase()
-              .includes(filters.search.toLowerCase())),
-      ),
-    [tickets, filters],
-  );
+  const summary = metricsQuery.data?.summary ?? emptyTicketSummary;
 
   const hasActiveFilters =
     filters.status.length > 0 ||
@@ -128,16 +168,24 @@ function TicketsInbox() {
     filters.channel.length > 0 ||
     filters.department.length > 0 ||
     filters.search.trim().length > 0;
-  const hasFilteredOutTickets = tickets.length > 0 && hasActiveFilters;
+  const hasFilteredOutTickets =
+    hasActiveFilters &&
+    !!metricsQuery.data &&
+    metricsQuery.data.openCount + metricsQuery.data.finished > 0;
   const resetFilters = () => {
-    setFilters({
-      attendanceType: [],
-      status: [],
-      priority: [],
-      assignee: [],
-      channel: [],
-      department: [],
-      search: "",
+    setSearchDraft("");
+    void navigate({
+      search: (previous) => ({
+        ...previous,
+        attendanceType: [],
+        status: [],
+        priority: [],
+        assignee: [],
+        channel: [],
+        department: [],
+        search: "",
+        page: 1,
+      }),
     });
   };
 
@@ -150,20 +198,28 @@ function TicketsInbox() {
           subtitle="Volume atual, tendência recente e filas que precisam de ação."
           icon={Headset}
           actions={
-            ticketsQuery.isError ? (
+            ticketsQuery.isError || metricsQuery.isError ? (
               <span className="text-xs text-destructive">Dados indisponíveis</span>
             ) : null
           }
         />
       </div>
-      <TicketOverview
-        summary={summary}
-        loading={ticketsQuery.isLoading}
-        queueSummary={queueSummaryQuery.data}
-        queueLoading={queueSummaryQuery.isLoading}
-        canViewEmailQueue={emailQueueAccess.view}
-        canViewWhatsappQueue={whatsappQueueAccess.view}
-      />
+      {metricsQuery.isError && !metricsQuery.data ? (
+        <ErrorState
+          title="Indicadores indisponíveis"
+          description="Não foi possível consultar os indicadores."
+          action={{ label: "Tentar novamente", onClick: () => void metricsQuery.refetch() }}
+        />
+      ) : (
+        <TicketOverview
+          summary={summary}
+          loading={metricsQuery.isLoading}
+          queueSummary={queueSummaryQuery.data}
+          queueLoading={queueSummaryQuery.isLoading}
+          canViewEmailQueue={emailQueueAccess.view}
+          canViewWhatsappQueue={whatsappQueueAccess.view}
+        />
+      )}
 
       <div className="flex flex-wrap items-center gap-2 border-b bg-background px-3 py-2">
         <TicketAutoRefresh
@@ -176,32 +232,45 @@ function TicketsInbox() {
           <TicketFilters
             filters={filters}
             onFiltersChange={setFilters}
+            onClearFilters={resetFilters}
             departments={departments}
             agents={agents}
             view={view}
-            onViewChange={setView}
+            onViewChange={(view) =>
+              void navigate({ search: (previous) => ({ ...previous, view, page: 1 }) })
+            }
             canCreate={access.create}
             onCreate={() => setOpenNew(true)}
             triggerRef={filterRef}
+            mobileTriggerRef={mobileFilterRef}
           />
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      {ticketsQuery.isFetching && (
+        <p role="status" className="px-3 py-1 text-xs text-muted-foreground">
+          Atualizando tickets…
+        </p>
+      )}
+      {ticketsQuery.isError && ticketsQuery.data && (
+        <p role="alert" className="px-3 py-2 text-xs text-destructive">
+          Não foi possível atualizar os tickets. Os dados anteriores foram mantidos.
+          <Button variant="link" size="sm" onClick={() => void ticketsQuery.refetch()}>
+            Tentar novamente
+          </Button>
+        </p>
+      )}
+      <div className="flex-1 overflow-auto" aria-busy={ticketsQuery.isFetching}>
         {ticketsQuery.isLoading ? (
           <LoadingState label="Carregando tickets…" />
-        ) : ticketsQuery.isError ? (
+        ) : ticketsQuery.isError && !ticketsQuery.data ? (
           <ErrorState
             title="Não foi possível carregar os tickets"
-            description={
-              ticketsQuery.error instanceof Error
-                ? `${ticketsQuery.error.message}. Verifique sua conexão e tente novamente.`
-                : "Verifique sua conexão e tente novamente."
-            }
+            description="Verifique sua conexão e tente novamente."
             action={{ label: "Tentar novamente", onClick: () => void ticketsQuery.refetch() }}
             className="mt-6"
           />
-        ) : filtered.length === 0 ? (
+        ) : tickets.length === 0 ? (
           <EmptyState
             title={
               hasFilteredOutTickets
@@ -223,16 +292,37 @@ function TicketsInbox() {
             className="mt-6"
           />
         ) : view === "list" ? (
-          <TicketInboxList tickets={filtered} />
+          <TicketInboxList tickets={tickets} remote={remote} />
         ) : (
-          <TicketInboxKanban tickets={filtered} />
+          <div className="p-2 space-y-2">
+            <PaginationControls
+              page={remote.page}
+              pageSize={remote.pageSize}
+              total={remote.total}
+              pageCount={Math.max(1, Math.ceil(remote.total / remote.pageSize))}
+              onPageChange={remote.onPageChange}
+              busy={remote.busy}
+            />
+            <p className="text-xs text-muted-foreground">
+              O quadro exibe os tickets da página atual.
+            </p>
+            <TicketInboxKanban tickets={tickets} />
+            <PaginationControls
+              page={remote.page}
+              pageSize={remote.pageSize}
+              total={remote.total}
+              pageCount={Math.max(1, Math.ceil(remote.total / remote.pageSize))}
+              onPageChange={remote.onPageChange}
+              busy={remote.busy}
+            />
+          </div>
         )}
       </div>
       <div
-        className="border-t bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground"
+        className="border-t bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
         aria-live="polite"
       >
-        {filtered.length} ticket(s) exibido(s) · Atalhos:{" "}
+        {tickets.length} de {remote.total} ticket(s) nesta página · Atalhos:{" "}
         {access.create && (
           <>
             <kbd className="rounded border px-1">N</kbd> novo ·{" "}

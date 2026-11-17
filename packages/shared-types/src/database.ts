@@ -2803,12 +2803,36 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      list_ticket_inbox: {
+        Args: {
+          _page?: number;
+          _page_size?: number;
+          _search?: string;
+          _filters?: Json;
+          _sort_key?: string;
+          _sort_direction?: string;
+        };
+        Returns: Json;
+      };
+      get_ticket_metrics: { Args: { _period_days?: number }; Returns: Json };
       provision_tenant: {
         Args: { _company_name: string; _name: string; _email: string; _password_hash: string };
-        Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
+        Returns: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          email: string;
+          session_version: number;
+        }[];
       };
       create_portal_chat: {
-        Args: { _tenant_id: string; _contact_id: string; _message: string; _subject?: string | null; _contract_id?: string | null };
+        Args: {
+          _tenant_id: string;
+          _contact_id: string;
+          _message: string;
+          _subject?: string | null;
+          _contract_id?: string | null;
+        };
         Returns: { ticket_id: string; number: number }[];
       };
       can_sign_ticket_attachment: {
@@ -2860,7 +2884,13 @@ export type Database = {
       };
       complete_password_reset: {
         Args: { _token_hash: string; _password_hash: string };
-        Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
+        Returns: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          email: string;
+          session_version: number;
+        }[];
       };
       increment_portal_otp_attempt: {
         Args: { _otp_id: string };
@@ -2868,7 +2898,13 @@ export type Database = {
       };
       complete_invite: {
         Args: { _token_hash: string; _password_hash: string };
-        Returns: { id: string; tenant_id: string; name: string; email: string; session_version: number }[];
+        Returns: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          email: string;
+          session_version: number;
+        }[];
       };
       current_tenant_id: { Args: never; Returns: string };
       get_closing_report_by_token: {

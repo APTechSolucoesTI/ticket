@@ -29,7 +29,7 @@ export type TicketRow = {
   resolution_summary: string | null;
   companies: { name: string } | null;
   contacts: { name: string } | null;
-  assigneeName?: string;
+  assigneeName?: string | null;
 };
 
 export type TicketSummary = {

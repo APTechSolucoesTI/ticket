@@ -41,9 +41,20 @@ type Props<T> = {
   rowClassName?: (row: T) => string | undefined;
   rowActions?: (row: T) => ReactNode;
   toolbar?: ReactNode;
+  remote?: RemoteTableState;
 };
 
-type SortState = { key: string; dir: "asc" | "desc" } | null;
+export type SortState = { key: string; dir: "asc" | "desc" } | null;
+export type RemoteTableState = {
+  busy?: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
+  sort: SortState;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  onSortChange: (sort: SortState) => void;
+};
 
 function defaultAccessor<T>(row: T, key: string): unknown {
   const v = (row as Record<string, unknown>)[key];
@@ -65,18 +76,20 @@ function normalizeSearch(value: unknown) {
     .trim();
 }
 
-function PaginationControls({
+export function PaginationControls({
   page,
   pageCount,
   total,
   pageSize,
   onPageChange,
+  busy = false,
 }: {
   page: number;
   pageCount: number;
   total: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  busy?: boolean;
 }) {
   const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
@@ -86,14 +99,14 @@ function PaginationControls({
       <span>
         {first}–{last} de {total}
       </span>
-      <div className="flex items-center gap-1" aria-label="Paginação da listagem">
+      <nav className="flex items-center gap-1" aria-label="Paginação da listagem">
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-11 w-11 sm:h-8 sm:w-8"
           aria-label="Página anterior"
-          disabled={page <= 1}
+          disabled={busy || page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -105,14 +118,14 @@ function PaginationControls({
           type="button"
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-11 w-11 sm:h-8 sm:w-8"
           aria-label="Próxima página"
-          disabled={page >= pageCount}
+          disabled={busy || page >= pageCount}
           onClick={() => onPageChange(page + 1)}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
-      </div>
+      </nav>
     </div>
   );
 }
@@ -126,12 +139,18 @@ export function ConfigurableTable<T>({
   rowClassName,
   rowActions,
   toolbar,
+  remote,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
-  const [sort, setSort] = useState<SortState>(null);
+  const [localSort, setLocalSort] = useState<SortState>(null);
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [localPage, setLocalPage] = useState(1);
+  const [localPageSize, setLocalPageSize] = useState(10);
+  const sort = remote ? remote.sort : localSort;
+  const page = remote ? remote.page : localPage;
+  const pageSize = remote ? remote.pageSize : localPageSize;
+  const setPage = remote ? remote.onPageChange : setLocalPage;
+  const setPageSize = remote ? remote.onPageSizeChange : setLocalPageSize;
 
   const { visibleOrder, setVisibleOrder, allColumns } = useColumnPreferences(
     listKey,
@@ -146,6 +165,7 @@ export function ConfigurableTable<T>({
   };
 
   const processed = useMemo(() => {
+    if (remote) return rows;
     let out = rows;
     const active = Object.entries(filters).filter(([, v]) => v.trim());
     if (active.length) {
@@ -169,34 +189,38 @@ export function ConfigurableTable<T>({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filters, sort, colMap]);
+  }, [rows, filters, sort, colMap, remote]);
 
   const cycleSort = (key: string) => {
-    setSort((cur) => {
-      if (!cur || cur.key !== key) return { key, dir: "asc" };
-      if (cur.dir === "asc") return { key, dir: "desc" };
-      return null;
-    });
+    const next: SortState =
+      !sort || sort.key !== key
+        ? { key, dir: "asc" }
+        : sort.dir === "asc"
+          ? { key, dir: "desc" }
+          : null;
+    if (remote) remote.onSortChange(next);
+    else setLocalSort(next);
   };
 
   const activeFilterCount = Object.values(filters).filter((value) => value.trim()).length;
-  const pageCount = Math.max(1, Math.ceil(processed.length / pageSize));
+  const total = remote ? remote.total : processed.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const paginatedRows = useMemo(
-    () => processed.slice((page - 1) * pageSize, page * pageSize),
-    [processed, page, pageSize],
+    () => (remote ? processed : processed.slice((page - 1) * pageSize, page * pageSize)),
+    [processed, page, pageSize, remote],
   );
 
   useEffect(() => {
-    setPage((current) => Math.min(current, pageCount));
-  }, [pageCount]);
+    if (!remote) setLocalPage((current) => Math.min(current, pageCount));
+  }, [pageCount, remote]);
 
   useEffect(() => {
-    setPage(1);
-  }, [filters, sort, pageSize]);
+    if (!remote) setLocalPage(1);
+  }, [filters, sort, pageSize, remote]);
 
   useEffect(() => {
-    setPage(1);
-  }, [rows]);
+    if (!remote) setLocalPage(1);
+  }, [rows, remote]);
 
   return (
     <>
@@ -204,9 +228,10 @@ export function ConfigurableTable<T>({
         <PaginationControls
           page={page}
           pageCount={pageCount}
-          total={processed.length}
+          total={total}
           pageSize={pageSize}
           onPageChange={setPage}
+          busy={remote?.busy}
         />
         {toolbar ? (
           <div className="min-w-0 flex-1 lg:px-4">{toolbar}</div>
@@ -219,7 +244,7 @@ export function ConfigurableTable<T>({
               <X className="mr-1 h-4 w-4" /> Limpar filtros ({activeFilterCount})
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => setOpen(true)}>
             <Settings2 className="mr-1 h-4 w-4" /> Colunas
           </Button>
         </div>
@@ -235,20 +260,29 @@ export function ConfigurableTable<T>({
             {visibleOrder.map((k) => {
               const c = colMap.get(k);
               const sortable = !!c && !c.disableSort;
-              const filterable = !!c && !c.disableFilter;
+              const filterable = !!c && !c.disableFilter && !remote;
               const isSorted = sort?.key === k;
               const hasFilter = !!filters[k]?.trim();
               return (
                 <TableHead
                   key={k}
+                  aria-sort={
+                    sortable
+                      ? isSorted
+                        ? sort?.dir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                      : undefined
+                  }
                   className={`bg-muted text-xs font-semibold uppercase tracking-wide text-primary ${c?.className ?? ""}`}
                 >
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      disabled={!sortable}
+                      disabled={!sortable || remote?.busy}
                       onClick={() => sortable && cycleSort(k)}
-                      className={`inline-flex items-center gap-1 text-left ${sortable ? "hover:text-foreground cursor-pointer" : "cursor-default"}`}
+                      className={`inline-flex min-h-11 items-center gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0 ${sortable ? "hover:text-foreground cursor-pointer" : "cursor-default"}`}
                     >
                       <span>{c?.label ?? k}</span>
                       {sortable &&
@@ -345,9 +379,10 @@ export function ConfigurableTable<T>({
         <PaginationControls
           page={page}
           pageCount={pageCount}
-          total={processed.length}
+          total={total}
           pageSize={pageSize}
           onPageChange={setPage}
+          busy={remote?.busy}
         />
       </div>
       <ColumnSettingsDialog

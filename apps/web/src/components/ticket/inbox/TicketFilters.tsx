@@ -1,5 +1,5 @@
-import type { RefObject } from "react";
-import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
+import { useId, useState, type RefObject } from "react";
+import { ChevronDown, LayoutGrid, List, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ export type TicketFilterState = {
 export function TicketFilters({
   filters,
   onFiltersChange,
+  onClearFilters,
   departments,
   agents,
   view,
@@ -31,9 +32,11 @@ export function TicketFilters({
   canCreate,
   onCreate,
   triggerRef,
+  mobileTriggerRef,
 }: {
   filters: TicketFilterState;
   onFiltersChange: (filters: TicketFilterState) => void;
+  onClearFilters: () => void;
   departments: { id: string; name: string }[];
   agents: { id: string; name: string }[];
   view: "list" | "kanban";
@@ -41,68 +44,121 @@ export function TicketFilters({
   canCreate: boolean;
   onCreate: () => void;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  mobileTriggerRef: RefObject<HTMLButtonElement | null>;
 }) {
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const filterPanelId = useId();
   const set = <Key extends keyof TicketFilterState>(key: Key, value: TicketFilterState[Key]) =>
     onFiltersChange({ ...filters, [key]: value });
+  const activeCount = Object.values(filters).reduce(
+    (count, value) => count + (Array.isArray(value) ? value.length : value.trim() ? 1 : 0),
+    0,
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         <Label htmlFor="ticket-search" className="sr-only">
           Buscar tickets
         </Label>
-        <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+        <Search
+          className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           id="ticket-search"
           value={filters.search}
           onChange={(event) => set("search", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") set("search", "");
+          }}
           placeholder="Buscar nº, assunto, cliente…"
-          className="h-7 w-56 pl-7 text-xs"
+          maxLength={200}
+          className="h-11 w-full pl-7 pr-11 text-xs sm:h-7 sm:w-64 sm:pr-8"
+        />
+        {filters.search && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-0 top-0 h-11 w-11 sm:h-7 sm:w-7"
+            aria-label="Limpar busca de tickets"
+            onClick={() => set("search", "")}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+      <Button
+        ref={mobileTriggerRef}
+        type="button"
+        variant="outline"
+        className="h-11 text-xs sm:hidden"
+        aria-expanded={mobileFiltersOpen}
+        aria-controls={filterPanelId}
+        onClick={() => setMobileFiltersOpen((open) => !open)}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        Filtros ({activeCount})
+      </Button>
+      <div
+        id={filterPanelId}
+        className={cn("w-full flex-wrap gap-2 sm:contents", mobileFiltersOpen ? "flex" : "hidden")}
+      >
+        <MultiFilter
+          triggerRef={triggerRef}
+          label="Departamento"
+          values={filters.department}
+          onChange={(value) => set("department", value)}
+          options={departments.map((department) => ({
+            value: department.id,
+            label: department.name,
+          }))}
+        />
+        <MultiFilter
+          label="Atendimento"
+          values={filters.attendanceType}
+          onChange={(value) => set("attendanceType", value)}
+          options={[
+            { value: "contratual", label: "Contratual" },
+            { value: "avulso", label: "Avulso" },
+          ]}
+        />
+        <MultiFilter
+          label="Status"
+          values={filters.status}
+          onChange={(value) => set("status", value)}
+          options={STATUS_OPTIONS}
+        />
+        <MultiFilter
+          label="Prioridade"
+          values={filters.priority}
+          onChange={(value) => set("priority", value)}
+          options={PRIORITY_OPTIONS}
+        />
+        <MultiFilter
+          label="Técnico"
+          values={filters.assignee}
+          onChange={(value) => set("assignee", value)}
+          options={agents.map((agent) => ({ value: agent.id, label: agent.name }))}
+        />
+        <MultiFilter
+          label="Canal"
+          values={filters.channel}
+          onChange={(value) => set("channel", value)}
+          options={CHANNEL_OPTIONS}
         />
       </div>
-      <MultiFilter
-        triggerRef={triggerRef}
-        label="Departamento"
-        values={filters.department}
-        onChange={(value) => set("department", value)}
-        options={departments.map((department) => ({
-          value: department.id,
-          label: department.name,
-        }))}
-      />
-      <MultiFilter
-        label="Atendimento"
-        values={filters.attendanceType}
-        onChange={(value) => set("attendanceType", value)}
-        options={[
-          { value: "contratual", label: "Contratual" },
-          { value: "avulso", label: "Avulso" },
-        ]}
-      />
-      <MultiFilter
-        label="Status"
-        values={filters.status}
-        onChange={(value) => set("status", value)}
-        options={STATUS_OPTIONS}
-      />
-      <MultiFilter
-        label="Prioridade"
-        values={filters.priority}
-        onChange={(value) => set("priority", value)}
-        options={PRIORITY_OPTIONS}
-      />
-      <MultiFilter
-        label="Técnico"
-        values={filters.assignee}
-        onChange={(value) => set("assignee", value)}
-        options={agents.map((agent) => ({ value: agent.id, label: agent.name }))}
-      />
-      <MultiFilter
-        label="Canal"
-        values={filters.channel}
-        onChange={(value) => set("channel", value)}
-        options={CHANNEL_OPTIONS}
-      />
+      {activeCount > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-11 text-xs sm:h-7"
+          onClick={onClearFilters}
+        >
+          Limpar filtros ({activeCount})
+        </Button>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
         <div className="flex rounded-md border p-0.5">
@@ -112,7 +168,7 @@ export function TicketFilters({
             aria-pressed={view === "list"}
             aria-label="Exibir tickets em lista"
             className={cn(
-              "flex h-6 items-center gap-1 rounded-sm px-2 text-xs",
+              "flex h-11 items-center gap-1 rounded-sm px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-6",
               view === "list" && "bg-accent",
             )}
           >
@@ -124,7 +180,7 @@ export function TicketFilters({
             aria-pressed={view === "kanban"}
             aria-label="Exibir tickets em kanban"
             className={cn(
-              "flex h-6 items-center gap-1 rounded-sm px-2 text-xs",
+              "flex h-11 items-center gap-1 rounded-sm px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-6",
               view === "kanban" && "bg-accent",
             )}
           >
@@ -132,7 +188,7 @@ export function TicketFilters({
           </button>
         </div>
         {canCreate && (
-          <Button size="sm" className="h-7 gap-1 text-xs" onClick={onCreate}>
+          <Button size="sm" className="h-11 gap-1 text-xs sm:h-7" onClick={onCreate}>
             <Plus className="h-3.5 w-3.5" /> Novo ticket
           </Button>
         )}
@@ -166,7 +222,10 @@ function MultiFilter<T extends string>({
           ref={triggerRef}
           type="button"
           variant="outline"
-          className="h-7 min-w-[140px] justify-between gap-2 px-2 text-xs font-normal"
+          className={cn(
+            "h-11 min-w-[140px] justify-between gap-2 px-2 text-xs font-normal sm:h-7",
+            values.length > 0 && "border-primary text-primary",
+          )}
         >
           <span className="truncate">{summary}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -189,7 +248,7 @@ function MultiFilter<T extends string>({
           {options.map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted sm:min-h-0"
             >
               <Checkbox
                 checked={values.includes(option.value)}

@@ -49,6 +49,8 @@ jobs:
       - run: node scripts/security/test-auth-rate-limits.mjs
       - run: node scripts/security/test-browser-session.mjs
       - run: node --test scripts/security/test-session-query-cache.mjs
+      - run: node scripts/security/test-ticket-query.mjs
+      - run: node --test scripts/security/test-table-remote.mjs
       - run: node scripts/security/test-mail-compatibility.mjs
       - run: node scripts/security/test-mail-tls.mjs
       - name: Edge handlers without runtime network or environment access

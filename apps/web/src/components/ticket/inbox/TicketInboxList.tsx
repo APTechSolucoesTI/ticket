@@ -6,7 +6,11 @@ import { PriorityBadge } from "@/components/ticket/PriorityBadge";
 import { SlaTimer, slaBorderClass, slaState } from "@/components/ticket/SlaTimer";
 import { TicketBadge } from "@/components/ticket/TicketBadge";
 import { AttendanceBadge } from "@/components/ticket/AttendanceBadge";
-import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
+import {
+  ConfigurableTable,
+  type ListColumn,
+  type RemoteTableState,
+} from "@/components/configurable-table";
 import { SLA_DEFAULT_MIN, dueFor, type TicketRow } from "@/lib/ticket-inbox";
 import { cn } from "@/lib/utils";
 
@@ -14,12 +18,14 @@ const columns: ListColumn<TicketRow>[] = [
   {
     key: "number",
     label: "#",
-    className: "font-mono text-muted-foreground w-16",
+    className:
+      "sticky left-0 z-10 w-16 bg-card font-mono text-muted-foreground sm:static sm:z-auto",
     cell: (ticket) => `#${ticket.number}`,
   },
   {
     key: "subject",
     label: "Assunto",
+    className: "min-w-52",
     cell: (ticket) => (
       <div className="flex flex-wrap items-center gap-2">
         <Link to="/tickets/$id" params={{ id: ticket.id }} className="font-medium hover:underline">
@@ -107,13 +113,19 @@ const columns: ListColumn<TicketRow>[] = [
 
 export const TicketInboxList = memo(function TicketInboxList({
   tickets,
+  remote,
 }: {
   tickets: TicketRow[];
+  remote: RemoteTableState;
 }) {
   return (
     <div className="p-2">
+      <p className="mb-2 text-xs text-muted-foreground sm:hidden">
+        Deslize a tabela para ver as demais colunas.
+      </p>
       <ConfigurableTable<TicketRow>
         listKey="tickets"
+        remote={remote}
         rows={tickets}
         rowKey={(ticket) => ticket.id}
         rowClassName={(ticket) =>

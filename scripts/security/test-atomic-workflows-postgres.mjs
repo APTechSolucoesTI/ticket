@@ -73,6 +73,7 @@ try {
     "permissions",
     "role_permissions",
     "user_roles",
+    "user_permissions",
     "tabela_precos_avulso",
     "companies",
     "contacts",
@@ -144,6 +145,69 @@ try {
   console.log(
     "PASS PostgreSQL 17.6: actual DDL, migration rollback/reapply, SQL authorization and atomicity regressions",
   );
+  if (process.argv.includes("--tickets")) {
+    await client.query(
+      "create schema auth; create schema apticket_auth_private; grant usage on schema auth,apticket_auth_private to authenticated,anon,service_role;",
+    );
+    await client.query(
+      "create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; create function auth.uid() returns uuid language sql stable as $$select nullif(auth.jwt()->>'sub','')::uuid$$;",
+    );
+    for (const [schemaName, name] of [
+      ["apticket_auth_private", "session_is_current"],
+      ["apticket", "current_tenant_id"],
+      ["apticket", "get_effective_permissions"],
+      ["apticket", "has_permission"],
+    ]) {
+      const definition = schema.match(
+        new RegExp(
+          `CREATE FUNCTION ${schemaName}\\.${name}\\([\\s\\S]*?AS (\\$\\w*\\$)[\\s\\S]*?\\1;`,
+          "m",
+        ),
+      );
+      assert.ok(definition, name);
+      await client.query(definition[0]);
+    }
+    await client.query("grant select on all tables in schema apticket to authenticated;");
+    const readTables = new Set(["tickets", "companies", "contacts", "profiles"]);
+    for (const table of readTables)
+      await client.query(`alter table apticket.${table} enable row level security`);
+    for (const policy of schema.matchAll(/^CREATE POLICY [^\n]+ ON apticket\.(\w+) [^\n]+;/gm)) {
+      if (
+        readTables.has(policy[1]) &&
+        (policy[0].includes("AS RESTRICTIVE") ||
+          /^CREATE POLICY "(?:tickets select|companies select|contacts select|read profiles in tenant)"/.test(
+            policy[0],
+          ))
+      )
+        await client.query(policy[0]);
+    }
+    const nextMigration = await readFile(
+      path.join(root, "supabase/migrations/20261117140000_ticket_pagination_metrics.sql"),
+      "utf8",
+    ).catch((error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (nextMigration) {
+      await client.query(nextMigration);
+      await client.query(
+        await readFile(
+          path.join(root, "supabase/rollbacks/20261117140000_ticket_pagination_metrics.sql"),
+          "utf8",
+        ),
+      );
+      await client.query(nextMigration);
+    }
+    const ticketTests = (
+      await readFile(path.join(root, "supabase/tests/ticket_pagination_metrics_test.sql"), "utf8")
+    )
+      .replace(/^create extension if not exists pgtap[^;]*;\r?$/gim, "")
+      .replace(/^select (?:no_plan\(\)|pass\([^\r\n]+\)|\* from finish\(\));\r?$/gm, "");
+    await client.query(ticketTests);
+    console.log(
+      "PASS ticket pagination/metrics: >1000 rows, RLS, literal search, stable ordering, bounded payload and rollback/reapply",
+    );
+  }
   const second = await connect();
   await client.query("set role service_role");
   await second.query("set role service_role");

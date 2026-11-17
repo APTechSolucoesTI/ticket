@@ -61,16 +61,7 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
         if (serviceError) throw serviceError;
       }
     },
-    onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: ["tickets"] });
-      const previous = queryClient.getQueryData<TicketRow[]>(["tickets"]);
-      queryClient.setQueryData<TicketRow[]>(["tickets"], (current) =>
-        (current ?? []).map((ticket) => (ticket.id === id ? { ...ticket, status } : ticket)),
-      );
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(["tickets"], context.previous);
+    onError: () => {
       toast.error("Não foi possível mover o ticket");
     },
     onSuccess: () => {
@@ -81,7 +72,7 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
   });
 
   const requestMove = (id: string, status: TicketStatus) => {
-    if (!access.edit) return;
+    if (!access.edit || move.isPending) return;
     const ticket = tickets.find((item) => item.id === id);
     if (!ticket || ticket.status === status) return;
     if (status === "resolved" && !ticket.resolution_summary?.trim()) {
@@ -122,7 +113,7 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
             <header className="flex items-center justify-between border-b px-3 py-2 text-xs font-medium">
               <span>{column.label}</span>
               <span className="rounded bg-background px-1.5 text-[10px] text-muted-foreground">
-                {items.length}
+                {items.length} nesta página
               </span>
             </header>
             <div className="flex-1 space-y-2 overflow-auto p-2">
@@ -138,7 +129,7 @@ export function TicketInboxKanban({ tickets }: { tickets: TicketRow[] }) {
                     key={ticket.id}
                     to="/tickets/$id"
                     params={{ id: ticket.id }}
-                    draggable={access.edit}
+                    draggable={access.edit && !move.isPending}
                     onDragStart={(event) => {
                       if (!access.edit) return;
                       setDragId(ticket.id);
