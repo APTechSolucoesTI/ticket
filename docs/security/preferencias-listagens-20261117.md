@@ -80,4 +80,4 @@ node scripts/security/test-ticket-ui.mjs
 
 Os testes ampliados de tabela/query já participam do workflow existente. O ensaio Chrome é opcional local, com screenshots em `node_modules/.cache/ticket-ui-qa`. Não foi executado um pipeline remoto nesta entrega. Os testes usam identidades e respostas sintéticas; não atestam a configuração de produção.
 
-Permanecem para lotes posteriores a avaliação de índices com volume/distribuição reais, a redução das passagens de agregação do dashboard e os itens operacionais de observabilidade/bootstrap já registrados.
+A materialização do histórico do dashboard foi otimizada na [entrega posterior de agregações](./dashboard-agregacoes-20261118.md), com equivalência e EXPLAIN em fixture PostgreSQL. Observação de planos com distribuição real e os itens operacionais de observabilidade/bootstrap continuam no acompanhamento da publicação; a fixture não justificou um novo índice de tickets.

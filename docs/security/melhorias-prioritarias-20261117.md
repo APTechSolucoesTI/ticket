@@ -29,10 +29,10 @@ Consultas de existência usam `limit(1)` para tolerar duplicatas históricas. Ca
 
 - Nenhum schema, dado, serviço ou configuração de produção foi alterado.
 - Os adaptadores externos de banco, Redis, rede e Storage são sintéticos nos testes de ingestão. Não foi executado ensaio com provedores reais.
-- Arquivos enviados antes de uma gravação malsucedida podem ficar órfãos. A coleta desses objetos deve conferir vínculos antes de excluir; não faz parte desta entrega.
+- Arquivos enviados antes de uma gravação malsucedida podem ficar órfãos. A coleta não fazia parte desta primeira entrega; a [reconciliação posterior](./reconciliacao-storage-20261118.md) implementa auditoria e coleta explícita protegida por vínculos/claims para `ticket-attachments`, sem operação real executada.
 - O TTL de seis horas permanece. Crash do processo e indisponibilidade da limpeza Redis ainda requerem acompanhamento da fila; não há promessa de exactly-once.
 - O lint web padrão falha por CRLF preexistente no checkout Windows. O lint completo com `endOfLine: auto` passou sem erros, preservando dez warnings existentes de Fast Refresh.
-- Bootstrap histórico do banco, cadastro transacional, paginação e observabilidade permanecem nas próximas entregas.
+- Cadastro transacional e paginação foram corrigidos nas entregas posteriores documentadas; bootstrap/validações do ambiente e observabilidade continuam no acompanhamento operacional.
 
 ## Verificações finais
 

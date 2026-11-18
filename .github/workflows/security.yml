@@ -44,6 +44,8 @@ jobs:
       - run: pnpm --filter api build
       - run: node scripts/security/test-api-readiness.mjs
       - run: node scripts/security/test-api-lifecycle.mjs
+      - run: node --test scripts/storage/reconciliation.test.mjs
+      - run: node scripts/security/test-storage-reconciliation-http.mjs
       - run: node scripts/security/test-redis-rate-limit.mjs
         env:
           APTICKET_TEST_REDIS_URL: redis://127.0.0.1:6379

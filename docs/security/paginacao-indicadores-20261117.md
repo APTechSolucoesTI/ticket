@@ -68,7 +68,7 @@ Evidências da entrega:
 
 O runner PostgreSQL local usa DDL/políticas reais selecionados do snapshot; não reproduz todo o Supabase. O teste SQL entra automaticamente no job completo do CI, que não foi executado localmente. O ensaio de navegador usa respostas HTTP sintéticas, complementando os testes reais de autorização no banco; não valida a configuração do servidor de produção.
 
-Próximos pontos estruturais: avaliar índices e planos com a distribuição real de dados antes de grandes volumes; a contagem exata e filtros textuais ainda percorrem os registros visíveis. A consulta adicional dos recentes dentro da RPC do dashboard foi simplificada na [entrega de consulta limitada](./consulta-recentes-dashboard-20261117.md): não chama mais a listagem completa, mas os agregados históricos e suas passagens permanecem. A pendência de identificação e tamanho nas preferências globais foi corrigida na [entrega posterior de preferências](./preferencias-listagens-20261117.md), com evidências próprias.
+Próximos pontos operacionais: observar índices e planos com a distribuição real de dados antes de grandes volumes; a contagem exata e filtros textuais ainda percorrem os registros visíveis. A consulta adicional dos recentes dentro da RPC do dashboard foi simplificada na [entrega de consulta limitada](./consulta-recentes-dashboard-20261117.md), e a materialização histórica foi reduzida na [entrega de agregações](./dashboard-agregacoes-20261118.md), com equivalência e EXPLAIN em fixture. A pendência de identificação e tamanho nas preferências globais foi corrigida na [entrega posterior de preferências](./preferencias-listagens-20261117.md), com evidências próprias.
 
 Nenhuma conexão, migration ou publicação em produção foi realizada.
 

@@ -18,6 +18,8 @@
 
 **Tickets recentes do dashboard em 17/11/2026:** a RPC de métricas seleciona até seis tickets antes de resolver nomes e JSON, preservando contrato, ordem e RLS. Deixa de executar o pipeline completo da listagem; os agregados históricos permanecem iguais. Migration, rollback e evidências: [consulta de recentes](./security/consulta-recentes-dashboard-20261117.md).
 
+**Conclusão dos ajustes médios em 18/11/2026:** reconciliação operacional de `ticket-attachments` com auditoria por padrão, manifesto e claims/guardas antes da exclusão explícita; indicadores passam a materializar grupos limitados de datas, preservando o contrato. Evidências: [reconciliação de Storage](./security/reconciliacao-storage-20261118.md) e [agregações do dashboard](./security/dashboard-agregacoes-20261118.md). As migrations e a operação real continuam pendentes da publicação/homologação.
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.
@@ -697,6 +699,7 @@ Há scripts específicos de manutenção em `scripts/security`; não executá-lo
 | PostgreSQL            | Consulta somente de leitura nesta revisão retornou **17.6**. A preparação para 17.11 descrita nos relatórios não comprova atualização concluída; a manutenção permanece um assunto operacional separado |
 | Assinaturas ClamAV    | O guia registra divergência observada entre `daily.cld` baixado e versão em memória. Esta revisão não atestou sua resolução; conferir recarga antes de ampliar o compartilhamento                       |
 | Histórico de arquivos | O fluxo central protege novos uploads dos produtores cobertos; não foi demonstrada varredura geral de discos ou reprocessamento de todo acervo                                                          |
+| Órfãos de tickets     | Ferramenta de reconciliação implementada para `ticket-attachments`, com relatório e coleta explícita protegida por claims/guardas. Nenhuma coleta real executada; outros buckets e formatos externos não canônicos exigem avaliação própria |
 | Backup/PITR           | Há evidências de cópia/restauração para manutenção, sem confirmação de automação recorrente/PITR implantado                                                                                             |
 | Sessão no navegador   | Token em localStorage e validade de sete dias; proteção contra XSS e revogação são partes importantes desse modelo                                                                                      |
 | MFA                   | O fluxo de login descrito verifica senha; não demonstra etapa obrigatória de MFA                                                                                                                        |
@@ -705,6 +708,7 @@ Há scripts específicos de manutenção em `scripts/security`; não executá-lo
 | Dependência Nitro     | Versão beta fixada; mudanças de versão requerem regressão de SSR, serialização, CSP e proxy                                                                                                             |
 | Credenciais legadas   | `SecretsService.decrypt` ainda aceita formato legado sem cifra; evidência anterior de banco sem valores nesse formato não elimina essa compatibilidade no código                                        |
 | Observabilidade       | Logs/healthchecks existem; alertas, centralização e recuperação precisam de evidência própria                                                                                                           |
+| Agregados de tickets  | Materialização histórica substituída por grupos de datas; equivalência e recursos medidos em PostgreSQL sintético. Não há novo índice de tickets justificado pela distribuição testada; planos/latência reais são validação operacional |
 | Superadmin global     | Admin descrito é do tenant. Não foi identificado painel global de planos/tenants como parte desta implementação                                                                                         |
 
 Esta seção registra limites observados; a criação deste documento não executa correções, atualizações de banco ou novas políticas de infraestrutura.
