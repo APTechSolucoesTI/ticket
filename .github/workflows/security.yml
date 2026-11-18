@@ -97,9 +97,17 @@ jobs:
         with:
           run_install: false
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm audit --audit-level high --json > "$RUNNER_TEMP/audit.json"
+      # Preserve the raw registry report. The following gate rejects every active
+      # finding and independently verifies the one officially withdrawn record.
+      - run: |
+          audit_status=0
+          pnpm audit --audit-level high --json > "$RUNNER_TEMP/audit.json" || audit_status=$?
+          if [ "$audit_status" -gt 1 ]; then exit "$audit_status"; fi
+      - run: node --test scripts/security/dependency-audit-policy.test.mjs
       - if: always()
         run: node scripts/security/test-dependency-audit.mjs "$RUNNER_TEMP/audit.json"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
   session-isolation:
     runs-on: ubuntu-latest

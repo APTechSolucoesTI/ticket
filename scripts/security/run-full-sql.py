@@ -40,7 +40,7 @@ try:
         'supabase/postgres:17.6.1.136', '-c',
         "printf '#!/bin/sh\necho 0000000000000000000000000000000000000000000000000000000000000000\n' > /tmp/getkey; "
         'chmod 700 /tmp/getkey; '
-        'initdb -D /tmp/appsec-pg --username=supabase_admin --auth=trust --no-locale >/tmp/init.log && '
+        'initdb -D /tmp/appsec-pg --username=supabase_admin --auth=trust --no-locale --encoding=UTF8 >/tmp/init.log && '
         "exec postgres -D /tmp/appsec-pg -c listen_addresses='' "
         '-c unix_socket_directories=/run/postgresql '
         '-c shared_preload_libraries=pg_cron,pg_net,pgsodium,supabase_vault '
@@ -55,6 +55,7 @@ try:
     else:
         raise RuntimeError('Disposable database readiness timeout')
     sql(b'create database appsec_audit;', 'postgres')
+    assert sql(b'show server_encoding;').strip() == b'UTF8'
     for name in ['bootstrap.sql', 'schema.sql', 'auth-helpers.sql', 'bootstrap-extra.sql', 'catalog-seed.sql', 'reference-data.sql']:
         apply(FIXTURE / name)
     apply(ROOT / 'scripts/security/fixtures/sql-test-helpers.sql')

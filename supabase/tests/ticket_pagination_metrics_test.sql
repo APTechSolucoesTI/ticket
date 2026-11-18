@@ -5,8 +5,22 @@ set local plpgsql.check_asserts=on;
 select no_plan();
 insert into apticket.permissions(module,action) values ('tickets','view'),('clientes','view'),('contatos','view') on conflict do nothing;
 create temp table ticket_query_fixture(tenant_id uuid,profile_id uuid);
-insert into ticket_query_fixture select tenant_id,id from apticket.provision_tenant('Pagination A','Pagination owner','pagination-a@example.test','$2b$12$'||repeat('a',53));
-insert into ticket_query_fixture select tenant_id,id from apticket.provision_tenant('Pagination B','Pagination other','pagination-b@example.test','$2b$12$'||repeat('a',53));
+insert into ticket_query_fixture select tenant_id,gen_random_uuid() from apticket.provision_tenant('Pagination A','Pagination owner','pagination-a@example.test','$2b$12$'||repeat('a',53));
+insert into ticket_query_fixture select tenant_id,gen_random_uuid() from apticket.provision_tenant('Pagination B','Pagination other','pagination-b@example.test','$2b$12$'||repeat('a',53));
+-- Individual denials belong to operators. Provisioned owners retain their
+-- complete Admin access throughout this fixture.
+insert into apticket.profiles(id,tenant_id,name,email)
+select profile_id,tenant_id,'Pagination operator','pagination-operator-'||tenant_id::text||'@example.test'
+from ticket_query_fixture;
+insert into apticket.roles(tenant_id,name)
+select tenant_id,'Pagination operator' from ticket_query_fixture;
+insert into apticket.role_permissions(role_id,permission_id)
+select r.id,p.id from apticket.roles r join ticket_query_fixture f on f.tenant_id=r.tenant_id
+cross join apticket.permissions p
+where r.name='Pagination operator' and p.module in ('tickets','clientes','contatos') and p.action='view';
+insert into apticket.user_roles(user_id,tenant_id,role_id)
+select f.profile_id,f.tenant_id,r.id from ticket_query_fixture f
+join apticket.roles r on r.tenant_id=f.tenant_id and r.name='Pagination operator';
 grant select on ticket_query_fixture to authenticated;
 insert into apticket.companies(id,tenant_id,name) select 'ba300000-0000-4000-8000-000000000001',tenant_id,'Ação Clínica' from ticket_query_fixture order by profile_id limit 1;
 -- Insert synthetic records without unrelated financial trigger side effects.
@@ -23,7 +37,8 @@ insert into apticket.tickets(tenant_id,subject,status,channel,created_at)
 select tenant_id,'Other tenant private','new','manual',now() from ticket_query_fixture where tenant_id<>(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
 set local session_replication_role=origin;
 select set_config('request.jwt.claims',jsonb_build_object('sub',p.id,'tenant_id',p.tenant_id,'app','apticket','role','authenticated','session_version',p.session_version)::text,true)
-from apticket.profiles p where p.tenant_id=(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
+from apticket.profiles p join ticket_query_fixture f on f.profile_id=p.id and f.tenant_id=p.tenant_id
+where p.tenant_id=(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
 set local role authenticated;
 do $test$
 declare a jsonb; b jsonb; m jsonb;
@@ -85,7 +100,8 @@ where u.user_id=f.profile_id and u.permission_id=p.id and p.module='clientes' an
 and f.tenant_id=(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
 select pass('recent ticket names follow related-table RLS');
 select set_config('request.jwt.claims',jsonb_build_object('sub',p.id,'tenant_id',p.tenant_id,'app','apticket','role','authenticated','session_version',p.session_version)::text,true)
-from apticket.profiles p where p.tenant_id<>(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
+from apticket.profiles p join ticket_query_fixture f on f.profile_id=p.id and f.tenant_id=p.tenant_id
+where p.tenant_id<>(select tenant_id from apticket.companies where id='ba300000-0000-4000-8000-000000000001');
 set local role authenticated;
 do $test$
 begin

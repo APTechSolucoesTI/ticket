@@ -82,6 +82,7 @@ try {
     "sla_policies",
     "tickets",
     "messages",
+    "pause_reasons",
   ]);
   await client.query(
     "create role postgres bypassrls; create role service_role bypassrls; create role authenticated; create role anon; create schema apticket; create schema extensions;",
@@ -94,7 +95,7 @@ try {
     "create sequence apticket.tickets_number_seq; alter table apticket.tickets alter column number set default nextval('apticket.tickets_number_seq');",
   );
   for (const match of schema.matchAll(
-    /ALTER TABLE ONLY apticket\.(\w+)\n\s+ADD CONSTRAINT [\s\S]*?;/g,
+    /ALTER TABLE ONLY apticket\.(\w+)\r?\n\s+ADD CONSTRAINT [\s\S]*?;/g,
   )) {
     const refs = [...match[0].matchAll(/REFERENCES apticket\.(\w+)/g)].map((item) => item[1]);
     if (
@@ -110,6 +111,8 @@ try {
     "seed_tenant_default_roles_trigger",
     "resolver_atendimento_ticket",
     "classificar_ticket_antes_insert",
+    "seed_default_pause_reasons",
+    "seed_pause_reasons_for_new_tenant",
   ]) {
     const definition = schema.match(
       new RegExp(`CREATE FUNCTION apticket\\.${name}\\([\\s\\S]*?^\\$\\$;`, "m"),
@@ -119,6 +122,16 @@ try {
   }
   await client.query(
     "create trigger tenants_seed_default_roles after insert on apticket.tenants for each row execute function apticket.seed_tenant_default_roles_trigger(); create trigger tickets_classificar_atendimento before insert on apticket.tickets for each row execute function apticket.classificar_ticket_antes_insert(); grant usage on schema apticket to service_role,authenticated,anon; grant all on all tables in schema apticket to service_role; grant all on all sequences in schema apticket to service_role;",
+  );
+  await client.query(
+    `alter table apticket.pause_reasons owner to postgres;
+     alter function apticket.seed_default_pause_reasons(uuid) owner to postgres;
+     alter function apticket.seed_pause_reasons_for_new_tenant() owner to postgres;
+     revoke all on function apticket.seed_default_pause_reasons(uuid),
+       apticket.seed_pause_reasons_for_new_tenant() from public,anon,authenticated,service_role;
+     create trigger tenants_seed_pause_reasons after insert on apticket.tenants
+       for each row execute function apticket.seed_pause_reasons_for_new_tenant();
+     grant usage on schema apticket to postgres;`,
   );
   const migrationPath = path.join(
     root,
@@ -133,6 +146,36 @@ try {
     ),
   );
   await client.query(migration);
+  await client.query("set role service_role");
+  await assert.rejects(
+    client.query(
+      "select * from apticket.provision_tenant('Pause seed failure','Owner','pause-before@example.test',$1)",
+      ["$2b$12$" + "a".repeat(53)],
+    ),
+    (error) => error.code === "42501" && error.message.includes("seed_default_pause_reasons"),
+  );
+  await client.query("reset role");
+  const pauseSeedMigration = await readFile(
+    path.join(root, "supabase/migrations/20261118130000_tenant_pause_reason_seed_privileges.sql"),
+    "utf8",
+  );
+  await client.query(pauseSeedMigration);
+  await client.query(
+    await readFile(
+      path.join(root, "supabase/rollbacks/20261118130000_tenant_pause_reason_seed_privileges.sql"),
+      "utf8",
+    ),
+  );
+  await client.query("set role service_role");
+  await assert.rejects(
+    client.query(
+      "select * from apticket.provision_tenant('Pause rollback failure','Owner','pause-rollback@example.test',$1)",
+      ["$2b$12$" + "a".repeat(53)],
+    ),
+    (error) => error.code === "42501" && error.message.includes("seed_default_pause_reasons"),
+  );
+  await client.query("reset role");
+  await client.query(pauseSeedMigration);
   let tests = await readFile(
     path.join(root, "supabase/tests/atomic_onboarding_portal_chat_test.sql"),
     "utf8",

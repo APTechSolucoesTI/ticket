@@ -12,6 +12,12 @@ begin
   assert has_function_privilege('service_role','apticket.create_portal_chat(uuid,uuid,text,text,uuid)','EXECUTE');
   assert not has_function_privilege('anon','apticket.create_portal_chat(uuid,uuid,text,text,uuid)','EXECUTE');
   assert not has_function_privilege('authenticated','apticket.create_portal_chat(uuid,uuid,text,text,uuid)','EXECUTE');
+  assert not has_function_privilege('service_role','apticket.seed_default_pause_reasons(uuid)','EXECUTE');
+  assert not has_function_privilege('anon','apticket.seed_default_pause_reasons(uuid)','EXECUTE');
+  assert not has_function_privilege('authenticated','apticket.seed_default_pause_reasons(uuid)','EXECUTE');
+  assert not has_function_privilege('service_role','apticket.seed_pause_reasons_for_new_tenant()','EXECUTE');
+  assert not has_function_privilege('anon','apticket.seed_pause_reasons_for_new_tenant()','EXECUTE');
+  assert not has_function_privilege('authenticated','apticket.seed_pause_reasons_for_new_tenant()','EXECUTE');
 end $test$;
 select pass('atomic RPCs are restricted to the server role');
 
@@ -26,6 +32,11 @@ begin
   assert exists(select 1 from apticket.user_roles ur join apticket.roles r on r.id=ur.role_id and r.tenant_id=ur.tenant_id
     where ur.user_id=p.id and ur.tenant_id=p.tenant_id and r.name='Admin' and r.is_system);
   assert (select count(*) from apticket.profiles where tenant_id=p.tenant_id)=1;
+  assert (select count(*) from apticket.pause_reasons where tenant_id=p.tenant_id)=5;
+  begin
+    perform apticket.seed_default_pause_reasons(p.tenant_id);
+    raise exception 'expected direct pause seed rejection';
+  exception when insufficient_privilege then null; end;
   insert into atomic_fixture values(p.tenant_id,p.id);
   begin
     perform apticket.provision_tenant('Atomic duplicate company','Other owner',' atomic-OWNER@example.test ','$2b$12$'||repeat('a',53));

@@ -16,7 +16,7 @@ insert into apticket.companies(id,tenant_id,name) values
 create temporary table matrix(table_name text,payload jsonb,edit_column text);
 insert into matrix values
  ('companies','{"name":"CRUD company"}','name'),
- ('contacts','{"name":"CRUD contact"}','name'),
+ ('contacts','{"name":"CRUD contact","email":"crud-contact@example.test"}','name'),
  ('sla_policies','{"name":"CRUD SLA"}','name'),
  ('tickets','{"subject":"CRUD ticket"}','subject'),
  ('stickers','{"name":"CRUD sticker","storage_path":"synthetic-gallery-fixture"}','name');
