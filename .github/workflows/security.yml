@@ -39,6 +39,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm --filter web exec tsc --noEmit
       - run: node scripts/security/test-settings-navigation.mjs
+      - run: node scripts/security/test-contact-channels.mjs
+      - run: node scripts/security/test-portal-chat-contact.mjs
       - run: pnpm --filter api exec tsc --noEmit
       - run: pnpm --filter api exec jest --runInBand
       - run: pnpm --filter api build
@@ -60,6 +62,7 @@ jobs:
           NITRO_PRESET: node-server
       # Application test processes receive only loopback URLs and synthetic keys.
       - run: pnpm test:security-http
+      - run: node scripts/security/test-contact-channels-http.mjs
       - run: node scripts/security/test-web-egress.mjs
       - run: node scripts/security/test-security-headers.mjs
       - run: node scripts/security/test-backend-streaming.mjs

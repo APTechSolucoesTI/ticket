@@ -50,6 +50,11 @@ import { toast } from "sonner";
 import { maskPhone, normalizePhone, unmask } from "@/lib/masks";
 import { ReadOnlyNotice, ReadOnlyProvider, useModulePermissions } from "@/lib/permission-ui";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import {
+  contactEmailField,
+  contactPhoneField,
+  requireContactChannel,
+} from "@/lib/contact-channels";
 
 export const Route = createFileRoute("/_authenticated/contacts")({
   validateSearch: z.object({ record: z.string().optional() }),
@@ -87,7 +92,7 @@ const schema = z
   .object({
     company_ids: z.array(z.string().uuid()).min(1, "Selecione ao menos um cliente"),
     name: z.string().trim().min(1, "Nome obrigatório").max(120),
-    email: z.string().trim().toLowerCase().email("E-mail inválido").max(255),
+    email: contactEmailField,
     secondary_emails: z.array(
       z.string().trim().toLowerCase().email("E-mail secundário inválido").max(255),
     ),
@@ -102,13 +107,7 @@ const schema = z
           "Telefone secundário inválido",
         ),
     ),
-    phone: z
-      .string()
-      .trim()
-      .max(40)
-      .optional()
-      .or(z.literal(""))
-      .refine((v) => !v || (unmask(v).length >= 10 && unmask(v).length <= 15), "Telefone inválido"),
+    phone: contactPhoneField,
     job_title: z.string().trim().max(120).optional().or(z.literal("")),
     can_open_tickets: z.boolean(),
     receives_csat: z.boolean(),
@@ -117,7 +116,8 @@ const schema = z
     is_portal_financial: z.boolean(),
   })
   .superRefine((values, ctx) => {
-    const emails = new Set([values.email]);
+    requireContactChannel(values, ctx);
+    const emails = new Set(values.email ? [values.email] : []);
     values.secondary_emails.forEach((email, index) => {
       if (emails.has(email))
         ctx.addIssue({
@@ -532,7 +532,7 @@ function ContactDialog({
       const values = {
         company_id: payload.company_ids[0],
         name: payload.name,
-        email: payload.email,
+        email: payload.email || null,
         phone: payload.phone ? normalizePhone(payload.phone) : null,
         secondary_emails: payload.secondary_emails,
         secondary_phones: payload.secondary_phones.map(normalizePhone),
@@ -733,9 +733,12 @@ function ContactDialog({
                   {fieldError("job_title")}
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <p id="contact-channels-help" className="text-xs text-muted-foreground">
+                Informe pelo menos um e-mail ou telefone.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2" aria-describedby="contact-channels-help">
                 <section className="min-w-0 space-y-2" aria-label="E-mails do contato">
-                  <Label htmlFor="contact-email">E-mails *</Label>
+                  <Label htmlFor="contact-email">E-mails</Label>
                   <ContactChannelSelect
                     kind="email"
                     primary={form.email}
@@ -748,9 +751,7 @@ function ContactDialog({
                   />
                 </section>
                 <section className="min-w-0 space-y-2" aria-label="Telefones do contato">
-                  <Label htmlFor="contact-phone">
-                    Telefones <span className="font-normal text-muted-foreground">(opcional)</span>
-                  </Label>
+                  <Label htmlFor="contact-phone">Telefones</Label>
                   <ContactChannelSelect
                     kind="phone"
                     primary={form.phone}

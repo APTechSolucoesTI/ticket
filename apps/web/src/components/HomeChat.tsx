@@ -3,6 +3,11 @@ import { MessageCircle, X, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { CustomerChatComposer } from "@/components/chat/CustomerChatComposer";
 import {
+  parsePersistedPortalChat,
+  persistedChatMatchesContact,
+  type PersistedPortalChat,
+} from "@/lib/portal-chat-state";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -31,7 +36,7 @@ type SessionResp =
       contact: {
         id: string;
         name: string;
-        email: string;
+        email: string | null;
         company_name: string | null;
         can_open_tickets: boolean;
       };
@@ -67,13 +72,13 @@ type Step = "closed" | "email" | "otp" | "start" | "chat";
 
 const STORAGE_KEY = "apticket_home_chat_v1";
 
-type Persisted = { email: string; ticket_id: string; number: number } | null;
+type Persisted = PersistedPortalChat | null;
 
 function loadPersisted(): Persisted {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Persisted) : null;
+    return raw ? parsePersistedPortalChat(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -100,7 +105,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
 
   useEffect(() => {
     if (!authenticatedSession) return;
-    setEmail(authenticatedSession.contact.email);
+    setEmail(authenticatedSession.contact.email ?? "");
     setSession({ found: true, ...authenticatedSession });
     setContractId((current) =>
       authenticatedSession.contracts.some((contract) => contract.id === current)
@@ -116,8 +121,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
     if (ticket) return;
     const p = loadPersisted();
     const belongsToAuthenticatedContact =
-      !authenticatedSession ||
-      p?.email.toLocaleLowerCase() === authenticatedSession.contact.email.toLocaleLowerCase();
+      !authenticatedSession || persistedChatMatchesContact(p, authenticatedSession.contact);
     if (p && getPortalToken() && belongsToAuthenticatedContact) {
       setEmail(p.email);
       setTicket({ id: p.ticket_id, number: p.number });
@@ -153,11 +157,11 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
   }, [ticket]);
 
   useEffect(() => {
-    if (step !== "chat" || !ticket || !email) return;
+    if (step !== "chat" || !ticket) return;
     void fetchMessages();
     const id = setInterval(() => void fetchMessages(), 4000);
     return () => clearInterval(id);
-  }, [step, ticket, email, fetchMessages]);
+  }, [step, ticket, fetchMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -241,7 +245,12 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
       }
       const t = { id: json.ticket_id as string, number: json.number as number };
       setTicket(t);
-      savePersisted({ email: email.trim(), ticket_id: t.id, number: t.number });
+      savePersisted({
+        contact_id: session?.contact.id,
+        email: email.trim(),
+        ticket_id: t.id,
+        number: t.number,
+      });
       setFirstMessage("");
       setStep("chat");
       await onTicketCreated?.();

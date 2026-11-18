@@ -75,7 +75,7 @@ type SessionData = {
   contact: {
     id: string;
     name: string;
-    email: string;
+    email: string | null;
     company_name: string | null;
     can_open_tickets: boolean;
     is_portal_admin: boolean;

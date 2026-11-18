@@ -43,7 +43,7 @@ export class EmailReplyService {
     const { data: ticket, error: tErr } = await this.supabase.client
       .from('tickets')
       .select(
-        'id, tenant_id, subject, channel, contact_id, contacts(email, name)',
+        'id, tenant_id, subject, channel, contact_id, contacts(email, secondary_emails, name)',
       )
       .eq('id', ticketId)
       .eq('tenant_id', tenantId)
@@ -53,9 +53,17 @@ export class EmailReplyService {
     if (ticket.channel !== 'email')
       throw new BadRequestException('Ticket não é de origem e-mail');
 
-    const contactEmail = (
-      ticket as unknown as { contacts?: { email?: string | null } | null }
-    ).contacts?.email;
+    const contact = (
+      ticket as unknown as {
+        contacts?: {
+          email?: string | null;
+          secondary_emails?: string[] | null;
+        } | null;
+      }
+    ).contacts;
+    const contactEmail =
+      contact?.email?.trim() ||
+      contact?.secondary_emails?.find((email) => email.trim())?.trim();
     if (!contactEmail)
       throw new BadRequestException('Contato sem e-mail cadastrado');
 

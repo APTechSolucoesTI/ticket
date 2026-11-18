@@ -33,13 +33,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/masks";
 import { getUserFacingError } from "@/lib/user-facing-error";
+import { contactPrimaryChannelsSchema } from "@/lib/contact-channels";
 
 const NONE = "__none__";
 
 const FIELD_OPTIONS: { value: string; label: string; required?: boolean }[] = [
   { value: "name", label: "Nome", required: true },
   { value: "company_name", label: "Cliente (nome)", required: true },
-  { value: "email", label: "E-mail", required: true },
+  { value: "email", label: "E-mail" },
   { value: "phone", label: "Telefone" },
   { value: "job_title", label: "Cargo" },
   { value: "notes", label: "Observações" },
@@ -199,9 +200,9 @@ export function ContactImportDialog({
       if (
         !targetsUsed.has("name") ||
         !targetsUsed.has("company_name") ||
-        !targetsUsed.has("email")
+        (!targetsUsed.has("email") && !targetsUsed.has("phone"))
       ) {
-        throw new Error("Mapeie ao menos 'Nome', 'Cliente' e 'E-mail'");
+        throw new Error("Mapeie 'Nome', 'Cliente' e pelo menos 'E-mail' ou 'Telefone'");
       }
       const { data: companies } = await supabase.from("companies").select("id, name");
       const companyByName = new Map((companies ?? []).map((c) => [norm(c.name), c.id]));
@@ -239,10 +240,21 @@ export function ContactImportDialog({
           skippedRows.push({ row, lineNumber, reason: "Nome vazio" });
           return;
         }
-        if (!rec.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(rec.email))) {
-          skippedRows.push({ row, lineNumber, reason: "E-mail inválido ou vazio" });
+        const channels = contactPrimaryChannelsSchema.safeParse({
+          email: rec.email,
+          phone: rec.phone,
+        });
+        if (!channels.success) {
+          skippedRows.push({
+            row,
+            lineNumber,
+            reason:
+              channels.error.issues[0]?.message ?? "Informe pelo menos um e-mail ou telefone.",
+          });
           return;
         }
+        rec.email = channels.data.email || null;
+        rec.phone = channels.data.phone ? normalizePhone(channels.data.phone) : null;
         payloads.push(rec);
       });
 
@@ -359,7 +371,10 @@ export function ContactImportDialog({
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">* Obrigatórios.</p>
+            <p className="text-xs text-muted-foreground">
+              Nome e cliente são obrigatórios. Mapeie e informe pelo menos um e-mail ou telefone por
+              contato.
+            </p>
 
             <div className="min-w-0 space-y-1">
               <div className="text-xs font-medium">

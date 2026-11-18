@@ -181,8 +181,7 @@ export function ContactChannelSelect({
         </p>
       )}
       <p id={helpId} className="text-xs text-muted-foreground">
-        {email ? "Cadastre ao menos um e-mail." : "Telefones são opcionais."} Use a estrela para
-        definir o principal.
+        Use a estrela para definir o principal.
       </p>
     </div>
   );

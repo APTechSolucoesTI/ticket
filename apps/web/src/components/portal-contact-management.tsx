@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, RefreshCw, UserRoundCog, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { portalFetch } from "@/lib/portal-client";
+import {
+  CONTACT_CHANNEL_REQUIRED,
+  contactChannelFieldsSchema,
+  hasContactChannel,
+} from "@/lib/contact-channels";
+import { normalizePhone } from "@/lib/masks";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +35,10 @@ import {
 type PortalContact = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
+  secondary_emails?: string[];
+  secondary_phones?: string[];
   job_title: string | null;
   can_open_tickets: boolean;
   receives_csat: boolean;
@@ -143,7 +151,10 @@ export function PortalContactManagement({
                     {!contact.is_active ? <Badge variant="outline">Inativo</Badge> : null}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {contact.email}
+                    {contact.email ||
+                      contact.phone ||
+                      contact.secondary_emails?.[0] ||
+                      contact.secondary_phones?.[0]}
                     {contact.job_title ? ` · ${contact.job_title}` : ""}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -240,7 +251,9 @@ function ContactDialog({
 }) {
   const [form, setForm] = useState<ContactForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => {
+    setErrors({});
     if (contact === "new") setForm(emptyForm);
     else if (contact) {
       const { id: _id, ...values } = contact;
@@ -249,14 +262,30 @@ function ContactDialog({
   }, [contact]);
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) return;
+    const parsed = contactChannelFieldsSchema.safeParse(form);
+    const nextErrors: Record<string, string> = {};
+    if (!form.name.trim()) nextErrors.name = "Nome obrigatório";
+    if (!parsed.success)
+      for (const issue of parsed.error.issues) nextErrors[String(issue.path[0])] = issue.message;
+    if (!hasContactChannel(form)) {
+      nextErrors.email = CONTACT_CHANNEL_REQUIRED;
+      nextErrors.phone = CONTACT_CHANNEL_REQUIRED;
+    }
+    setErrors(nextErrors);
+    if (!parsed.success || Object.keys(nextErrors).length) return;
     setSaving(true);
     try {
       const creating = contact === "new";
       const response = await portalFetch("/api/public/portal/contacts", {
         method: creating ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(creating ? form : { ...form, id: (contact as PortalContact).id }),
+        body: JSON.stringify({
+          ...form,
+          name: form.name.trim(),
+          email: parsed.data.email || null,
+          phone: parsed.data.phone ? normalizePhone(parsed.data.phone) : null,
+          ...(!creating ? { id: (contact as PortalContact).id } : {}),
+        }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok)
@@ -267,9 +296,11 @@ function ContactDialog({
         );
       toast.success(
         creating
-          ? result.invited
-            ? "Contato criado e convite enviado."
-            : "Contato criado, mas o convite não pôde ser enviado."
+          ? result.invited === null
+            ? "Contato criado."
+            : result.invited
+              ? "Contato criado e convite enviado."
+              : "Contato criado, mas o convite não pôde ser enviado."
           : "Contato atualizado.",
       );
       onSaved(!creating && (contact as PortalContact).id === currentContactId);
@@ -288,37 +319,74 @@ function ContactDialog({
           <DialogTitle>{contact === "new" ? "Novo contato" : "Editar contato"}</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={save}>
+          <p id="portal-contact-channels-help" className="text-xs text-muted-foreground">
+            Informe pelo menos um e-mail ou telefone. Convites de acesso são enviados apenas quando
+            há e-mail.
+          </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Nome *</Label>
+              <Label htmlFor="portal-contact-name">Nome *</Label>
               <Input
+                id="portal-contact-name"
                 required
+                aria-invalid={!!errors.name}
+                aria-describedby={errors.name ? "portal-contact-name-error" : undefined}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
+              {errors.name && (
+                <p id="portal-contact-name-error" role="alert" className="text-xs text-destructive">
+                  {errors.name}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>E-mail *</Label>
+              <Label htmlFor="portal-contact-email">E-mail</Label>
               <Input
-                required
+                id="portal-contact-email"
                 type="email"
-                value={form.email}
+                aria-invalid={!!errors.email}
+                aria-describedby={`portal-contact-channels-help${errors.email ? " portal-contact-email-error" : ""}`}
+                value={form.email ?? ""}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
+              {errors.email && (
+                <p
+                  id="portal-contact-email-error"
+                  role="alert"
+                  className="text-xs text-destructive"
+                >
+                  {errors.email}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Cargo</Label>
+              <Label htmlFor="portal-contact-job-title">Cargo</Label>
               <Input
+                id="portal-contact-job-title"
                 value={form.job_title ?? ""}
                 onChange={(e) => setForm({ ...form, job_title: e.target.value || null })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Telefone</Label>
+              <Label htmlFor="portal-contact-phone">Telefone</Label>
               <Input
+                id="portal-contact-phone"
+                type="tel"
+                aria-invalid={!!errors.phone}
+                aria-describedby={`portal-contact-channels-help${errors.phone ? " portal-contact-phone-error" : ""}`}
                 value={form.phone ?? ""}
                 onChange={(e) => setForm({ ...form, phone: e.target.value || null })}
               />
+              {errors.phone && (
+                <p
+                  id="portal-contact-phone-error"
+                  role="alert"
+                  className="text-xs text-destructive"
+                >
+                  {errors.phone}
+                </p>
+              )}
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">

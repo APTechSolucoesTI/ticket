@@ -46,10 +46,11 @@ begin
     update apticket.contacts set secondary_phones=array['123'] where id=contact;
     raise exception 'Invalid secondary phone accepted';
   exception when check_violation then null; end;
-  begin
-    update apticket.contacts set email=null where id=contact;
-    raise exception 'Missing primary email accepted';
-  exception when check_violation then null; end;
+  update apticket.contacts set email=null where id=contact;
+  if not exists(select 1 from apticket.contacts where id=contact and email is null and cardinality(secondary_phones)>0) then
+    raise exception 'Contact with secondary channels could not clear primary email';
+  end if;
+  update apticket.contacts set email='primary@contact-test.invalid' where id=contact;
   begin
     insert into apticket.contacts(tenant_id,company_id,name,email) values(tenant,company,'Duplicate test','secondary@contact-test.invalid');
     raise exception 'Another contact reused a secondary email';

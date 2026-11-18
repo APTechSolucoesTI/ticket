@@ -15,8 +15,8 @@ insert into apticket.tickets(id,tenant_id,subject,status,priority,channel,create
 select ('ba400000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,c.tenant_id,'Chamado '||n,
   'new','medium','manual',now()-interval '1 hour',c.id
 from generate_series(1,1205) n cross join apticket.companies c where c.id='ba300000-0000-4000-8000-000000000001';
-insert into apticket.contacts(id,tenant_id,name)
-select 'ba500000-0000-4000-8000-000000000001',tenant_id,'Contato recente' from apticket.companies where id='ba300000-0000-4000-8000-000000000001';
+insert into apticket.contacts(id,tenant_id,name,email)
+select 'ba500000-0000-4000-8000-000000000001',tenant_id,'Contato recente','pagination-contact@example.test' from apticket.companies where id='ba300000-0000-4000-8000-000000000001';
 update apticket.tickets t set contact_id='ba500000-0000-4000-8000-000000000001',assigned_to=f.profile_id
 from ticket_query_fixture f where t.id='ba400000-0000-4000-8000-000000000001' and f.tenant_id=t.tenant_id;
 insert into apticket.tickets(tenant_id,subject,status,channel,created_at)

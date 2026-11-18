@@ -2,24 +2,32 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
 import { verifyPortalRequest } from "@/lib/portal-session";
+import {
+  contactEmailField,
+  contactPhoneField,
+  hasContactChannel,
+  requireContactChannel,
+} from "@/lib/contact-channels";
+import { normalizePhone } from "@/lib/masks";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
-const ContactFields = z.object({
+const ContactShape = {
   name: z.string().trim().min(1).max(120),
-  email: z.string().trim().toLowerCase().email().max(255),
-  phone: z.string().trim().max(40).nullable().optional(),
+  email: contactEmailField,
+  phone: contactPhoneField,
   job_title: z.string().trim().max(120).nullable().optional(),
   can_open_tickets: z.boolean(),
   receives_csat: z.boolean(),
   is_portal_admin: z.boolean(),
   is_portal_financial: z.boolean(),
   is_active: z.boolean(),
-});
-const UpdateSchema = ContactFields.extend({ id: z.string().uuid() });
+};
+const ContactFields = z.object(ContactShape).superRefine(requireContactChannel);
+const UpdateSchema = z.object({ ...ContactShape, id: z.string().uuid() });
 
 function escapeHtml(value: string) {
   return value
@@ -60,7 +68,7 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
         const { data, error } = await context.supabaseAdmin
           .from("contacts")
           .select(
-            "id,name,email,phone,job_title,can_open_tickets,receives_csat,is_portal_admin,is_portal_financial,is_active",
+            "id,name,email,phone,secondary_emails,secondary_phones,job_title,can_open_tickets,receives_csat,is_portal_admin,is_portal_financial,is_active",
           )
           .eq("tenant_id", context.actor.tenant_id)
           .eq("company_id", context.actor.company_id)
@@ -81,14 +89,16 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
         if (!parsed.success)
           return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
 
-        const { data: duplicate } = await context.supabaseAdmin
-          .from("contacts")
-          .select("id")
-          .eq("tenant_id", context.actor.tenant_id)
-          .eq("company_id", context.actor.company_id)
-          .ilike("email", parsed.data.email)
-          .limit(1)
-          .maybeSingle();
+        const { data: duplicate } = parsed.data.email
+          ? await context.supabaseAdmin
+              .from("contacts")
+              .select("id")
+              .eq("tenant_id", context.actor.tenant_id)
+              .eq("company_id", context.actor.company_id)
+              .ilike("email", parsed.data.email)
+              .limit(1)
+              .maybeSingle()
+          : { data: null };
         if (duplicate)
           return Response.json({ error: "email_exists" }, { status: 409, headers: CORS });
 
@@ -96,7 +106,8 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
           .from("contacts")
           .insert({
             ...parsed.data,
-            phone: parsed.data.phone || null,
+            email: parsed.data.email || null,
+            phone: parsed.data.phone ? normalizePhone(parsed.data.phone) : null,
             job_title: parsed.data.job_title || null,
             tenant_id: context.actor.tenant_id,
             company_id: context.actor.company_id,
@@ -105,20 +116,22 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
           .single();
         if (error) return Response.json({ error: "create_failed" }, { status: 422, headers: CORS });
 
-        let invited = true;
-        try {
-          const { sendMail } = await import("@/lib/mailer.server");
-          const portalUrl = new URL("/portal", request.url).toString();
-          await sendMail({
-            to: parsed.data.email,
-            subject: "Seu acesso ao Portal do Cliente APTicket",
-            text: `Olá, ${parsed.data.name}. Seu acesso foi criado. Entre em ${portalUrl} e use o código de acesso enviado ao seu e-mail.`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#172033"><h2>Seu acesso ao APTicket foi criado</h2><p>Olá, ${escapeHtml(parsed.data.name)}.</p><p>Acesse o Portal do Cliente e informe seu e-mail. Enviaremos um código seguro para concluir o acesso.</p><p><a href="${portalUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#0f6f8d;color:#fff;text-decoration:none">Acessar portal</a></p></div>`,
-          });
-        } catch (error) {
-          invited = false;
-          console.error("[portal/contacts] invite error", error);
-        }
+        let invited: boolean | null = null;
+        if (parsed.data.email)
+          try {
+            const { sendMail } = await import("@/lib/mailer.server");
+            const portalUrl = new URL("/portal", request.url).toString();
+            await sendMail({
+              to: parsed.data.email,
+              subject: "Seu acesso ao Portal do Cliente APTicket",
+              text: `Olá, ${parsed.data.name}. Seu acesso foi criado. Entre em ${portalUrl} e use o código de acesso enviado ao seu e-mail.`,
+              html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#172033"><h2>Seu acesso ao APTicket foi criado</h2><p>Olá, ${escapeHtml(parsed.data.name)}.</p><p>Acesse o Portal do Cliente e informe seu e-mail. Enviaremos um código seguro para concluir o acesso.</p><p><a href="${portalUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#0f6f8d;color:#fff;text-decoration:none">Acessar portal</a></p></div>`,
+            });
+            invited = true;
+          } catch (error) {
+            invited = false;
+            console.error("[portal/contacts] invite error", error);
+          }
         return Response.json({ id: data.id, invited }, { status: 201, headers: CORS });
       },
       PATCH: async ({ request }) => {
@@ -143,21 +156,45 @@ export const Route = createFileRoute("/api/public/portal/contacts")({
           );
         }
         const { id, ...values } = parsed.data;
-        const { data: duplicate } = await context.supabaseAdmin
+        const { data: target, error: targetError } = await context.supabaseAdmin
           .from("contacts")
-          .select("id")
+          .select("id,secondary_emails,secondary_phones")
+          .eq("id", id)
           .eq("tenant_id", context.actor.tenant_id)
           .eq("company_id", context.actor.company_id)
-          .ilike("email", values.email)
-          .neq("id", id)
-          .limit(1)
           .maybeSingle();
+        if (targetError || !target)
+          return Response.json({ error: "update_failed" }, { status: 422, headers: CORS });
+        if (
+          !hasContactChannel({
+            ...values,
+            secondary_emails: target.secondary_emails,
+            secondary_phones: target.secondary_phones,
+          })
+        )
+          return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
+        const { data: duplicate } = values.email
+          ? await context.supabaseAdmin
+              .from("contacts")
+              .select("id")
+              .eq("tenant_id", context.actor.tenant_id)
+              .eq("company_id", context.actor.company_id)
+              .ilike("email", values.email)
+              .neq("id", id)
+              .limit(1)
+              .maybeSingle()
+          : { data: null };
         if (duplicate) {
           return Response.json({ error: "email_exists" }, { status: 409, headers: CORS });
         }
         const { data, error } = await context.supabaseAdmin
           .from("contacts")
-          .update({ ...values, phone: values.phone || null, job_title: values.job_title || null })
+          .update({
+            ...values,
+            email: values.email || null,
+            phone: values.phone ? normalizePhone(values.phone) : null,
+            job_title: values.job_title || null,
+          })
           .eq("id", id)
           .eq("tenant_id", context.actor.tenant_id)
           .eq("company_id", context.actor.company_id)

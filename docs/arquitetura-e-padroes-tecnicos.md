@@ -20,6 +20,8 @@
 
 **Conclusão dos ajustes médios em 18/11/2026:** reconciliação operacional de `ticket-attachments` com auditoria por padrão, manifesto e claims/guardas antes da exclusão explícita; indicadores passam a materializar grupos limitados de datas, preservando o contrato. Evidências: [reconciliação de Storage](./security/reconciliacao-storage-20261118.md) e [agregações do dashboard](./security/dashboard-agregacoes-20261118.md). As migrations e a operação real continuam pendentes da publicação/homologação.
 
+**Canais obrigatórios de contato em 18/11/2026:** cadastro, importação e portal aceitam pelo menos um e-mail ou telefone, incluindo canais secundários. Campos informados continuam validados; novos registros e alterações são protegidos por CHECK. Sessões/chat aceitam e-mail principal ausente e respostas por e-mail usam secundário como fallback. Migration, tratamento de legados e evidências: [e-mail ou telefone no contato](./contatos-email-ou-telefone-20261118.md).
+
 **Público:** desenvolvimento, arquitetura, segurança, infraestrutura e sustentação.
 
 Este documento descreve a implementação encontrada no repositório e as convenções para evoluí-la. Versões, limites e evidências são um retrato desta revisão; o lockfile e o código continuam sendo a fonte de verdade para versões posteriores. A inspeção da infraestrutura foi somente de leitura e não alterou serviços ou dados.
