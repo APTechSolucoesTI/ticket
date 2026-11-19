@@ -56,7 +56,10 @@ export const Route = createFileRoute("/_authenticated/tickets")({
 
 function TicketsLayout() {
   const matchRoute = useMatchRoute();
-  const isDetail = matchRoute({ to: "/tickets/$id" });
+  // Stop the inbox's search/page-size effects as soon as detail navigation
+  // starts. Waiting for the resolved route can send the user back to /tickets.
+  const detail = { to: "/tickets/$id", includeSearch: false } as const;
+  const isDetail = matchRoute(detail) || matchRoute({ ...detail, pending: true });
   if (isDetail) return <Outlet />;
   return <TicketsInbox />;
 }

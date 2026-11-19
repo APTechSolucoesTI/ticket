@@ -107,6 +107,17 @@ jobs:
         run: node scripts/security/test-dialog-windows.mjs
         env:
           APTICKET_PLAYWRIGHT_MODULE: ${{ runner.temp }}/apticket-browser/node_modules/playwright
+      - name: Build isolated application for ticket navigation
+        run: pnpm --filter web build
+        env:
+          NITRO_PRESET: node-server
+          VITE_SUPABASE_URL: https://fixture-supabase.example.test
+          VITE_SUPABASE_PUBLISHABLE_KEY: fixture-public
+          VITE_API_URL: /backend
+      - name: Ticket subject, detail, attendance and inbox regressions
+        run: node scripts/security/test-ticket-ui.mjs
+        env:
+          APTICKET_PLAYWRIGHT_MODULE: ${{ runner.temp }}/apticket-browser/node_modules/playwright
 
   dependencies:
     runs-on: ubuntu-latest

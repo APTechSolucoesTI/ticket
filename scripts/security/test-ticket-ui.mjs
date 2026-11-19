@@ -9,7 +9,7 @@ const webRequire = createRequire(new URL("../../apps/web/package.json", import.m
 const fixtureRequire = createRequire(
   new URL("../../node_modules/.cache/atomic-flow-tools/package.json", import.meta.url),
 );
-const { chromium } = fixtureRequire("playwright");
+const { chromium } = fixtureRequire(process.env.APTICKET_PLAYWRIGHT_MODULE || "playwright");
 const jwt = webRequire("jsonwebtoken");
 const id = "bc100000-0000-4000-8000-000000000001",
   tenant = "bc200000-0000-4000-8000-000000000001";
@@ -27,6 +27,7 @@ const permissions = ["tickets", "clientes", "contatos", "usuarios", "contratos"]
   action: "view",
   effective: true,
 }));
+permissions.push({ module: "tickets", action: "edit", effective: true });
 const app = await startLocalApp((request, response) => {
   const url = new URL(request.url, "http://fixture");
   const data = url.pathname.endsWith("/get_effective_permissions")
@@ -38,11 +39,15 @@ const app = await startLocalApp((request, response) => {
 });
 const browser = await chromium.launch({
   executablePath:
-    process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    process.env.CHROME_PATH ??
+    (process.platform === "win32"
+      ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
+      : undefined),
   headless: true,
 });
 const requests = [],
   errors = [];
+const navigations = [];
 const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   reducedMotion: "reduce",
@@ -62,6 +67,9 @@ const token = jwt.sign(
 );
 await page.addInitScript((token) => localStorage.setItem("apticket_session_token", token), token);
 page.on("pageerror", (error) => errors.push(error.message));
+page.on("framenavigated", (frame) => {
+  if (frame === page.mainFrame()) navigations.push(frame.url());
+});
 const now = new Date().toISOString();
 const rows = Array.from({ length: 1205 }, (_, index) => ({
   id: `bc400000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
@@ -114,6 +122,9 @@ const metrics = {
 };
 let failLists = false;
 let delayedSize = null;
+const detailReads = [];
+const claims = [];
+let claimedTicket = null;
 await page.route("https://fixture-supabase.example.test/**", async (route) => {
   const request = route.request(),
     url = new URL(request.url()),
@@ -158,6 +169,17 @@ await page.route("https://fixture-supabase.example.test/**", async (route) => {
         resolvidos: 0,
       })),
     };
+  } else if (url.pathname.endsWith("/tickets")) {
+    const ticketId = url.searchParams.get("id")?.replace(/^eq\./, "");
+    const ticket = rows.find((row) => row.id === ticketId);
+    if (request.method() === "PATCH") {
+      claims.push({ id: ticketId, ...body });
+      claimedTicket = { ...ticket, ...body };
+      data = { id: ticketId };
+    } else {
+      detailReads.push(ticketId);
+      data = claimedTicket?.id === ticketId ? claimedTicket : (ticket ?? null);
+    }
   } else if (url.pathname.endsWith("/profiles")) data = [profile];
   return route.fulfill({ status: 200, headers, body: JSON.stringify(data) });
 });
@@ -182,6 +204,44 @@ try {
   await page.goto(`${app.origin}/tickets`);
   await waitForText("1–10 de 1205");
   assert.equal(await page.locator("tbody tr").count(), 10);
+  const firstSubject = page.getByRole("link", { name: "Chamado 1205", exact: true });
+  const detailUrl = new URL(await firstSubject.getAttribute("href"), app.origin);
+  await firstSubject.click();
+  assert.equal(new URL(page.url()).pathname, detailUrl.pathname);
+  const attendance = page.getByRole("dialog", { name: "Iniciar atendimento?", exact: true });
+  await attendance.waitFor({ timeout: 8000 });
+  assert.ok(detailReads.includes(rows.at(-1).id), "subject click loads the selected ticket");
+  await attendance.getByRole("button", { name: "Sim, iniciar", exact: true }).click();
+  await attendance.waitFor({ state: "hidden" });
+  await page.getByRole("heading", { level: 1, name: "Chamado 1205", exact: true }).waitFor();
+  assert.equal(claims.length, 1);
+  assert.equal(claims[0].id, rows.at(-1).id);
+  assert.equal(claims[0].assigned_to, id);
+  assert.equal(claims[0].status, "in_progress");
+  console.log("PASS ticket subject opens selected detail and starts attendance");
+  // A cold detail URL must not mount the inbox just to initialize its page size.
+  await page.goto(`${app.origin}${detailUrl.pathname}`);
+  await page.getByRole("heading", { level: 1, name: "Chamado 1205", exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, detailUrl.pathname);
+  await page.goto(`${app.origin}/tickets?page=2&pageSize=20&search=Chamado`);
+  await waitForText("21–40 de 1205");
+  const keyboardSubject = page.locator("tbody").getByRole("link").first();
+  const keyboardUrl = new URL(await keyboardSubject.getAttribute("href"), app.origin);
+  const keyboardTitle = await keyboardSubject.textContent();
+  await keyboardSubject.focus();
+  await page.keyboard.press("Enter");
+  await attendance.waitFor();
+  await attendance.getByRole("button", { name: "Não (somente leitura)", exact: true }).click();
+  await page.getByRole("heading", { level: 1, name: keyboardTitle, exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, keyboardUrl.pathname);
+  assert.equal(claims.length, 1, "read-only choice must not start another attendance");
+  await page.goBack();
+  await waitForText("21–40 de 1205");
+  assert.equal(new URL(page.url()).searchParams.get("search"), "Chamado");
+  assert.equal(new URL(page.url()).searchParams.get("pageSize"), "20");
+  console.log("PASS direct detail, keyboard navigation and return to the filtered inbox");
+  await page.goto(`${app.origin}/tickets`);
+  await waitForText("1–10 de 1205");
   await page.getByRole("button", { name: "Colunas", exact: true }).click();
   const draftTechnician = page
     .getByRole("dialog")
@@ -419,6 +479,10 @@ try {
     errors,
     "Current URL",
     page.url(),
+    "Navigation history",
+    navigations,
+    "Detail reads",
+    detailReads,
     "Recent queries",
     requests.slice(-3),
     "App diagnostics",
