@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Eye, Loader2, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { z } from "zod";
@@ -15,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
+import { ErrorState, LoadingState } from "@/components/data-state";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +80,16 @@ type Company = {
   notes: string | null;
 };
 
+type CompanyRow = Omit<
+  Company,
+  | "address_street"
+  | "address_number"
+  | "address_complement"
+  | "address_neighborhood"
+  | "address_zip"
+  | "notes"
+>;
+
 type CustomerContact = {
   id: string;
   name: string;
@@ -139,33 +149,31 @@ function CustomersPage() {
   const contactsAccess = useModulePermissions("contatos");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Company | null>(null);
-  const [toDelete, setToDelete] = useState<Company | null>(null);
-  const [contactsCompany, setContactsCompany] = useState<Company | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<CompanyRow | null>(null);
+  const [contactsCompany, setContactsCompany] = useState<CompanyRow | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("*").order("name");
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id,name,fantasy_name,cnpj,cnaes,phone,website,address_city,address_state,is_vip")
+        .order("name");
       if (error) throw error;
       return (data ?? []).map((company) => ({
         ...company,
         cnaes: parseStoredCnaes(company.cnaes),
-      })) as Company[];
+      })) as CompanyRow[];
     },
   });
 
   useEffect(() => {
-    if (!record || !data) return;
-
-    const company = data.find((item) => item.id === record);
-    if (company) {
-      setEditing(company);
-      setOpen(true);
-    }
-
+    if (!record) return;
+    setEditingId(record);
+    setOpen(true);
     void navigate({ search: {}, replace: true });
-  }, [data, navigate, record]);
+  }, [navigate, record]);
 
   const del = useMutation({
     mutationFn: async (id: string) => {
@@ -192,7 +200,7 @@ function CustomersPage() {
             <Button
               size="sm"
               onClick={() => {
-                setEditing(null);
+                setEditingId(null);
                 setOpen(true);
               }}
             >
@@ -203,7 +211,13 @@ function CustomersPage() {
       />
 
       {isLoading ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>
+        <LoadingState label="Carregando clientes…" />
+      ) : isError && !data ? (
+        <ErrorState
+          title="Clientes indisponíveis"
+          description="Não foi possível carregar a listagem de clientes."
+          action={{ label: "Tentar novamente", onClick: () => void refetch() }}
+        />
       ) : !data?.length ? (
         <EmptyStub
           title="Nenhum cliente cadastrado"
@@ -211,7 +225,7 @@ function CustomersPage() {
         />
       ) : (
         <Card className="p-3">
-          <ConfigurableTable<Company>
+          <ConfigurableTable<CompanyRow>
             listKey="customers"
             rows={data}
             rowKey={(c) => c.id}
@@ -297,7 +311,7 @@ function CustomersPage() {
                   accessor: (c) => (c.is_vip ? "VIP" : "Não VIP"),
                   cell: (c) => (c.is_vip ? <Badge variant="secondary">VIP</Badge> : null),
                 },
-              ] as ListColumn<Company>[]
+              ] as ListColumn<CompanyRow>[]
             }
             rowActions={(c) => (
               <>
@@ -318,8 +332,9 @@ function CustomersPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`${access.edit ? "Editar" : "Visualizar"} cliente ${c.name}`}
                   onClick={() => {
-                    setEditing(c);
+                    setEditingId(c.id);
                     setOpen(true);
                   }}
                 >
@@ -339,8 +354,8 @@ function CustomersPage() {
       <CompanyDialog
         open={open}
         onOpenChange={setOpen}
-        editing={editing}
-        readOnly={editing ? !access.edit : !access.create}
+        editingId={editingId}
+        readOnly={editingId ? !access.edit : !access.create}
       />
       <CustomerContactsDialog
         company={contactsCompany}
@@ -374,7 +389,7 @@ function CustomerContactsDialog({
   company,
   onOpenChange,
 }: {
-  company: Company | null;
+  company: CompanyRow | null;
   onOpenChange(open: boolean): void;
 }) {
   const contacts = useQuery({
@@ -460,15 +475,34 @@ function CustomerContactsDialog({
 function CompanyDialog({
   open,
   onOpenChange,
-  editing,
+  editingId,
   readOnly,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  editing: Company | null;
+  editingId: string | null;
   readOnly: boolean;
 }) {
   const qc = useQueryClient();
+  const detail = useQuery({
+    queryKey: ["companies", "detail", editingId],
+    enabled: open && Boolean(editingId),
+    queryFn: async ({ signal }) => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select(
+          "id,name,fantasy_name,cnpj,cnaes,phone,website,address_zip,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,is_vip,notes",
+        )
+        .eq("id", editingId!)
+        .abortSignal(signal)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const editing = detail.data;
+  const waitingForDetails = Boolean(editingId && !editing);
+  const initializedFor = useRef<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     fantasy_name: "",
@@ -490,7 +524,13 @@ function CompanyDialog({
   const [cepLookup, setCepLookup] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initializedFor.current = null;
+      return;
+    }
+    const target = editingId ?? "new";
+    if (waitingForDetails || initializedFor.current === target) return;
+    initializedFor.current = target;
     setForm({
       name: editing?.name ?? "",
       fantasy_name: editing?.fantasy_name ?? "",
@@ -508,14 +548,10 @@ function CompanyDialog({
       is_vip: editing?.is_vip ?? false,
       notes: editing?.notes ?? "",
     });
-  }, [open, editing]);
+  }, [open, editing, editingId, waitingForDetails]);
 
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
-      const _tid = await getMyTenantId();
-      if (!_tid) throw new Error("Tenant não encontrado");
-      const prof = { tenant_id: _tid };
-      if (!prof?.tenant_id) throw new Error("Tenant não encontrado");
       const values = {
         name: payload.name,
         fantasy_name: payload.fantasy_name || null,
@@ -534,29 +570,20 @@ function CompanyDialog({
         notes: payload.notes || null,
       };
 
-      if (payload.cnpj) {
-        const digits = unmask(payload.cnpj);
-        const { data: existing, error: checkErr } = await supabase
-          .from("companies")
-          .select("id, cnpj")
-          .not("cnpj", "is", null);
-        if (checkErr) throw checkErr;
-        const dup = existing?.find((c) => c.id !== editing?.id && unmask(c.cnpj ?? "") === digits);
-        if (dup) throw new Error("Já existe um cliente cadastrado com este CNPJ.");
-      }
-
-      if (editing) {
-        const { error } = await supabase.from("companies").update(values).eq("id", editing.id);
+      if (editingId) {
+        const { error } = await supabase.from("companies").update(values).eq("id", editingId);
         if (error) throw error;
       } else {
+        const tenantId = await getMyTenantId();
+        if (!tenantId) throw new Error("Tenant não encontrado");
         const { error } = await supabase
           .from("companies")
-          .insert({ ...values, tenant_id: prof.tenant_id });
+          .insert({ ...values, tenant_id: tenantId });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      toast.success(editing ? "Cliente atualizado" : "Cliente criado");
+      toast.success(editingId ? "Cliente atualizado" : "Cliente criado");
       qc.invalidateQueries({ queryKey: ["companies"] });
       onOpenChange(false);
     },
@@ -574,15 +601,26 @@ function CompanyDialog({
         <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>
-              {readOnly ? "Visualizar cliente" : editing ? "Editar cliente" : "Novo cliente"}
+              {readOnly ? "Visualizar cliente" : editingId ? "Editar cliente" : "Novo cliente"}
             </DialogTitle>
           </DialogHeader>
           <ReadOnlyNotice show={readOnly} />
+          {waitingForDetails &&
+            (detail.isError ? (
+              <ErrorState
+                title="Cadastro indisponível"
+                description="Não foi possível carregar os dados do cliente."
+                action={{ label: "Tentar novamente", onClick: () => void detail.refetch() }}
+              />
+            ) : (
+              <LoadingState label="Carregando cadastro…" />
+            ))}
           <form
+            hidden={waitingForDetails}
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (readOnly) return;
+              if (readOnly || waitingForDetails || save.isPending) return;
               const r = schema.safeParse(form);
               if (!r.success) {
                 toast.error(getValidationErrorMessage(r.error));

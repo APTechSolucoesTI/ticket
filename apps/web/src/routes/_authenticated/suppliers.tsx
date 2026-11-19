@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -103,6 +103,19 @@ type Supplier = {
   is_active: boolean;
 };
 
+type SupplierRow = Omit<
+  Supplier,
+  | "contact_name"
+  | "email"
+  | "website"
+  | "address_zip"
+  | "address_street"
+  | "address_number"
+  | "address_complement"
+  | "address_neighborhood"
+  | "notes"
+>;
+
 const db = supabase as unknown as SupabaseClient;
 const categories: Array<{ value: SupplierCategory; label: string }> = [
   { value: "software_licensing", label: "Licenciamento de software" },
@@ -162,9 +175,9 @@ function SuppliersPage() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState("");
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Supplier | null>(null);
-  const [toArchive, setToArchive] = useState<Supplier | null>(null);
-  const [bankTarget, setBankTarget] = useState<Supplier | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [toArchive, setToArchive] = useState<SupplierRow | null>(null);
+  const [bankTarget, setBankTarget] = useState<SupplierRow | null>(null);
 
   const companies = useQuery({
     queryKey: ["supplier-operating-companies"],
@@ -189,7 +202,7 @@ function SuppliersPage() {
       const { data, error } = await db
         .from("suppliers")
         .select(
-          "id,legal_name,trade_name,tax_id,category,contact_name,email,phone,website,address_zip,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,cnaes,notes,is_active",
+          "id,legal_name,trade_name,tax_id,category,phone,address_city,address_state,cnaes,is_active",
         )
         .is("deleted_at", null)
         .order("legal_name");
@@ -197,14 +210,14 @@ function SuppliersPage() {
       return (data ?? []).map((supplier) => ({
         ...supplier,
         cnaes: parseStoredCnaes(supplier.cnaes),
-      })) as Supplier[];
+      })) as SupplierRow[];
     },
   });
 
   const rows = suppliers.data ?? [];
 
   const archive = useMutation({
-    mutationFn: async (supplier: Supplier) => {
+    mutationFn: async (supplier: SupplierRow) => {
       const { error } = await db
         .from("suppliers")
         .update({ is_active: false, deleted_at: new Date().toISOString() })
@@ -221,7 +234,7 @@ function SuppliersPage() {
       toast.error(getUserFacingError(error, "Não foi possível arquivar o fornecedor.")),
   });
 
-  const columns: ListColumn<Supplier>[] = [
+  const columns: ListColumn<SupplierRow>[] = [
     {
       key: "name",
       label: "Fornecedor",
@@ -315,7 +328,7 @@ function SuppliersPage() {
             <Button
               size="sm"
               onClick={() => {
-                setEditing(null);
+                setEditingId(null);
                 setOpen(true);
               }}
             >
@@ -355,7 +368,7 @@ function SuppliersPage() {
             />
           ) : (
             <Card className="p-3">
-              <ConfigurableTable<Supplier>
+              <ConfigurableTable<SupplierRow>
                 listKey="suppliers"
                 rows={rows}
                 rowKey={(supplier) => supplier.id}
@@ -378,7 +391,7 @@ function SuppliersPage() {
                       size="icon"
                       aria-label={`${access.edit ? "Editar" : "Visualizar"} ${supplier.legal_name}`}
                       onClick={() => {
-                        setEditing(supplier);
+                        setEditingId(supplier.id);
                         setOpen(true);
                       }}
                     >
@@ -405,7 +418,7 @@ function SuppliersPage() {
       <SupplierDialog
         open={open}
         onOpenChange={setOpen}
-        editing={editing}
+        editingId={editingId}
         readOnly={!access.edit}
       />
 
@@ -446,15 +459,35 @@ function SuppliersPage() {
 function SupplierDialog({
   open,
   onOpenChange,
-  editing,
+  editingId,
   readOnly,
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
-  editing: Supplier | null;
+  editingId: string | null;
   readOnly: boolean;
 }) {
   const queryClient = useQueryClient();
+  const detail = useQuery({
+    queryKey: ["supplier-directory", "detail", editingId],
+    enabled: open && Boolean(editingId),
+    queryFn: async ({ signal }) => {
+      const { data, error } = await db
+        .from("suppliers")
+        .select(
+          "id,legal_name,trade_name,tax_id,category,contact_name,email,phone,website,address_zip,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,cnaes,notes,is_active",
+        )
+        .eq("id", editingId!)
+        .is("deleted_at", null)
+        .abortSignal(signal)
+        .single();
+      if (error) throw error;
+      return data as Supplier;
+    },
+  });
+  const editing = detail.data;
+  const waitingForDetails = Boolean(editingId && !editing);
+  const initializedFor = useRef<string | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [lookingUpCep, setLookingUpCep] = useState(false);
   const [form, setForm] = useState({
@@ -479,7 +512,13 @@ function SupplierDialog({
   });
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initializedFor.current = null;
+      return;
+    }
+    const target = editingId ?? "new";
+    if (waitingForDetails || initializedFor.current === target) return;
+    initializedFor.current = target;
     setForm({
       legal_name: editing?.legal_name ?? "",
       trade_name: editing?.trade_name ?? "",
@@ -500,12 +539,10 @@ function SupplierDialog({
       notes: editing?.notes ?? "",
       is_active: editing?.is_active ?? true,
     });
-  }, [editing, open]);
+  }, [editing, editingId, open, waitingForDetails]);
 
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {
-      const tenantId = await getMyTenantId();
-      if (!tenantId) throw new Error("Tenant não encontrado.");
       const values = {
         legal_name: payload.legal_name,
         trade_name: payload.trade_name || null,
@@ -527,10 +564,12 @@ function SupplierDialog({
         is_active: payload.is_active,
       };
 
-      if (editing) {
-        const { error } = await db.from("suppliers").update(values).eq("id", editing.id);
+      if (editingId) {
+        const { error } = await db.from("suppliers").update(values).eq("id", editingId);
         if (error) throw error;
       } else {
+        const tenantId = await getMyTenantId();
+        if (!tenantId) throw new Error("Tenant não encontrado.");
         const { error } = await db.from("suppliers").insert({
           ...values,
           tenant_id: tenantId,
@@ -539,7 +578,7 @@ function SupplierDialog({
       }
     },
     onSuccess: () => {
-      toast.success(editing ? "Fornecedor atualizado." : "Fornecedor criado.");
+      toast.success(editingId ? "Fornecedor atualizado." : "Fornecedor criado.");
       void queryClient.invalidateQueries({ queryKey: ["supplier-directory"] });
       void queryClient.invalidateQueries({ queryKey: ["payable-suppliers"] });
       onOpenChange(false);
@@ -624,17 +663,28 @@ function SupplierDialog({
             <DialogTitle>
               {readOnly
                 ? "Visualizar fornecedor"
-                : editing
+                : editingId
                   ? "Editar fornecedor"
                   : "Novo fornecedor"}
             </DialogTitle>
           </DialogHeader>
           <ReadOnlyNotice show={readOnly} />
+          {waitingForDetails &&
+            (detail.isError ? (
+              <ErrorState
+                title="Cadastro indisponível"
+                description="Não foi possível carregar os dados do fornecedor."
+                action={{ label: "Tentar novamente", onClick: () => void detail.refetch() }}
+              />
+            ) : (
+              <LoadingState label="Carregando cadastro…" />
+            ))}
           <form
+            hidden={waitingForDetails}
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              if (readOnly) return;
+              if (readOnly || waitingForDetails || save.isPending) return;
               const result = schema.safeParse(form);
               if (!result.success) {
                 toast.error(getValidationErrorMessage(result.error));

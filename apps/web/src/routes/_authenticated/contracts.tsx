@@ -244,49 +244,26 @@ function ContractsPage() {
       const { data, error } = await db
         .from("contracts")
         .select(
-          "*, companies(name), operating_companies(legal_name,trade_name), contract_types(name), sla_policies(name)",
+          `id, operating_company_id, company_id, contract_type_id, sla_policy_id, status,
+           starts_at, ends_at, billing_model, hours_monthly_quota, extra_hour_price, monthly_value,
+           equipment_tiers, service_items, includes_remote, includes_lab, includes_onsite,
+           auto_renew, numero_contrato, tipo_medicao, billing_type, collection_type, emite_nf,
+           emite_boleto, tipo_vencimento, dia_vencimento, description, notes, category_allocations,
+           cost_center_allocations, financial_category_id, cost_center_id,
+           companies(name), operating_companies(legal_name,trade_name), contract_types(name),
+           sla_policies(name), financial_categories!contracts_financial_category_tenant_fk(code,name),
+           financial_cost_centers!contracts_cost_center_tenant_fk(code,name)`,
         )
         .is("deleted_at", null)
         .order("starts_at", { ascending: false });
       if (error) throw error;
-      const contracts = data ?? [];
-      const categoryIds = [
-        ...new Set(contracts.map((item) => item.financial_category_id).filter(Boolean)),
-      ];
-      const centerIds = [...new Set(contracts.map((item) => item.cost_center_id).filter(Boolean))];
-      const [categoriesResult, centersResult] = await Promise.all([
-        categoryIds.length
-          ? db.from("financial_categories").select("id,code,name").in("id", categoryIds)
-          : Promise.resolve({ data: [], error: null }),
-        centerIds.length
-          ? db.from("financial_cost_centers").select("id,code,name").in("id", centerIds)
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-      const categories = new Map(
-        (categoriesResult.data ?? []).map((item: { id: string; code: string; name: string }) => [
-          item.id,
-          item,
-        ]),
-      );
-      const centers = new Map(
-        (centersResult.data ?? []).map((item: { id: string; code: string; name: string }) => [
-          item.id,
-          item,
-        ]),
-      );
-      return contracts.map((contract) => {
+      return (data ?? []).map((contract) => {
         const equipmentTiers = equipmentTiersSchema.safeParse(contract.equipment_tiers);
         const serviceItems = serviceItemsSchema.safeParse(contract.service_items);
         return {
           ...contract,
           equipment_tiers: equipmentTiers.success ? equipmentTiers.data : [],
           service_items: serviceItems.success ? serviceItems.data : [],
-          financial_categories: contract.financial_category_id
-            ? (categories.get(contract.financial_category_id) ?? null)
-            : null,
-          financial_cost_centers: contract.cost_center_id
-            ? (centers.get(contract.cost_center_id) ?? null)
-            : null,
         } as unknown as Contract;
       });
     },
@@ -687,11 +664,13 @@ function ContractDialog({
 
   const { data: companies } = useQuery({
     queryKey: ["companies", "options"],
+    enabled: open,
     queryFn: async () =>
       (await supabase.from("companies").select("id, name").order("name")).data ?? [],
   });
   const { data: operatingCompanies } = useQuery({
     queryKey: ["operating-companies", "contract-options"],
+    enabled: open,
     queryFn: async () => {
       const { data, error } = await db
         .from("operating_companies")
@@ -705,11 +684,13 @@ function ContractDialog({
   });
   const { data: types } = useQuery({
     queryKey: ["contract_types", "options-full"],
+    enabled: open,
     queryFn: async () =>
       (await supabase.from("contract_types").select("*").order("name")).data ?? [],
   });
   const { data: slas } = useQuery({
     queryKey: ["sla_policies", "options"],
+    enabled: open,
     queryFn: async () =>
       (await supabase.from("sla_policies").select("id, name").order("name")).data ?? [],
   });
@@ -717,7 +698,7 @@ function ContractDialog({
   // Equipamentos disponíveis do cliente selecionado
   const { data: companyEquipments } = useQuery({
     queryKey: ["equipments", "by-company", form.company_id],
-    enabled: !!form.company_id,
+    enabled: open && Boolean(form.company_id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("equipments")
@@ -873,7 +854,7 @@ function ContractDialog({
     if (!open) return;
     setForm({
       numero_contrato: editing?.numero_contrato ?? "",
-      operating_company_id: editing?.operating_company_id ?? operatingCompanies?.[0]?.id ?? "",
+      operating_company_id: editing?.operating_company_id ?? "",
       company_id: editing?.company_id ?? "",
       contract_type_id: editing?.contract_type_id ?? "",
       sla_policy_id: editing?.sla_policy_id ?? "",
@@ -911,7 +892,17 @@ function ContractDialog({
       : undefined;
     setSelectedEquipIds(cachedLinks ?? []);
     hydratedEquipmentLinksFor.current = cachedLinks ? editingId : null;
-  }, [open, editing, operatingCompanies, qc]);
+  }, [open, editing, qc]);
+
+  const defaultOperatingCompany = operatingCompanies?.[0]?.id;
+  useEffect(() => {
+    if (!open || editing || !defaultOperatingCompany) return;
+    setForm((current) =>
+      current.operating_company_id
+        ? current
+        : { ...current, operating_company_id: defaultOperatingCompany },
+    );
+  }, [open, editing, defaultOperatingCompany]);
 
   useEffect(() => {
     if (

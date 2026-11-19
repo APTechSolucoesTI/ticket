@@ -221,27 +221,22 @@ export function SupplierContractsPage({
         .is("deleted_at", null)
         .order("starts_at", { ascending: false });
       if (error) throw error;
-      const supplierNames = new Map(
-        (options.data?.suppliers ?? []).map((item) => [
-          item.id,
-          item.trade_name || item.legal_name,
-        ]),
-      );
-      const operatorNames = new Map(
-        (options.data?.companies ?? []).map((item) => [
-          item.id,
-          item.trade_name || item.legal_name,
-        ]),
-      );
-      return (data ?? []).map((item) => ({
-        ...item,
-        supplier_name: supplierNames.get(item.supplier_id as string) ?? "Fornecedor",
-        operator_name:
-          operatorNames.get(item.operating_company_id as string) ?? "Empresa operadora",
-      })) as unknown as Contract[];
+      return (data ?? []) as unknown as Omit<Contract, "supplier_name" | "operator_name">[];
     },
-    enabled: options.isSuccess,
   });
+  const rows = useMemo(() => {
+    const supplierNames = new Map(
+      (options.data?.suppliers ?? []).map((item) => [item.id, item.trade_name || item.legal_name]),
+    );
+    const operatorNames = new Map(
+      (options.data?.companies ?? []).map((item) => [item.id, item.trade_name || item.legal_name]),
+    );
+    return (contracts.data ?? []).map((item) => ({
+      ...item,
+      supplier_name: supplierNames.get(item.supplier_id) ?? "Fornecedor",
+      operator_name: operatorNames.get(item.operating_company_id) ?? "Empresa operadora",
+    }));
+  }, [contracts.data, options.data]);
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await db.rpc("archive_supplier_contract", { p_contract_id: id });
@@ -366,7 +361,7 @@ export function SupplierContractsPage({
           title="Contratos indisponíveis"
           message="Não foi possível consultar os contratos de fornecedores."
         />
-      ) : !contracts.data?.length ? (
+      ) : !rows.length ? (
         <EmptyStub
           title="Nenhum contrato registrado"
           message="Cadastre o primeiro contrato de fornecedor para iniciar as medições e o acompanhamento de custos."
@@ -375,7 +370,7 @@ export function SupplierContractsPage({
         <Card className="p-3">
           <ConfigurableTable
             listKey="supplier-contracts"
-            rows={contracts.data}
+            rows={rows}
             rowKey={(row) => row.id}
             defaultColumns={[
               "number",
