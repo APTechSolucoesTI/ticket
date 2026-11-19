@@ -93,6 +93,9 @@ const fixtureBackend = async (request, response) => {
     return json({}, fixture.whatsappFailure ? 503 : 200);
   }
   if (url.pathname.endsWith("/contacts")) {
+    if (url.searchParams.get("select")?.includes("companies(name)")) {
+      return json({ code: "PGRST201", message: "Ambiguous company relationship" }, 300);
+    }
     if (fixture.phoneOtp && url.searchParams.has("phone")) {
       assert.equal(url.searchParams.get("phone"), "eq.5511999991234");
       const match = {

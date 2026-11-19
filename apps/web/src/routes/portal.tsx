@@ -128,20 +128,21 @@ function PortalPage() {
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(true);
 
-  const loadSession = async (): Promise<boolean> => {
+  const loadSession = async (afterVerification = false): Promise<boolean> => {
     setLoading(true);
     try {
       const res = await portalFetch("/api/public/portal/session", { method: "POST" });
       if (res.status === 401) {
         setPortalToken(null);
         setSession(null);
+        if (afterVerification)
+          toast.error("Não foi possível abrir a sessão do portal. Solicite um novo código.");
         return false;
       }
+      if (!res.ok) throw new Error("portal_session_unavailable");
       const data = await res.json();
       if (!data.found) {
-        toast.error(
-          "Seu e-mail foi verificado, mas nenhum cadastro de cliente foi encontrado para ele.",
-        );
+        toast.error("Não foi possível localizar o cadastro do contato no portal.");
         setPortalToken(null);
         return false;
       }
@@ -188,8 +189,10 @@ function PortalPage() {
         toast.error("Código inválido ou expirado.");
         return;
       }
-      const ok = await loadSession();
+      const ok = await loadSession(true);
       if (ok) setStep("email"); // reset for a future logout
+    } catch {
+      toast.error("Não foi possível verificar o código agora. Tente novamente.");
     } finally {
       setLoading(false);
     }

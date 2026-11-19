@@ -9,7 +9,7 @@ export async function authorizePortalRequest(request: Request) {
   const { data: contact, error } = await supabaseAdmin
     .from("contacts")
     .select(
-      "id, tenant_id, company_id, name, email, can_open_tickets, is_portal_admin, is_portal_financial, is_active, companies(name)",
+      "id, tenant_id, company_id, name, email, can_open_tickets, is_portal_admin, is_portal_financial, is_active, companies!contacts_company_id_fkey(name)",
     )
     .eq("id", session.contact_id)
     .eq("tenant_id", session.tenant_id)
