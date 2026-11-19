@@ -83,6 +83,31 @@ jobs:
       # Existing style violations remain visible and block this check until fixed.
       - run: pnpm --filter web lint
 
+  dialog-windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          run_install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install isolated browser test tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/apticket-browser"
+          printf '{"private":true}\n' > "$RUNNER_TEMP/apticket-browser/package.json"
+          pnpm --dir "$RUNNER_TEMP/apticket-browser" add --ignore-scripts --save-exact playwright@1.65.1
+          node "$RUNNER_TEMP/apticket-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Real dialog keyboard, draft, modal and responsive regressions
+        run: node scripts/security/test-dialog-windows.mjs
+        env:
+          APTICKET_PLAYWRIGHT_MODULE: ${{ runner.temp }}/apticket-browser/node_modules/playwright
+
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 10

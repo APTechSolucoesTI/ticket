@@ -18,6 +18,13 @@ import { getCurrentUserId, getToken } from "@/lib/session";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -797,6 +804,19 @@ function TicketDetailPage() {
     onError: (e: Error) =>
       toast.error(getUserFacingError(e, "Não foi possível finalizar o ticket.")),
   });
+
+  const ignoreTime = () => {
+    if (saveTime.isPending) return;
+    const wasTimer = pendingTime?.msgId === "timer";
+    setPendingTime(null);
+    setTimerStartedAt(null);
+    setMinutesInput("");
+    if (wasTimer) setAskResolved(true);
+    else if (navigateAfterSaveRef.current) {
+      navigateAfterSaveRef.current = false;
+      navigate({ to: "/tickets" });
+    }
+  };
 
   const pauseTicket = useMutation({
     mutationFn: async () => {
@@ -1588,30 +1608,22 @@ function TicketDetailPage() {
       </div>
 
       {pauseDialogOpen && !readOnly && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => !pauseTicket.isPending && setPauseDialogOpen(false)}
+        <Dialog
+          open={pauseDialogOpen}
+          onOpenChange={(open) => !open && !pauseTicket.isPending && setPauseDialogOpen(false)}
         >
-          <div
-            className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pause-dialog-title"
-          >
-            <div className="flex items-start gap-3">
+          <DialogContent className="block max-w-md p-5">
+            <DialogHeader className="flex-row items-start gap-3 space-y-0 text-left">
               <div className="rounded-lg bg-amber-100 p-2 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                 <Pause className="h-4 w-4" />
               </div>
               <div>
-                <h3 id="pause-dialog-title" className="text-sm font-semibold">
-                  Pausar atendimento
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <DialogTitle className="text-sm font-semibold">Pausar atendimento</DialogTitle>
+                <DialogDescription className="mt-1 text-xs">
                   O SLA será interrompido e o período atual do Time Tracking será apontado.
-                </p>
+                </DialogDescription>
               </div>
-            </div>
+            </DialogHeader>
             <div className="mt-4 flex items-center justify-between">
               <label className="text-xs font-medium" htmlFor="pause-reason">
                 Motivo da pausa
@@ -1731,17 +1743,23 @@ function TicketDetailPage() {
                 {pauseTicket.isPending ? "Pausando…" : "Confirmar pausa"}
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {pendingTime && !readOnly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[360px] rounded-lg border bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold">Apontar tempo</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Quanto tempo você gastou nessa interação? (em minutos)
-            </p>
+        <Dialog open={!!pendingTime} onOpenChange={(open) => !open && ignoreTime()}>
+          <DialogContent
+            className="block max-w-[360px] p-4"
+            windowControls={false}
+            onInteractOutside={(event) => event.preventDefault()}
+          >
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-sm font-semibold">Apontar tempo</DialogTitle>
+              <DialogDescription className="mt-1 text-xs">
+                Quanto tempo você gastou nessa interação? (em minutos)
+              </DialogDescription>
+            </DialogHeader>
             <input
               autoFocus
               type="number"
@@ -1751,21 +1769,7 @@ function TicketDetailPage() {
               placeholder="ex: 15"
             />
             <div className="mt-3 flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const wasTimer = pendingTime?.msgId === "timer";
-                  setPendingTime(null);
-                  setTimerStartedAt(null);
-                  setMinutesInput("");
-                  if (wasTimer) setAskResolved(true);
-                  else if (navigateAfterSaveRef.current) {
-                    navigateAfterSaveRef.current = false;
-                    navigate({ to: "/tickets" });
-                  }
-                }}
-              >
+              <Button variant="ghost" size="sm" disabled={saveTime.isPending} onClick={ignoreTime}>
                 Ignorar
               </Button>
               <Button
@@ -1776,17 +1780,25 @@ function TicketDetailPage() {
                 Salvar
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {askResolved && !readOnly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold">Ticket resolvido?</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              O atendimento foi concluído e o ticket já pode ser marcado como resolvido?
-            </p>
+        <Dialog open={askResolved} onOpenChange={() => {}}>
+          <DialogContent
+            className="block max-w-[400px] p-4"
+            windowControls={false}
+            showCloseButton={false}
+            onEscapeKeyDown={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
+          >
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-sm font-semibold">Ticket resolvido?</DialogTitle>
+              <DialogDescription className="mt-1 text-xs">
+                O atendimento foi concluído e o ticket já pode ser marcado como resolvido?
+              </DialogDescription>
+            </DialogHeader>
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -1810,24 +1822,27 @@ function TicketDetailPage() {
                 Sim - Resolvido
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {pendingSituationOpen && !readOnly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div
-            className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pending-situation-title"
+        <Dialog open={pendingSituationOpen} onOpenChange={() => {}}>
+          <DialogContent
+            className="block max-w-md p-5"
+            windowControls={false}
+            showCloseButton={false}
+            onEscapeKeyDown={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
           >
-            <h3 id="pending-situation-title" className="text-sm font-semibold">
-              Qual é a situação do ticket?
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              O ticket retornará para Pendente. Informe quem deve realizar a próxima interação.
-            </p>
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-sm font-semibold">
+                Qual é a situação do ticket?
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-xs">
+                O ticket retornará para Pendente. Informe quem deve realizar a próxima interação.
+              </DialogDescription>
+            </DialogHeader>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <Button
                 type="button"
@@ -1848,8 +1863,8 @@ function TicketDetailPage() {
                 Pendente de Retorno Técnico
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {finalizeStatus && !readOnly && (
@@ -1863,20 +1878,14 @@ function TicketDetailPage() {
       )}
 
       {showEntries && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowEntries(false)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-lg border bg-background shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h3 className="text-sm font-semibold">Apontamentos do ticket</h3>
-              <span className="text-xs text-muted-foreground">
+        <Dialog open={showEntries} onOpenChange={setShowEntries}>
+          <DialogContent className="block max-w-2xl gap-0 p-0">
+            <DialogHeader className="flex-row items-center justify-between border-b px-4 py-3 text-left">
+              <DialogTitle className="text-sm font-semibold">Apontamentos do ticket</DialogTitle>
+              <DialogDescription className="text-xs">
                 Total: <span className="font-mono">{totalMinutes} min</span>
-              </span>
-            </div>
+              </DialogDescription>
+            </DialogHeader>
             <div className="max-h-[60vh] overflow-auto p-4">
               {timeEntries.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhum apontamento registrado.</p>
@@ -1916,36 +1925,25 @@ function TicketDetailPage() {
                 Fechar
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {showPauses && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowPauses(false)}
-        >
-          <div
-            className="w-full max-w-3xl overflow-hidden rounded-xl border bg-background shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pause-history-title"
-          >
-            <div className="flex items-center justify-between border-b px-4 py-3">
+        <Dialog open={showPauses} onOpenChange={setShowPauses}>
+          <DialogContent className="block max-w-3xl gap-0 overflow-hidden p-0">
+            <DialogHeader className="flex-row items-center justify-between border-b px-4 py-3 text-left">
               <div>
-                <h3 id="pause-history-title" className="text-sm font-semibold">
-                  Pausas do atendimento
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <DialogTitle className="text-sm font-semibold">Pausas do atendimento</DialogTitle>
+                <DialogDescription className="mt-0.5 text-xs">
                   Histórico auditável de interrupções do SLA.
-                </p>
+                </DialogDescription>
               </div>
               <LivePausedDuration
                 storedSeconds={ticket.total_sla_paused_seconds ?? 0}
                 activeSince={activePause?.started_at ?? null}
               />
-            </div>
+            </DialogHeader>
             <div className="max-h-[65vh] overflow-auto p-4">
               {pauses.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-8 text-center text-xs text-muted-foreground">
@@ -2019,18 +2017,26 @@ function TicketDetailPage() {
                 Fechar
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {askOpen && access.edit && canStartAttendance(ticket.status as TicketStatus) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[400px] rounded-lg border bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold">Iniciar atendimento?</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Deseja iniciar o atendimento deste ticket? Você será atribuído como técnico e o
-              cronômetro do Time Tracking será iniciado automaticamente.
-            </p>
+        <Dialog open={askOpen} onOpenChange={() => {}}>
+          <DialogContent
+            className="block max-w-[400px] p-4"
+            windowControls={false}
+            showCloseButton={false}
+            onEscapeKeyDown={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
+          >
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-sm font-semibold">Iniciar atendimento?</DialogTitle>
+              <DialogDescription className="mt-1 text-xs">
+                Deseja iniciar o atendimento deste ticket? Você será atribuído como técnico e o
+                cronômetro do Time Tracking será iniciado automaticamente.
+              </DialogDescription>
+            </DialogHeader>
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -2044,8 +2050,8 @@ function TicketDetailPage() {
                 {startingAttendance ? "Iniciando…" : "Sim, iniciar"}
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -52,6 +52,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-window-header: var(--window-header);
+  --color-window-header-foreground: var(--window-header-foreground);
   --color-ring-offset-background: var(--background);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -79,6 +81,8 @@
   --popover-foreground: #111827;
   --primary: #1686a7;
   --primary-foreground: #ffffff;
+  --window-header: #1a6b8a;
+  --window-header-foreground: #ffffff;
   --secondary: #e9f6f9;
   --secondary-foreground: #155e75;
   --muted: #f1f3f5;
@@ -108,6 +112,8 @@
 }
 
 .dark {
+  --window-header: #47c4dd;
+  --window-header-foreground: #041115;
   color-scheme: dark;
   --background: #060608;
   --foreground: #f4f6f8;
@@ -259,7 +265,7 @@
 
 /* Compact form typography inside dialogs (cadastros) */
 [role="dialog"] label {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
 }
 [role="dialog"] input,

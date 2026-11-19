@@ -25,8 +25,9 @@ try {
     });
     await page.route("**/*", async (route) => {
       const request = route.request(), url = request.url();
-      if (url.includes("/_serverFn/")) return route.fulfill({ json: { result: url.includes(permissionsId) ? ["contratos", "financeiro", "financeiro_contas_pagar"].flatMap((module) => ["view", "create", "edit", "delete"].map((action) => ({ module, action }))) : [], context: {} } });
+      if (url.includes("/_serverFn/")) return route.fulfill({ json: { result: url.includes(permissionsId) ? ["contratos", "contratos_fornecedores", "financeiro", "financeiro_contas_pagar"].flatMap((module) => ["view", "create", "edit", "delete"].map((action) => ({ module, action }))) : [], context: {} } });
       if (url.includes("/rest/v1/profiles")) return route.fulfill({ json: { tenant_id: "ca100000-0000-4000-8000-000000000001" } });
+      if (url.includes("/rest/v1/rpc/get_supplier_contract_options")) return route.fulfill({ json: { companies: [{ id: operator, legal_name: "APTech", trade_name: "APTech" }], suppliers: [{ id: supplier, legal_name: "Fornecedor teste", trade_name: null, is_active: true }], categories, cost_centers: centers } });
       if (url.includes("/rest/v1/operating_companies")) return route.fulfill({ json: [{ id: operator, legal_name: "APTech", trade_name: "APTech" }] });
       if (url.includes("/rest/v1/companies")) return route.fulfill({ json: [{ id: customer, name: "Cliente teste" }] });
       if (url.includes("/rest/v1/suppliers")) return route.fulfill({ json: [{ id: supplier, legal_name: "Fornecedor teste", is_active: true }] });
@@ -46,12 +47,13 @@ try {
     });
     await page.goto(`http://127.0.0.1:4173/${kind === "customer" ? "contracts" : "supplier-contracts"}`);
     await page.getByRole("button", { name: "Novo contrato", exact: true }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: /^(Novo|Editar) contrato/ });
     const save = dialog.getByRole("button", { name: "Salvar", exact: true });
     assert.equal(await save.isDisabled(), true);
     const categoryGroup = dialog.locator("fieldset").filter({ has: page.locator("legend", { hasText: "Categorias financeiras" }) });
     const centerGroup = dialog.locator("fieldset").filter({ has: page.locator("legend", { hasText: "Centros de custo" }) });
     async function choose(trigger, name) { await trigger.click(); await page.getByRole("option", { name, exact: true }).click(); }
+    await choose(dialog.getByText("Empresa operadora *", { exact: true }).locator("..").getByRole("combobox"), "APTech");
     for (const [group, type, options, percentage] of [[categoryGroup, "categoria", categories, "70"], [centerGroup, "centro de custo", centers, "60"]]) {
       await group.getByRole("button", { name: `Adicionar ${type}`, exact: true }).click();
       assert.equal(await group.locator("input").first().inputValue(), "100");
@@ -60,7 +62,7 @@ try {
       await group.getByRole("button", { name: `Adicionar ${type}`, exact: true }).click();
       assert.equal(await group.locator("input").nth(1).inputValue(), String(100 - Number(percentage)));
       await group.getByRole("combobox").nth(1).click();
-      assert.equal(await page.getByRole("option", { name: `${options[0].code} · ${options[0].name}`, exact: true }).getAttribute("data-disabled"), "");
+      assert.equal(await page.getByRole("option", { name: `${options[0].code} · ${options[0].name}`, exact: true }).getAttribute("aria-disabled"), "true");
       await page.getByRole("option", { name: `${options[1].code} · ${options[1].name}`, exact: true }).click();
     }
     await save.waitFor({ state: "visible" });

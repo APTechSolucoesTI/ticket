@@ -1,9 +1,10 @@
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
-import { useEffect } from "react";
+import { useEffect, useReducer, useRef } from "react";
+import { useRetainedDialogResource } from "@/components/ui/dialog-resources";
 import {
   Bold,
   Italic,
@@ -50,6 +51,7 @@ function ToolbarBtn({
       variant="ghost"
       size="icon"
       title={title}
+      aria-label={title}
       onClick={onClick}
       className={cn("h-7 w-7", active && "bg-accent text-accent-foreground")}
     >
@@ -191,39 +193,55 @@ function Toolbar({ editor }: { editor: Editor }) {
 }
 
 export function RichTextEditor({ value, onChange, className, readOnly = false }: Props) {
-  const editor = useEditor({
-    // Cria o editor dentro de um efeito, não durante o render. Sem isso, o
-    // StrictMode do React (dev) dispara um segundo render antes do efeito
-    // de montagem rodar, e o Tiptap acaba chamando getHTML() num editor já
-    // destruído - o schema interno vira null e o ProseMirror quebra com
-    // "Cannot read properties of null (reading 'cached')" ao serializar.
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({ link: false, underline: false }),
-      Underline,
-      Link.configure({ openOnClick: false, autolink: true }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-    ],
-    content: value || "",
-    editable: !readOnly,
-    editorProps: {
-      attributes: {
-        class: "prose prose-sm dark:prose-invert max-w-none min-h-[260px] p-3 focus:outline-none",
-      },
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const [, refreshToolbar] = useReducer((version: number) => version + 1, 0);
+  // Create in an effect (SSR/StrictMode safe). The dialog owns the imperative
+  // instance while minimized, retaining ProseMirror selection and undo history.
+  const editor = useRetainedDialogResource(
+    () =>
+      new Editor({
+        extensions: [
+          StarterKit.configure({ link: false, underline: false }),
+          Underline,
+          Link.configure({ openOnClick: false, autolink: true }),
+          TextAlign.configure({ types: ["heading", "paragraph"] }),
+        ],
+        content: value || "",
+        editable: !readOnly,
+        editorProps: {
+          attributes: {
+            class:
+              "prose prose-sm dark:prose-invert max-w-none min-h-[260px] p-3 focus:outline-none",
+          },
+        },
+        onUpdate: ({ editor }) => {
+          if (!editor.isDestroyed) onChangeRef.current(editor.getHTML());
+        },
+      }),
+    (instance) => {
+      if (!instance.isDestroyed) instance.destroy();
     },
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
-  });
+  );
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
+    editor.on("transaction", refreshToolbar);
+    return () => {
+      editor.off("transaction", refreshToolbar);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
     if (value !== editor.getHTML()) editor.commands.setContent(value || "", { emitUpdate: false });
   }, [editor, value]);
 
   useEffect(() => {
-    editor?.setEditable(!readOnly);
+    if (editor && !editor.isDestroyed) editor.setEditable(!readOnly);
   }, [editor, readOnly]);
 
-  if (!editor) return null;
+  if (!editor || editor.isDestroyed) return null;
 
   return (
     <div className={cn("rounded-md border bg-background", className)}>
