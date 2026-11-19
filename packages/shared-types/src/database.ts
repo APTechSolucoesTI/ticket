@@ -1444,7 +1444,8 @@ export type Database = {
           delivered_at: string | null;
           delivery_error: string | null;
           delivery_status: string;
-          email: string;
+          email: string | null;
+          phone: string | null;
           expires_at: string;
           id: string;
           tenant_id: string;
@@ -1458,7 +1459,8 @@ export type Database = {
           delivered_at?: string | null;
           delivery_error?: string | null;
           delivery_status?: string;
-          email: string;
+          email?: string | null;
+          phone?: string | null;
           expires_at: string;
           id?: string;
           tenant_id: string;
@@ -1472,7 +1474,8 @@ export type Database = {
           delivered_at?: string | null;
           delivery_error?: string | null;
           delivery_status?: string;
-          email?: string;
+          email?: string | null;
+          phone?: string | null;
           expires_at?: string;
           id?: string;
           tenant_id?: string;

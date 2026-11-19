@@ -21,7 +21,9 @@ const signature = createHmac("sha256", "isolated-security-test-portal-key")
   .digest("base64url");
 const authorization = `Bearer ${payload}.${signature}`;
 let fixture;
+const rateBuckets = new Map();
 function reset(overrides = {}) {
+  rateBuckets.clear();
   fixture = {
     active: true,
     contactError: false,
@@ -43,7 +45,7 @@ function reset(overrides = {}) {
 }
 reset();
 
-const app = await startLocalApp(async (request, response) => {
+const fixtureBackend = async (request, response) => {
   const url = new URL(request.url, "http://fixture.test");
   const json = (body, status = 200) => {
     response.writeHead(status, { "content-type": "application/json" });
@@ -85,7 +87,25 @@ const app = await startLocalApp(async (request, response) => {
     if (fixture.consumed || fixture.attempts >= 5) return json(null);
     return json(++fixture.attempts);
   }
+  if (url.pathname === "/channels/whatsapp/internal-auth-code") {
+    assert.equal(request.headers["x-apticket-internal-key"], "fixture-service");
+    fixture.whatsapp = await readBody();
+    return json({}, fixture.whatsappFailure ? 503 : 200);
+  }
   if (url.pathname.endsWith("/contacts")) {
+    if (fixture.phoneOtp && url.searchParams.has("phone")) {
+      assert.equal(url.searchParams.get("phone"), "eq.5511999991234");
+      const match = {
+        id: contact,
+        tenant_id: tenant,
+        company_id: company,
+        is_active: true,
+        email: null,
+        phone: "5511999991234",
+        can_open_tickets: true,
+      };
+      return json(fixture.ambiguous ? [match, { ...match, tenant_id: otherTenant }] : [match]);
+    }
     assert.equal(url.searchParams.get("id"), `eq.${contact}`);
     assert.equal(url.searchParams.get("tenant_id"), `eq.${tenant}`);
     if (fixture.contactError) return json({ message: "fixture unavailable" }, 500);
@@ -95,7 +115,8 @@ const app = await startLocalApp(async (request, response) => {
       company_id: company,
       is_active: fixture.active,
       name: "Fixture",
-      email: "fixture@example.test",
+      email: fixture.phoneOtp ? null : "fixture@example.test",
+      phone: fixture.phoneOtp ? "5511999991234" : null,
       can_open_tickets: true,
       is_portal_admin: false,
       is_portal_financial: false,
@@ -103,6 +124,25 @@ const app = await startLocalApp(async (request, response) => {
     });
   }
   if (url.pathname.endsWith("/portal_otp_codes")) {
+    if (fixture.phoneOtp) {
+      if (request.method === "POST") {
+        fixture.issued = { id: "otp-fixture", attempts: 0, ...(await readBody()) };
+        return json({ id: "otp-fixture" });
+      }
+      if (request.method === "GET") {
+        assert.equal(url.searchParams.get("phone"), "eq.5511999991234");
+        assert.equal(url.searchParams.get("delivery_status"), "eq.sent");
+        return json(
+          fixture.issued?.delivery_status === "sent" && !fixture.issued.consumed_at
+            ? [fixture.issued]
+            : [],
+        );
+      }
+      const changes = await readBody();
+      if (!fixture.issued || fixture.issued.consumed_at) return json([]);
+      Object.assign(fixture.issued, changes);
+      return json([{ id: "otp-fixture" }]);
+    }
     if (request.method === "GET") {
       fixture.otpReads++;
       const attempts = fixture.attempts;
@@ -139,7 +179,9 @@ const app = await startLocalApp(async (request, response) => {
     const conditional = url.searchParams.get("consumed_at") === "is.null";
     const consumed = fixture.consumed;
     fixture.consumed = true;
-    return json((conditional && consumed) || fixture.attempts >= 5 ? [] : [{ id: "otp-fixture" }]);
+    return json(
+      (conditional && consumed) || fixture.attempts >= 5 ? [] : [{ id: "otp-fixture" }],
+    );
   }
   if (url.pathname.startsWith("/storage/v1/object/sign/")) {
     fixture.signed.push(decodeURIComponent(url.pathname.split("ticket-attachments/")[1]));
@@ -193,7 +235,8 @@ const app = await startLocalApp(async (request, response) => {
   }
   if (request.method === "GET") fixture.businessReads++;
   return json([]);
-});
+};
+const app = await startLocalApp(fixtureBackend, { rateBuckets });
 
 async function post(path, body = {}, authenticated = true) {
   const headers = authenticated ? { authorization } : {};
@@ -240,7 +283,10 @@ try {
     console.log("PASS SEC-02: inactive, lookup error, active, missing token");
     reset();
     const attachment = reply();
-    attachment.set("files", new File(["Synthetic upload fixture"], "fixture.txt", { type: "text/plain" }));
+    attachment.set(
+      "files",
+      new File(["Synthetic upload fixture"], "fixture.txt", { type: "text/plain" }),
+    );
     assert.equal((await post("ticket-reply", attachment)).status, 200);
     assert.equal(fixture.uploads.length, 1);
     assert.equal(fixture.writes, 1);
@@ -248,13 +294,18 @@ try {
     assert.equal((await post("ticket-reply", attachment)).status, 500);
     assert.equal(fixture.uploads.length, 0);
     assert.equal(fixture.writes, 0);
-    console.log("PASS SEC-09: portal delegates canonical bytes to scanner and fails closed before publishing");
+    console.log(
+      "PASS SEC-09: portal delegates canonical bytes to scanner and fails closed before publishing",
+    );
     for (const overrides of [{}, { scannerUnavailable: true }, { messageWriteError: true }]) {
       reset(overrides);
       const create = new FormData();
       create.set("subject", "Synthetic ticket");
       create.set("description", "Synthetic body");
-      create.set("files", new File(["Synthetic upload fixture"], "fixture.txt", { type: "text/plain" }));
+      create.set(
+        "files",
+        new File(["Synthetic upload fixture"], "fixture.txt", { type: "text/plain" }),
+      );
       const response = await post("tickets", create);
       const failed = overrides.scannerUnavailable || overrides.messageWriteError;
       assert.equal(response.status, failed ? 500 : 201);
@@ -262,7 +313,9 @@ try {
       if (overrides.messageWriteError) assert.deepEqual(fixture.storageDeletes, fixture.uploads);
       if (overrides.scannerUnavailable) assert.equal(fixture.writes, 0);
     }
-    console.log("PASS SEC-09: new ticket upload/publication failures remove only newly created resources");
+    console.log(
+      "PASS SEC-09: new ticket upload/publication failures remove only newly created resources",
+    );
   }
   if (!selected || selected === "SEC-03") {
     const valid = `${tenant}/${ticket}/fixture.pdf`;
@@ -304,14 +357,16 @@ try {
     reset({ otpWriteError: true });
     const failed = await post(
       "verify-otp",
-      { email: "failure@example.test", code: "123456" },
+      { email: "fixture@example.test", code: "123456" },
       false,
     );
     assert.equal(failed.status, 401, "database write failure cannot create a session");
     assert.equal(failed.body.token, undefined);
     reset({ concurrent: true });
     const results = await Promise.all(
-      [1, 2].map(() => post("verify-otp", { email: "race@example.test", code: "123456" }, false)),
+      [1, 2].map(() =>
+        post("verify-otp", { email: "fixture@example.test", code: "123456" }, false),
+      ),
     );
     assert.deepEqual(
       results.map((result) => result.status).sort(),
@@ -328,13 +383,13 @@ try {
     reset({ wrongRace: true });
     const rejected = await Promise.all(
       Array.from({ length: 5 }, () =>
-        post("verify-otp", { email: "attempt-race@example.test", code: "000000" }, false),
+        post("verify-otp", { email: "fixture@example.test", code: "000000" }, false),
       ),
     );
     assert.ok(rejected.every((result) => result.status === 401));
     const exhausted = await post(
       "verify-otp",
-      { email: "attempt-race@example.test", code: "123456" },
+      { email: "fixture@example.test", code: "123456" },
       false,
     );
     assert.equal(
@@ -346,6 +401,38 @@ try {
     assert.equal(fixture.attempts, 5, "concurrent guesses must not lose increments");
     console.log("PASS SEC-04: concurrent wrong guesses exhaust the existing five-attempt limit");
   }
+  const identifier = "(11) 99999-1234";
+  reset({ phoneOtp: true });
+  assert.equal((await post("request-otp", { identifier }, false)).status, 200);
+  assert.equal(fixture.issued.phone, "5511999991234");
+  assert.equal(fixture.issued.email, undefined);
+  assert.equal(fixture.whatsapp.contactId, contact);
+  assert.equal(fixture.whatsapp.tenantId, tenant);
+  const code = fixture.whatsapp.code;
+  assert.match(code, /^\d{6}$/);
+  assert.equal(fixture.issued.code_hash, createHash("sha256").update(code).digest("hex"));
+  const verified = await post("verify-otp", { identifier, code }, false);
+  assert.equal(verified.status, 200);
+  const phoneSession = verified.body.token;
+  const sessionResponse = await fetch(`${app.origin}/api/public/portal/session`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${phoneSession}` },
+  });
+  assert.equal(sessionResponse.status, 200);
+  assert.equal((await post("verify-otp", { identifier, code }, false)).status, 401);
+
+  reset({ phoneOtp: true, ambiguous: true });
+  assert.deepEqual((await post("request-otp", { identifier }, false)).body, { ok: true });
+  assert.equal(fixture.whatsapp, undefined);
+
+  reset({ phoneOtp: true, whatsappFailure: true });
+  assert.deepEqual((await post("request-otp", { identifier }, false)).body, { ok: true });
+  assert.equal(fixture.issued.delivery_status, "failed");
+  assert.equal(
+    (await post("verify-otp", { identifier, code: fixture.whatsapp.code }, false)).status,
+    401,
+  );
+  console.log("PASS phone-only OTP, session, replay rejection, ambiguity and delivery failure");
 } finally {
   await app.close();
 }

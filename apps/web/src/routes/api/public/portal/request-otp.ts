@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { parsePortalIdentifier, portalIdentifierInput } from "@/lib/portal-identifier";
 import { randomInt, createHash } from "node:crypto";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
 
@@ -9,7 +9,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const Schema = z.object({ email: z.string().trim().email() });
+const Schema = portalIdentifierInput;
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 
@@ -33,23 +33,27 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
         if (!parsed.success) {
           return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
         }
-        const email = parsed.data.email.toLowerCase();
+        const identifier = parsePortalIdentifier(parsed.data);
+        if (!identifier.success)
+          return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
+        const { field, value } = identifier.data;
 
-        const emailLimit = await checkRateLimit(
-          `portal-request-otp:email:${email}`,
+        const identifierLimit = await checkRateLimit(
+          `portal-request-otp:${field}:${value}`,
           5,
           15 * 60 * 1000,
         );
-        if (!emailLimit.allowed) return rateLimitedResponse(emailLimit.retryAfterSeconds, CORS);
+        if (!identifierLimit.allowed)
+          return rateLimitedResponse(identifierLimit.retryAfterSeconds, CORS);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: contacts, error: contactError } = await supabaseAdmin
           .from("contacts")
           .select(
-            "id, tenant_id, company_id, can_open_tickets, is_portal_admin, is_portal_financial, is_active",
+            "id, tenant_id, company_id, email, phone, can_open_tickets, is_portal_admin, is_portal_financial, is_active",
           )
-          .ilike("email", email)
+          .eq(field, value)
           .not("company_id", "is", null)
           .eq("is_active", true)
           .limit(2);
@@ -76,6 +80,13 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           return genericResponse();
         }
 
+        const contactLimit = await checkRateLimit(
+          `portal-request-otp:contact:${contact.id}`,
+          5,
+          15 * 60 * 1000,
+        );
+        if (!contactLimit.allowed) return genericResponse();
+
         const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
         const codeHash = createHash("sha256").update(code).digest("hex");
         const now = new Date().toISOString();
@@ -95,7 +106,7 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           .insert({
             tenant_id: contact.tenant_id,
             contact_id: contact.id,
-            email,
+            ...(field === "email" ? { email: value } : { phone: value }),
             code_hash: codeHash,
             expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
             delivery_status: "sending",
@@ -107,44 +118,20 @@ export const Route = createFileRoute("/api/public/portal/request-otp")({
           return genericResponse();
         }
 
-        try {
-          const { sendMail } = await import("@/lib/mailer.server");
-          const delivery = await sendMail({
-            to: email,
-            subject: "Código de acesso ao APTicket",
-            text: `Seu código de verificação é ${code}. Ele expira em 10 minutos. Se você não solicitou este código, ignore este e-mail.`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#172033"><h2 style="margin-bottom:8px">Acesso ao APTicket</h2><p>Use o código abaixo para confirmar seu acesso:</p><div style="margin:24px 0;padding:18px;border-radius:10px;background:#f3f6fb;text-align:center;font-size:30px;font-weight:700;letter-spacing:6px">${code}</div><p>Ele expira em 10 minutos.</p><p style="color:#64748b;font-size:13px">Se você não solicitou este código, ignore este e-mail.</p></div>`,
-          });
-          if (Array.isArray(delivery.accepted) && delivery.accepted.length === 0) {
-            throw new Error("O servidor SMTP não aceitou o destinatário");
-          }
-          await supabaseAdmin
-            .from("portal_otp_codes")
-            .update({
-              delivery_status: "sent",
-              delivery_error: null,
-              delivered_at: new Date().toISOString(),
-            })
-            .eq("id", otpRow.id);
-          console.info("[portal/request-otp] mail accepted", {
-            messageId: delivery.messageId,
-            accepted: Array.isArray(delivery.accepted) ? delivery.accepted.length : undefined,
-            rejected: Array.isArray(delivery.rejected) ? delivery.rejected.length : undefined,
-          });
-        } catch (mailErr) {
-          console.error("[portal/request-otp] mail send error", mailErr);
-          const deliveryError = mailErr instanceof Error ? mailErr.message : String(mailErr);
-          await supabaseAdmin
-            .from("portal_otp_codes")
-            .update({
-              consumed_at: new Date().toISOString(),
-              delivery_status: "failed",
-              delivery_error: deliveryError.slice(0, 1000),
-            })
-            .eq("id", otpRow.id);
-          // Do not leak delivery failure details to the caller (enumeration/DoS surface).
-        }
-
+        const { deliverAuthCode } = await import("@/lib/auth-code-delivery.server");
+        const delivered = await deliverAuthCode(contact, code);
+        await supabaseAdmin
+          .from("portal_otp_codes")
+          .update(
+            delivered
+              ? { delivery_status: "sent", delivered_at: new Date().toISOString() }
+              : {
+                  delivery_status: "failed",
+                  consumed_at: new Date().toISOString(),
+                  delivery_error: "Nenhum canal confirmou o envio.",
+                },
+          )
+          .eq("id", otpRow.id);
         return genericResponse();
       },
     },

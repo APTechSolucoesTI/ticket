@@ -1,6 +1,6 @@
 // Browser-side helpers for the customer portal's OTP-authenticated session.
 // The token is issued by /api/public/portal/verify-otp after the contact
-// proves ownership of their email; every other portal call must carry it.
+// proves access to a registered channel; every other portal call must carry it.
 
 const TOKEN_KEY = "apticket_portal_token_v1";
 
@@ -23,11 +23,11 @@ export async function portalFetch(path: string, init: RequestInit = {}): Promise
   return fetch(path, { ...init, headers });
 }
 
-export async function requestPortalOtp(email: string): Promise<void> {
+export async function requestPortalOtp(identifier: string): Promise<void> {
   const response = await fetch("/api/public/portal/request-otp", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ identifier }),
   });
   if (response.status === 429) {
     throw new Error("Muitas tentativas. Aguarde alguns minutos antes de reenviar.");
@@ -40,13 +40,13 @@ export async function requestPortalOtp(email: string): Promise<void> {
 }
 
 export async function verifyPortalOtp(
-  email: string,
+  identifier: string,
   code: string,
 ): Promise<{ ok: boolean; token?: string }> {
   const res = await fetch("/api/public/portal/verify-otp", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, code }),
+    body: JSON.stringify({ identifier, code }),
   });
   const json = await res.json();
   if (!res.ok || !json.ok) return { ok: false };

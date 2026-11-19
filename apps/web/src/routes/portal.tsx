@@ -121,7 +121,7 @@ const pendingLabels: Record<Exclude<PendingType, null | undefined>, string> = {
 };
 
 function PortalPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<LoginStep>("email");
   const [session, setSession] = useState<SessionData | null>(null);
@@ -165,12 +165,12 @@ function PortalPage() {
 
   const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!identifier.trim()) return;
     setLoading(true);
     try {
-      await requestPortalOtp(email.trim());
+      await requestPortalOtp(identifier.trim());
       setStep("otp");
-      toast.success("Se o e-mail estiver cadastrado, um código foi enviado.");
+      toast.success("Se o contato estiver cadastrado, confira o e-mail e o WhatsApp.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar o código.");
     } finally {
@@ -183,7 +183,7 @@ function PortalPage() {
     if (code.length !== 6) return;
     setLoading(true);
     try {
-      const result = await verifyPortalOtp(email.trim(), code);
+      const result = await verifyPortalOtp(identifier.trim(), code);
       if (!result.ok) {
         toast.error("Código inválido ou expirado.");
         return;
@@ -198,7 +198,7 @@ function PortalPage() {
   const handleLogout = () => {
     setPortalToken(null);
     setSession(null);
-    setEmail("");
+    setIdentifier("");
     setCode("");
     setStep("email");
   };
@@ -231,18 +231,20 @@ function PortalPage() {
               <>
                 <h2 className="text-lg font-semibold">Acessar portal</h2>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">
-                  Informe seu e-mail cadastrado. Enviaremos um código de verificação.
+                  Informe o e-mail ou telefone cadastrado. Enviaremos um código de verificação.
                 </p>
                 <form onSubmit={handleRequestCode} className="space-y-3">
                   <div>
-                    <Label htmlFor="email">E-mail</Label>
+                    <Label htmlFor="portal-identifier">E-mail ou telefone</Label>
                     <Input
-                      id="email"
-                      type="email"
+                      id="portal-identifier"
+                      type="text"
+                      autoComplete="username"
+                      autoCapitalize="none"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="voce@empresa.com"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="voce@empresa.com ou (11) 99999-9999"
                     />
                   </div>
                   <Button type="submit" disabled={loading} className="w-full">
@@ -254,14 +256,15 @@ function PortalPage() {
               <>
                 <h2 className="text-lg font-semibold">Digite o código</h2>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">
-                  Enviamos um código de 6 dígitos para <strong>{email}</strong>. Ele expira em 10
-                  minutos.
+                  Se o contato estiver cadastrado, o código de 6 dígitos será enviado pelos canais
+                  disponíveis. Ele expira em 10 minutos.
                 </p>
                 <form onSubmit={handleVerifyCode} className="space-y-3">
                   <div>
                     <Label htmlFor="code">Código</Label>
                     <Input
                       id="code"
+                      autoComplete="one-time-code"
                       inputMode="numeric"
                       pattern="\d{6}"
                       maxLength={6}
@@ -284,14 +287,18 @@ function PortalPage() {
                         setCode("");
                       }}
                     >
-                      Trocar e-mail
+                      Trocar e-mail ou telefone
                     </button>
                     <button
                       type="button"
                       className="text-primary underline"
                       onClick={() => {
-                        requestPortalOtp(email.trim())
-                          .then(() => toast.success("Código reenviado."))
+                        requestPortalOtp(identifier.trim())
+                          .then(() =>
+                            toast.success(
+                              "Se o contato estiver cadastrado, confira o e-mail e o WhatsApp.",
+                            ),
+                          )
                           .catch((error: unknown) =>
                             toast.error(
                               error instanceof Error

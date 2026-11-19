@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { checkRateLimit, clientIp, rateLimitedResponse } from "@/lib/rate-limit";
+import { parsePortalIdentifier, portalIdentifierInput } from "@/lib/portal-identifier";
 import { signPortalToken } from "@/lib/portal-session";
 
 const CORS = {
@@ -10,8 +11,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const Schema = z.object({
-  email: z.string().email(),
+const Schema = portalIdentifierInput.safeExtend({
   code: z.string().regex(/^\d{6}$/, "invalid_code_format"),
 });
 
@@ -42,22 +42,27 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
         if (!parsed.success) {
           return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
         }
-        const email = parsed.data.email.toLowerCase();
+        const identifier = parsePortalIdentifier(parsed.data);
+        if (!identifier.success)
+          return Response.json({ error: "invalid_payload" }, { status: 400, headers: CORS });
+        const { field, value } = identifier.data;
         const { code } = parsed.data;
 
-        const emailLimit = await checkRateLimit(
-          `portal-verify-otp:email:${email}`,
+        const identifierLimit = await checkRateLimit(
+          `portal-verify-otp:${field}:${value}`,
           10,
           10 * 60 * 1000,
         );
-        if (!emailLimit.allowed) return rateLimitedResponse(emailLimit.retryAfterSeconds, CORS);
+        if (!identifierLimit.allowed)
+          return rateLimitedResponse(identifierLimit.retryAfterSeconds, CORS);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: otpRow } = await supabaseAdmin
           .from("portal_otp_codes")
           .select("id, contact_id, tenant_id, code_hash, expires_at, attempts, consumed_at")
-          .eq("email", email)
+          .eq(field, value)
+          .eq("delivery_status", "sent")
           .is("consumed_at", null)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -89,6 +94,7 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
           .update({ consumed_at: consumedAt })
           .eq("id", otpRow.id)
           .eq("code_hash", codeHash)
+          .eq("delivery_status", "sent")
           .is("consumed_at", null)
           .gt("expires_at", consumedAt)
           .lt("attempts", MAX_ATTEMPTS)
@@ -99,10 +105,26 @@ export const Route = createFileRoute("/api/public/portal/verify-otp")({
         // issue a session unless this request successfully claimed the row.
         if (consumeError || !consumed) return fail();
 
+        const { data: contact } = await supabaseAdmin
+          .from("contacts")
+          .select(
+            "email, phone, company_id, is_active, can_open_tickets, is_portal_admin, is_portal_financial",
+          )
+          .eq("id", otpRow.contact_id)
+          .eq("tenant_id", otpRow.tenant_id)
+          .maybeSingle();
+        if (
+          !contact?.is_active ||
+          !contact.company_id ||
+          contact[field] !== value ||
+          (!contact.can_open_tickets && !contact.is_portal_admin && !contact.is_portal_financial)
+        )
+          return fail();
+
         const token = signPortalToken({
           contact_id: otpRow.contact_id,
           tenant_id: otpRow.tenant_id,
-          email,
+          email: contact.email,
         });
 
         return Response.json({ ok: true, token }, { status: 200, headers: CORS });

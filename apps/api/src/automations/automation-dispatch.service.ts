@@ -6,6 +6,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { SecretsService } from '../crypto/secrets.service';
 import { RedisService } from '../queue/redis.service';
 import { UazapiService } from '../channels/whatsapp/uazapi.service';
+import { EmailSenderService } from '../channels/email/email-sender.service';
 import type { Env } from '../config/env.validation';
 import type { AutomationDispatch } from './automation.types';
 
@@ -24,6 +25,15 @@ type AutomationRow = {
   canned_responses: { body: string };
 };
 
+type Recipient = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  is_portal_admin: boolean;
+  is_portal_financial: boolean;
+};
+
 @Injectable()
 export class AutomationDispatchService {
   private readonly portalUrl: string;
@@ -33,6 +43,7 @@ export class AutomationDispatchService {
     private readonly secrets: SecretsService,
     private readonly redis: RedisService,
     private readonly uazapi: UazapiService,
+    private readonly email: EmailSenderService,
     config: ConfigService<Env, true>,
   ) {
     this.portalUrl = `${config.get('CORS_ORIGIN', { infer: true }).replace(/\/+$/, '')}/portal`;
@@ -61,15 +72,117 @@ export class AutomationDispatchService {
       .eq('active', true)
       .is('deleted_at', null);
     if (error) throw error;
+    const recipients = await this.recipients(dispatch);
+    const { data: documents, error: documentsError } = await this.db
+      .from('client_documents')
+      .select('competencia')
+      .eq('tenant_id', dispatch.tenant_id)
+      .eq('company_id', dispatch.company_id)
+      .eq('publication_batch_id', dispatch.related_entity_id)
+      .is('deleted_at', null);
+    if (documentsError) throw documentsError;
+    if (!documents?.length) return;
+
+    const emailDelivery = this.sendDocumentEmails(
+      dispatch.tenant_id,
+      recipients,
+    ).catch(() => false);
+    const whatsappErrors: unknown[] = [];
     for (const automation of (automations ??
       []) as unknown as AutomationRow[]) {
-      await this.execute(automation, dispatch);
+      try {
+        await this.execute(automation, dispatch, recipients, documents);
+      } catch (error) {
+        whatsappErrors.push(error);
+      }
     }
+    if (!(await emailDelivery))
+      throw new Error('Falha no envio de avisos de documentos por e-mail.');
+    if (whatsappErrors.length)
+      throw new Error('Falha ao processar a automação de WhatsApp.');
+  }
+
+  private async recipients(dispatch: AutomationDispatch): Promise<Recipient[]> {
+    const { data: links, error } = await this.db
+      .from('contact_companies')
+      .select('contact_id')
+      .eq('company_id', dispatch.company_id)
+      .eq('tenant_id', dispatch.tenant_id);
+    if (error) throw error;
+    const linkedIds = (links ?? []).map(
+      (link: { contact_id: string }) => link.contact_id,
+    );
+    let query = this.db
+      .from('contacts')
+      .select('id,name,email,phone,is_portal_admin,is_portal_financial')
+      .eq('tenant_id', dispatch.tenant_id)
+      .eq('is_active', true)
+      .not('company_id', 'is', null);
+    query = linkedIds.length
+      ? query.or(
+          `company_id.eq.${dispatch.company_id},id.in.(${linkedIds.join(',')})`,
+        )
+      : query.eq('company_id', dispatch.company_id);
+    const response = await query;
+    if (response.error) throw response.error;
+    return (response.data ?? []) as Recipient[];
+  }
+
+  private async sendDocumentEmails(
+    tenantId: string,
+    recipients: Recipient[],
+  ): Promise<boolean> {
+    const addresses = new Set(
+      recipients
+        .filter((contact) => contact.is_portal_financial)
+        .flatMap((contact) =>
+          contact.email?.trim() ? [contact.email.trim().toLowerCase()] : [],
+        ),
+    );
+    if (!addresses.size) return true;
+    const { data: tenant, error } = await this.supabase.client
+      .from('tenants')
+      .select(
+        'name,email_enabled,email_imap_user,email_imap_password,email_smtp_host,email_smtp_port,email_smtp_secure',
+      )
+      .eq('id', tenantId)
+      .maybeSingle();
+    if (
+      error ||
+      !tenant?.email_enabled ||
+      !tenant.email_smtp_host ||
+      !tenant.email_imap_user ||
+      !tenant.email_imap_password
+    )
+      return false;
+    const smtp = {
+      host: tenant.email_smtp_host,
+      port: tenant.email_smtp_port,
+      secure: tenant.email_smtp_secure,
+      user: tenant.email_imap_user,
+      password: this.secrets.decrypt(tenant.email_imap_password),
+      fromName: tenant.name,
+    };
+    let delivered = true;
+    for (const to of addresses) {
+      try {
+        await this.email.sendTenantEmail(smtp, {
+          to,
+          subject: 'Novos documentos no Portal do Cliente',
+          text: `Há novos documentos disponíveis no Portal do Cliente do APTicket. Acesse: ${this.portalUrl}`,
+        });
+      } catch {
+        delivered = false;
+      }
+    }
+    return delivered;
   }
 
   private async execute(
     automation: AutomationRow,
     dispatch: AutomationDispatch,
+    contacts: Recipient[],
+    documents: Array<{ competencia?: string | null }>,
   ) {
     const { data: company } = await this.db
       .from('companies')
@@ -77,31 +190,7 @@ export class AutomationDispatchService {
       .eq('id', dispatch.company_id)
       .eq('tenant_id', dispatch.tenant_id)
       .maybeSingle();
-    const { data: links } = await this.db
-      .from('contact_companies')
-      .select('contact_id')
-      .eq('company_id', dispatch.company_id)
-      .eq('tenant_id', dispatch.tenant_id);
-    const contactIds = (links ?? []).map(
-      (item: { contact_id: string }) => item.contact_id,
-    );
-    let recipients: Array<{
-      id: string;
-      name: string;
-      phone: string | null;
-      is_portal_admin: boolean;
-      is_portal_financial: boolean;
-    }> = [];
-    if (contactIds.length) {
-      const response = await this.db
-        .from('contacts')
-        .select('id,name,phone,is_portal_admin,is_portal_financial')
-        .eq('tenant_id', dispatch.tenant_id)
-        .eq('is_active', true)
-        .in('id', contactIds);
-      recipients = (response.data ?? []) as typeof recipients;
-    }
-    recipients = recipients.filter((contact) => {
+    const recipients = contacts.filter((contact) => {
       if (automation.recipient_profile === 'financeiro')
         return contact.is_portal_financial;
       if (automation.recipient_profile === 'administrativo')
@@ -109,12 +198,6 @@ export class AutomationDispatchService {
       return contact.is_portal_financial || contact.is_portal_admin;
     });
 
-    const { data: documents } = await this.db
-      .from('client_documents')
-      .select('competencia')
-      .eq('tenant_id', dispatch.tenant_id)
-      .eq('publication_batch_id', dispatch.related_entity_id)
-      .is('deleted_at', null);
     const competencia = documents?.[0]?.competencia
       ? new Intl.DateTimeFormat('pt-BR', {
           month: '2-digit',

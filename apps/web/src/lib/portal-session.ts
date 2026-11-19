@@ -1,5 +1,5 @@
 // Server-only. Short-lived, HMAC-signed session token issued after a portal
-// contact proves ownership of their email via OTP (see routes/api/public/portal
+// contact proves access to a registered channel via OTP (see routes/api/public/portal
 // /request-otp.ts and verify-otp.ts). This token - not a client-supplied email -
 // is what the rest of the portal endpoints trust to identify the caller.
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -7,7 +7,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export type PortalSessionPayload = {
   contact_id: string;
   tenant_id: string;
-  email: string;
+  email: string | null;
   exp: number; // unix seconds
 };
 
@@ -58,7 +58,7 @@ export function verifyPortalToken(token: string | null | undefined): PortalSessi
   if (typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000)) {
     return null; // expired
   }
-  if (!payload.contact_id || !payload.tenant_id || !payload.email) return null;
+  if (!payload.contact_id || !payload.tenant_id) return null;
   return payload;
 }
 

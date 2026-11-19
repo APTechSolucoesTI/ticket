@@ -14,6 +14,7 @@ import { WhatsappNotificationService } from './whatsapp-notification.service';
 import { UazapiService } from './uazapi.service';
 import { OutboundChannelController } from './outbound-channel.controller';
 import { OutboundChannelService } from './outbound-channel.service';
+import { AuthCodeController } from './auth-code.controller';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { OutboundChannelService } from './outbound-channel.service';
     WhatsappController,
     WhatsappWebhookController,
     OutboundChannelController,
+    AuthCodeController,
   ],
   providers: [
     WhatsappInstanceService,

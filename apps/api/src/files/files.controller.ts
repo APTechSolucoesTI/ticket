@@ -11,37 +11,20 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
 import { Public } from '../auth/public.decorator';
+import { InternalServiceGuard as InternalFileUploadGuard } from '../auth/internal-service.guard';
 import { FileUploadService } from './file-upload.service';
 import { MAX_UPLOAD_BYTES } from './file-security.service';
-import type { Env } from '../config/env.validation';
+
+export { InternalFileUploadGuard };
 
 type UploadRequest = Request<
   Record<string, never>,
   unknown,
   { bucket?: unknown; path?: unknown }
 >;
-
-@Injectable()
-export class InternalFileUploadGuard implements CanActivate {
-  constructor(private readonly config: ConfigService<Env, true>) {}
-  canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest<Request>();
-    const supplied = request.headers['x-apticket-internal-key'];
-    const expected = this.config.get('SUPABASE_SERVICE_ROLE_KEY', {
-      infer: true,
-    });
-    return (
-      typeof supplied === 'string' &&
-      Buffer.byteLength(supplied) === Buffer.byteLength(expected) &&
-      timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
-    );
-  }
-}
 
 const multipart = FileInterceptor('file', {
   limits: {

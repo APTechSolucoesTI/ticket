@@ -92,7 +92,7 @@ function savePersisted(v: Persisted) {
 
 export default function HomeChat({ authenticatedSession, onTicketCreated }: HomeChatProps) {
   const [step, setStep] = useState<Step>("closed");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<Extract<SessionResp, { found: true }> | null>(null);
@@ -105,7 +105,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
 
   useEffect(() => {
     if (!authenticatedSession) return;
-    setEmail(authenticatedSession.contact.email ?? "");
+    setIdentifier(authenticatedSession.contact.email ?? "");
     setSession({ found: true, ...authenticatedSession });
     setContractId((current) =>
       authenticatedSession.contracts.some((contract) => contract.id === current)
@@ -123,7 +123,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
     const belongsToAuthenticatedContact =
       !authenticatedSession || persistedChatMatchesContact(p, authenticatedSession.contact);
     if (p && getPortalToken() && belongsToAuthenticatedContact) {
-      setEmail(p.email);
+      setIdentifier(p.email);
       setTicket({ id: p.ticket_id, number: p.number });
       setStep("chat");
     } else if (p) {
@@ -171,11 +171,11 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
 
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!identifier.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      await requestPortalOtp(email.trim());
+      await requestPortalOtp(identifier.trim());
       setStep("otp");
     } catch (error) {
       setError(
@@ -194,7 +194,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
     setLoading(true);
     setError(null);
     try {
-      const result = await verifyPortalOtp(email.trim(), code);
+      const result = await verifyPortalOtp(identifier.trim(), code);
       if (!result.ok) {
         setError("Código inválido ou expirado.");
         return;
@@ -202,7 +202,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
       const res = await portalFetch("/api/public/portal/session", { method: "POST" });
       const json: SessionResp = await res.json();
       if (!json.found) {
-        setError("E-mail verificado, mas nenhum cadastro de cliente foi encontrado.");
+        setError("Nenhum cadastro de cliente foi encontrado.");
         setPortalToken(null);
         return;
       }
@@ -247,7 +247,7 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
       setTicket(t);
       savePersisted({
         contact_id: session?.contact.id,
-        email: email.trim(),
+        email: session?.contact.email ?? "",
         ticket_id: t.id,
         number: t.number,
       });
@@ -329,15 +329,22 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
         {step === "email" && (
           <form onSubmit={requestCode} className="p-4 flex flex-col gap-3 h-full">
             <p className="text-sm text-muted-foreground">
-              Informe o e-mail cadastrado no seu contrato. Enviaremos um código de verificação.
+              Informe o e-mail ou telefone cadastrado no seu contrato. Enviaremos um código de
+              verificação.
             </p>
+            <label htmlFor="support-chat-identifier" className="text-sm font-medium">
+              E-mail ou telefone
+            </label>
             <input
-              type="email"
+              id="support-chat-identifier"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
               required
               autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@empresa.com.br"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="voce@empresa.com.br ou (11) 99999-9999"
               className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {error && <div className="text-xs text-destructive">{error}</div>}
@@ -365,8 +372,8 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
         {step === "otp" && (
           <form onSubmit={verifyCode} className="p-4 flex flex-col gap-3 h-full">
             <p className="text-sm text-muted-foreground">
-              Enviamos um código de 6 dígitos para <strong>{email}</strong>. Ele expira em 10
-              minutos.
+              Se o contato estiver cadastrado, confira o código de 6 dígitos no e-mail ou no
+              WhatsApp. Ele expira em 10 minutos.
             </p>
             <input
               type="text"
@@ -399,14 +406,14 @@ export default function HomeChat({ authenticatedSession, onTicketCreated }: Home
                   setError(null);
                 }}
               >
-                Trocar e-mail
+                Trocar e-mail ou telefone
               </button>
               <button
                 type="button"
                 className="text-primary underline"
                 onClick={() => {
                   setError(null);
-                  requestPortalOtp(email.trim()).catch((error: unknown) =>
+                  requestPortalOtp(identifier.trim()).catch((error: unknown) =>
                     setError(
                       error instanceof Error
                         ? error.message
