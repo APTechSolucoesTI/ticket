@@ -247,6 +247,7 @@ try {
       false,
       "modal traps focus",
     );
+    const initialCloses = Number(await page.getByTestId("closes-Cadastro A").textContent());
     const target = await bounds(page.getByTestId("background-action"));
     await page.mouse.click(target.x + target.width / 2, target.y + target.height / 2);
     assert.equal(
@@ -254,7 +255,31 @@ try {
       "Ação de fundo: 0",
       "background did not receive pointer click",
     );
-    if (!(await dialog().isVisible())) await open(); // Outside dismissal remains the existing policy.
+    // Outside dismissal may leave exit DOM visible until the next animation frame.
+    // Observe the real callback and finish closing before testing a newly open modal.
+    await poll(
+      () => page.getByTestId("closes-Cadastro A").textContent(),
+      (value) => Number(value) === initialCloses + 1,
+      "outside dismissal invokes the existing close callback once",
+    );
+    await dialog().waitFor({ state: "hidden" });
+    assert.equal(await page.getByTestId("open-Cadastro A").textContent(), "false");
+    await open();
+    await poll(
+      () =>
+        page.evaluate(() => ({
+          logicalOpen: document.querySelector('[data-testid="open-Cadastro A"]')?.textContent,
+          state: document.querySelector('[role="dialog"]')?.getAttribute("data-state"),
+          overflow: getComputedStyle(document.body).overflow,
+          pointerEvents: getComputedStyle(document.body).pointerEvents,
+        })),
+      (value) =>
+        value.logicalOpen === "true" &&
+        value.state === "open" &&
+        value.overflow === "hidden" &&
+        value.pointerEvents === "none",
+      "reopened modal is logically open and its background locks are active",
+    );
     await page.mouse.move(5, 5);
     await page.mouse.wheel(0, 450);
     await page.waitForTimeout(150);
@@ -572,6 +597,10 @@ try {
           };
         };
         return {
+          logicalOpen: [...document.querySelectorAll('[data-testid^="open-"]')].map((element) => ({
+            key: element.getAttribute("data-testid"),
+            value: element.textContent,
+          })),
           active: document.activeElement?.outerHTML.slice(0, 500),
           scrollY,
           body: {
@@ -590,6 +619,7 @@ try {
       })
       .catch((failure) => ({ error: failure.message }));
     await writeFile(path.join(directory, "failure-dom.json"), JSON.stringify(metadata, null, 2));
+    console.error("Synthetic fixture failure metadata:", JSON.stringify(metadata));
   }
   if (page)
     await page

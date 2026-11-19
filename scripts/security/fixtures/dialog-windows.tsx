@@ -145,6 +145,9 @@ function FixtureWindow({ title, uncontrolled = false }: { title: string; uncontr
   return (
     <>
       <output data-testid={`closes-${title}`}>{closes}</output>
+      <output data-testid={`open-${title}`} className="sr-only">
+        {String(open)}
+      </output>
       <UI.Dialog
         {...(uncontrolled ? {} : { open })}
         onOpenChange={(next) => {

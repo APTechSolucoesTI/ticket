@@ -32,14 +32,16 @@ for (const key of [
   globalThis[key] = window[key];
 globalThis.getComputedStyle = window.getComputedStyle.bind(window);
 const cache = new Map();
-function source(name) {
+function source(name, directory = webRoot) {
   if (name === "@/lib/use-permissions")
     return {
       usePermissions: () => {
         throw new Error("Unexpected permission network access in table fixture");
       },
     };
-  const base = path.join(webRoot, "src", name.slice(2));
+  const base = name.startsWith("@/")
+    ? path.join(webRoot, "src", name.slice(2))
+    : path.resolve(directory, name);
   const file = [base, base + ".tsx", base + ".ts"].find(existsSync);
   assert.ok(file, name);
   if (cache.has(file)) return cache.get(file).exports;
@@ -48,8 +50,12 @@ function source(name) {
   const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   });
+  const localRequire = createRequire(file);
   new Function("require", "exports", "module", compiled.outputText)(
-    (name) => (name.startsWith("@/") ? source(name) : require(name)),
+    (name) =>
+      name.startsWith("@/") || name.startsWith(".")
+        ? source(name, path.dirname(file))
+        : localRequire(name),
     module.exports,
     module,
   );
