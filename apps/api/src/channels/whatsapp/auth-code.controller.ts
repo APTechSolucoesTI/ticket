@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { Public } from '../../auth/public.decorator';
 import { InternalServiceGuard } from '../../auth/internal-service.guard';
@@ -19,6 +20,10 @@ const payload = z.object({
   tenantId: z.uuid(),
   contactId: z.uuid(),
   code: z.string().regex(/^\d{6}$/),
+});
+const outboundCredentials = z.object({
+  base_url: z.string(),
+  access_token: z.string(),
 });
 
 @ApiExcludeController()
@@ -55,23 +60,33 @@ export class AuthCodeController {
         .eq('id', tenantId)
         .maybeSingle(),
     ]);
-    const config = tenant.data;
     const phone = contact.data?.phone;
     if (
+      contact.error ||
+      tenant.error ||
+      !tenant.data ||
       !phone ||
-      !/^\d{10,15}$/.test(phone) ||
-      !config?.whatsapp_enabled ||
-      !config.whatsapp_uazapi_base_url ||
-      !config.whatsapp_uazapi_token
+      !/^\d{10,15}$/.test(phone)
     ) {
       throw new ServiceUnavailableException(
         'Canal de autenticação indisponível.',
       );
     }
+    const config = tenant.data;
     try {
+      const credentials =
+        config.whatsapp_enabled &&
+        config.whatsapp_uazapi_base_url &&
+        config.whatsapp_uazapi_token
+          ? {
+              base_url: config.whatsapp_uazapi_base_url,
+              access_token: config.whatsapp_uazapi_token,
+            }
+          : await this.financialOutbound(tenantId);
+      if (!credentials) throw new Error('Canal de saída indisponível.');
       const result = await this.whatsapp.sendText(
-        config.whatsapp_uazapi_base_url,
-        this.secrets.decrypt(config.whatsapp_uazapi_token),
+        credentials.base_url,
+        this.secrets.decrypt(credentials.access_token),
         phone,
         `Seu código de acesso ao APTicket é ${code}. Ele expira em 10 minutos. Se você não solicitou, ignore esta mensagem.`,
       );
@@ -82,5 +97,22 @@ export class AuthCodeController {
     throw new ServiceUnavailableException(
       'Canal de autenticação indisponível.',
     );
+  }
+
+  // Use the dedicated outbound number when inbound WhatsApp is disabled.
+  private async financialOutbound(tenantId: string) {
+    const db = this.supabase.client as unknown as SupabaseClient;
+    const { data, error } = await db
+      .from('outbound_channels')
+      .select('base_url,access_token')
+      .eq('tenant_id', tenantId)
+      .ilike('name', 'financeiro')
+      .eq('active', true)
+      .eq('status', 'connected')
+      .is('deleted_at', null)
+      .limit(2)
+      .maybeSingle();
+    const parsed = outboundCredentials.safeParse(data);
+    return !error && parsed.success ? parsed.data : null;
   }
 }
