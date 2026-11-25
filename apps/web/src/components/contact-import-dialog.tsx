@@ -204,7 +204,10 @@ export function ContactImportDialog({
       ) {
         throw new Error("Mapeie 'Nome', 'Cliente' e pelo menos 'E-mail' ou 'Telefone'");
       }
-      const { data: companies } = await supabase.from("companies").select("id, name");
+      const { data: companies, error: companiesError } = await supabase
+        .from("companies")
+        .select("id, name");
+      if (companiesError) throw companiesError;
       const companyByName = new Map((companies ?? []).map((c) => [norm(c.name), c.id]));
 
       const payloads: Record<string, unknown>[] = [];
@@ -273,6 +276,7 @@ export function ContactImportDialog({
         `${r.inserted} contato(s) importado(s)${r.skippedRows.length ? ` · ${r.skippedRows.length} ignorado(s)` : ""}`,
       );
       qc.invalidateQueries({ queryKey: ["contacts"] });
+      qc.invalidateQueries({ queryKey: ["customer-contacts"] });
       if (r.skippedRows.length) {
         setSkipped(r.skippedRows);
         setRows([]);

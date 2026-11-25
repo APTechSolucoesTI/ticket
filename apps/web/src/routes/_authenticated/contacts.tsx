@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ConfigurableTable, type ListColumn } from "@/components/configurable-table";
+import { ErrorState, LoadingState } from "@/components/data-state";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +80,13 @@ type Contact = {
   companies?: { name: string } | null;
   contact_companies?: Array<{ company_id: string; companies?: { name: string } | null }>;
 };
+
+function contactCompanyNames(contact: Contact): string[] {
+  const names = (contact.contact_companies ?? []).flatMap(({ companies }) =>
+    companies?.name ? [companies.name] : [],
+  );
+  return names.length ? names : contact.companies?.name ? [contact.companies.name] : [];
+}
 
 type ContactTicket = {
   id: string;
@@ -152,17 +160,36 @@ function ContactsPage() {
   const [toDelete, setToDelete] = useState<Contact | null>(null);
   const [ticketsContact, setTicketsContact] = useState<Contact | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["contacts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select(
-          "*, companies:companies!contacts_company_id_fkey(name), contact_companies(company_id, companies:companies!contact_companies_company_id_fkey(name))",
-        )
-        .order("name");
-      if (error) throw error;
-      return data as Contact[];
+    queryFn: async ({ signal }) => {
+      const contacts: Contact[] = [];
+      let batchSize = 200;
+      let offset = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from("contacts")
+          .select(
+            `id,company_id,name,email,phone,secondary_emails,secondary_phones,job_title,
+             can_open_tickets,receives_csat,is_active,is_portal_admin,is_portal_financial,
+             companies:companies!contacts_company_id_fkey(name),
+             contact_companies:contact_companies!contact_companies_contact_id_fkey(
+               company_id, companies:companies!contact_companies_company_id_fkey(name)
+             )`,
+          )
+          .order("name")
+          .order("id")
+          .range(offset, offset + batchSize - 1)
+          .abortSignal(signal);
+        if (error?.code === "57014" && batchSize > 25) {
+          batchSize /= 2;
+          continue;
+        }
+        if (error) throw error;
+        contacts.push(...(data as Contact[]));
+        if (data.length < batchSize) return contacts;
+        offset += data.length;
+      }
     },
   });
 
@@ -222,7 +249,13 @@ function ContactsPage() {
       />
 
       {isLoading ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">Carregando…</Card>
+        <LoadingState label="Carregando contatos…" />
+      ) : isError && !data?.length ? (
+        <ErrorState
+          title="Contatos indisponíveis"
+          description="Não foi possível carregar a listagem de contatos."
+          action={{ label: "Tentar novamente", onClick: () => void refetch() }}
+        />
       ) : !data?.length ? (
         <EmptyStub
           title="Nenhum contato cadastrado"
@@ -230,6 +263,16 @@ function ContactsPage() {
         />
       ) : (
         <Card className="p-3">
+          {isError && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2" role="status">
+              <p className="text-sm text-muted-foreground">
+                Não foi possível atualizar a lista. Veja abaixo os últimos contatos carregados.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          )}
           <ConfigurableTable<Contact>
             listKey="contacts"
             rows={data}
@@ -258,16 +301,8 @@ function ContactsPage() {
                   key: "company",
                   label: "Cliente",
                   className: "text-sm",
-                  accessor: (c) =>
-                    c.contact_companies?.map((link) => link.companies?.name).join(" ") ??
-                    c.companies?.name ??
-                    "",
-                  cell: (c) => {
-                    const names = c.contact_companies
-                      ?.map((link) => link.companies?.name)
-                      .filter(Boolean) as string[] | undefined;
-                    return names?.length ? names.join(", ") : c.companies?.name || "-";
-                  },
+                  accessor: (c) => contactCompanyNames(c).join(" "),
+                  cell: (c) => contactCompanyNames(c).join(", ") || "-",
                 },
                 {
                   key: "email",

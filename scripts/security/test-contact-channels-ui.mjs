@@ -35,6 +35,9 @@ const portalRequests = [];
 const errors = [];
 const checks = [];
 const observations = [];
+let failContactList = false;
+let contactListBatchLimit = 1000;
+let contactListTimeouts = 0;
 const app = await startLocalApp((request, response) => {
   const url = new URL(request.url, "http://fixture");
   const data = url.pathname.endsWith("/get_effective_permissions")
@@ -84,6 +87,13 @@ await page.route("https://fixture-supabase.example.test/**", async (route) => {
   if (url.pathname.endsWith("/profiles")) data = profile;
   if (url.pathname.endsWith("/companies")) data = [company];
   if (url.pathname.endsWith("/contacts")) {
+    if (request.method() === "GET" && failContactList) {
+      return route.fulfill({
+        status: 400,
+        headers,
+        json: { code: "PGRST200", message: "Test query rejected" },
+      });
+    }
     if (request.method() === "POST") {
       const body = request.postDataJSON();
       const inserted = (Array.isArray(body) ? body : [body]).map((values) => ({
@@ -92,7 +102,9 @@ await page.route("https://fixture-supabase.example.test/**", async (route) => {
         secondary_phones: [],
         ...values,
         companies: { name: company.name },
-        contact_companies: [{ company_id: company.id, companies: { name: company.name } }],
+        contact_companies: Array.isArray(body)
+          ? []
+          : [{ company_id: company.id, companies: { name: company.name } }],
       }));
       // IDs are stable even for multi-row imports.
       inserted.forEach((row, index) => {
@@ -110,7 +122,19 @@ await page.route("https://fixture-supabase.example.test/**", async (route) => {
       );
       writes.push({ method: "PATCH", body });
       data = null;
-    } else data = contacts;
+    } else {
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      const limit = Number(url.searchParams.get("limit") ?? 1000);
+      if (limit > contactListBatchLimit) {
+        contactListTimeouts++;
+        return route.fulfill({
+          status: 500,
+          headers,
+          json: { code: "57014", message: "canceling statement due to statement timeout" },
+        });
+      }
+      data = contacts.slice(offset, offset + Math.min(limit, 1000));
+    }
   }
   return route.fulfill({ status: 200, headers, body: JSON.stringify(data) });
 });
@@ -282,6 +306,42 @@ try {
   assert.equal(writes.at(-1).body.length, 2);
   checks.push("xlsx email-only and both imported, invalid supplied fields skipped");
   await page.getByRole("button", { name: "Fechar", exact: true }).click();
+
+  await page.getByRole("row", { name: /Importado email/ }).waitFor();
+  await page.getByRole("button", { name: "Filtrar Cliente", exact: true }).click();
+  await page.getByPlaceholder("Filtrar Cliente").fill(company.name);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("row", { name: /Importado email/ }).count(), 1);
+  assert.equal(await page.getByRole("row", { name: /Importado ambos/ }).count(), 1);
+  checks.push("xlsx imports remain visible under primary company filter");
+
+  failContactList = true;
+  await page.reload();
+  await page.getByRole("heading", { name: "Contatos indisponíveis" }).waitFor({ timeout: 8000 });
+  assert.equal(await page.getByText("Nenhum contato cadastrado", { exact: true }).count(), 0);
+  failContactList = false;
+  await page.getByRole("button", { name: "Tentar novamente" }).click();
+  await page.getByRole("row", { name: /Importado email/ }).waitFor();
+  checks.push("list outage is distinct from empty results and retry restores contacts");
+
+  const sampleCount = contacts.length;
+  contactListBatchLimit = 100;
+  contacts.push(
+    ...Array.from({ length: 1001 }, (_, index) => ({
+      ...contacts[0],
+      id: `bulk-${index}`,
+      name: index === 1000 ? "Último contato da importação em lote" : `Contato em lote ${index}`,
+    })),
+  );
+  await page.reload();
+  await page.getByRole("button", { name: "Filtrar Nome", exact: true }).click();
+  await page.getByPlaceholder("Filtrar Nome").fill("Último contato da importação em lote");
+  await page.keyboard.press("Escape");
+  await page.getByRole("row", { name: /Último contato da importação em lote/ }).waitFor();
+  assert.equal(contactListTimeouts, 1, "the contacts query lowers the limit after a timeout");
+  contactListBatchLimit = 1000;
+  contacts.splice(sampleCount);
+  checks.push("contacts beyond the default API row limit stay visible");
 
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => localStorage.setItem("apticket-theme", value), theme);
