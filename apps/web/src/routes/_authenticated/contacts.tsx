@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import {
   ExternalLink,
   Eye,
@@ -88,6 +88,43 @@ function contactCompanyNames(contact: Contact): string[] {
   return names.length ? names : contact.companies?.name ? [contact.companies.name] : [];
 }
 
+async function fetchDirectoryBatches<T>(
+  fetchBatch: (
+    start: number,
+    end: number,
+  ) => PromiseLike<{ data: T[] | null; error: PostgrestError | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let batchSize = 200;
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await fetchBatch(offset, offset + batchSize - 1);
+    if (error?.code === "57014" && batchSize > 25) {
+      batchSize /= 2;
+      continue;
+    }
+    if (error) throw error;
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < batchSize) return rows;
+    offset += batch.length;
+  }
+}
+
+const contactCompanyOptions = queryOptions({
+  queryKey: ["companies", "contact-directory"],
+  queryFn: ({ signal }) =>
+    fetchDirectoryBatches((start, end) =>
+      supabase
+        .from("companies")
+        .select("id, name")
+        .order("name")
+        .order("id")
+        .range(start, end)
+        .abortSignal(signal),
+    ),
+});
+
 type ContactTicket = {
   id: string;
   number: number;
@@ -163,33 +200,47 @@ function ContactsPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["contacts"],
     queryFn: async ({ signal }) => {
-      const contacts: Contact[] = [];
-      let batchSize = 200;
-      let offset = 0;
-      for (;;) {
-        const { data, error } = await supabase
-          .from("contacts")
-          .select(
-            `id,company_id,name,email,phone,secondary_emails,secondary_phones,job_title,
-             can_open_tickets,receives_csat,is_active,is_portal_admin,is_portal_financial,
-             companies:companies!contacts_company_id_fkey(name),
-             contact_companies:contact_companies!contact_companies_contact_id_fkey(
-               company_id, companies:companies!contact_companies_company_id_fkey(name)
-             )`,
-          )
-          .order("name")
-          .order("id")
-          .range(offset, offset + batchSize - 1)
-          .abortSignal(signal);
-        if (error?.code === "57014" && batchSize > 25) {
-          batchSize /= 2;
-          continue;
-        }
-        if (error) throw error;
-        contacts.push(...(data as Contact[]));
-        if (data.length < batchSize) return contacts;
-        offset += data.length;
+      const db = supabase as unknown as SupabaseClient;
+      const [contacts, links, companies] = await Promise.all([
+        fetchDirectoryBatches((start, end) =>
+          supabase
+            .from("contacts")
+            .select(
+              `id,company_id,name,email,phone,secondary_emails,secondary_phones,job_title,
+               can_open_tickets,receives_csat,is_active,is_portal_admin,is_portal_financial`,
+            )
+            .order("name")
+            .order("id")
+            .range(start, end)
+            .abortSignal(signal),
+        ),
+        fetchDirectoryBatches<{ contact_id: string; company_id: string }>((start, end) =>
+          db
+            .from("contact_companies")
+            .select("contact_id,company_id")
+            .order("contact_id")
+            .order("company_id")
+            .range(start, end)
+            .abortSignal(signal),
+        ),
+        qc.fetchQuery(contactCompanyOptions),
+      ]);
+      const companiesById = new Map(companies.map((company) => [company.id, company]));
+      const linksByContact = new Map<string, NonNullable<Contact["contact_companies"]>>();
+      for (const link of links) {
+        const entry = {
+          company_id: link.company_id,
+          companies: companiesById.get(link.company_id),
+        };
+        const contactLinks = linksByContact.get(link.contact_id);
+        if (contactLinks) contactLinks.push(entry);
+        else linksByContact.set(link.contact_id, [entry]);
       }
+      return contacts.map((contact): Contact => ({
+        ...contact,
+        companies: contact.company_id ? companiesById.get(contact.company_id) : null,
+        contact_companies: linksByContact.get(contact.id) ?? [],
+      }));
     },
   });
 
@@ -549,14 +600,7 @@ function ContactDialog({
     is_portal_financial: false,
   });
 
-  const companiesQuery = useQuery({
-    queryKey: ["companies", "options"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("companies").select("id, name").order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const companiesQuery = useQuery(contactCompanyOptions);
 
   const save = useMutation({
     mutationFn: async (payload: z.infer<typeof schema>) => {

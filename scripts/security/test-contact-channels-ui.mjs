@@ -86,6 +86,18 @@ await page.route("https://fixture-supabase.example.test/**", async (route) => {
   let data = [];
   if (url.pathname.endsWith("/profiles")) data = profile;
   if (url.pathname.endsWith("/companies")) data = [company];
+  if (url.pathname.endsWith("/contact_companies")) {
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Number(url.searchParams.get("limit") ?? 1000);
+    data = contacts
+      .flatMap((contact) =>
+        contact.contact_companies.map((link) => ({
+          contact_id: contact.id,
+          company_id: link.company_id,
+        })),
+      )
+      .slice(offset, offset + limit);
+  }
   if (url.pathname.endsWith("/contacts")) {
     if (request.method() === "GET" && failContactList) {
       return route.fulfill({
@@ -125,6 +137,13 @@ await page.route("https://fixture-supabase.example.test/**", async (route) => {
     } else {
       const offset = Number(url.searchParams.get("offset") ?? 0);
       const limit = Number(url.searchParams.get("limit") ?? 1000);
+      if (url.searchParams.get("select")?.includes("contact_companies")) {
+        return route.fulfill({
+          status: 500,
+          headers,
+          json: { code: "57014", message: "Nested lookup exceeded the database timeout" },
+        });
+      }
       if (limit > contactListBatchLimit) {
         contactListTimeouts++;
         return route.fulfill({
